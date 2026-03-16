@@ -243,7 +243,7 @@ Question: {question}
 Perform complete KP analysis. Format output for {mode.upper()} mode as instructed."""
     })
 
-    max_tokens = 4000 if mode == "astrologer" else 2000
+    max_tokens = 6000 if mode == "astrologer" else 3000
 
     message = client.messages.create(
         model="claude-haiku-4-5-20251001",
