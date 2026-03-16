@@ -1,0 +1,73 @@
+KP ASTROLOGY — CORE PRINCIPLES
+Source: KP Readers by Prof. K.S. Krishnamurti
+
+SUBLORD THEORY
+- The Sub Lord of a cusp is the final authority on whether a matter is promised
+- A planet gives results based on its Star Lord's house significations
+- The Sub Lord decides whether those results will actually materialize
+- Sign Lord = source of event, Star Lord = nature of result, Sub Lord = quality/outcome
+- Sub Lord power is 3x that of planet alone
+- Star Lord power is 2x that of planet alone
+
+SIGNIFICATOR HIERARCHY (order of strength)
+Level 1 (strongest): Planets occupying the house whose star lord is placed in relevant house
+Level 2: Planets occupying the relevant house itself
+Level 3: Planets owned by the star lord of relevant house
+Level 4: Planet that is the house lord (sign lord of cusp)
+- Focus on Level 1 significators first — they are strongest
+- Planets without any other planets in their stars are pure significators
+
+RULING PLANETS (at time of query)
+Order of strength:
+1. Ascendant star lord (strongest)
+2. Moon star lord (stronger)
+3. Ascendant sign lord (strong)
+4. Moon sign lord (strong)
+5. Day lord (weakest)
+- If Rahu/Ketu are in the sign of a ruling planet, the node REPLACES that planet in RP list
+- Common planets between significators and ruling planets = fruitful significators
+- Event will happen during dasha of planets common to both significators AND ruling planets
+
+PROMISE VS TIMING
+- ALWAYS check promise first via cuspal sub lord
+- Never discuss timing if promise is not confirmed
+- Promise = sub lord of primary cusp signifies relevant houses
+- Denial = sub lord signifies opposing houses (12th to relevant house negates it)
+- The 12th house to any house negates that house's matters
+- The 2nd house from any house amplifies that house's matters
+
+DASHA TIMING RULES
+- Event fructifies when Dasha AND Bhukti AND Anthra lords all signify relevant houses
+- All three must be significators — one alone is not enough
+- Ruling planets must overlap with operating dasha lords for event to manifest
+- Fast moving planets (Moon, Mercury, Venus, Mars, Sun, Ascendant) trigger events
+- Slow moving planets (Ketu, Rahu, Saturn, Jupiter) govern longer periods
+
+TRANSIT TIMING (GOCHARA)
+- If event expected within same day: move Ascendant to sensitive zone
+- If event expected within 27 days: move Moon to sign-star-sub of significators
+- If event expected within 1 year: move Sun through significator's sign-star-sub
+- If event expected within 5 years: move Jupiter through significator's zone
+- Three zodiac zones: Zone 1 = Aries to Cancer, Zone 2 = Leo to Scorpio, Zone 3 = Sagittarius to Pisces
+
+RAHU AND KETU RULES
+- Rahu and Ketu have no sign ownership — they act as agents
+- They represent the sign lord where they are placed
+- If conjoined with or aspected by any planet, they represent that planet
+- Nodes replace sign lords in ruling planet calculations
+- Rahu gives results of sign lord + conjunct planets combined
+
+RETROGRADE PLANETS
+- Retrograde planet as significator = delay, not denial
+- Matter will come through when planet turns direct
+- If both retrograde planet AND its star lord are retrograde = stronger delay
+
+DENIAL CONDITIONS
+- Sub lord of primary cusp signifying 12th to that house = denial/negation
+- Sub lord signifying 1, 6, 8, 12 for favorable matters = obstacles
+- Sub lord in enemy sign = weakened results
+- If sub lord connects only to unfavorable houses = matter denied
+
+IMPROVING HOUSES (favorable)
+Houses 1, 2, 3, 6, 10, 11 = improving houses in KP
+These houses when activated bring positive changes and success

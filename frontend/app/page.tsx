@@ -6,6 +6,7 @@ import { ArrowRight, Loader2, CheckCircle, XCircle, MessageCircle, MapPin } from
 import ReactMarkdown from "react-markdown";
 
 const API_URL = "https://devastroai.up.railway.app";
+const [mode, setMode] = useState<"user" | "astrologer">("user");
 
 
 interface PlaceSuggestion {
@@ -187,6 +188,7 @@ export default function Home() {
   };
 
   const handleAsk = async () => {
+
     if (!question.trim() || loading) return;
     const formattedDate = getFormattedDate();
     if (!formattedDate) return;
@@ -205,6 +207,7 @@ export default function Home() {
         timezone_offset: 5.5,
         topic: "auto",
         question: currentQuestion,
+        mode: mode,
         history: messages.slice(-4).map(m => ({  // send last 4 messages as history
           question: m.question,
           answer: m.answer
@@ -422,6 +425,23 @@ export default function Home() {
                     )}
                   </div>
                 </div>
+                {/* Mode Toggle */}
+                <div style={{ marginBottom: "1rem", display: "flex", alignItems: "center" }}>
+                  <label style={labelStyle}>I am a</label>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  {["user", "astrologer"].map(m => (
+                  <button key={m} onClick={() => setMode(m as "user" | "astrologer")}
+                  style={{
+                  flex: 1, padding: "10px", borderRadius: 8, cursor: "pointer",
+                  border: `0.5px solid ${mode === m ? "var(--accent)" : "var(--border2)"}`,
+                  background: mode === m ? "rgba(201,169,110,0.1)" : "var(--surface2)",
+                  color: mode === m ? "var(--accent)" : "var(--muted)", fontSize: 13,
+                }}>
+                {m === "user" ? "General User" : "KP Astrologer"}
+                </button>
+              ))}
+            </div>
+          </div>
 
                 <button onClick={handleSetup} disabled={chartLoading} style={{
                   width: "100%", background: "var(--accent)", color: "#09090f", border: "none", borderRadius: 8,

@@ -5,10 +5,12 @@ from app.services.llm_service import get_prediction, detect_topic
 from app.services.chart_engine import (
     generate_chart, calculate_dashas, get_current_dasha,
     calculate_antardashas, get_current_antardasha,
-    check_promise, check_dasha_relevance, get_ruling_planets
+    check_promise, check_dasha_relevance, get_ruling_planets,
+    get_all_house_significators
 )
 
 router = APIRouter()
+
 class HistoryItem(BaseModel):
     question: str
     answer: str
@@ -23,6 +25,7 @@ class PredictionRequest(BaseModel):
     topic: str = "auto"
     question: str
     history: List[HistoryItem] = []
+    mode: str = "user"  # "user" or "astrologer"
 
 @router.post("/ask")
 def ask_prediction(request: PredictionRequest):
@@ -36,7 +39,7 @@ def ask_prediction(request: PredictionRequest):
 
     moon_longitude = chart["planets"]["Moon"]["longitude"]
 
-    # Dashas — must come before topic analysis
+    # Dashas
     dashas = calculate_dashas(
         request.date, request.time,
         moon_longitude, request.timezone_offset
@@ -47,7 +50,7 @@ def ask_prediction(request: PredictionRequest):
 
     # Auto detect topic from question
     topic = detect_topic(request.question)
-    print(f"Detected topic: {topic} for question: {request.question}")
+    print(f"[{request.mode.upper()}] Detected topic: {topic} | Question: {request.question}")
 
     # KP Analysis using detected topic
     promise = check_promise(topic, chart["cusps"], chart["planets"])
@@ -56,6 +59,14 @@ def ask_prediction(request: PredictionRequest):
         chart["planets"], chart["cusps"]
     )
     ruling_planets = get_ruling_planets(request.timezone_offset)
+
+    # Get all house significators for richer analysis
+    all_significators = get_all_house_significators(chart["planets"], chart["cusps"])
+
+    # Planet house positions
+    planet_positions = {}
+    for planet, data in chart["planets"].items():
+        planet_positions[planet] = data.get("house", "")
 
     # Package everything for LLM
     chart_data = {
@@ -70,19 +81,38 @@ def ask_prediction(request: PredictionRequest):
             "mahadasha": current_md,
             "antardasha": current_ad
         },
-        "ruling_planets": ruling_planets
+        "ruling_planets": ruling_planets,
+        "significators": all_significators,
+        "planet_positions": planet_positions,
     }
 
-    # Get prediction from Claude
-    answer = get_prediction(chart_data, request.question, 
-                       [{"question": h.question, "answer": h.answer} for h in request.history])
+    # Get prediction from Claude with mode
+    answer = get_prediction(
+        chart_data,
+        request.question,
+        [{"question": h.question, "answer": h.answer} for h in request.history],
+        mode=request.mode
+    )
 
     return {
-        "question": request.question,
-        "answer": answer,
-        "analysis": chart_data
-    }
-
-
-
-
+    "question": request.question,
+    "answer": answer,
+    "analysis": {
+        "name": request.name,
+        "promise_analysis": promise,
+        "timing_analysis": timing,
+        "current_dasha": {
+            "mahadasha": current_md,
+            "antardasha": current_ad
+        },
+        "ruling_planets": ruling_planets,
+        "significators": all_significators,
+        "planet_positions": planet_positions,
+        "chart_summary": {
+            "planets": chart["planets"],
+            "cusps": chart["cusps"]
+        }
+    },
+    "mode": request.mode,
+    "detected_topic": topic
+}
