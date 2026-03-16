@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useRef, useEffect, useCallback } from "react";
 import axios from "axios";
 import { ArrowRight, Loader2, CheckCircle, XCircle, MessageCircle, MapPin } from "lucide-react";
