@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import axios from "axios";
 import { ArrowRight, Loader2, CheckCircle, XCircle, MessageCircle, MapPin } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 
 const API_URL = "https://devastroai.up.railway.app";
 
@@ -202,8 +203,12 @@ export default function Home() {
         latitude: birthDetails.latitude,
         longitude: birthDetails.longitude,
         timezone_offset: 5.5,
-        topic: "general",
+        topic: "auto",
         question: currentQuestion,
+        history: messages.slice(-4).map(m => ({  // send last 4 messages as history
+          question: m.question,
+          answer: m.answer
+        }))
       });
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
@@ -658,7 +663,9 @@ export default function Home() {
                       </div>
                     )}
 
-                    <div style={{ fontSize: 14, lineHeight: 1.85, color: "#d0d0d8", whiteSpace: "pre-wrap" }}>{msg.answer}</div>
+                    <div style={{ fontSize: 14, lineHeight: 1.85, color: "#d0d0d8" }} className="markdown-body">
+                      <ReactMarkdown>{msg.answer}</ReactMarkdown>
+                    </div>
                     <div style={{ fontSize: 11, color: "var(--muted)", marginTop: "0.75rem" }}>{msg.timestamp}</div>
 
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: "1rem", paddingTop: "1rem", borderTop: "0.5px solid var(--border)" }}>

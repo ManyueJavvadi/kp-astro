@@ -69,10 +69,27 @@ def ask_prediction(request: PredictionRequest):
     }
 
     # Get prediction from Claude
-    answer = get_prediction(chart_data, request.question)
+    answer = get_prediction(chart_data, request.question, 
+                       [{"question": h.question, "answer": h.answer} for h in request.history])
 
     return {
         "question": request.question,
         "answer": answer,
         "analysis": chart_data
     }
+
+
+class HistoryItem(BaseModel):
+    question: str
+    answer: str
+
+class PredictionRequest(BaseModel):
+    name: str
+    date: str
+    time: str
+    latitude: float
+    longitude: float
+    timezone_offset: float = 5.5
+    topic: str = "auto"
+    question: str
+    history: list[HistoryItem] = []

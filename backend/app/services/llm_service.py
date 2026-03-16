@@ -129,33 +129,38 @@ Reply with ONLY the topic name, nothing else."""
     # Return topic with most keyword matches
     return max(matches, key=matches.get)
 
-def get_prediction(chart_data: dict, question: str) -> str:
-    """
-    Send analyzed chart data to Claude and get KP prediction.
-    """
-    # Auto-detect topic from question
+def get_prediction(chart_data: dict, question: str, history: list = []) -> str:
     detected_topic = detect_topic(question)
     chart_data["detected_topic"] = detected_topic
-    
     chart_summary = format_chart_for_llm(chart_data)
 
-    user_message = f"""
+    # Build messages with history
+    messages = []
+
+    # Add previous Q&A as context
+    for prev in history[-4:]:  # last 4 exchanges max
+        messages.append({"role": "user", "content": prev["question"]})
+        messages.append({"role": "assistant", "content": prev["answer"]})
+
+    # Add current question
+    messages.append({
+        "role": "user",
+        "content": f"""
 Here is the fully analyzed KP chart:
 
 {chart_summary}
 
-Question from the person: {question}
+Question: {question}
 
-Please analyze this using KP methodology and provide a clear, honest answer.
+Please analyze using KP methodology and provide a clear, honest answer.
 """
+    })
 
     message = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=3000,
+        model="claude-haiku-4-5-20251001",
+        max_tokens=2000,
         system=KP_SYSTEM_PROMPT,
-        messages=[
-            {"role": "user", "content": user_message}
-        ]
+        messages=messages
     )
 
     return message.content[0].text
