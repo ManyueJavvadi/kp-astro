@@ -1,0 +1,6 @@
+New-Item -Path "C:\Users\manyu\kp-astro\backend\runtime.txt" -ItemType File
+```
+
+Open and add:
+```
+python-3.12
