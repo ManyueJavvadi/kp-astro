@@ -30,7 +30,7 @@ class PredictionRequest(BaseModel):
 @router.post("/ask")
 def ask_prediction(request: PredictionRequest):
 
-    # Generate full chart
+    # Generate chart
     chart = generate_chart(
         request.date, request.time,
         request.latitude, request.longitude,
@@ -48,27 +48,24 @@ def ask_prediction(request: PredictionRequest):
     antardashas = calculate_antardashas(current_md)
     current_ad = get_current_antardasha(antardashas)
 
-    # Auto detect topic from question
+    # Detect topic
     topic = detect_topic(request.question)
-    print(f"[{request.mode.upper()}] Detected topic: {topic} | Question: {request.question}")
+    print(f"[{request.mode.upper()}] Topic: {topic} | Q: {request.question}")
 
-    # KP Analysis using detected topic
+    # KP analysis
     promise = check_promise(topic, chart["cusps"], chart["planets"])
     timing = check_dasha_relevance(
         topic, current_md, current_ad,
         chart["planets"], chart["cusps"]
     )
     ruling_planets = get_ruling_planets(request.timezone_offset)
-
-    # Get all house significators for richer analysis
     all_significators = get_all_house_significators(chart["planets"], chart["cusps"])
 
-    # Planet house positions
-    planet_positions = {}
-    for planet, data in chart["planets"].items():
-        planet_positions[planet] = data.get("house", "")
+    planet_positions = {
+        planet: data.get("house", "")
+        for planet, data in chart["planets"].items()
+    }
 
-    # Package everything for LLM
     chart_data = {
         "name": request.name,
         "chart_summary": {
@@ -81,12 +78,12 @@ def ask_prediction(request: PredictionRequest):
             "mahadasha": current_md,
             "antardasha": current_ad
         },
+        "upcoming_antardashas": antardashas,  # full sequence with exact dates
         "ruling_planets": ruling_planets,
         "significators": all_significators,
         "planet_positions": planet_positions,
     }
 
-    # Get prediction from Claude with mode
     answer = get_prediction(
         chart_data,
         request.question,
@@ -95,24 +92,24 @@ def ask_prediction(request: PredictionRequest):
     )
 
     return {
-    "question": request.question,
-    "answer": answer,
-    "analysis": {
-        "name": request.name,
-        "promise_analysis": promise,
-        "timing_analysis": timing,
-        "current_dasha": {
-            "mahadasha": current_md,
-            "antardasha": current_ad
+        "question": request.question,
+        "answer": answer,
+        "analysis": {
+            "name": request.name,
+            "promise_analysis": promise,
+            "timing_analysis": timing,
+            "current_dasha": {
+                "mahadasha": current_md,
+                "antardasha": current_ad
+            },
+            "ruling_planets": ruling_planets,
+            "significators": all_significators,
+            "planet_positions": planet_positions,
+            "chart_summary": {
+                "planets": chart["planets"],
+                "cusps": chart["cusps"]
+            }
         },
-        "ruling_planets": ruling_planets,
-        "significators": all_significators,
-        "planet_positions": planet_positions,
-        "chart_summary": {
-            "planets": chart["planets"],
-            "cusps": chart["cusps"]
-        }
-    },
-    "mode": request.mode,
-    "detected_topic": topic
-}
+        "mode": request.mode,
+        "detected_topic": topic
+    }

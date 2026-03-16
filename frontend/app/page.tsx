@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useEffect, useCallback } from "react";
+import remarkGfm from "remark-gfm";
 import axios from "axios";
 import { ArrowRight, Loader2, CheckCircle, XCircle, MessageCircle, MapPin } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -427,7 +428,7 @@ export default function Home() {
                 </div>
                 {/* Mode Toggle */}
                 <div style={{ marginBottom: "1rem", display: "flex", alignItems: "center" }}>
-                  <label style={labelStyle}>I am a</label>
+                  <label style={labelStyle}>I am a </label>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   {["user", "astrologer"].map(m => (
                   <button key={m} onClick={() => setMode(m as "user" | "astrologer")}
@@ -684,7 +685,7 @@ export default function Home() {
                     )}
 
                     <div style={{ fontSize: 14, lineHeight: 1.85, color: "#d0d0d8" }} className="markdown-body">
-                      <ReactMarkdown>{msg.answer}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.answer}</ReactMarkdown>
                     </div>
                     <div style={{ fontSize: 11, color: "var(--muted)", marginTop: "0.75rem" }}>{msg.timestamp}</div>
 
