@@ -5,7 +5,7 @@ import { ArrowRight, Loader2, CheckCircle, XCircle, MessageCircle, MapPin } from
 import ReactMarkdown from "react-markdown";
 
 const API_URL = "https://devastroai.up.railway.app";
-const [mode, setMode] = useState<"user" | "astrologer">("user");
+
 
 
 interface PlaceSuggestion {
@@ -36,6 +36,7 @@ interface Message {
 }
 
 export default function Home() {
+  const [mode, setMode] = useState<"user" | "astrologer">("user");
   const [birthDetails, setBirthDetails] = useState<BirthDetails>({
     name: "", date: "", time: "", ampm: "AM", place: "",
     latitude: null, longitude: null,
