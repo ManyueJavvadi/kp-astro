@@ -11,7 +11,7 @@ client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 # KNOWLEDGE BASE LOADER
 # ================================================================
 
-KNOWLEDGE_DIR = os.path.join(os.path.dirname(__file__), "..", "knowledge")
+KNOWLEDGE_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "knowledge")
 
 TOPIC_TO_FILE = {
     "marriage": "marriage.txt",
@@ -33,15 +33,20 @@ def load_knowledge(topic: str) -> str:
     content = []
     try:
         with open(general_path, "r", encoding="utf-8") as f:
-            content.append("=== CORE KP PRINCIPLES ===\n" + f.read())
+            text = f.read()
+            content.append("=== CORE KP PRINCIPLES ===\n" + text)
+            
     except:
         pass
     try:
         if topic_file != "general.txt":
             with open(topic_path, "r", encoding="utf-8") as f:
-                content.append(f"=== KP RULES FOR {topic.upper()} ===\n" + f.read())
-    except:
+                text = f.read()
+                content.append(f"=== KP RULES FOR {topic.upper()} ===\n" + text)
+                
+    except :
         pass
+        
     return "\n\n".join(content)
 
 
