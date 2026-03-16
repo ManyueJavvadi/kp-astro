@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
+from typing import List
 from app.services.llm_service import get_prediction, detect_topic
 from app.services.chart_engine import (
     generate_chart, calculate_dashas, get_current_dasha,
@@ -8,6 +9,9 @@ from app.services.chart_engine import (
 )
 
 router = APIRouter()
+class HistoryItem(BaseModel):
+    question: str
+    answer: str
 
 class PredictionRequest(BaseModel):
     name: str
@@ -18,6 +22,7 @@ class PredictionRequest(BaseModel):
     timezone_offset: float = 5.5
     topic: str = "auto"
     question: str
+    history: List[HistoryItem] = []
 
 @router.post("/ask")
 def ask_prediction(request: PredictionRequest):
@@ -79,17 +84,5 @@ def ask_prediction(request: PredictionRequest):
     }
 
 
-class HistoryItem(BaseModel):
-    question: str
-    answer: str
 
-class PredictionRequest(BaseModel):
-    name: str
-    date: str
-    time: str
-    latitude: float
-    longitude: float
-    timezone_offset: float = 5.5
-    topic: str = "auto"
-    question: str
-    history: list[HistoryItem] = []
+
