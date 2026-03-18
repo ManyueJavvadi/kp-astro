@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import chart, prediction, feedback
+from app.routers import astrologer
 
 app = FastAPI(title="KP Astro API", version="0.1.0")
 
@@ -16,6 +17,7 @@ app.add_middleware(
 app.include_router(chart.router, prefix="/chart", tags=["Chart"])
 app.include_router(prediction.router, prefix="/prediction", tags=["Prediction"])
 app.include_router(feedback.router, prefix="/feedback", tags=["Feedback"])
+app.include_router(astrologer.router, prefix="/astrologer", tags=["astrologer"])
 
 @app.get("/")
 def health_check():
