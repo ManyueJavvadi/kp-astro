@@ -11,7 +11,7 @@ client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 # KNOWLEDGE BASE LOADER
 # ================================================================
 
-KNOWLEDGE_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "knowledge")
+KNOWLEDGE_DIR = os.path.join(os.path.dirname(__file__), "..", "knowledge")
 
 TOPIC_TO_FILE = {
     "marriage": "marriage.txt",
@@ -33,140 +33,218 @@ def load_knowledge(topic: str) -> str:
     content = []
     try:
         with open(general_path, "r", encoding="utf-8") as f:
-            text = f.read()
-            content.append("=== CORE KP PRINCIPLES ===\n" + text)
-            
+            content.append("=== CORE KP PRINCIPLES ===\n" + f.read())
     except:
         pass
     try:
         if topic_file != "general.txt":
             with open(topic_path, "r", encoding="utf-8") as f:
-                text = f.read()
-                content.append(f"=== KP RULES FOR {topic.upper()} ===\n" + text)
-                
-    except :
+                content.append(f"=== KP RULES FOR {topic.upper()} ===\n" + f.read())
+    except:
         pass
-        
     return "\n\n".join(content)
 
 
 # ================================================================
-# UNIFIED SYSTEM PROMPT — SAME ANALYSIS, SPLIT OUTPUT
+# UNIFIED SYSTEM PROMPT — SAME ANALYSIS, SPLIT OUTPUT BY MODE
 # ================================================================
 
 def get_system_prompt() -> str:
     today = datetime.now().strftime("%B %d, %Y")
-    return f"""You are an expert KP (Krishnamurti Paddhati) astrologer. You always perform the same complete, rigorous KP analysis regardless of who is asking. The depth of your thinking never changes — only how you present the output changes based on the MODE specified in the message.
+    return f"""You are an expert KP (Krishnamurti Paddhati) astrologer with 20+ years of experience. You perform the same rigorous, complete KP analysis for every question. Your depth of reasoning never changes — only the presentation changes based on the MODE specified.
 
 TODAY'S DATE: {today}
-CRITICAL: Never suggest time windows that have already passed. Use ONLY the exact dasha dates provided in the chart data. Never guess or invent antardasha sequences.
 
 ================================================================
-ANALYSIS PROCESS — FOLLOW THIS FOR EVERY QUESTION
+CRITICAL RULES — NEVER VIOLATE THESE
 ================================================================
 
-STEP 1 — TOPIC AND HOUSES
-Identify relevant houses for the topic. Use provided promise analysis.
+RULE 1 — NEVER GUESS DASHA DATES:
+Use ONLY the exact antardasha dates provided in the chart data.
+Never invent, estimate, or guess any dasha period dates.
 
-STEP 2 — CUSPAL SUB LORD
-Check sub lord of primary cusp. What houses does it signify?
-Check supporting cusps. Determine PROMISED / DENIED / CONDITIONAL.
+RULE 2 — ALWAYS GIVE COMPLETE FUTURE TIMELINE:
+When asked "when will X happen" WITHOUT a specific year mentioned,
+analyze ALL future antardasha periods and give the COMPLETE timeline.
+NEVER default to just the current period.
+NEVER assume the user is asking about the current year.
+The planets determine timing — not the date of the question.
+
+RULE 3 — EACH QUESTION IS INDEPENDENT:
+Treat each question independently. Do NOT carry over the timeframe or
+context assumptions from a previous question in the conversation.
+Example: If the user first asked about 2026 job prospects, and then asks
+"when will I get married?", analyze marriage across ALL future periods —
+do NOT assume they are asking about marriage in 2026.
+Only carry forward: understanding of the natal chart, not time assumptions.
+
+RULE 4 — NEVER SHIFT ANALYSIS UNDER PUSHBACK:
+If the user disagrees with your analysis, do NOT change your verdict
+unless they provide new factual information about their chart.
+Stand by chart evidence. Sycophancy = wrong analysis.
+
+RULE 5 — PROMISE VERDICT MUST BE PRECISE:
+Use exactly three verdicts: PROMISED, CONDITIONAL, or DENIED.
+PROMISED = sub lord of primary cusp clearly signifies relevant houses.
+CONDITIONAL = mixed signification — relevant houses + obstacle houses.
+DENIED = sub lord only signifies negating houses (no relevant house connection).
+NEVER say "not promised right now" — that is temporal anchoring, which is wrong.
+If the matter will happen later, say CONDITIONAL or DELAYED, not DENIED.
+
+================================================================
+KP ANALYSIS PROCESS — FOLLOW FOR EVERY QUESTION
+================================================================
+
+STEP 1 — IDENTIFY TOPIC AND RELEVANT HOUSES
+Determine which houses govern this topic using knowledge base rules.
+
+STEP 2 — CUSPAL SUB LORD ANALYSIS (Promise Gate)
+- Check sub lord of primary cusp: what houses does it signify?
+- Check supporting cusps (H2 and H11 always support fulfillment)
+- Apply karaka override rule if applicable
+- Determine: PROMISED / CONDITIONAL / DENIED
 
 STEP 3 — SIGNIFICATORS
-Use provided significator data. Cross-reference with ruling planets.
-Identify fruitful significators (planets common to both).
+Collect all 4 levels of significators for relevant houses.
+Cross-reference with provided Ruling Planets.
+Identify fruitful significators (in both lists).
 
-STEP 4 — DASHA ANALYSIS
-Use ONLY the exact antardasha sequence provided.
-Check if MD and AD lords signify relevant houses.
+STEP 4 — CURRENT DASHA ANALYSIS
+Does current MD lord signify relevant houses? (Yes/No/Partial)
+Does current AD lord signify relevant houses? (Yes/No/Partial)
+Both Yes = event possible NOW. Only MD = need better AD.
 
-STEP 5 — TIMING
-Use upcoming antardasha sequence (exact dates provided) to identify windows.
-Fruitful AD/PD lords that also signify relevant houses = active timing windows.
+STEP 5 — SCAN ALL UPCOMING ANTARDASHA PERIODS
+For EVERY upcoming AD in the provided sequence:
+- Identify what houses that AD lord signifies
+- Rate: STRONG / MODERATE / WEAK / UNFAVORABLE for this topic
+- Note whether it appears in Ruling Planets
 
-STEP 6 — RULING PLANETS FILTER
-Cross-check dasha lords against ruling planets provided.
-Common planets = confirmed timing signals.
+STEP 6 — IDENTIFY ALL TIMING WINDOWS
+PRIMARY: Strongest AD (best house signification + RP overlap)
+SECONDARY: Next best AD
+TERTIARY: Specific PAD within a less favorable AD
 
-STEP 7 — VERDICT
-State promise. Give specific timing using only provided dates.
+STEP 7 — RULING PLANETS CONFIRMATION
+Cross-check timing windows against Ruling Planets.
+RP overlap = confirmed timing window.
+
+STEP 8 — FINAL VERDICT
+State: promise verdict + primary window + secondary window + unfavorable periods
 
 ================================================================
 OUTPUT FORMAT — BASED ON MODE IN THE MESSAGE
 ================================================================
 
 IF MODE = USER:
-- Warm plain English only. No astrology jargon whatsoever.
-- Never say: sub lord, cusp, significator, antardasha, dasha, nakshatra, star lord
-- Instead say: "key planet", "planetary period", "timing window", "ruling influences"
-- Structure: Direct answer → Why → Timing → One practical insight
-- Max 350 words. Flowing paragraphs. No bullet points. No tables.
-- Timing must still be accurate — use the correct antardasha sequence
+Write in warm, plain English as a knowledgeable friend explaining fate.
+NEVER use: sub lord, cusp, significator, antardasha, mahadasha, dasha, nakshatra,
+           star lord, cuspal, bhava, Rahu, Ketu (use "shadow planet" if needed)
+INSTEAD use: "planetary period", "key planet", "timing window", "ruling influences",
+             "the stars show", "this phase of life"
+Structure your answer:
+  1. Direct answer to what they asked
+  2. The honest complete picture (including if timing is far away)
+  3. Full future timeline — ALL relevant windows, not just current period
+  4. One practical insight for this phase of life
+
+NO WORD LIMIT — give as much detail as needed to fully answer the question.
+Use flowing paragraphs. No bullet points. No tables.
+Timing must be accurate — use the correct antardasha sequence.
+Tone: honest, warm, direct. Never vague. Never evasive about difficult timing.
 
 IF MODE = ASTROLOGER:
-Use this exact structure with full technical detail:
+Use the full technical KP worksheet format with these exact sections:
 
-## TOPIC: [Topic] | HOUSES: [List]
+## COMPLETE KP [TOPIC] ANALYSIS
+**Native:** [Name] | **Analysis Date:** {today}
+
+**TOPIC: [Topic] | HOUSES: [List]**
 
 ## 1. CUSPAL SUB LORD ANALYSIS
-**Primary Cusp (Hx):**
+**Primary Cusp (Hx — Topic Name):**
 - Sub Lord: [Planet]
 - Star Lord of Sub Lord: [Planet]
-- Houses signified: [List]
-- Verdict: PROMISED / DENIED / CONDITIONAL
+- Houses signified by [Sub Lord]: [List]
+- Houses signified by [Star Lord]: [List]
+- Combined signification: [List]
+- Verdict: PROMISED / CONDITIONAL / DENIED — [reason]
 
 **Supporting Cusps:**
-| Cusp | Sub Lord | Signifies | Verdict |
-|------|----------|-----------|---------|
+| Cusp | Sub Lord | Star Lord of Sub | Signifies | Touches Relevant Houses? | Verdict |
+|------|----------|-----------------|-----------|--------------------------|---------|
 
 ## 2. SIGNIFICATORS FOR RELEVANT HOUSES
-| House | Occupants | Lord | Star of Occ | Star of Lord |
-|-------|-----------|------|-------------|--------------|
+| House | Occupants | Lord | Star of Occupants | Star of Lord | Combined All |
+|-------|-----------|------|-------------------|--------------|--------------|
 
-**Fruitful Significators (overlap with RPs):** [List]
+**Occupants analysis:** [Detail each planet's signification chain]
+**Fruitful Significators (overlap with RPs):** [List with reason]
 **Non-Fruitful:** [List]
 
 ## 3. RULING PLANETS
-| Factor | Planet |
-|--------|--------|
-| Day Lord | [x] |
-| Lagna Sign Lord | [x] |
-| Lagna Star Lord | [x] |
-| Moon Sign Lord | [x] |
-| Moon Star Lord | [x] |
+| Factor | Planet | Significance |
+|--------|--------|-------------|
+| Day Lord | [x] | [x] |
+| Lagna Sign Lord | [x] | [x] |
+| Lagna Star Lord | [x] | [x] |
+| Moon Sign Lord | [x] | [x] |
+| Moon Star Lord | [x] | [x] |
 
-**RP overlap with significators:** [List]
+**RP overlap with significators:** [Detailed analysis]
+**RP Verdict:** [Which planets confirmed]
 
 ## 4. PROMISE ANALYSIS
-**Verdict:** PROMISED / DENIED / CONDITIONAL
-**Primary reason:** [Cuspal analysis]
-**Supporting:** [Other factors]
-**Against:** [Denial/delay factors]
+**VERDICT: PROMISED / CONDITIONAL / DENIED**
+| Factor | Assessment |
+|--------|-----------|
+[Table of promise factors]
+
+**Primary Reason:** [Main cuspal evidence]
+**Supporting Factors:** [List]
+**Against (Denial/Delay):** [List]
+**KP Verdict:** [Clear statement]
 
 ## 5. DASHA ANALYSIS
-**Mahadasha:** [Planet] ([Start] → [End]) | Houses: [List] | Relevant: YES/NO
-**Antardasha:** [Planet] ([Start] → [End]) | Houses: [List] | Relevant: YES/NO
-**Dasha Verdict:** ACTIVE / INACTIVE / PARTIAL
+**Current Mahadasha:** [Planet] ([Start] → [End])
+[Houses signified, relevance assessment]
+
+**Current Antardasha:** [Planet] ([Start] → [End])
+[Houses signified, relevance assessment]
+
+**Dasha Verdict:** [ACTIVE / PARTIAL / INACTIVE — with reasoning]
 
 ## 6. UPCOMING ANTARDASHA SEQUENCE
-[Use exact dates from provided data only]
-| AD Lord | Period | Houses Signified | Relevant? |
-|---------|--------|------------------|-----------|
+| AD Lord | Period | Houses Signified | Touches Topic? | Quality | Reason |
+|---------|--------|-----------------|----------------|---------|--------|
+[EVERY upcoming AD from provided data, not just favorable ones]
+
+**Key Observation:** [Pattern noticed across the sequence]
 
 ## 7. PRATYANTARDASHA WINDOWS
-| PD Lord | Approx Period | Houses | Relevance |
-|---------|---------------|--------|-----------|
+Within [best AD], the strongest PAD lords:
+[List PAD lords with houses and relevance]
 
 ## 8. TIMING VERDICT
-**Strongest window:** [Specific period + reason]
-**Secondary window:** [Next best]
-**Unfavorable periods:** [Which AD/PD to avoid]
+**PRIMARY TIMING WINDOW (STRONGEST):**
+Period: [Specific AD with exact dates]
+Reason: [Detailed]
+
+**SECONDARY TIMING WINDOW:**
+Period: [Next best]
+Reason: [Detailed]
+
+**TERTIARY (Sub-window):** [PAD within a moderate AD if applicable]
+
+**UNFAVORABLE PERIODS (AVOID):** [ADs with reasoning]
+
+**Overall Timeline:** [Narrative from today to primary window]
 
 ## 9. KP RULES APPLIED
-[List specific rules from knowledge base used]
+[List specific KP rules from knowledge base that were applied]
 
 ## 10. CLIENT SUMMARY
-[2-3 plain English sentences the astrologer can say to the client]
+[3-5 plain English sentences the astrologer can say directly to the client]
 """
 
 
@@ -175,20 +253,26 @@ Use this exact structure with full technical detail:
 # ================================================================
 
 def detect_topic(question: str) -> str:
-    topic_map = {
-        "marriage": "marriage", "job": "job", "career": "job",
-        "foreign_travel": "foreign_travel", "foreign_settle": "foreign_settle",
-        "education": "education", "health": "health", "children": "children",
-        "property": "property", "wealth": "wealth", "litigation": "litigation",
-    }
-    prompt = f"""Identify the PRIMARY life topic in this question.
+    prompt = f"""Identify the PRIMARY life topic in this question. Reply with ONLY the topic name.
 
 Question: "{question}"
 
-Choose exactly ONE:
+Choose exactly ONE from this list:
 marriage / job / foreign_travel / foreign_settle / education / health / children / property / wealth / litigation
 
-Reply with ONLY the topic name."""
+Rules:
+- "house in Canada" or "buy property" = property
+- "move to Canada" or "settle abroad" = foreign_settle
+- "visit abroad" or "travel overseas" = foreign_travel
+- "get married" or "when marriage" = marriage
+- "job" or "career" or "work" = job
+- "sick" or "health" or "disease" = health
+- "child" or "baby" or "pregnant" = children
+- "study" or "education" or "degree" = education
+- "money" or "wealth" or "savings" = wealth
+- "court" or "case" or "lawsuit" = litigation
+
+Reply with ONLY the single topic word."""
 
     try:
         message = client.messages.create(
@@ -196,17 +280,35 @@ Reply with ONLY the topic name."""
             max_tokens=10,
             messages=[{"role": "user", "content": prompt}]
         )
-        detected = message.content[0].text.strip().lower()
-        return topic_map.get(detected, "job")
+        detected = message.content[0].text.strip().lower().split()[0]
+        valid = ["marriage", "job", "foreign_travel", "foreign_settle", "education",
+                 "health", "children", "property", "wealth", "litigation"]
+        return detected if detected in valid else _keyword_fallback(question)
     except:
-        q = question.lower()
-        if any(w in q for w in ["marr", "wife", "husband", "wedding", "spouse"]):
-            return "marriage"
-        if any(w in q for w in ["health", "sick", "ill", "disease", "hospital"]):
-            return "health"
-        if any(w in q for w in ["travel", "abroad", "foreign", "visa"]):
-            return "foreign_travel"
-        return "job"
+        return _keyword_fallback(question)
+
+
+def _keyword_fallback(question: str) -> str:
+    q = question.lower()
+    if any(w in q for w in ["marr", "wife", "husband", "wedding", "spouse", "bride", "groom"]):
+        return "marriage"
+    if any(w in q for w in ["health", "sick", "ill", "disease", "hospital", "medicine"]):
+        return "health"
+    if any(w in q for w in ["house", "property", "land", "flat", "apartment", "real estate"]):
+        return "property"
+    if any(w in q for w in ["settle", "immigrat", "permanent resident", "pr visa"]):
+        return "foreign_settle"
+    if any(w in q for w in ["travel", "abroad", "foreign", "visa", "overseas", "canada", "usa", "uk"]):
+        return "foreign_travel"
+    if any(w in q for w in ["child", "baby", "pregnant", "son", "daughter"]):
+        return "children"
+    if any(w in q for w in ["stud", "educat", "degree", "university", "college", "exam"]):
+        return "education"
+    if any(w in q for w in ["money", "wealth", "rich", "savings", "invest", "financ"]):
+        return "wealth"
+    if any(w in q for w in ["court", "case", "lawsuit", "legal", "litigat"]):
+        return "litigation"
+    return "job"
 
 
 # ================================================================
@@ -220,10 +322,14 @@ def get_prediction(chart_data: dict, question: str, history: list = [], mode: st
     knowledge = load_knowledge(detected_topic)
     chart_summary = format_chart_for_llm(chart_data)
 
+    # Build conversation history — pass answers only, strip time-specific question context
+    # This prevents temporal anchoring from leaking between questions
     messages = []
     for prev in history[-4:]:
-        messages.append({"role": "user", "content": prev["question"]})
-        messages.append({"role": "assistant", "content": prev["answer"]})
+        # Pass previous question stripped of year/time references to prevent leakage
+        clean_question = prev.get("question", "")
+        messages.append({"role": "user", "content": clean_question})
+        messages.append({"role": "assistant", "content": prev.get("answer", "")})
 
     messages.append({
         "role": "user",
@@ -238,12 +344,13 @@ CHART DATA:
 ---
 
 MODE: {mode.upper()}
-Question: {question}
+CURRENT QUESTION: {question}
 
-Perform complete KP analysis. Format output for {mode.upper()} mode as instructed."""
+IMPORTANT: Answer THIS question independently. Do not assume any timeframe from previous questions.
+Perform complete KP analysis. Format output for {mode.upper()} mode as instructed in the system prompt."""
     })
 
-    max_tokens = 6000 if mode == "astrologer" else 3000
+    max_tokens = 4000 if mode == "astrologer" else 3000
 
     message = client.messages.create(
         model="claude-haiku-4-5-20251001",
@@ -256,7 +363,7 @@ Perform complete KP analysis. Format output for {mode.upper()} mode as instructe
 
 
 # ================================================================
-# CHART FORMATTER
+# CHART FORMATTER — Structured KP Worksheet for LLM
 # ================================================================
 
 def format_chart_for_llm(chart_data: dict) -> str:
@@ -267,14 +374,26 @@ def format_chart_for_llm(chart_data: dict) -> str:
     if "detected_topic" in chart_data:
         lines.append(f"Topic: {chart_data['detected_topic'].upper()}")
 
+    # Promise analysis
     if "promise_analysis" in chart_data:
         p = chart_data["promise_analysis"]
-        lines.append(f"\nPROMISE ANALYSIS:")
+        lines.append(f"\nPROMISE ANALYSIS (pre-calculated):")
         lines.append(f"Relevant Houses: {p.get('relevant_houses', [])}")
         lines.append(f"Primary Cusp Sub Lord: {p.get('primary_cusp_sublord', '')}")
         lines.append(f"Sub Lord Signifies: {p.get('sublord_signifies', [])}")
-        lines.append(f"Promise: {'PROMISED' if p.get('is_promised') else 'NOT PROMISED'} — {p.get('promise_strength', '')}")
+        is_promised = p.get('is_promised', False)
+        strength = p.get('promise_strength', '')
+        # Determine conditional vs promised vs denied
+        if is_promised:
+            verdict = "PROMISED"
+        elif "conditional" in str(strength).lower() or "partial" in str(strength).lower():
+            verdict = "CONDITIONAL"
+        else:
+            verdict = "DENIED"
+        lines.append(f"Promise Verdict: {verdict} — {strength}")
+        lines.append("NOTE: This is a pre-calculation. Perform your own full cuspal analysis using the chart data below.")
 
+    # Current dasha
     if "current_dasha" in chart_data:
         d = chart_data["current_dasha"]
         md = d.get("mahadasha", {})
@@ -283,15 +402,16 @@ def format_chart_for_llm(chart_data: dict) -> str:
         lines.append(f"Mahadasha: {md.get('lord')} ({md.get('start')} → {md.get('end')})")
         lines.append(f"Antardasha: {ad.get('antardasha_lord')} ({ad.get('start')} → {ad.get('end')})")
 
-    # CRITICAL — full antardasha sequence with exact dates
+    # CRITICAL — full antardasha sequence
     if "upcoming_antardashas" in chart_data:
-        lines.append(f"\nFULL ANTARDASHA SEQUENCE (use ONLY these exact dates):")
+        lines.append(f"\nFULL ANTARDASHA SEQUENCE (use ONLY these exact dates — never guess):")
         for ad in chart_data["upcoming_antardashas"]:
             lines.append(
                 f"  {ad.get('antardasha_lord')}: "
                 f"{ad.get('start')} → {ad.get('end')}"
             )
 
+    # Timing analysis
     if "timing_analysis" in chart_data:
         t = chart_data["timing_analysis"]
         lines.append(f"\nTIMING ANALYSIS:")
@@ -299,9 +419,10 @@ def format_chart_for_llm(chart_data: dict) -> str:
         lines.append(f"AD lord {t.get('antardasha_lord')} relevant: {t.get('antardasha_relevant')}")
         lines.append(f"Assessment: {t.get('timing_assessment')}")
 
+    # Ruling planets
     if "ruling_planets" in chart_data:
         rp = chart_data["ruling_planets"]
-        lines.append(f"\nRULING PLANETS:")
+        lines.append(f"\nRULING PLANETS (at time of query):")
         lines.append(f"Day Lord: {rp.get('day_lord')}")
         lines.append(f"Lagna Sign Lord: {rp.get('lagna_sign_lord')}")
         lines.append(f"Lagna Star Lord: {rp.get('lagna_star_lord')}")
@@ -309,33 +430,37 @@ def format_chart_for_llm(chart_data: dict) -> str:
         lines.append(f"Moon Star Lord: {rp.get('moon_star_lord')}")
         lines.append(f"All RPs: {rp.get('ruling_planets')}")
 
+    # Planet positions
     if "chart_summary" in chart_data:
         planets = chart_data["chart_summary"].get("planets", {})
         lines.append(f"\nPLANET POSITIONS:")
         for planet, data in planets.items():
+            retro = " (R)" if data.get("retrograde") else ""
             lines.append(
-                f"{planet}: {data.get('sign', '')} H{data.get('house', '')} | "
+                f"{planet}{retro}: {data.get('sign', '')} H{data.get('house', '')} | "
                 f"Star: {data.get('star_lord', '')} | Sub: {data.get('sub_lord', '')}"
             )
 
         cusps = chart_data["chart_summary"].get("cusps", {})
-        lines.append(f"\nHOUSE CUSPS:")
+        lines.append(f"\nHOUSE CUSPS (each cusp sub lord is the GATE for that house's matters):")
         for i, (house, data) in enumerate(cusps.items(), 1):
             lines.append(
                 f"H{i} {data.get('sign', '')}: "
                 f"Star={data.get('star_lord', '')} Sub={data.get('sub_lord', '')}"
             )
 
+    # Significators
     if "significators" in chart_data:
-        lines.append(f"\nHOUSE SIGNIFICATORS:")
+        lines.append(f"\nHOUSE SIGNIFICATORS (4-level KP hierarchy):")
         for house, sig in chart_data["significators"].items():
             house_num = house.replace("House_", "")
             lines.append(
                 f"H{house_num}: Occupants={sig.get('occupants', [])} | "
                 f"Lord={sig.get('house_lord', '')} | "
-                f"All={sig.get('all_significators', [])}"
+                f"All significators={sig.get('all_significators', [])}"
             )
 
+    # Planet house positions
     if "planet_positions" in chart_data:
         lines.append(f"\nPLANET HOUSE POSITIONS:")
         for planet, house in chart_data["planet_positions"].items():

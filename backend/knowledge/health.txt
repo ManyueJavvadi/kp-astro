@@ -1,62 +1,153 @@
-KP ASTROLOGY — HEALTH RULES
-Source: KP Readers + vaastuinternational.com
-Houses: 1 (vitality), 6 (disease/recovery), 8 (chronic/serious), 12 (hospitalization)
+================================================================================
+KP ASTROLOGY — HEALTH AND DISEASE ANALYSIS COMPLETE RULES
+Source: K.S. Krishnamurti KP Readers + Vaastuinternational.com H6/H8 Rules
+================================================================================
 
-PRIMARY CUSP: 1st house sub lord (general health), 6th cusp (disease)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 1: RELEVANT HOUSES FOR HEALTH
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-GENERAL HEALTH PROMISE
-- Sub lord of 1st cusp in star of planet in 6th = sickly native
-- 1st cusp sub lord signifying 1, 5, 9, 10 along with 3 and 8 = long life promised
-- 1st cusp sub lord signifying 1 and 11 = very good health generally
-- 1st cusp sub lord connected to bhadaka and maraka houses = short life concern
-- Lagna sub lord becoming significator of beneficial houses = strong constitution
+H6: Disease, illness, sickness — nature and type of disease
+H8: Danger, seriousness, chronic illness, surgery, obstacles to health
+H12: Hospitalization, confinement to bed, isolation, hidden suffering
 
-1ST CUSP SUB LORD HEALTH INTERPRETATIONS
-- If sub lord connected to 6 = periodic illness, recovers but prone to disease
-- If sub lord connected to 8 = serious health concern, surgery possible
-- If sub lord connected to 12 = hospitalization, bedridden periods
-- If sub lord connected to 1, 5, 11 = strong vitality, good immunity
-- If sub lord connected to 3 and 8 = longevity supported
+DISEASE TRIAD: H6, H8, H12 — when all three are activated, serious illness is present
+RECOVERY TRIAD: H1 (self/vitality), H5 (recovery/rejuvenation), H11 (gains back health)
+HOSPITALIZATION: H6 + H12 together in dasha
+SURGERY: H6 + H8 + H12 together + Mars connection
 
-DISEASE TIMING
-- Significators of 1 and 6 operating together = period of sickness
-- Dasha of planets signifying 6th or 8th = health challenges active
-- 6th house = acute illness, infections, digestive issues
-- 8th house = chronic conditions, operations, sudden health events
-- 12th house = hospitalization, confinement, loss of energy
+H1 SUB LORD FOR HEALTH:
+"Sub lord of H1 cusp indicates general health of the native."
+"If sub lord of Lagna cusp is in constellation of planet in H6 → one will be sickly."
+"Sickness happens in periods of significators of H1 and H6."
+"If sub lord of Lagna is deposited in constellation of planet in H6, H8, or H12 → very sickly."
 
-RECOVERY AND VITALITY
-- 1st and 5th house activation during dasha = recovery and vitality returning
-- Significators of 1, 5, 11 active = body fights back, recovery confirmed
-- Jupiter in 1st or activating 1st = healing and vitality
-- 6th cusp sub lord signifying 11 = recovery from illness (11 = fulfillment, 6 = disease — combination means disease ends)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 2: H6 CUSPAL SUB LORD — NATURE OF DISEASE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-SPECIFIC HEALTH AREAS BY HOUSE
-- 1st house: Head, brain, overall vitality
-- 2nd house: Eyes, face, throat, speech defects
-- 3rd house: Shoulders, arms, lungs (upper)
-- 4th house: Chest, heart (emotional), stomach
-- 5th house: Stomach, liver, heart (physical)
-- 6th house: Intestines, kidneys, immune system
-- 7th house: Lower back, kidneys, reproductive
-- 8th house: Reproductive organs, chronic disease seat
-- 9th house: Hips, thighs, liver
-- 10th house: Knees, skin, bones
-- 11th house: Ankles, circulatory system, gains in health
-- 12th house: Feet, immune suppression, hospitalization
+H6 SUB LORD TELLS THE NATURE OF DISEASE:
+"The sub lord of the 6th cusp reveals the type of disease through its placement
+in the chart — through sign lord, star lord, and the houses signified."
 
-PLANET AND DISEASE ASSOCIATIONS
-- Sun: Heart conditions, eye problems, fever, bone issues
-- Moon: Mental health, digestive issues, fluid imbalances, depression
-- Mars: Accidents, surgery, infections, inflammation, blood disorders
-- Mercury: Nervous system, skin conditions, respiratory issues
-- Jupiter: Liver, obesity, diabetes, over-indulgence conditions
-- Venus: Kidney issues, reproductive health, diabetes (sugar)
-- Saturn: Chronic conditions, bones, teeth, joints, arthritis, delays in recovery
-- Rahu: Unusual diseases, mysterious conditions, neurological issues
-- Ketu: Infections, mysterious fevers, spiritual health crises
+H6 sub lord in sign of/star of:
+- Mars: Blood disorders, inflammation, accidents, fevers
+- Moon: Mental health, digestive issues, emotional disorders, water-related
+- Mercury: Nervous disorders, skin issues, respiratory (nervous system)
+- Saturn: Chronic diseases, bone issues, arthritis, depression, dental
+- Jupiter: Liver problems, obesity, blood sugar, excessive/expansion issues
+- Venus: Kidney/urinary disorders, reproductive system, thyroid
+- Sun: Heart, spine, eyes, circulation, vital force issues
+- Rahu: Mysterious or difficult-to-diagnose conditions, poison
+- Ketu: Hidden diseases, spiritual crises, sudden inexplicable issues
 
-HOSPITALIZATION INDICATORS
-- 12th cusp sub lord connected to 6 and 8 = hospital stay confirmed
-- Significators of 6, 8, 12 all active simultaneously = serious illness requiring hospitalization
-- 12th house = foreign hospital or confinement away from home
+CRITICAL RULE:
+"When H6 sub lord is in 12th from Lagna AND becomes a strong significator of H6
+→ The native will DEFINITELY suffer from an incurable disease."
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 3: H8 CUSPAL SUB LORD — DANGER AND SERIOUSNESS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+"While H6 cusp sub lord tells about the NATURE of disease,
+that of H8 tells about DANGER, and fatality is finally told."
+
+H8 SUB LORD RULES:
+SURGERY:
+"For one to undergo surgery, the sub lord of H8 must be connected with:
+H6 (house of sickness), H8 (house of surgery), or H12 (hospitalization)
+AND the same sub lord must also be connected to Mars (karaka for knives/surgery).
+Operation happens in the conjoint period of H6, H8, H12."
+
+ACCIDENT:
+"Accident can happen ONLY when H8 sub lord is deposited in star of planet
+signifying H8, and it happens in the conjoined period of significators of H1 and H8.
+It will be FATAL only if H8 sub lord is in star of significator of Badhaka or Maraka house."
+
+SUICIDE:
+"H8 sub lord deposited in star of planet signifying either Badhaka or Marakashthana
+AND connected to H8 house + Mars connection = suicidal death."
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 4: DISEASE TIMING — DASHA ANALYSIS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+WHEN ILLNESS OCCURS:
+"In the conjoining period of significators of H1 and H6 → sickness is present."
+"If H12 is also connected → hospitalization."
+"If H8 is also connected → dangerous illness."
+
+RECOVERY:
+For recovery, the dasha period must shift to significators of:
+H1 (vitality), H5 (rejuvenation), H11 (gains back health)
+When significators of 1, 5, 11 operate = recovery period
+
+HOSPITALIZATION:
+Conjoint period of significators of H6, H8, H12 = hospitalization
+H4 sub lord signifying H2, H4, H11 = discharge from hospital
+
+DISCHARGE FROM HOSPITAL:
+"Houses 2, 4 and 11 — sub lord of the 4th cusp [signifying these] = discharge from hospital."
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 5: PLANET-DISEASE ASSOCIATIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SUN: Heart disease, spine problems, high fever, eye disorders, blood pressure,
+     bone disorders (spine), right eye, circulatory issues
+
+MOON: Mental health, depression, anxiety, digestive disorders, water retention,
+      left eye, breast cancer, hormonal imbalance, mucous-related
+
+MARS: Blood disorders, hemorrhage, accidents and injuries, inflammation,
+      fevers, piles, muscular issues, head injuries, surgical conditions
+
+MERCURY: Nervous disorders, skin diseases, respiratory issues, speech defects,
+         anxiety/nervous breakdown, intestinal problems, arms/hands
+
+JUPITER: Liver problems, obesity, diabetes/blood sugar, fatty deposits,
+         excessive eating disorders, arterial issues, ear problems
+
+VENUS: Kidney/renal disorders, urinary tract infections, reproductive health,
+       thyroid, ovarian issues, venereal diseases, throat/voice
+
+SATURN: Chronic long-term diseases, bone and joint problems, arthritis,
+        dental issues, depression/melancholy, paralysis, skin (dark/rough),
+        nerve compression, cold/respiratory chronic conditions
+
+RAHU: Mysterious diseases, poisoning, radiation-related, difficult diagnosis,
+      phobias, neurological conditions (unusual), unknown causes
+
+KETU: Sudden mysterious disease, hidden conditions, spiritual-crisis related,
+      immune system disorders, accident wounds, karmic health issues
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 6: BODY PARTS BY HOUSE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+H1: Head, brain, skull, face, overall vitality
+H2: Face, right eye, mouth, throat (upper), teeth, speech organs, neck (upper)
+H3: Shoulders, arms, hands, neck (lower), lungs (upper), nervous system
+H4: Chest, lungs, breasts, stomach (upper), heart (in some traditions)
+H5: Stomach, intestines (upper), heart (in some traditions), spine (upper)
+H6: Intestines (lower), abdomen, kidneys (in some traditions), immune system
+H7: Kidneys, ovaries (for women), lower back, bladder, reproductive organs
+H8: Reproductive organs, genitals, bladder, excretory system, chronic diseases
+H9: Hips, thighs, liver, arterial system, sciatic nerve
+H10: Knees, skin, skeletal system (knees), teeth (in some traditions)
+H11: Calves, ankles, blood circulation (veins)
+H12: Feet, lymphatic system, sleep disorders, immune (chronic)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 7: ANALYSIS STEPS FOR HEALTH QUESTIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Step 1: Check H1 sub lord — general health vulnerability?
+Step 2: Check H6 sub lord — what is the nature/type of disease?
+Step 3: Check H8 sub lord — is there danger or surgical risk?
+Step 4: Is H12 also activated? → hospitalization possible?
+Step 5: Identify the disease planet from H6 sub lord's planetary nature
+Step 6: Identify which body part is affected from the sign involved
+Step 7: Check current dasha — are H6, H8, H12 significators activated?
+Step 8: When do recovery planets (H1, H5, H11) come into operation?
+Step 9: Give timeline for illness risk and recovery window

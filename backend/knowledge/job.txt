@@ -1,86 +1,193 @@
-KP ASTROLOGY — JOB / CAREER RULES
-Source: KP Readers + vaastuinternational.com
-Houses: 2, 6, 10, 11 (job/service), 7, 10 (business)
+================================================================================
+KP ASTROLOGY — JOB / CAREER / PROFESSION ANALYSIS COMPLETE RULES
+Source: K.S. Krishnamurti KP Readers + Vaastuinternational.com H10/H6 Rules
+================================================================================
 
-PRIMARY CUSP: 10th house sub lord
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 1: RELEVANT HOUSES FOR CAREER
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-PROMISE OF JOB (SERVICE/EMPLOYMENT)
-- Sub lord of 10th cusp signifying 2, 6, 10, 11 = job promised
-- 6th house specifically governs SERVICE (working under someone else)
-- 10th house = profession, status, career
-- 11th house = gains, fulfillment, salary receipt
-- 2nd house = accumulated wealth from job
-- If 10th cusp sub lord signifies 6 and 10 in fixed sign = stable permanent job
-- If 10th cusp sub lord signifies 6 and 10 in movable sign = job with frequent changes
-- If 10th cusp sub lord signifies 7 and 10 in movable sign = business/self-employment
-- If 10th cusp sub lord signifies 2, 6, 7, 10, 11 in dual sign = job + business both
+For Employment/Job (Service under someone):
+PRIMARY HOUSES: H10 (profession), H6 (service/employment)
+SUPPORTING HOUSES: H2 (income/earnings), H11 (gains/fulfillment)
+ALL FOUR: Houses 2, 6, 10, 11 must all be connected for a job to materialize
 
-JOB vs BUSINESS DISTINCTION
-- Job (service): 6th house strongly signified = working for someone
-- Business: 7th house strongly signified = partnership, own venture
-- Government job: Sun prominently signified + 10th house activated
-- Private job: Mercury, Rahu signified in career houses
-- Business with partner: 7th lord connected to 10th and 11th
+For Business (Self-employment):
+PRIMARY HOUSES: H10 (career/action), H7 (partners/public dealings)
+SUPPORTING HOUSES: H2 (wealth), H11 (profits)
 
-3RD CUSP SUB LORD FOR JOB
-- If sub lord of 3rd cusp signifies 2, 10, or 11 = boldness to undertake job, success
-- 3rd house rules courage and initiative to compete
+DENIAL HOUSES FOR JOB: H1, H5, H9, H12
+If dasha lord signifies 1, 5, 9, 12 (instead of 2, 6, 10, 11) → job unlikely in that period
 
-6TH CUSP SUB LORD FOR JOB
-- Sub lord of 6th cusp connected to 2, 6, 10, 11 = employment confirmed
-- 6th house = service, employment, subordinate position
-- 6th and 10th both activated = job in service sector
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 2: H10 CUSPAL SUB LORD ANALYSIS — CAREER GATE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-10TH CUSP SUB LORD INTERPRETATIONS
-- Sun as 10th sub lord: government job, authority position, leadership role
-- Moon as 10th sub lord: public-facing job, hospitality, travel industry
-- Mars as 10th sub lord: technical job, engineering, military, construction
-- Mercury as 10th sub lord: IT, data, communication, writing, finance
-- Jupiter as 10th sub lord: teaching, law, advisory, finance, management
-- Venus as 10th sub lord: arts, luxury, fashion, design, entertainment
-- Saturn as 10th sub lord: hard work required, delay then stability, labour-intensive
-- Rahu as 10th sub lord: technology, data science, unconventional field, foreign company
-- Ketu as 10th sub lord: research, investigation, technical niche, spiritual field
+H10 SUB LORD RULES (from KP Reader):
 
-TIMING OF JOB
-- Both Mahadasha AND Antardasha lords must signify 6, 10, 11
-- 11th house activation = salary/gains actually received (job materialized)
-- Without 11th house = interviews happening but no final offer yet
-- Ruling planets must overlap with dasha lords for timing confirmation
-- If AD lord is 6th or 10th lord, or placed in 6th or 10th = strong timing signal
+EMPLOYMENT:
+"Houses 2, 6, 10 and 11 — sub lord of the 10th cusp must connect to these for employment."
 
-DELAY IN JOB
-- 10th cusp sub lord signifying 8 or 12 = obstacles, hidden delays
-- Saturn as significator = delay but eventual success (Saturn delays, not denies)
-- Rahu/Ketu involvement = unusual path, sudden changes before settlement
-- 12th house activation without 11th = expenditure without gain (interviews, travel for job but no result)
+JOB vs BUSINESS:
+"If the 10th cusp sub lord signifies 7 → profession (main) is BUSINESS."
+"If the 10th cusp sub lord signifies 6 → profession is SERVICE (job under someone)."
+"If H10 sub lord connected to dual sign and both 6 and 7 → both service and business."
 
-PROMOTION vs NEW JOB
-- Promotion: 10th house activated + 11th for salary gain + same company indicators
-- New job: 6th house freshly activated + 3rd/9th for change of place
-- Salary increase: 2nd and 11th prominently activated in dasha
+REINSTATEMENT IN SERVICE:
+"For reinstatement: sub lord of H10 signifies 2, 6 and 10."
+"Will NEVER be reinstated if signifies 1, 5, 9 and 12."
 
-FIELD OF WORK (by planet signification)
-- Sun: Government, administration, politics, authority, medical
-- Moon: Public, hospitality, travel, food, nursing, agriculture
-- Mars: Engineering, military, surgery, construction, real estate, police
-- Mercury: IT, data engineering, software, communication, accounts, writing
-- Jupiter: Teaching, law, finance, advisory, medicine, philosophy
-- Venus: Arts, luxury goods, fashion, design, entertainment, beauty
-- Saturn: Mining, agriculture, labor, construction, long-term projects, oil
-- Rahu: Technology, data science, AI, foreign companies, unconventional paths
-- Ketu: Research, investigation, spirituality, technical niche, security
+SELF-EARNED INCOME:
+"For one to earn by self-exertion, H10 sub lord must be significator of 2 (self-acquisition)
+or 10 (profession). If connected with dual sign and both 6 and 7 = earns through service AND business."
 
-DATA ENGINEERING SPECIFICALLY (Rahu/Mercury significance)
-- Rahu on 10th cusp = ideal for data, technology, unconventional analytical work
-- Mercury signifying 10th = communication, data, analytical roles
-- Rahu + Mercury combination = data engineering, AI, analytics fields perfectly matched
-- If dasha lord connects to both Rahu and Mercury = technology career timing
+INCOME TAX TROUBLE:
+"If H10 sub lord signifies 7, 8 and 12 → income tax trouble/scrutiny."
 
-HOUSE GROUPINGS FOR CAREER ANALYSIS
-- Houses 2, 6, 10, 11 = job/service confirmation
-- House 7 = business/partnership
-- House 3 = courage to apply, short journeys for work
-- House 9 = long journey, foreign work opportunity
-- House 12 = working abroad, foreign company
-- House 8 = obstacles, sudden job loss, transformation in career
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 3: H6 CUSPAL SUB LORD — THE SERVICE HOUSE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+H6 is the house of SERVICE, EMPLOYMENT under others, DAILY ROUTINE WORK.
+H10 is the house of PROFESSION, STATUS, CAREER overall.
+
+H6 SUB LORD RULES (from KP Reader):
+
+For JOB:
+"For reappointment in service, H6 sub lord must signify 6 or 10 or 2."
+"If signifies 1, 5, 9, or 12 → no reappointment."
+
+PROMOTION:
+"Sub lord of H6 and H10 cusps, in the conjoining period of 2, 6 and 11 → promotion."
+
+GETTING A LOAN / OVERDRAFT:
+"Sub lord of H6 cusp signifying 2, 6, and 11 → gets overdraft/loan."
+"H6 sub lord must NOT be retrograde for loan to materialize."
+
+SUCCESS IN DEALINGS:
+"If H6 sub lord connected to improving houses (1, 2, 3, 6, 10, 11) → success in all dealings."
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 4: SERVICE JOB vs BUSINESS — KEY DISTINCTION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SERVICE (Job under someone):
+- H6 must be strongly signified (house of service/employment)
+- H10 shows the profession/career but H6 confirms it's a job, not business
+- Required houses: 2, 6, 10, 11
+- H6 is the DIFFERENTIATOR — without H6, may be business or freelance
+
+BUSINESS (Self-employment):
+- H7 must be signified (public dealings, partnerships, customers)
+- H10 shows the profession/career
+- Required houses: 2, 7, 10, 11
+- H7 is the DIFFERENTIATOR — with H7 connected = business indicator
+
+BOTH SERVICE AND BUSINESS:
+- H10 sub lord in dual sign AND connected to both H6 and H7
+- Native earns through service AND has business on the side
+
+PROMOTION IN EXISTING JOB:
+Required: H2, H6, H10, H11 all connected in the relevant dasha/antardasha
+H3 also relevant as boldness/effort required for promotion
+
+NEW JOB vs TRANSFER vs PROMOTION:
+- New job: H6 + H10 + H2 + H11 activated by dasha
+- Transfer: H4 sub lord signifies 3, 10, 12 (change of place)
+- Promotion: H6 + H10 + H11 (gains/rise) activated
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 5: FIELD OF WORK BY PLANET
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+When a planet is the significant H10 sub lord or occupies H10, it indicates the field:
+
+SUN: Government service, administration, medical (pharma), politics, finance,
+  gold/precious metals, authority positions, leadership roles
+
+MOON: Public dealings, hospitality, nursing, catering, liquids/beverages,
+  navy/maritime, retail, customer service, real estate (emotionally-driven)
+
+MARS: Engineering (mechanical, civil), military/defense, surgery, law enforcement,
+  manufacturing, real estate, sports, construction, fire department
+
+MERCURY: Data engineering, technology, IT, software, communication, writing,
+  journalism, accounting, trading, commerce, analysis, teaching
+  SPECIAL: Mercury is the PRIMARY planet for data engineering, data science, IT roles
+
+JUPITER: Education, law, finance, banking, religion, philosophy, counseling,
+  astrology, medicine (traditional), administration, governance
+
+VENUS: Arts, music, entertainment, fashion, luxury goods, cosmetics, hospitality,
+  diplomacy, interior design, photography, vehicles/transport
+
+SATURN: Labor-intensive fields, mining, real estate (structured), agriculture,
+  social work, government service (lower levels), maintenance, IT infrastructure
+
+RAHU: Foreign-related work, technology, unconventional fields, research,
+  innovative industries, IT (overseas component), ambiguous/unusual roles
+
+KETU: Spirituality, occult, research, medicine (healing arts), isolation-related fields
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 6: DATA ENGINEERING CAREER SPECIFICS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Data Engineering / Data Science / Software Development roles require:
+PRIMARY PLANETS: Mercury (data/logic/analysis), Rahu (technology/unconventional)
+SECONDARY PLANETS: Saturn (systems/infrastructure), Jupiter (knowledge/wisdom applied)
+
+Mercury-dominated H10 = Perfect alignment for data engineering career.
+Mercury in H10 or as H10 lord = native naturally suited for technology roles.
+
+For overseas/foreign tech companies: Rahu + Mercury combination + H9/H12 connections
+For senior/architect level: Jupiter + Mercury combination
+For startup/innovative work: Rahu + Mercury + H5 (intelligence/speculation)
+
+TIMING FOR DATA ENGINEERING JOB:
+Mercury AD periods: Very favorable for tech career advancement
+Jupiter AD: Favorable for senior/consulting roles
+Rahu AD: Good for foreign tech companies or unconventional opportunities
+Saturn AD: Can bring structured/stable tech roles (infrastructure, DevOps etc.)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 7: DASHA TIMING FOR CAREER EVENTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+For a job to materialize in a specific AD, the AD lord must signify
+at least two or more of houses: 2, 6, 10, 11
+
+STRONGEST CAREER ADs (in order of career relevance):
+1. AD lord is H10 or H6 lord AND signifies 2, 6, 10, 11
+2. AD lord occupies H10 or H6 AND signifies 2, 11
+3. AD lord's star lord occupies H10 or H6
+4. AD lord connected to career planets (Mercury, Sun, Saturn, Jupiter)
+
+WEAKER/UNFAVORABLE CAREER ADs:
+- AD lord only signifies 1, 5, 9, 12 → Not a job period; more of spiritual/personal development
+- AD lord connected to H8 alone → Obstacles in career
+- AD lord connected to H12 → Loss of job or change abroad possible
+
+PRATYANTARDASHA FOR CAREER:
+Within a favorable career AD, the PAD that triggers job offer/appointment:
+- Mercury PAD: Quick intellectual/tech job offers
+- Saturn PAD: Delayed but stable position
+- Jupiter PAD: Senior or prestigious position
+- Sun PAD: Government or authority role
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 8: COMPLETE ANALYSIS STEPS FOR JOB QUESTIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Step 1: Check H10 sub lord → does it signify 2, 6, 10, 11? → Career promised?
+Step 2: Check H6 sub lord → does it signify 6, 10? → Service/employment promised?
+Step 3: Identify if SERVICE or BUSINESS is indicated (H6 vs H7 connection)
+Step 4: Check H2 sub lord for financial support
+Step 5: Check H11 sub lord for gains/fulfillment
+Step 6: Identify relevant planets for the field (Mercury for data engineering etc.)
+Step 7: Collect all significators for H2, H6, H10, H11
+Step 8: Cross-reference with Ruling Planets → fruitful significators
+Step 9: Check current MD + AD significations
+Step 10: Scan ALL upcoming ADs for career relevance
+Step 11: Identify PRIMARY career window and SECONDARY windows
+Step 12: Complete timing verdict with specific AD dates and reasoning

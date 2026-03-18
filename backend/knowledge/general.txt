@@ -1,73 +1,418 @@
-KP ASTROLOGY — CORE PRINCIPLES
-Source: KP Readers by Prof. K.S. Krishnamurti
+================================================================================
+KP ASTROLOGY — CORE PRINCIPLES AND METHODOLOGY
+Source: K.S. Krishnamurti KP Readers + Vaastuinternational.com KP Rules
+================================================================================
 
-SUBLORD THEORY
-- The Sub Lord of a cusp is the final authority on whether a matter is promised
-- A planet gives results based on its Star Lord's house significations
-- The Sub Lord decides whether those results will actually materialize
-- Sign Lord = source of event, Star Lord = nature of result, Sub Lord = quality/outcome
-- Sub Lord power is 3x that of planet alone
-- Star Lord power is 2x that of planet alone
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 1: FOUNDATION — WHAT IS KP AND HOW IT WORKS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-SIGNIFICATOR HIERARCHY (order of strength)
-Level 1 (strongest): Planets occupying the house whose star lord is placed in relevant house
-Level 2: Planets occupying the relevant house itself
-Level 3: Planets owned by the star lord of relevant house
-Level 4: Planet that is the house lord (sign lord of cusp)
-- Focus on Level 1 significators first — they are strongest
-- Planets without any other planets in their stars are pure significators
+KP (Krishnamurti Paddhati) was developed by Prof. K.S. Krishnamurti (1908-1972).
+Stellar system of prediction based on Sub Lords — further subdivision of each
+nakshatra into 9 unequal parts based on the Vimshottari Dasha proportions.
 
-RULING PLANETS (at time of query)
-Order of strength:
-1. Ascendant star lord (strongest)
-2. Moon star lord (stronger)
-3. Ascendant sign lord (strong)
-4. Moon sign lord (strong)
-5. Day lord (weakest)
-- If Rahu/Ketu are in the sign of a ruling planet, the node REPLACES that planet in RP list
-- Common planets between significators and ruling planets = fruitful significators
-- Event will happen during dasha of planets common to both significators AND ruling planets
+THE GOLDEN RULE OF KP:
+"Planet is the SOURCE. Star-Lord indicates NATURE OF RESULTS.
+Sub-Lord is the DECIDING FACTOR — whether the result is favorable or not."
 
-PROMISE VS TIMING
-- ALWAYS check promise first via cuspal sub lord
-- Never discuss timing if promise is not confirmed
-- Promise = sub lord of primary cusp signifies relevant houses
-- Denial = sub lord signifies opposing houses (12th to relevant house negates it)
-- The 12th house to any house negates that house's matters
-- The 2nd house from any house amplifies that house's matters
+KP uses:
+- Placidus house system (semi-arc) — houses may be unequal in span
+- Sidereal zodiac with KP New Ayanamsa (SIDM_KRISHNAMURTI_VP291)
+- 27 nakshatras, each divided into 9 subs = 249 sub-lord positions
+- Vimshottari Dasha for timing (120 year cycle)
+- No planet is inherently good or bad — context determines everything
 
-DASHA TIMING RULES
-- Event fructifies when Dasha AND Bhukti AND Anthra lords all signify relevant houses
-- All three must be significators — one alone is not enough
-- Ruling planets must overlap with operating dasha lords for event to manifest
-- Fast moving planets (Moon, Mercury, Venus, Mars, Sun, Ascendant) trigger events
-- Slow moving planets (Ketu, Rahu, Saturn, Jupiter) govern longer periods
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 2: THE CUSPAL SUB LORD — MOST IMPORTANT RULE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-TRANSIT TIMING (GOCHARA)
-- If event expected within same day: move Ascendant to sensitive zone
-- If event expected within 27 days: move Moon to sign-star-sub of significators
-- If event expected within 1 year: move Sun through significator's sign-star-sub
-- If event expected within 5 years: move Jupiter through significator's zone
-- Three zodiac zones: Zone 1 = Aries to Cancer, Zone 2 = Leo to Scorpio, Zone 3 = Sagittarius to Pisces
+The sub lord of a house cusp determines whether that house's matter fructifies.
+This is the PRIMARY GATE. No favorable dasha can override a closed primary gate.
 
-RAHU AND KETU RULES
-- Rahu and Ketu have no sign ownership — they act as agents
-- They represent the sign lord where they are placed
-- If conjoined with or aspected by any planet, they represent that planet
-- Nodes replace sign lords in ruling planet calculations
-- Rahu gives results of sign lord + conjunct planets combined
+HOW TO READ A CUSP SUB LORD:
+Step 1: Find the sub lord of the relevant cusp
+Step 2: Find which nakshatra (star) the sub lord is placed in
+Step 3: Find what houses the star lord of that sub lord signifies
+Step 4: Also check what houses the sub lord itself owns and occupies
+Step 5: The combined signification tells you what the cusp "connects to"
 
-RETROGRADE PLANETS
-- Retrograde planet as significator = delay, not denial
-- Matter will come through when planet turns direct
-- If both retrograde planet AND its star lord are retrograde = stronger delay
+PROMISE VERDICT RULES:
+- STRONGLY PROMISED: Sub lord connects to all relevant houses
+- PROMISED: Sub lord connects to primary relevant house
+- CONDITIONAL: Sub lord has mixed connection — relevant + some obstacles
+- DELAYED: Sub lord connects to relevant houses + obstacle houses (6,8,12)
+- DENIED: Sub lord ONLY connects to houses that negate the matter
 
-DENIAL CONDITIONS
-- Sub lord of primary cusp signifying 12th to that house = denial/negation
-- Sub lord signifying 1, 6, 8, 12 for favorable matters = obstacles
-- Sub lord in enemy sign = weakened results
-- If sub lord connects only to unfavorable houses = matter denied
+IMPROVING HOUSES (support most life events): 1, 2, 3, 6, 10, 11
+NEGATING HOUSES (obstruct or end matters): 4, 5, 8, 9, 12
 
-IMPROVING HOUSES (favorable)
-Houses 1, 2, 3, 6, 10, 11 = improving houses in KP
-These houses when activated bring positive changes and success
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 3: COMPLETE HOUSE SIGNIFICATIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+H1 (LAGNA — Self): Physical body, health, personality, longevity, appearance,
+  general wellbeing, vitality, will power, self-confidence, head region.
+  Sub lord rules: General health of native, physical features, fame (if connected to H10)
+
+H2 (DHANA — Wealth/Family): Accumulated money, savings, family, speech, food,
+  kutumbha (family unit), second marriage indicator, right eye, face, death-dealing (maraka).
+  Key signification: Also indicates marriage (family of marriage), childbirth support
+  Sub lord connections:
+    - Signifies 5 and 11 → childbirth
+    - Signifies 7 and 11 → marriage
+    - Signifies 6 and 11 → success in litigation or promotion
+    - Signifies 6 and 8 → very good financial status from 6th (competitors) and 8th (legacy)
+    - Signifies 2 and 10 → moderate affluence
+    - Signifies 7 and 10 → lucrative income through business
+
+H3 (SAHAJA — Communication/Courage): Siblings, courage, short journeys,
+  communication, writing, media, telephone, negotiation, boldness, arms/hands.
+  Sub lord rules:
+    - Connected to 3 and 11 → successful negotiation, receipt of communication
+    - Connected to 6 and 11 → success in appeal/petition in courts
+    - Connected to 9 and 11 → long journey will be successful
+    - Connected to 12 → defective hearing possible
+
+H4 (SUKHA — Home/Comforts): Permanent residence, property, mother, vehicles,
+  education (school/college), domestic environment, inner happiness, land, real estate.
+  Sub lord rules:
+    - Signifies 4 and 11 → acquisition of property/vehicle
+    - Signifies 4, 11, 12 → will construct a house (12=investment)
+    - Signifies 8 and 12 → breaks in education, no education
+    - Signifies 3 and 12 → change in residence
+    - Signifies 10 and 11 → success in medical/competitive examination
+
+H5 (PUTRA — Children/Intelligence): Children, past life credit, speculation/gambling,
+  romance/love affairs, creative intelligence, entertainment, mantras, higher wisdom.
+  Sub lord rules:
+    - Signifies 2, 5, 11 → childbirth promised
+    - Signifies 1, 4, 10 → children denied
+    - Signifies 6 and 11 → wins in speculation/gambling
+    - Signifies 7 and 11 → love affair materializes into marriage
+    - Signifies 6 and 12 → love affair will NOT materialize into marriage
+    - Signifies 2, 6, 5, 11 → gains in speculation
+
+H6 (RIPU — Enemies/Service/Health): Job/service/employment, disease/illness,
+  enemies, competitors, debts, legal disputes, loans, pets, maternal uncle,
+  daily work routine, litigation, overdraft.
+  Sub lord rules:
+    - Signifies 2, 6, 11 → gets loan/overdraft, receives money
+    - Signifies 1, 6, 11 → success in litigation
+    - Signifies 1, 5, 9, 12 → no reappointment in service
+    - Signifies 6 or 10 or 2 → reappointment possible
+    - Signifies 12 and is strong significator of 6 → incurable disease
+    - Signifies improving houses → success in all dealings with others
+
+H7 (KALATRA — Spouse/Partners): Legal marriage, life partner, business partnerships,
+  open enemies, public dealings, foreign travel (secondary), courts/legal agreements.
+  Sub lord rules (CRITICAL FOR MARRIAGE):
+    - Signifies 2, 7, 11 → MARRIAGE PROMISED
+    - Signifies 1, 6, 10, 12 → marriage NOT with this party/delayed significantly
+    - Signifies 5 and 11 → permanent tie with partner/happiness in marriage
+    - Signifies 6 and 11 → business partnership possible
+    - Signifies 6 and 12 → partnership will break
+    - Connected to 4 and 10 → partner from same area/locality
+    - Connected to 5 and 9 → partner from different background or love marriage
+
+H8 (AYUR — Longevity/Obstacles): Longevity, death, chronic illness, surgery,
+  hidden/secret matters, inheritance, legacy, obstacles, transformation, suddenness.
+  Sub lord rules:
+    - Signifies 2, 10, 11 → returns borrowed money, prosperous
+    - Signifies 5, 6, 8, 12 → borrows from everyone, financial trouble
+    - Signifies 6 and 11 → receives cheque from others (they lose)
+    - Connected to Maraka/Badhaka AND 8 AND Mars → suicidal death
+    - Connected to 6, 8, 12 AND Mars → surgery required
+
+H9 (BHAGYA — Luck/Higher Learning): Fortune, luck, father, higher education,
+  philosophy, long journeys, pilgrimage, spirituality, dharma, foreign connections.
+  Sub lord rules:
+    - Signifies 1 and 11 → paternal property received
+    - Signifies 3, 9, 10 → pilgrimage/journey to holy places
+    - Signifies 9 and 12 → long travels including overseas
+    - Signifies 4 and 9 → higher studies promised (if 9th sub not afflicted)
+    - Signifies 11 → success in higher education
+
+H10 (KARMA — Career/Profession): Main career, profession, reputation, status,
+  authority, government, actions, public life, ambition.
+  Sub lord rules:
+    - Signifies 2, 6, 10, 11 → employment/job promised
+    - Signifies 7 → profession is business (not service)
+    - Signifies 6 → profession is service (job under someone)
+    - Signifies 2, 6, 10 → reinstatement in service possible
+    - Signifies 1, 5, 9, 12 → will NOT be reinstated in service
+    - Signifies 7, 8, 12 → income tax trouble
+    - Signifies 3, 5, 10 → sale/disposal of property
+
+H11 (LABHA — Gains/Fulfillment): Income, profits, gains, fulfillment of desires,
+  friends, elder siblings, social connections, all wishes coming true.
+  Key signification: H11 is the house of fulfillment — EVERY event requires H11
+  to be activated for the event to fructify/complete.
+  The 11th house signification confirms the matter reaches its conclusion.
+
+H12 (VYAYA — Losses/Foreign Settlement): Expenditures, losses, foreign land,
+  hospital/isolation, bed pleasures, behind-the-scenes activities, spiritual liberation,
+  investments/money spent (e.g., buying property = 12th + 4th together).
+  Sub lord rules:
+    - Signifies 6 and 12 → cheated by others
+    - Connected to Mars → keeps eye on others' wealth
+    - For foreign settlement: H12 sub lord signifying 9 and 12 → overseas possible
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 4: SIGNIFICATOR HIERARCHY — 4 LEVELS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+For any house, collect significators in this order (strongest to weakest):
+Level 1: Planets OCCUPYING the house (strongest)
+Level 2: LORD of the house (sign lord of the cusp)
+Level 3: Planets in the STAR OF OCCUPANTS of the house
+Level 4: Planets in the STAR OF THE HOUSE LORD
+
+FRUITFUL SIGNIFICATORS:
+Those that appear in BOTH the significator list AND the Ruling Planets list.
+These are the planets that will actually trigger the event.
+
+RAHU AND KETU SPECIAL RULES:
+- Rahu/Ketu act as agents for the planet they are in conjunction with
+- If no conjunction: they act as agents for the sign lord of their position
+- Rahu is MORE powerful than the planet it conjoins
+- Rahu in H7 = strong marriage significator (acts for H7 matters)
+- Ketu represents separation, moksha, sudden endings, spiritual withdrawal
+- Ketu in H2 = emotional uncertainty about family/marriage matters
+- When Rahu's star lord is a strong marriage significator, Rahu becomes even stronger
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 5: RULING PLANETS (RP) — DIVINE CONFIRMATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Ruling Planets at the moment of query — 5 factors:
+1. Day lord (lord of the weekday)
+2. Lagna sign lord (lord of the ascendant sign at query time)
+3. Lagna star lord (lord of the nakshatra of the rising degree)
+4. Moon sign lord (lord of Moon's current sign)
+5. Moon star lord (lord of Moon's current nakshatra)
+
+HOW TO USE RULING PLANETS:
+- Events are triggered by dasha/antardasha lords that are ALSO Ruling Planets
+- A significator NOT in Ruling Planets may still be relevant but timing is weaker
+- The BEST timing window = when a dasha lord is both a relevant significator AND a RP
+- Ruling Planets change hourly — they represent the cosmic moment of the question
+
+OVERRIDE RULE:
+If a planet is BOTH a strong significator of relevant houses AND appears in
+Ruling Planets, it can partially override a weak cusp sub lord.
+Example: Venus as Lagna Star Lord AND H7 lord AND in Ruling Planets = can
+overcome even a conditional H7 sub lord for marriage promise.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 6: TIMING — DASHA/ANTARDASHA/PRATYANTARDASHA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+VIMSHOTTARI DASHA YEARS:
+Ketu: 7 | Venus: 20 | Sun: 6 | Moon: 10 | Mars: 7 | Rahu: 18 |
+Jupiter: 16 | Saturn: 19 | Mercury: 17 | Total: 120 years
+
+THE SIMULTANEOUS ACTIVATION RULE:
+For an event to happen, ALL of these must be true at the same time:
+1. Mahadasha (MD) lord signifies relevant houses
+2. Antardasha (AD) lord signifies relevant houses
+3. Pratyantardasha (PAD) lord confirms (for precise timing)
+4. Ideally, one of these lords is in Ruling Planets
+
+IF ONLY MD SIGNIFIES BUT AD DOES NOT:
+The event will not happen in that AD period. Must wait for a better AD.
+
+IDENTIFYING THE RIGHT AD:
+For each upcoming AD, check:
+- Which houses does this AD lord occupy?
+- Which house is its star lord in?
+- Does the AD lord signify the relevant houses for the topic?
+- Is it in the Ruling Planets currently?
+
+PRATYANTARDASHA PRECISION:
+Within a favorable AD, the PAD that triggers the event is the one whose lord:
+- Signifies the relevant houses
+- Appears in Ruling Planets at that time
+- Is a fruitful significator (appears in both lists)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 7: PLANET NATURE AND SIGNIFICATIONS IN KP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SUN (Surya):
+Natural significations: Soul, father, authority, government, vitality, confidence
+Karaka for: H1 (self/health), H9 (father/luck), H10 (career/authority/fame)
+As sub lord of H2: Noble, truthful, never lies. Dignified speech.
+Timing: 6-year MD. Fast-moving in subcycles.
+
+MOON (Chandra):
+Natural significations: Mind, mother, emotions, public, fluidity, change
+Karaka for: H4 (mother/home/emotions), H2 (family feelings and nourishment)
+As sub lord of H7: Very pleasant emotional life with spouse.
+As sub lord of H2: Emotionally connected to family, nurturing.
+Timing: 10-year MD. Sensitive to transit changes.
+
+MARS (Kuja/Mangal):
+Natural significations: Energy, courage, action, blood, surgery, real estate
+Karaka for: H3 (courage/siblings), H4/H8 (immovable property), H10 (action)
+As sub lord: Argumentative, untruthful (H2), aggressive, direct, spend-thrift
+Special rules: Mars must be connected for real estate (immovable property)
+Timing: 7-year MD. Short but intense periods.
+
+MERCURY (Budha):
+Natural significations: Intelligence, communication, analysis, trade, technology
+Karaka for: H3 (communication), H6 (detailed service), H10 (commerce/business)
+As sub lord of H2: Detailed, analytical, multiple meanings in speech
+In career: Planet of data engineering, technology, writing, analysis
+Timing: 17-year MD. Long analytical period.
+
+JUPITER (Guru):
+Natural significations: Wisdom, expansion, abundance, children, spirituality
+Karaka for: H2 (family wealth), H5 (children/intelligence), H9 (wisdom/luck/dharma)
+As sub lord of H7: Very happy marital life if signifies 2 and 11
+As sub lord of H2: Vaksiddha (whatever he speaks comes true if H11 connected)
+Timing: 16-year MD. Most expansive and auspicious period generally.
+
+VENUS (Shukra):
+Natural significations: Beauty, relationships, art, luxury, vehicles, comforts
+Karaka for: H7 (marriage/partner) — PRIMARY KARAKA, H4 (vehicles), H12 (bed pleasures)
+As sub lord of H7: Extreme pleasure, harmony, 64 leelas (intimate pleasures)
+Marriage significance: Venus is the most important planet for marriage.
+Strong Venus in Ruling Planets during an AD = strongest marriage activation.
+Timing: 20-year MD. Longest and most comfortable period.
+
+SATURN (Shani):
+Natural significations: Discipline, delays, karma, service, masses, labor
+Karaka for: H6 (service/labor/enemies), H8 (longevity/chronic matters), H10 (status)
+As sub lord of H7: Aged husband, significant age difference. Dissatisfaction.
+As sub lord of H2: Juggler of words, hides truth while speaking.
+Brings: Delays but NOT denials. Tests and challenges before reward.
+IMPORTANT: Saturn delays but does not deny if relevant houses are signified.
+Timing: 19-year MD. Long, slow, methodical period with delayed results.
+
+RAHU (North Node):
+Natural significations: Foreign, sudden, unconventional, obsessions, amplification
+Acts as: Agent of the planet it conjoins / sign lord it's in
+As sub lord: Unconventional, karmic, foreign elements, delays, unexpected.
+Rahu in H7: Strong marriage significator (agent rule)
+Rahu in H2: Wealth and family connection, but through unconventional means
+Special: Rahu is MORE powerful than the planet it conjoins. Amplifies whatever it touches.
+Timing: 18-year MD. Major karmic period with significant life changes.
+
+KETU (South Node):
+Natural significations: Separation, spirituality, sudden endings, past karma
+Acts as: Agent of the planet it conjoins / sign lord it's in
+As sub lord: Separation, withdrawal, sudden unusual outcomes
+Ketu in H2: Emotional uncertainty, separation tendency in family matters
+Gnana karaka (wisdom through detachment). Moksha karaka (liberation).
+Timing: 7-year MD. Short but intense period of releases and endings.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 8: BADHAKA AND MARAKA — OBSTRUCTION AND DEATH DEALERS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BADHAKA HOUSES (Most harmful, blocks longevity and major events):
+- Moveable Lagna (Aries, Cancer, Libra, Capricorn): H11 is Badhaka
+- Fixed Lagna (Taurus, Leo, Scorpio, Aquarius): H9 is Badhaka
+- Common Lagna (Gemini, Virgo, Sagittarius, Pisces): H7 is Badhaka
+
+MARAKA HOUSES (Death dealers — 12th from longevity houses):
+- H2 (12th from H3 which is 8th from 8th)
+- H7 (12th from H8)
+- Badhaka house (as per Lagna sign type above)
+
+In life matters (not death): Badhaka house signification = severe obstacle/blockage
+In career: If AD lord signifies Badhaka house prominently = major career obstacle
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 9: DENIAL VS DELAY VS CONDITIONAL — PRECISE DISTINCTIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DENIAL (Event will NOT happen):
+- Sub lord of primary cusp signifies ONLY houses that negate the matter
+- Example: Marriage denied if H7 sub lord ONLY signifies 1, 6, 10, 12
+- All three supporting cusps (H2, H11 for marriage) also show same negation
+- No remaining dasha period connects to relevant houses
+
+DELAY (Event will happen but much later):
+- Sub lord signifies relevant houses BUT ALSO obstacle houses (H8, H12 or Badhaka)
+- Saturn or Badhaka lord prominently in sub lord chain
+- Event will happen — just requires patience and correct period
+- Strong karaka present gives hope for eventual fructification
+
+CONDITIONAL (Event may happen under specific conditions):
+- Primary cusp shows partial promise (some relevant houses connected)
+- But H2 or H11 sub lords are stronger and support the matter
+- Karaka planet (Venus for marriage, Mars for property etc.) is strong
+- The right dasha period will unlock the conditional promise
+
+HOW TO COMMUNICATE THESE:
+- Denial: "The chart suggests this matter will not fructify as requested"
+- Delay: "This is promised but timing is specific — patience required until [period]"
+- Conditional: "The chart shows partial promise — [conditions] must align"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 10: RETROGRADE PLANETS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+In NATAL charts: Retrograde planet is treated as in direct motion — no harm.
+In HORARY charts: Retrograde planet gives results ONLY after turning direct.
+
+If sub lord of cusp is in star of RETROGRADE planet → significantly weakened promise.
+If sub lord itself is retrograde → weakened but not nullified in natal analysis.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 11: COMPLETE STEP-BY-STEP ANALYSIS METHODOLOGY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FOR EVERY QUESTION FOLLOW THIS SEQUENCE:
+
+STEP 1 — IDENTIFY RELEVANT HOUSES
+Each topic has a primary house, plus H2 and H11 always support fulfillment.
+
+STEP 2 — CUSPAL SUB LORD ANALYSIS (PROMISE GATE)
+Examine sub lord of primary cusp:
+  → Does it signify relevant houses? YES=Promised, NO=Denied, MIXED=Conditional
+Examine sub lords of H2 and H11:
+  → Do they support or contradict primary cusp verdict?
+Apply karaka override if applicable.
+
+STEP 3 — SIGNIFICATORS COLLECTION
+For each relevant house, collect all 4 levels of significators.
+Cross-reference with Ruling Planets to identify Fruitful Significators.
+
+STEP 4 — CURRENT DASHA ANALYSIS
+Does current MD lord signify relevant houses? (Yes/No/Partial)
+Does current AD lord signify relevant houses? (Yes/No/Partial)
+If BOTH yes → event possible NOW in right PAD.
+If only MD → event will come in a better upcoming AD.
+
+STEP 5 — SCAN ALL UPCOMING ANTARDASHA PERIODS
+For EACH upcoming AD lord:
+  - Check house occupation
+  - Check star lord's house
+  - Check what houses this AD lord signifies
+  - Does it appear in current Ruling Planets?
+  - Rank: STRONG / MODERATE / WEAK / UNFAVORABLE
+
+STEP 6 — IDENTIFY PRIMARY, SECONDARY, TERTIARY WINDOWS
+PRIMARY: The AD with strongest relevant house signification + RP overlap
+SECONDARY: Next best AD for the topic
+TERTIARY: Sub-period (PAD) within a less favorable AD that still shows promise
+
+STEP 7 — PRATYANTARDASHA CONFIRMATION
+Within primary AD, which PAD lords are also significators AND in RP?
+This gives the narrowest and most precise timing.
+
+STEP 8 — FINAL VERDICT
+State clearly:
+1. Is the event promised/conditional/denied?
+2. Primary timing window with exact AD dates
+3. Secondary/tertiary windows
+4. Periods to avoid (unfavorable ADs)
+5. Why this verdict (the astrological reasoning)
+
+IMPORTANT TIMING RULE — NEVER ASSUME "NOW":
+When a question is asked about timing without specifying a year,
+ALWAYS analyze ALL future dasha periods and give the COMPLETE timeline.
+Do NOT default to the current period just because it is being asked now.
+The planets determine timing — not the date of the question.
