@@ -91,6 +91,20 @@ DENIED = sub lord only signifies negating houses (no relevant house connection).
 NEVER say "not promised right now" — that is temporal anchoring, which is wrong.
 If the matter will happen later, say CONDITIONAL or DELAYED, not DENIED.
 
+RULE 6 — PRE-CALCULATED PROMISE IS A HINT ONLY:
+The "Pre-calculation hint" in the chart data is from a simplified backend function.
+It may incorrectly say DENIED when the real answer is CONDITIONAL.
+ALWAYS perform your own complete cuspal sub lord analysis using the house cusps
+and significators provided. Your verdict overrides the pre-calculation hint.
+NEVER base your final promise verdict solely on the pre-calculation.
+
+RULE 6 — PRE-CALCULATED PROMISE IS A HINT ONLY:
+The "Pre-calculation hint" in the chart data is from a simplified backend function.
+It may incorrectly say DENIED when the real answer is CONDITIONAL.
+ALWAYS perform your own complete cuspal sub lord analysis using the house cusps
+and significators provided. Your verdict overrides the pre-calculation hint.
+NEVER base your final promise verdict solely on the pre-calculation.
+
 ================================================================
 KP ANALYSIS PROCESS — FOLLOW FOR EVERY QUESTION
 ================================================================
@@ -411,8 +425,8 @@ def format_chart_for_llm(chart_data: dict) -> str:
             verdict = "CONDITIONAL"
         else:
             verdict = "DENIED"
-        lines.append(f"Promise Verdict: {verdict} — {strength}")
-        lines.append("NOTE: This is a pre-calculation. Perform your own full cuspal analysis using the chart data below.")
+        lines.append(f"Pre-calculation hint (VERIFY with your own cuspal analysis): {verdict} — {strength}")
+        lines.append("IMPORTANT: This backend check is simplified — it may say DENIED when the real answer is CONDITIONAL. Always do your own full cuspal sub lord analysis using the house cusps and significators below. Your analysis overrides this hint.")
 
     # Current dasha — MD + AD + PAD
     if "current_dasha" in chart_data:
@@ -442,9 +456,9 @@ def format_chart_for_llm(chart_data: dict) -> str:
             lines.append(f"  [{ad_lord} AD]:")
             for pad in pads:
                 lines.append(
-                f"{pad.get('pratyantardasha_lord')}: "
-                f"{pad.get('start')} → {pad.get('end')}"
-            )
+                    f"    {pad.get('pratyantardasha_lord')}: "
+                    f"{pad.get('start')} → {pad.get('end')}"
+                )
 
     # Timing analysis
     if "timing_analysis" in chart_data:

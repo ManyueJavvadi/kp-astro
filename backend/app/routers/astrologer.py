@@ -336,7 +336,10 @@ def analyze_topic(request: AnalysisRequest):
     timing = check_dasha_relevance(topic, current_md, current_ad, chart["planets"], chart["cusps"])
     ruling_planets = get_ruling_planets(request.timezone_offset)
     all_significators = get_all_house_significators(chart["planets"], chart["cusps"])
-    planet_positions = {planet: data.get("house", "") for planet, data in chart["planets"].items()}
+
+    # Use proper house position calculation — chart["planets"] has no "house" key
+    from app.services.chart_engine import get_planet_house_positions
+    planet_positions = get_planet_house_positions(chart["planets"], chart["cusps"])
 
     chart_data = {
         "name": request.name,

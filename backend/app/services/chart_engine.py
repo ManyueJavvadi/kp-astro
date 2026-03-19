@@ -363,10 +363,11 @@ def get_ruling_planets(timezone_offset: float = 5.5) -> dict:
 
     now = datetime.utcnow()
 
-    # Julian day for current moment
+    # Julian day for current moment — swe.julday expects UT (UTC)
+    # Do NOT add timezone_offset here — utcnow() is already UTC
     jd_now = swe.julday(
         now.year, now.month, now.day,
-        now.hour + now.minute / 60 + timezone_offset
+        now.hour + now.minute / 60
     )
 
     # Set KP New ayanamsa
@@ -430,22 +431,24 @@ SIGN_LORDS = [
 ]
 
 # House topics for KP — which houses govern which life areas
+# IMPORTANT: First house in each list is the PRIMARY CUSP checked in check_promise()
+# Primary cusp = the most direct KP gate for that topic
 HOUSE_TOPICS = {
-    "marriage":         [2, 7, 11],
+    "marriage":         [7, 2, 11],      # H7 = spouse house (primary gate)
     "divorce":          [6, 10, 12],
-    "job":              [2, 6, 10, 11],
-    "business":         [2, 7, 10, 11],
-    "foreign_travel":   [3, 9, 12],
-    "foreign_settle":   [8, 12],
-    "education":        [4, 9, 11],
-    "health":           [1, 5, 8, 12],
-    "children":         [2, 5, 11],
-    "property":         [4, 11, 12],
+    "job":              [10, 2, 6, 11],  # H10 = profession house (primary gate)
+    "business":         [7, 2, 10, 11],  # H7 = partners/public (primary gate)
+    "foreign_travel":   [9, 3, 12],      # H9 = long journeys (primary gate)
+    "foreign_settle":   [12, 3, 9],      # H12 = foreign land (primary gate)
+    "education":        [9, 4, 11],      # H9 = higher learning (primary gate)
+    "health":           [6, 1, 8, 12],   # H6 = disease house (primary gate)
+    "children":         [5, 2, 11],      # H5 = children (primary gate)
+    "property":         [4, 11, 12],     # H4 = immovable property (primary gate)
     "father":           [9, 10],
     "mother":           [4, 10],
-    "litigation":       [6, 8, 12],
-    "spirituality":     [8, 9, 12],
-    "wealth":           [2, 6, 10, 11]
+    "litigation":       [6, 8, 12],      # H6 = disputes (primary gate)
+    "spirituality":     [9, 8, 12],
+    "wealth":           [2, 6, 10, 11]   # H2 = accumulated wealth (primary gate)
 }
 
 
