@@ -50,6 +50,10 @@ def ask_prediction(request: PredictionRequest):
     # PAD calculation for current AD
     pratyantardashas = calculate_pratyantardashas(current_ad)
     current_pad = get_current_pratyantardasha(pratyantardashas)
+    all_ad_pratyantardashas = {}
+    for ad in antardashas:
+        ad_lord = ad["antardasha_lord"]
+        all_ad_pratyantardashas[ad_lord] = calculate_pratyantardashas(ad)
 
     topic = detect_topic(request.question)
     print(f"[{request.mode.upper()}] Topic: {topic} | Q: {request.question}")
@@ -82,6 +86,7 @@ def ask_prediction(request: PredictionRequest):
         },
         "upcoming_antardashas": antardashas,
         "pratyantardashas_current_ad": pratyantardashas,  # all 9 PADs within current AD
+        "all_ad_pratyantardashas": all_ad_pratyantardashas,
         "ruling_planets": ruling_planets,
         "significators": all_significators,
         "planet_positions": planet_positions,

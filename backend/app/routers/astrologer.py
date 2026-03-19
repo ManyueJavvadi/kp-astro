@@ -322,6 +322,10 @@ def analyze_topic(request: AnalysisRequest):
     # PAD calculation
     pratyantardashas = calculate_pratyantardashas(current_ad)
     current_pad = get_current_pratyantardasha(pratyantardashas)
+    all_ad_pratyantardashas = {}
+    for ad in antardashas:
+        ad_lord = ad["antardasha_lord"]
+        all_ad_pratyantardashas[ad_lord] = calculate_pratyantardashas(ad)
 
     from app.services.chart_engine import (
         check_promise, check_dasha_relevance, get_all_house_significators
@@ -346,6 +350,7 @@ def analyze_topic(request: AnalysisRequest):
         },
         "upcoming_antardashas": antardashas,
         "pratyantardashas_current_ad": pratyantardashas,
+        "all_ad_pratyantardashas": all_ad_pratyantardashas,
         "ruling_planets": ruling_planets,
         "significators": all_significators,
         "planet_positions": planet_positions,

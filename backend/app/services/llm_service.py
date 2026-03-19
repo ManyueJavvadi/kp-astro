@@ -436,11 +436,13 @@ def format_chart_for_llm(chart_data: dict) -> str:
             )
 
     # PAD sequence within current AD
-    if "pratyantardashas_current_ad" in chart_data:
-        lines.append(f"\nPRATYANTARDASHA SEQUENCE within current AD (exact calculated dates):")
-        for pad in chart_data["pratyantardashas_current_ad"]:
-            lines.append(
-                f"  {pad.get('pratyantardasha_lord')}: "
+    if "all_ad_pratyantardashas" in chart_data:
+        lines.append(f"\nPRATYANTARDASHA SEQUENCES FOR ALL ANTARDASHAS:")
+        for ad_lord, pads in chart_data["all_ad_pratyantardashas"].items():
+            lines.append(f"  [{ad_lord} AD]:")
+            for pad in pads:
+                lines.append(
+                f"{pad.get('pratyantardasha_lord')}: "
                 f"{pad.get('start')} → {pad.get('end')}"
             )
 
