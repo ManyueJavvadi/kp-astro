@@ -651,3 +651,73 @@ def check_dasha_relevance(topic: str, current_mahadasha: dict,
             else "Dasha lords do not strongly signify relevant houses — timing not confirmed"
         )
     }
+
+    # ============================================================
+# PAD DASHAS (SUB-SUB-PERIODS) CALCULATION
+# ============================================================
+
+def calculate_pratyantardashas(antardasha: dict) -> list:
+    """
+    Calculate all Pratyantardasha (PAD / sub-sub-periods) within an Antardasha.
+    
+    PAD duration = AD total duration × (PAD lord years / 120)
+    Sequence starts from the AD lord itself.
+    """
+    from datetime import datetime, timedelta
+
+    ad_lord = antardasha["antardasha_lord"]
+    ad_start = datetime.strptime(antardasha["start"], "%Y-%m-%d")
+    ad_end = datetime.strptime(antardasha["end"], "%Y-%m-%d")
+    ad_total_days = (ad_end - ad_start).days
+
+    # PAD sequence starts from the AD lord
+    start_index = DASHA_SEQUENCE.index(ad_lord)
+
+    pratyantardashas = []
+    current_date = ad_start
+
+    for i in range(9):
+        pad_lord = DASHA_SEQUENCE[(start_index + i) % 9]
+        proportion = DASHA_YEARS[pad_lord] / TOTAL_DASHA_YEARS
+        pad_days = ad_total_days * proportion
+        end_date = current_date + timedelta(days=pad_days)
+
+        pratyantardashas.append({
+            "mahadasha_lord": antardasha["mahadasha_lord"],
+            "antardasha_lord": ad_lord,
+            "pratyantardasha_lord": pad_lord,
+            "start": current_date.strftime("%Y-%m-%d"),
+            "end": end_date.strftime("%Y-%m-%d"),
+        })
+
+        current_date = end_date
+
+    return pratyantardashas
+
+
+def get_current_pratyantardasha(pratyantardashas: list) -> dict:
+    """Find currently running Pratyantardasha."""
+    from datetime import datetime
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    for pad in pratyantardashas:
+        if pad["start"] <= today <= pad["end"]:
+            return pad
+
+    return pratyantardashas[-1]
+
+
+def get_upcoming_pratyantardashas(pratyantardashas: list, limit: int = 9) -> list:
+    """Return current + upcoming PADs (not past ones)."""
+    from datetime import datetime
+    today = datetime.now().strftime("%Y-%m-%d")
+    result = []
+    found_current = False
+    for pad in pratyantardashas:
+        if pad["end"] >= today:
+            result.append(pad)
+            if not found_current:
+                found_current = True
+        if len(result) >= limit:
+            break
+    return result

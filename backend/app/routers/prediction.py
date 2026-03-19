@@ -5,6 +5,7 @@ from app.services.llm_service import get_prediction, detect_topic
 from app.services.chart_engine import (
     generate_chart, calculate_dashas, get_current_dasha,
     calculate_antardashas, get_current_antardasha,
+    calculate_pratyantardashas, get_current_pratyantardasha,
     check_promise, check_dasha_relevance, get_ruling_planets,
     get_all_house_significators
 )
@@ -25,12 +26,11 @@ class PredictionRequest(BaseModel):
     topic: str = "auto"
     question: str
     history: List[HistoryItem] = []
-    mode: str = "user"  # "user" or "astrologer"
+    mode: str = "user"
 
 @router.post("/ask")
 def ask_prediction(request: PredictionRequest):
 
-    # Generate chart
     chart = generate_chart(
         request.date, request.time,
         request.latitude, request.longitude,
@@ -39,7 +39,6 @@ def ask_prediction(request: PredictionRequest):
 
     moon_longitude = chart["planets"]["Moon"]["longitude"]
 
-    # Dashas
     dashas = calculate_dashas(
         request.date, request.time,
         moon_longitude, request.timezone_offset
@@ -48,11 +47,13 @@ def ask_prediction(request: PredictionRequest):
     antardashas = calculate_antardashas(current_md)
     current_ad = get_current_antardasha(antardashas)
 
-    # Detect topic
+    # PAD calculation for current AD
+    pratyantardashas = calculate_pratyantardashas(current_ad)
+    current_pad = get_current_pratyantardasha(pratyantardashas)
+
     topic = detect_topic(request.question)
     print(f"[{request.mode.upper()}] Topic: {topic} | Q: {request.question}")
 
-    # KP analysis
     promise = check_promise(topic, chart["cusps"], chart["planets"])
     timing = check_dasha_relevance(
         topic, current_md, current_ad,
@@ -76,9 +77,11 @@ def ask_prediction(request: PredictionRequest):
         "timing_analysis": timing,
         "current_dasha": {
             "mahadasha": current_md,
-            "antardasha": current_ad
+            "antardasha": current_ad,
+            "pratyantardasha": current_pad,
         },
-        "upcoming_antardashas": antardashas,  # full sequence with exact dates
+        "upcoming_antardashas": antardashas,
+        "pratyantardashas_current_ad": pratyantardashas,  # all 9 PADs within current AD
         "ruling_planets": ruling_planets,
         "significators": all_significators,
         "planet_positions": planet_positions,
@@ -100,7 +103,8 @@ def ask_prediction(request: PredictionRequest):
             "timing_analysis": timing,
             "current_dasha": {
                 "mahadasha": current_md,
-                "antardasha": current_ad
+                "antardasha": current_ad,
+                "pratyantardasha": current_pad,
             },
             "ruling_planets": ruling_planets,
             "significators": all_significators,

@@ -6,6 +6,7 @@ import swisseph as swe
 from app.services.chart_engine import (
     generate_chart, calculate_dashas, get_current_dasha,
     calculate_antardashas, get_current_antardasha,
+    calculate_pratyantardashas, get_current_pratyantardasha,
     get_ruling_planets, get_all_house_significators
 )
 from app.services.telugu_terms import (
@@ -166,6 +167,8 @@ def get_workspace(request: WorkspaceRequest):
     current_md = get_current_dasha(dashas)
     antardashas = calculate_antardashas(current_md)
     current_ad = get_current_antardasha(antardashas)
+    pratyantardashas = calculate_pratyantardashas(current_ad)
+    current_pad = get_current_pratyantardasha(pratyantardashas)
     all_significators = get_all_house_significators(chart["planets"], chart["cusps"])
     ruling_planets = get_ruling_planets(request.timezone_offset)
 
@@ -274,7 +277,26 @@ def get_workspace(request: WorkspaceRequest):
             "start": current_ad.get("start", ""),
             "end": current_ad.get("end", ""),
         },
+        "current_pratyantardasha": {
+            "lord_en": current_pad.get("pratyantardasha_lord", ""),
+            "lord_te": get_planet_telugu(current_pad.get("pratyantardasha_lord", "")),
+            "start": current_pad.get("start", ""),
+            "end": current_pad.get("end", ""),
+        },
         "antardashas": dashas_formatted,
+        "pratyantardashas": [
+            {
+                "lord_en": p.get("pratyantardasha_lord", ""),
+                "lord_te": get_planet_telugu(p.get("pratyantardasha_lord", "")),
+                "start": p.get("start", ""),
+                "end": p.get("end", ""),
+                "is_current": (
+                    p.get("pratyantardasha_lord") == current_pad.get("pratyantardasha_lord") and
+                    p.get("start") == current_pad.get("start")
+                ),
+            }
+            for p in pratyantardashas
+        ],
         "ruling_planets": rp_formatted,
         "panchangam_today": get_today_panchangam(request.timezone_offset),
         "panchangam_birth": get_birth_panchangam(request.date, request.time, request.timezone_offset),
@@ -297,6 +319,10 @@ def analyze_topic(request: AnalysisRequest):
     antardashas = calculate_antardashas(current_md)
     current_ad = get_current_antardasha(antardashas)
 
+    # PAD calculation
+    pratyantardashas = calculate_pratyantardashas(current_ad)
+    current_pad = get_current_pratyantardasha(pratyantardashas)
+
     from app.services.chart_engine import (
         check_promise, check_dasha_relevance, get_all_house_significators
     )
@@ -313,8 +339,13 @@ def analyze_topic(request: AnalysisRequest):
         "chart_summary": {"planets": chart["planets"], "cusps": chart["cusps"]},
         "promise_analysis": promise,
         "timing_analysis": timing,
-        "current_dasha": {"mahadasha": current_md, "antardasha": current_ad},
+        "current_dasha": {
+            "mahadasha": current_md,
+            "antardasha": current_ad,
+            "pratyantardasha": current_pad,
+        },
         "upcoming_antardashas": antardashas,
+        "pratyantardashas_current_ad": pratyantardashas,
         "ruling_planets": ruling_planets,
         "significators": all_significators,
         "planet_positions": planet_positions,
@@ -327,14 +358,18 @@ def analyze_topic(request: AnalysisRequest):
         lang_instruction = f"""
 
 LANGUAGE INSTRUCTIONS:
-Write the full analysis in Telugu mixed with English KP terms.
-- Explanations and sentences: Telugu
-- KP technical terms: English (Sub Lord, Cusp, Significator, Antardasha, Mahadasha, Ruling Planets, Promised, Denied, house numbers like H7)
-- Planet names: USE TELUGU NAMES from this reference:
+Write analysis in Telugu mixed with English KP terms.
+CRITICAL SCRIPT RULE: Use ONLY Telugu script (Unicode range U+0C00–U+0C7F).
+NEVER use: Hindi/Devanagari (ह, क, म etc), Chinese, Japanese, or any other script.
+If you cannot write a word in Telugu, write it in English instead.
+
+- Explanations and sentences: Telugu script only
+- KP technical terms kept in English: Sub Lord, Cusp, Significator, Antardasha, Mahadasha, Ruling Planets, house numbers (H7, H2 etc), PROMISED, CONDITIONAL, DENIED
+- Planet names: USE TELUGU from this reference:
 {telugu_ref}
-- Example: "H7 యొక్క Sub Lord రాహువు, houses 2, 4, 8 ని signify చేస్తోంది"
-- Example: "శుక్రుడు H7 మరియు H11 lord కాబట్టి marriage కి strong significator"
-- NEVER use English planet names like Venus, Mars, Saturn — always use Telugu equivalents"""
+- Example correct: "H7 యొక్క Sub Lord రాహువు, houses 2, 4, 8 ని signify చేస్తోంది"
+- Example correct: "శుక్రుడు H7 మరియు H11 lord కాబట్టి marriage కి strong significator"
+- NEVER write English planet names like Venus, Mars, Saturn — always use Telugu from the reference above"""
 
     question = request.question or f"{topic} గురించి పూర్తి KP విశ్లేషణ చేయండి"
     if lang_instruction:

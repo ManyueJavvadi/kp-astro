@@ -510,8 +510,26 @@ export default function Home() {
       {setupDone && mode === "astrologer" && workspaceData && (
         <div className="workspace-layout" style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative", zIndex: 5 }}>
 
-          {/* Sidebar toggle button */}
-          <button onClick={() => setSidebarOpen(prev => !prev)} style={{ position: "absolute", left: sidebarOpen ? 202 : 0, top: "50%", transform: "translateY(-50%)", zIndex: 30, background: "var(--surface)", border: "0.5px solid var(--border2)", borderLeft: sidebarOpen ? "none" : "0.5px solid var(--border2)", borderRadius: sidebarOpen ? "0 6px 6px 0" : "0 6px 6px 0", padding: "10px 4px", cursor: "pointer", color: "var(--accent)", transition: "left 0.2s", display: "flex", alignItems: "center" }}>
+          {/* Sidebar toggle — fixed to top-left on mobile, side on desktop */}
+          <button
+            onClick={() => setSidebarOpen(prev => !prev)}
+            style={{
+              position: "absolute",
+              left: sidebarOpen ? 202 : 0,
+              top: 12,
+              zIndex: 30,
+              background: "var(--surface)",
+              border: "0.5px solid var(--border2)",
+              borderLeft: sidebarOpen ? "none" : "0.5px solid var(--border2)",
+              borderRadius: "0 6px 6px 0",
+              padding: "6px 4px",
+              cursor: "pointer",
+              color: "var(--accent)",
+              transition: "left 0.2s",
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
             {sidebarOpen ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
           </button>
 
@@ -548,6 +566,13 @@ export default function Home() {
                   <div style={{ fontSize: 10, color: "var(--muted)" }}>అంతర్దశ</div>
                   <div style={{ fontSize: 13, color: PLANET_COLORS[workspaceData.current_antardasha.lord_en] || "var(--accent2)", fontWeight: 500 }}>{workspaceData.current_antardasha.lord_te}</div>
                   <div style={{ fontSize: 9, color: "var(--muted)" }}>{workspaceData.current_antardasha.start} → {workspaceData.current_antardasha.end}</div>
+                  {workspaceData.current_pratyantardasha && (
+                    <div style={{ marginTop: 4, paddingTop: 4, borderTop: "0.5px solid var(--border)" }}>
+                      <div style={{ fontSize: 9, color: "var(--muted)" }}>ప్రత్యంతర్దశ</div>
+                      <div style={{ fontSize: 12, color: PLANET_COLORS[workspaceData.current_pratyantardasha.lord_en] || "var(--text)", fontWeight: 500 }}>{workspaceData.current_pratyantardasha.lord_te}</div>
+                      <div style={{ fontSize: 9, color: "var(--muted)" }}>{workspaceData.current_pratyantardasha.start} → {workspaceData.current_pratyantardasha.end}</div>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="sidebar-section" style={{ padding: "0.75rem 1rem", flex: 1 }}>
@@ -669,6 +694,42 @@ export default function Home() {
                 <div className="tab-content">
                   <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: "1rem" }}>దశ కాలరేఖ · {workspaceData.mahadasha.lord_te} మహాదశ</div>
                   <DashaTimeline mahadasha={workspaceData.mahadasha} antardashas={workspaceData.antardashas} />
+
+                  {/* PAD section */}
+                  {workspaceData.pratyantardashas && (
+                    <div style={{ marginTop: "2rem" }}>
+                      <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: "0.5rem" }}>
+                        ప్రత్యంతర్దశ · {workspaceData.current_antardasha.lord_te} అంతర్దశలో
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: "0.75rem" }}>
+                        Pratyantardasha (sub-sub periods) within current {workspaceData.current_antardasha.lord_en} Antardasha
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                        {workspaceData.pratyantardashas.map((pad: any, i: number) => {
+                          const today = new Date();
+                          const isPast = new Date(pad.end) < today;
+                          return (
+                            <div key={i} style={{
+                              display: "flex", alignItems: "center", gap: 8,
+                              padding: "5px 10px", borderRadius: 6,
+                              background: pad.is_current ? "rgba(201,169,110,0.1)" : isPast ? "rgba(255,255,255,0.01)" : "rgba(255,255,255,0.03)",
+                              border: pad.is_current ? "0.5px solid rgba(201,169,110,0.35)" : "0.5px solid var(--border)",
+                              opacity: isPast ? 0.45 : 1,
+                            }}>
+                              <div style={{
+                                width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
+                                background: pad.is_current ? PLANET_COLORS[pad.lord_en] || "var(--accent)" : "var(--border2)",
+                                boxShadow: pad.is_current ? `0 0 6px ${PLANET_COLORS[pad.lord_en] || "var(--accent)"}` : "none",
+                              }} />
+                              <span style={{ fontSize: 12, fontWeight: pad.is_current ? 600 : 400, color: pad.is_current ? PLANET_COLORS[pad.lord_en] || "var(--accent)" : "var(--text)", minWidth: 70 }}>{pad.lord_te}</span>
+                              <span style={{ fontSize: 10, color: "var(--muted)", flex: 1 }}>{pad.start} → {pad.end}</span>
+                              {pad.is_current && <span style={{ fontSize: 9, background: "rgba(201,169,110,0.15)", color: "var(--accent)", padding: "1px 6px", borderRadius: 3 }}>ప్రస్తుతం</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

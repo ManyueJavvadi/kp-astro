@@ -120,10 +120,19 @@ For EVERY upcoming AD in the provided sequence:
 - Rate: STRONG / MODERATE / WEAK / UNFAVORABLE for this topic
 - Note whether it appears in Ruling Planets
 
+STEP 5B — PRATYANTARDASHA ANALYSIS (within current AD)
+Use the exact PAD dates provided in "PRATYANTARDASHA SEQUENCE" section.
+For each PAD lord:
+- Does it signify the relevant houses?
+- Is it in Ruling Planets?
+- This narrows timing from years to months
+PAD that is BOTH a relevant significator AND in Ruling Planets = most precise timing window.
+NEVER guess PAD dates — use only the exact dates provided.
+
 STEP 6 — IDENTIFY ALL TIMING WINDOWS
 PRIMARY: Strongest AD (best house signification + RP overlap)
 SECONDARY: Next best AD
-TERTIARY: Specific PAD within a less favorable AD
+TERTIARY: Specific PAD within a favorable AD (use exact PAD dates provided)
 
 STEP 7 — RULING PLANETS CONFIRMATION
 Cross-check timing windows against Ruling Planets.
@@ -140,21 +149,33 @@ IF MODE = USER:
 Write in warm, plain English as a knowledgeable friend explaining fate.
 NEVER use: sub lord, cusp, significator, antardasha, mahadasha, dasha, nakshatra,
            star lord, cuspal, bhava, Rahu, Ketu (use "shadow planet" if needed)
-INSTEAD use: "planetary period", "key planet", "timing window", "ruling influences",
-             "the stars show", "this phase of life"
-Structure your answer:
-  1. Direct answer to what they asked
-  2. The honest complete picture (including if timing is far away)
-  3. Full future timeline — ALL relevant windows, not just current period
-  4. One practical insight for this phase of life
+INSTEAD use: "planetary period", "key planet", "timing window", "ruling influences"
 
-NO WORD LIMIT — give as much detail as needed to fully answer the question.
-Use flowing paragraphs. No bullet points. No tables.
-Timing must be accurate — use the correct antardasha sequence.
+ANSWER LENGTH — BE INTELLIGENT ABOUT THIS:
+- Simple yes/no timing question → 2-3 paragraphs max
+- "When will X happen?" → Give complete timeline across all future periods, but concisely
+- Complex multi-part question → Full answer as long as needed
+- NEVER pad answers with filler phrases like "Great question" or "I hope this helps"
+- NEVER repeat the same point in different words
+- NEVER cut off mid-analysis — if you start a section, complete it
+- If the answer genuinely needs to be long, let it be long. If it can be short, be short.
+- Always end with a complete sentence, never abruptly
+
+Structure: Direct answer → Complete timeline (all relevant periods) → One practical insight
 Tone: honest, warm, direct. Never vague. Never evasive about difficult timing.
 
 IF MODE = ASTROLOGER:
-Use the full technical KP worksheet format with these exact sections:
+Use the full technical KP worksheet format with these exact sections.
+ANSWER LENGTH — BE INTELLIGENT:
+- Include a section ONLY if it adds genuine value to the analysis
+- Tables should have only the rows that matter — not exhaustive lists of every planet
+- For timing, focus on the most relevant 3-4 AD windows, not all 9
+- Pratyantardasha: analyze only the current + next 2-3 PADs that are relevant
+- Never repeat analysis already stated in a previous section
+- Complete every section you start — never cut off mid-table or mid-sentence
+- The goal is accurate, complete, readable — not exhaustively long
+
+Use this exact structure:
 
 ## COMPLETE KP [TOPIC] ANALYSIS
 **Native:** [Name] | **Analysis Date:** {today}
@@ -350,7 +371,7 @@ IMPORTANT: Answer THIS question independently. Do not assume any timeframe from 
 Perform complete KP analysis. Format output for {mode.upper()} mode as instructed in the system prompt."""
     })
 
-    max_tokens = 4000 if mode == "astrologer" else 3000
+    max_tokens = 6000 if mode == "astrologer" else 3000
 
     message = client.messages.create(
         model="claude-haiku-4-5-20251001",
@@ -393,14 +414,17 @@ def format_chart_for_llm(chart_data: dict) -> str:
         lines.append(f"Promise Verdict: {verdict} — {strength}")
         lines.append("NOTE: This is a pre-calculation. Perform your own full cuspal analysis using the chart data below.")
 
-    # Current dasha
+    # Current dasha — MD + AD + PAD
     if "current_dasha" in chart_data:
         d = chart_data["current_dasha"]
         md = d.get("mahadasha", {})
         ad = d.get("antardasha", {})
+        pad = d.get("pratyantardasha", {})
         lines.append(f"\nCURRENT DASHA:")
         lines.append(f"Mahadasha: {md.get('lord')} ({md.get('start')} → {md.get('end')})")
         lines.append(f"Antardasha: {ad.get('antardasha_lord')} ({ad.get('start')} → {ad.get('end')})")
+        if pad:
+            lines.append(f"Pratyantardasha (PAD): {pad.get('pratyantardasha_lord')} ({pad.get('start')} → {pad.get('end')})")
 
     # CRITICAL — full antardasha sequence
     if "upcoming_antardashas" in chart_data:
@@ -409,6 +433,15 @@ def format_chart_for_llm(chart_data: dict) -> str:
             lines.append(
                 f"  {ad.get('antardasha_lord')}: "
                 f"{ad.get('start')} → {ad.get('end')}"
+            )
+
+    # PAD sequence within current AD
+    if "pratyantardashas_current_ad" in chart_data:
+        lines.append(f"\nPRATYANTARDASHA SEQUENCE within current AD (exact calculated dates):")
+        for pad in chart_data["pratyantardashas_current_ad"]:
+            lines.append(
+                f"  {pad.get('pratyantardasha_lord')}: "
+                f"{pad.get('start')} → {pad.get('end')}"
             )
 
     # Timing analysis
