@@ -63,17 +63,27 @@ H12 = money spent for future (investment, property purchase, foreign land)
 For buying property abroad: H4 (property) + H12 (foreign/investment) + H11 (fulfillment)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SECTION 4: FOREIGN SETTLEMENT — CANADA/SPECIFIC COUNTRIES
+SECTION 4: NATIVE ALREADY SETTLED ABROAD — CONTINUATION ANALYSIS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-For settling in a specific country (Canada, USA, etc.):
+When native is already living abroad, questions about "staying" or "visa renewal"
+or "PR/permanent residency" are questions about continuation of H12 matters.
+H12 sub lord's current activation in dasha = continuation or change of foreign status.
+
+For settling permanently in any foreign country:
 The combination needed: H3 + H9 + H12 all must be signified in the dasha period
 H11 must also be connected for the settlement to be FULFILLING/PERMANENT
 
-ALREADY SETTLED ABROAD:
-If native is already living in Canada, questions about "staying" or "visa renewal"
-are questions about continuation of H12 matters.
-H12 sub lord's current activation in dasha = continuation or change of foreign status.
+VISA AND IMMIGRATION PROCESS:
+H3 (documents/communication) + H9 (journey) + H12 (foreign land) all active = visa/PR process
+When H3 is strongly activated alongside H12 = document processing, application filing
+H11 connected = successful visa/immigration outcome
+
+ALREADY ABROAD — STATUS CONTINUATION:
+If native lives abroad and asks about continuing there:
+H12 prominently activated in dasha = continuation of foreign stay
+H4 (home country) becoming activated while H12 weakens = potential return home
+H4 + H2 + H11 in dasha = return to homeland with gains/satisfaction
 
 RETURNING HOME FROM ABROAD:
 H4 (home country) becoming activated while H12 weakens = return home possibility

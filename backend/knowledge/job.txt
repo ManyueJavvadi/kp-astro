@@ -113,7 +113,7 @@ MARS: Engineering (mechanical, civil), military/defense, surgery, law enforcemen
 
 MERCURY: Data engineering, technology, IT, software, communication, writing,
   journalism, accounting, trading, commerce, analysis, teaching
-  SPECIAL: Mercury is the PRIMARY planet for data engineering, data science, IT roles
+  NOTE: Mercury is the PRIMARY planet for technology, IT, analytical, and communication-based roles
 
 JUPITER: Education, law, finance, banking, religion, philosophy, counseling,
   astrology, medicine (traditional), administration, governance
@@ -130,25 +130,34 @@ RAHU: Foreign-related work, technology, unconventional fields, research,
 KETU: Spirituality, occult, research, medicine (healing arts), isolation-related fields
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SECTION 6: DATA ENGINEERING CAREER SPECIFICS
+SECTION 6: TECHNOLOGY AND IT CAREER SPECIFICS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Data Engineering / Data Science / Software Development roles require:
-PRIMARY PLANETS: Mercury (data/logic/analysis), Rahu (technology/unconventional)
-SECONDARY PLANETS: Saturn (systems/infrastructure), Jupiter (knowledge/wisdom applied)
+Technology / IT / Software / Data roles require:
+PRIMARY PLANETS: Mercury (data/logic/analysis/communication), Rahu (technology/unconventional)
+SECONDARY PLANETS: Saturn (systems/infrastructure/structure), Jupiter (knowledge/wisdom applied)
 
-Mercury-dominated H10 = Perfect alignment for data engineering career.
-Mercury in H10 or as H10 lord = native naturally suited for technology roles.
+Mercury-dominated H10 = alignment for analytical/technology career.
+Mercury in H10 or as H10 lord = native naturally suited for tech, writing, commerce roles.
 
-For overseas/foreign tech companies: Rahu + Mercury combination + H9/H12 connections
+TYPES OF TECH ROLES BY PLANET COMBINATION:
+- Mercury + Rahu: Data engineering, data science, AI/ML, unconventional tech, overseas tech
+- Mercury + Saturn: Infrastructure, DevOps, systems administration, backend engineering
+- Mercury + Jupiter: Senior/architect/consulting roles, knowledge management, tech leadership
+- Mercury + Sun: Government tech, management, IT administration
+- Mercury + Mars: Engineering (mechanical+tech), embedded systems, manufacturing tech
+- Rahu + Jupiter: Research roles, innovative/cutting-edge fields, foreign tech companies
+
+For overseas/foreign tech companies: Rahu + Mercury + H9/H12 connections
 For senior/architect level: Jupiter + Mercury combination
 For startup/innovative work: Rahu + Mercury + H5 (intelligence/speculation)
 
-TIMING FOR DATA ENGINEERING JOB:
-Mercury AD periods: Very favorable for tech career advancement
-Jupiter AD: Favorable for senior/consulting roles
-Rahu AD: Good for foreign tech companies or unconventional opportunities
-Saturn AD: Can bring structured/stable tech roles (infrastructure, DevOps etc.)
+TIMING FOR TECHNOLOGY CAREERS:
+Mercury AD periods: Very favorable for tech career advancement, job offers in analytics/IT
+Jupiter AD: Favorable for senior/consulting/management roles
+Rahu AD: Good for foreign tech companies or unconventional/startup opportunities
+Saturn AD: Can bring structured/stable tech roles (infrastructure, ops, maintenance)
+Sun AD: Government or authority tech positions
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 SECTION 7: DASHA TIMING FOR CAREER EVENTS
@@ -184,7 +193,7 @@ Step 2: Check H6 sub lord → does it signify 6, 10? → Service/employment prom
 Step 3: Identify if SERVICE or BUSINESS is indicated (H6 vs H7 connection)
 Step 4: Check H2 sub lord for financial support
 Step 5: Check H11 sub lord for gains/fulfillment
-Step 6: Identify relevant planets for the field (Mercury for data engineering etc.)
+Step 6: Identify relevant planets for the field (Mercury for tech/IT, Mars for engineering, etc.)
 Step 7: Collect all significators for H2, H6, H10, H11
 Step 8: Cross-reference with Ruling Planets → fruitful significators
 Step 9: Check current MD + AD significations

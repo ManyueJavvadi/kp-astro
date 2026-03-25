@@ -94,9 +94,10 @@ SELLING PROPERTY:
 "Houses 3, 5, and 10 judged for selling; 3 and 12 for giving possession."
 "H4 = buyer's property; H10 = buyer's acquisition (4th from 7th)."
 
-PROPERTY IN CANADA/ABROAD:
+PROPERTY IN FOREIGN COUNTRY:
 Foreign property: H4 (property) + H12 (foreign land/investment) + H9 (abroad)
 H4 connected to H12 and H9 = property purchase in foreign country
+H11 must also be connected for the purchase to be fulfilling/successful
 
 TIMING FOR PROPERTY:
 Mars dasha/AD: Strong property acquisition period (Mars = immovable property karaka)

@@ -495,21 +495,129 @@ def get_sign_lord_for_house(house_num: int, cusps: dict) -> str:
     return SIGN_LORDS[sign_index]
 
 
+def get_houses_owned_by_planet(planet_name: str, cusps: dict) -> list:
+    """Return list of house numbers where this planet is the sign lord (owns the cusp)."""
+    owned = []
+    for i in range(1, 13):
+        if get_sign_lord_for_house(i, cusps) == planet_name:
+            owned.append(i)
+    return owned
+
+
+def get_nakshatra_occupants(nakshatra_name: str, planets: dict, exclude_planet: str = "") -> list:
+    """Return list of planets occupying a given nakshatra (excluding the planet itself)."""
+    occupants = []
+    for planet_name, planet_data in planets.items():
+        if planet_name != exclude_planet and planet_data.get("nakshatra") == nakshatra_name:
+            occupants.append(planet_name)
+    return occupants
+
+
+def get_rahu_ketu_significations(planet_name: str, planets: dict, cusps: dict,
+                                  planet_positions: dict) -> dict:
+    """
+    KP Rule: Rahu/Ketu have no sign ownership. They act as agents/proxies.
+    
+    Priority order for Rahu/Ketu significations:
+    1. Planets conjunct with Rahu/Ketu (within 3.33°) — strongest proxy
+    2. Star lord of Rahu/Ketu (nakshatra lord)
+    3. Sign lord (dispositor) of Rahu/Ketu
+    
+    UNOCCUPIED NAKSHATRA RULE:
+    If no other planet occupies Rahu/Ketu's nakshatra, Rahu/Ketu are "untenanted"
+    and act as STRONG, unobstructed proxies — adopting full significations of
+    their star lord (and conjunct planets if any).
+    If other planets occupy their nakshatra, Rahu/Ketu are weaker proxies.
+    """
+    planet_data = planets[planet_name]
+    planet_lon = planet_data["longitude"]
+    star_lord = planet_data["star_lord"]
+    sign_lord = get_sign_lord(planet_lon)
+
+    # Check if nakshatra is unoccupied (strong proxy condition)
+    nakshatra_occupants = get_nakshatra_occupants(
+        planet_data["nakshatra"], planets, exclude_planet=planet_name
+    )
+    is_unoccupied = len(nakshatra_occupants) == 0
+
+    # Find conjunct planets within 3.33 degrees
+    conjunct_planets = []
+    for other_name, other_data in planets.items():
+        if other_name == planet_name:
+            continue
+        diff = abs(planet_lon - other_data["longitude"])
+        if diff > 180:
+            diff = 360 - diff
+        if diff <= 3.3333:
+            conjunct_planets.append(other_name)
+
+    # Build significations from proxy chain
+    primary_houses = []    # Houses from conjunct planets (strongest)
+    secondary_houses = []  # Houses from star lord
+    tertiary_houses = []   # Houses from sign lord
+
+    # 1. Own house position (Rahu/Ketu always signify the house they occupy)
+    own_house = planet_positions.get(planet_name)
+    if own_house:
+        secondary_houses.append(own_house)
+
+    # 2. Conjunct planets significations (priority 1 proxy)
+    for conj_planet in conjunct_planets:
+        conj_house = planet_positions.get(conj_planet)
+        if conj_house:
+            primary_houses.append(conj_house)
+        conj_owned = get_houses_owned_by_planet(conj_planet, cusps)
+        primary_houses.extend(conj_owned)
+
+    # 3. Star lord significations (priority 2 proxy)
+    sl_house = planet_positions.get(star_lord)
+    if sl_house:
+        secondary_houses.append(sl_house)
+    sl_owned = get_houses_owned_by_planet(star_lord, cusps)
+    secondary_houses.extend(sl_owned)
+
+    # 4. Sign lord significations (priority 3 proxy) — only when unoccupied
+    if is_unoccupied and sign_lord != star_lord:
+        signl_house = planet_positions.get(sign_lord)
+        if signl_house:
+            tertiary_houses.append(signl_house)
+        signl_owned = get_houses_owned_by_planet(sign_lord, cusps)
+        tertiary_houses.extend(signl_owned)
+
+    all_houses = list(dict.fromkeys(
+        primary_houses + secondary_houses + tertiary_houses
+    ))
+
+    return {
+        "is_unoccupied": is_unoccupied,
+        "conjunct_planets": conjunct_planets,
+        "star_lord": star_lord,
+        "sign_lord": sign_lord,
+        "primary_houses": list(dict.fromkeys(primary_houses)),
+        "secondary_houses": list(dict.fromkeys(secondary_houses)),
+        "all_signified_houses": all_houses
+    }
+
+
 def get_significators(house_num: int, planets: dict,
                       cusps: dict, planet_positions: dict) -> dict:
     """
     KP Significator calculation for a given house.
 
-    Priority order in KP:
-    1. Planets occupying the house (strongest)
-    2. Lord of the house (sign lord of cusp)
-    3. Planets in the star of occupants
-    4. Planets in the star of house lord
+    KP 4-level priority (strongest to weakest):
+    Level 1: Planets in the star of house OCCUPANTS (primary significators)
+    Level 2: Planets occupying the house itself
+    Level 3: Planets in the star of house LORD
+    Level 4: Lord of the house (sign lord of cusp)
+
+    Special: Rahu/Ketu apply proxy/agent rule — their nakshatra occupancy
+    and star lord chain determines their true signification strength.
     """
     occupants = []
     planets_in_star_of_occupants = []
     house_lord = get_sign_lord_for_house(house_num, cusps)
     planets_in_star_of_lord = []
+    rahu_ketu_info = {}
 
     # Find occupants of this house
     for planet_name, house in planet_positions.items():
@@ -530,12 +638,19 @@ def get_significators(house_num: int, planets: dict,
             if planet_name not in planets_in_star_of_lord:
                 planets_in_star_of_lord.append(planet_name)
 
+    # Rahu/Ketu proxy check — if Rahu or Ketu are occupants or house lord's star,
+    # extend via proxy rule to include their full agent significations
+    for node in ["Rahu", "Ketu"]:
+        if node in occupants or node in planets_in_star_of_occupants or node in planets_in_star_of_lord:
+            rk_sig = get_rahu_ketu_significations(node, planets, cusps, planet_positions)
+            rahu_ketu_info[node] = rk_sig
+
     # All significators combined (with priority order)
     all_significators = list(dict.fromkeys(
-        occupants +
-        [house_lord] +
         planets_in_star_of_occupants +
-        planets_in_star_of_lord
+        occupants +
+        planets_in_star_of_lord +
+        [house_lord]
     ))
 
     return {
@@ -544,7 +659,8 @@ def get_significators(house_num: int, planets: dict,
         "house_lord": house_lord,
         "planets_in_star_of_occupants": planets_in_star_of_occupants,
         "planets_in_star_of_lord": planets_in_star_of_lord,
-        "all_significators": all_significators
+        "all_significators": all_significators,
+        "rahu_ketu_info": rahu_ketu_info  # extended proxy info for Rahu/Ketu
     }
 
 

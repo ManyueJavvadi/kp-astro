@@ -98,12 +98,58 @@ ALWAYS perform your own complete cuspal sub lord analysis using the house cusps
 and significators provided. Your verdict overrides the pre-calculation hint.
 NEVER base your final promise verdict solely on the pre-calculation.
 
-RULE 6 — PRE-CALCULATED PROMISE IS A HINT ONLY:
-The "Pre-calculation hint" in the chart data is from a simplified backend function.
-It may incorrectly say DENIED when the real answer is CONDITIONAL.
-ALWAYS perform your own complete cuspal sub lord analysis using the house cusps
-and significators provided. Your verdict overrides the pre-calculation hint.
-NEVER base your final promise verdict solely on the pre-calculation.
+RULE 7 — AD LORD MUST SUPPORT PAD TIMING:
+A favorable PAD lord CANNOT override an unfavorable AD lord.
+For an event to occur in a PAD window:
+  - The AD lord must signify the relevant houses (at least partially), AND
+  - The PAD lord must signify the relevant houses
+If the AD lord does NOT signify relevant houses, NO PAD within that AD
+can produce the event — regardless of how strong the PAD lord is.
+NEVER call a PAD window "strong" or "possible" if the AD lord itself
+does not touch the relevant houses.
+Example: A marriage karaka PAD within an AD whose lord does not signify H2/H7/H11
+cannot produce marriage — the AD lord's failure blocks all PADs within it.
+
+RULE 8 — RAHU/KETU PROXY RULE (CRITICAL KP RULE):
+Rahu and Ketu own no signs and no houses. They act as AGENTS/PROXIES.
+When evaluating Rahu or Ketu as a significator, dasha lord, or cusp sub lord:
+
+STEP A — Check if their nakshatra is unoccupied:
+The chart data provides "Rahu PROXY" and "Ketu PROXY" sections under HOUSE SIGNIFICATORS.
+Use the field: unoccupied=True/False
+- If unoccupied=True → Rahu/Ketu are STRONG proxies (unobstructed channel)
+- If unoccupied=False → Rahu/Ketu are WEAK proxies
+
+STEP B — Determine their full signification via proxy chain (priority order):
+1. Planets conjunct with Rahu/Ketu (within 3.33°) → adopt THEIR house significations FIRST
+2. Star lord of Rahu/Ketu → adopt star lord's house significations
+3. Sign lord (dispositor) of Rahu/Ketu → adopt sign lord's significations (only when unoccupied)
+
+STEP C — Apply in practice:
+Example: Rahu unoccupied, its star lord owns H2 and H5, its sign lord owns H7 and H10
+→ Rahu truly signifies H2, H5, H7, H10 through proxy — not just its house of occupation.
+If Rahu is the sub lord of H7 and through proxy signifies H2 → marriage is PROMISED.
+The backend pre-computes this in HOUSE SIGNIFICATORS. Use it. Never ignore it.
+
+RULE 9 — 12TH HOUSE NEGATION RULE:
+The 12th house FROM any house negates that house's affairs.
+Key negation pairs: H6 negates H7 | H12 negates H1 | H8 negates H9 | H3 negates H2
+If a cusp sub lord ONLY signifies negating houses with NO relevant house → DENIED.
+If sub lord signifies BOTH relevant AND negating houses → CONDITIONAL.
+
+RULE 10 — NEVER INVENT SIGNIFICATIONS:
+Use ONLY the house significations provided in the "HOUSE SIGNIFICATORS" section.
+NEVER say "Mercury signifies H8 and H10" unless shown in the provided data.
+NEVER infer or assume a planet's significations from general KP knowledge.
+The chart data is pre-calculated and authoritative. Trust it completely.
+
+RULE 11 — FOUR-STEP SUB LORD ANALYSIS:
+When analyzing any cusp sub lord, check all 4 steps:
+1. Houses occupied/owned by the sub lord itself
+2. Houses occupied/owned by the STAR LORD of the sub lord
+3. Sub lord's sub lord significations
+4. Star lord of the sub lord's sub lord — this is the FINAL DECIDER
+Full picture only emerges from all 4 steps. Star lord of sub lord = final indicator.
 
 ================================================================
 KP ANALYSIS PROCESS — FOLLOW FOR EVERY QUESTION
@@ -113,9 +159,11 @@ STEP 1 — IDENTIFY TOPIC AND RELEVANT HOUSES
 Determine which houses govern this topic using knowledge base rules.
 
 STEP 2 — CUSPAL SUB LORD ANALYSIS (Promise Gate)
-- Check sub lord of primary cusp: what houses does it signify?
+- Get sub lord of primary cusp from HOUSE CUSPS section
+- Apply RULE 8: if sub lord is Rahu/Ketu, check their proxy significations first
+- Apply RULE 11: trace all 4 steps (sub lord → star lord of sub lord → etc.)
 - Check supporting cusps (H2 and H11 always support fulfillment)
-- Apply karaka override rule if applicable
+- Apply RULE 9: check if significations include negating houses
 - Determine: PROMISED / CONDITIONAL / DENIED
 
 STEP 3 — SIGNIFICATORS
@@ -162,8 +210,10 @@ OUTPUT FORMAT — BASED ON MODE IN THE MESSAGE
 IF MODE = USER:
 Write in warm, plain English as a knowledgeable friend explaining fate.
 NEVER use: sub lord, cusp, significator, antardasha, mahadasha, dasha, nakshatra,
-           star lord, cuspal, bhava, Rahu, Ketu (use "shadow planet" if needed)
-INSTEAD use: "planetary period", "key planet", "timing window", "ruling influences"
+           star lord, cuspal, bhava, Rahu, Ketu (use "shadow planet"), PAD,
+           pratyantardasha, sub-sub period, antara
+INSTEAD use: "planetary period", "key planet", "timing window", "ruling influences",
+             "mini-period", "cycle"
 
 ANSWER LENGTH — BE INTELLIGENT ABOUT THIS:
 - Simple yes/no timing question → 2-3 paragraphs max
@@ -296,9 +346,9 @@ Choose exactly ONE from this list:
 marriage / job / foreign_travel / foreign_settle / education / health / children / property / wealth / litigation
 
 Rules:
-- "house in Canada" or "buy property" = property
-- "move to Canada" or "settle abroad" = foreign_settle
-- "visit abroad" or "travel overseas" = foreign_travel
+- "buy a house" or "buy property" or "buy flat" = property
+- "move abroad" or "settle in another country" or "immigrate" or "PR visa" = foreign_settle
+- "visit abroad" or "travel overseas" or "go to another country" = foreign_travel
 - "get married" or "when marriage" = marriage
 - "job" or "career" or "work" = job
 - "sick" or "health" or "disease" = health
@@ -333,7 +383,7 @@ def _keyword_fallback(question: str) -> str:
         return "property"
     if any(w in q for w in ["settle", "immigrat", "permanent resident", "pr visa"]):
         return "foreign_settle"
-    if any(w in q for w in ["travel", "abroad", "foreign", "visa", "overseas", "canada", "usa", "uk"]):
+    if any(w in q for w in ["travel", "abroad", "foreign", "visa", "overseas", "immigrat", "another country"]):
         return "foreign_travel"
     if any(w in q for w in ["child", "baby", "pregnant", "son", "daughter"]):
         return "children"
@@ -504,10 +554,23 @@ def format_chart_for_llm(chart_data: dict) -> str:
         for house, sig in chart_data["significators"].items():
             house_num = house.replace("House_", "")
             lines.append(
-                f"H{house_num}: Occupants={sig.get('occupants', [])} | "
-                f"Lord={sig.get('house_lord', '')} | "
-                f"All significators={sig.get('all_significators', [])}"
+                f"H{house_num}: "
+                f"L1(star of occupants)={sig.get('planets_in_star_of_occupants', [])} | "
+                f"L2(occupants)={sig.get('occupants', [])} | "
+                f"L3(star of lord)={sig.get('planets_in_star_of_lord', [])} | "
+                f"L4(lord)={sig.get('house_lord', '')} | "
+                f"All={sig.get('all_significators', [])}"
             )
+            # Include Rahu/Ketu proxy info if present
+            rk_info = sig.get("rahu_ketu_info", {})
+            for node, rk in rk_info.items():
+                lines.append(
+                    f"  {node} PROXY: unoccupied={rk.get('is_unoccupied')} | "
+                    f"conjunct={rk.get('conjunct_planets', [])} | "
+                    f"star_lord={rk.get('star_lord')} | "
+                    f"sign_lord={rk.get('sign_lord')} | "
+                    f"full_signification={rk.get('all_signified_houses', [])}"
+                )
 
     # Planet house positions
     if "planet_positions" in chart_data:
