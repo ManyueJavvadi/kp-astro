@@ -531,6 +531,8 @@ def get_prediction(chart_data: dict, question: str, history: list = [], mode: st
     knowledge = load_knowledge(detected_topic)
     chart_summary = format_chart_for_llm(chart_data)
 
+
+
     # Build conversation history — pass answers only, strip time-specific question context
     # This prevents temporal anchoring from leaking between questions
     messages = []
@@ -589,7 +591,7 @@ def format_chart_for_llm(chart_data: dict) -> str:
         lines.append(f"\nPROMISE ANALYSIS (pre-calculated):")
         lines.append(f"Relevant Houses: {p.get('relevant_houses', [])}")
         lines.append(f"Primary Cusp Sub Lord: {p.get('primary_cusp_sublord', '')}")
-        lines.append(f"Sub Lord Signifies: {p.get('sublord_signifies', [])}")
+        lines.append(f"All Significators for Relevant Houses: {p.get('relevant_significators', [])}")
         is_promised = p.get('is_promised', False)
         strength = p.get('promise_strength', '')
         # Determine conditional vs promised vs denied
@@ -656,11 +658,13 @@ def format_chart_for_llm(chart_data: dict) -> str:
     # Planet positions
     if "chart_summary" in chart_data:
         planets = chart_data["chart_summary"].get("planets", {})
+        planet_positions = chart_data.get("planet_positions", {})
         lines.append(f"\nPLANET POSITIONS:")
         for planet, data in planets.items():
             retro = " (R)" if data.get("retrograde") else ""
+            house_num = planet_positions.get(planet, "?")
             lines.append(
-                f"{planet}{retro}: {data.get('sign', '')} H{data.get('house', '')} | "
+                f"{planet}{retro}: {data.get('sign', '')} H{house_num} | "
                 f"Star: {data.get('star_lord', '')} | Sub: {data.get('sub_lord', '')}"
             )
 
