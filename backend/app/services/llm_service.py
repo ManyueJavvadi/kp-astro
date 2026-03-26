@@ -531,8 +531,6 @@ def get_prediction(chart_data: dict, question: str, history: list = [], mode: st
     knowledge = load_knowledge(detected_topic)
     chart_summary = format_chart_for_llm(chart_data)
 
-
-
     # Build conversation history — pass answers only, strip time-specific question context
     # This prevents temporal anchoring from leaking between questions
     messages = []
@@ -675,6 +673,33 @@ def format_chart_for_llm(chart_data: dict) -> str:
                 f"H{i} {data.get('sign', '')}: "
                 f"Star={data.get('star_lord', '')} Sub={data.get('sub_lord', '')}"
             )
+
+        # PLANET OWNERSHIP — derived from cusp sign lords
+        # Prevents Claude from using default Vedic rulerships instead of actual chart data
+        SIGN_LORDS = [
+            "Mars", "Venus", "Mercury", "Moon", "Sun", "Mercury",
+            "Venus", "Mars", "Jupiter", "Saturn", "Saturn", "Jupiter"
+        ]
+        ownership = {}
+        for i, (house, data) in enumerate(cusps.items(), 1):
+            cusp_lon = data.get("cusp_longitude", 0)
+            sign_index = int(cusp_lon / 30)
+            lord = SIGN_LORDS[sign_index % 12]
+            if lord not in ownership:
+                ownership[lord] = []
+            ownership[lord].append(i)
+
+        all_planets = ["Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn"]
+        lines.append(f"\nPLANET OWNERSHIP (use ONLY these — never use default zodiac rulerships):")
+        for planet in all_planets:
+            owned = ownership.get(planet, [])
+            if owned:
+                houses_str = ", ".join([f"H{h}" for h in owned])
+                lines.append(f"{planet}: owns {houses_str}")
+            else:
+                lines.append(f"{planet}: owns NO house in this chart")
+        lines.append(f"Rahu: owns no house (shadow planet — proxy only)")
+        lines.append(f"Ketu: owns no house (shadow planet — proxy only)")
 
     # Significators
     if "significators" in chart_data:
