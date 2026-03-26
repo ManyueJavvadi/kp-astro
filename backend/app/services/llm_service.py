@@ -300,20 +300,29 @@ Does current MD lord signify relevant houses? (Yes/No/Partial)
 Does current AD lord signify relevant houses? (Yes/No/Partial)
 Both Yes = event possible NOW. Only MD = need better AD.
 
-STEP 5 — SCAN ALL UPCOMING ANTARDASHA PERIODS
-For EVERY upcoming AD in the provided sequence:
-- Identify what houses that AD lord signifies
-- Rate: STRONG / MODERATE / WEAK / UNFAVORABLE for this topic
-- Note whether it appears in Ruling Planets
+STEP 5 — STEP 5 — SCAN ALL UPCOMING ANTARDASHA PERIODS
+For EVERY upcoming AD lord, apply the FULL 4-step Rule 11 chain:
+Step 1: Houses AD lord occupies + owns
+Step 2: Houses AD lord's STAR LORD occupies + owns  
+Step 3: Houses AD lord's SUB LORD occupies + owns
+Step 4: Houses of star lord of AD lord's sub lord
+ONLY after completing all 4 steps, rate the AD as STRONG/MODERATE/WEAK.
+NEVER rate an AD based on Steps 1-2 alone.
 
 STEP 5B — PRATYANTARDASHA ANALYSIS (within current AD)
 Use the exact PAD dates provided in "PRATYANTARDASHA SEQUENCE" section.
-For each PAD lord:
-- Does it signify the relevant houses?
-- Is it in Ruling Planets?
-- This narrows timing from years to months
-PAD that is BOTH a relevant significator AND in Ruling Planets = most precise timing window.
+For each PAD lord, apply the FULL 4-step Rule 11 chain:
+Step 1: Houses PAD lord occupies + owns
+Step 2: Houses PAD lord's STAR LORD occupies + owns
+Step 3: Houses PAD lord's SUB LORD occupies + owns
+Step 4: Houses of star lord of PAD lord's sub lord
+ONLY after completing all 4 steps, assess if PAD touches relevant houses.
+NEVER rate a PAD based on Steps 1-2 alone.
+When multiple PADs look favorable, prioritize the one whose lord
+appears in current Ruling Planets — that is the most likely trigger.
 NEVER guess PAD dates — use only the exact dates provided.
+PAD that is BOTH a relevant significator (via full 4-step chain)
+AND in Ruling Planets = most precise timing window.
 
 STEP 6 — IDENTIFY ALL TIMING WINDOWS
 PRIMARY: Strongest AD (best house signification + RP overlap)
