@@ -300,14 +300,20 @@ Does current MD lord signify relevant houses? (Yes/No/Partial)
 Does current AD lord signify relevant houses? (Yes/No/Partial)
 Both Yes = event possible NOW. Only MD = need better AD.
 
-STEP 5 — STEP 5 — SCAN ALL UPCOMING ANTARDASHA PERIODS
+STEP 5 — SCAN ALL UPCOMING ANTARDASHA PERIODS
 For EVERY upcoming AD lord, apply the FULL 4-step Rule 11 chain:
 Step 1: Houses AD lord occupies + owns
-Step 2: Houses AD lord's STAR LORD occupies + owns  
+Step 2: Houses AD lord's STAR LORD occupies + owns
 Step 3: Houses AD lord's SUB LORD occupies + owns
 Step 4: Houses of star lord of AD lord's sub lord
 ONLY after completing all 4 steps, rate the AD as STRONG/MODERATE/WEAK.
 NEVER rate an AD based on Steps 1-2 alone.
+
+CRITICAL: Many planets appear weak at Steps 1-2 but connect to relevant
+houses at Steps 3-4 through their sub lord chain. Stopping at Steps 1-2
+means you are ignoring available chart data — this is a Rule 10 violation.
+For EVERY AD lord, explicitly state Step 3 and Step 4 houses before
+assigning your rating. Never silently skip Steps 3-4.
 
 STEP 5B — PRATYANTARDASHA ANALYSIS (within current AD)
 Use the exact PAD dates provided in "PRATYANTARDASHA SEQUENCE" section.
