@@ -4,145 +4,20 @@ import remarkGfm from "remark-gfm";
 import axios from "axios";
 import { ArrowRight, Loader2, CheckCircle, XCircle, MessageCircle, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { PLANET_COLORS } from "./components/constants";
+import SouthIndianChart from "./components/SouthIndianChart";
+import DashaTimeline from "./components/DashaTimeline";
+import PanchangamCard from "./components/PanchangamCard";
+import PromiseBadge from "./components/PromiseBadge";
+import HousePanel from "./components/HousePanel";
+import type { PlaceSuggestion, BirthDetails, Message, ChartSession } from "./types";
 
 const API_URL = "https://devastroai.up.railway.app";
-
-const PLANET_COLORS: Record<string, string> = {
-  Sun: "#F59E0B", Moon: "#93C5FD", Mars: "#EF4444",
-  Mercury: "#34D399", Jupiter: "#FBBF24", Venus: "#F472B6",
-  Saturn: "#94A3B8", Rahu: "#A78BFA", Ketu: "#FB923C",
-};
-
-// ── South Indian Chart ────────────────────────────────────────
-function SouthIndianChart({ planets, cusps }: { planets: any[]; cusps: any[] }) {
-  const houseOrder = [12, 1, 2, 3, 11, 0, 0, 4, 10, 0, 0, 5, 9, 8, 7, 6];
-  const planetsByHouse: Record<number, any[]> = {};
-  planets.forEach(p => {
-    const h = parseInt(p.house) || 0;
-    if (!planetsByHouse[h]) planetsByHouse[h] = [];
-    planetsByHouse[h].push(p);
-  });
-  return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 1, width: "100%", maxWidth: 380, border: "0.5px solid rgba(201,169,110,0.3)", borderRadius: 4, overflow: "hidden", flexShrink: 0 }}>
-      {houseOrder.map((house, idx) => {
-        const isCenter = [5, 6, 9, 10].includes(idx);
-        if (house === 0) return (
-          <div key={idx} style={{ background: "rgba(201,169,110,0.02)", minHeight: 90, display: "flex", alignItems: "center", justifyContent: "center", border: "0.5px solid rgba(201,169,110,0.06)" }}>
-            {isCenter && idx === 5 && <span style={{ color: "rgba(201,169,110,0.15)", fontSize: 20 }}>✦</span>}
-          </div>
-        );
-        const hp = planetsByHouse[house] || [];
-        const cusp = cusps[house - 1];
-        const isLagna = house === 1;
-        return (
-          <div key={idx} style={{ background: isLagna ? "rgba(201,169,110,0.07)" : "rgba(201,169,110,0.015)", border: `0.5px solid ${isLagna ? "rgba(201,169,110,0.3)" : "rgba(201,169,110,0.12)"}`, padding: "4px 5px", minHeight: 90, display: "flex", flexDirection: "column", transition: "background 0.15s" }}
-            onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.12)")}
-            onMouseLeave={e => (e.currentTarget.style.background = isLagna ? "rgba(201,169,110,0.07)" : "rgba(201,169,110,0.015)")}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
-              <span style={{ fontSize: 8, color: isLagna ? "var(--accent)" : "rgba(201,169,110,0.45)", fontWeight: isLagna ? 700 : 400 }}>{house}{isLagna ? "↑" : ""}</span>
-              <span style={{ fontSize: 7, color: "rgba(201,169,110,0.3)" }}>{cusp?.degree_in_sign?.toFixed(0)}°</span>
-            </div>
-            <div style={{ fontSize: 7, color: "rgba(201,169,110,0.35)", marginBottom: 3 }}>{cusp?.sign_te?.slice(0, 4) || ""}</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1 }}>
-              {hp.map((p: any) => (
-                <div key={p.planet_en} title={`${p.planet_en} | ${p.nakshatra_en} | ${p.degree_in_sign.toFixed(1)}° | Star: ${p.star_lord_en} | Sub: ${p.sub_lord_en}`} style={{ display: "flex", alignItems: "center", gap: 2 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: PLANET_COLORS[p.planet_en] || "#888" }}>{p.planet_short}{p.retrograde ? "℞" : ""}</span>
-                  <span style={{ fontSize: 7, color: `${PLANET_COLORS[p.planet_en]}80` }}>{p.degree_in_sign.toFixed(0)}°</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ── Dasha Timeline ────────────────────────────────────────────
-function DashaTimeline({ mahadasha, antardashas }: { mahadasha: any; antardashas: any[] }) {
-  const today = new Date();
-  const mdStart = new Date(mahadasha.start);
-  const mdEnd = new Date(mahadasha.end);
-  const pct = Math.min(100, ((today.getTime() - mdStart.getTime()) / (mdEnd.getTime() - mdStart.getTime())) * 100);
-  return (
-    <div>
-      <div style={{ marginBottom: "1rem" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-          <span style={{ fontSize: 12, color: "var(--accent)", fontWeight: 600 }}>{mahadasha.lord_te} మహాదశ</span>
-          <span style={{ fontSize: 10, color: "var(--muted)" }}>{mahadasha.start} → {mahadasha.end}</span>
-        </div>
-        <div style={{ background: "var(--surface2)", borderRadius: 4, height: 6, overflow: "hidden" }}>
-          <div style={{ height: "100%", borderRadius: 4, background: `linear-gradient(90deg, ${PLANET_COLORS[mahadasha.lord_en] || "var(--accent)"}, transparent)`, width: `${pct}%`, transition: "width 0.5s" }} />
-        </div>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        {antardashas.slice(0, 12).map((ad: any, i: number) => {
-          const isPast = new Date(ad.end) < today;
-          return (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: 6, background: ad.is_current ? "rgba(201,169,110,0.12)" : isPast ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.04)", border: ad.is_current ? "0.5px solid rgba(201,169,110,0.4)" : "0.5px solid var(--border)", opacity: isPast ? 0.5 : 1 }}>
-              <div style={{ width: 8, height: 8, borderRadius: "50%", background: ad.is_current ? PLANET_COLORS[ad.lord_en] || "var(--accent)" : "var(--border2)", boxShadow: ad.is_current ? `0 0 8px ${PLANET_COLORS[ad.lord_en] || "var(--accent)"}` : "none", flexShrink: 0 }} />
-              <span style={{ fontSize: 13, fontWeight: ad.is_current ? 600 : 400, color: ad.is_current ? PLANET_COLORS[ad.lord_en] || "var(--accent)" : "var(--text)", minWidth: 80 }}>{ad.lord_te}</span>
-              <span style={{ fontSize: 10, color: "var(--muted)", flex: 1 }}>{ad.start} → {ad.end}</span>
-              {ad.is_current && <span style={{ fontSize: 9, background: "rgba(201,169,110,0.2)", color: "var(--accent)", padding: "2px 6px", borderRadius: 3 }}>ప్రస్తుతం</span>}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ── Panchangam Card ───────────────────────────────────────────
-function PanchangamCard({ data, title }: { data: any; title: string }) {
-  return (
-    <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "1rem" }}>
-      <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: "0.75rem" }}>{title} · {data.date} · {data.time}</div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-        {[{ l: "వారం", v: data.vara, sub: data.vara_en }, { l: "తిథి", v: data.tithi, sub: `#${data.tithi_num}` }, { l: "నక్షత్రం", v: data.nakshatra, sub: data.nakshatra_en }, { l: "యోగం", v: data.yoga, sub: data.yoga_en }].map(item => (
-          <div key={item.l} style={{ background: "rgba(201,169,110,0.03)", border: "0.5px solid var(--border)", borderRadius: 8, padding: "0.625rem" }}>
-            <div style={{ fontSize: 9, color: "var(--muted)", marginBottom: 2 }}>{item.l}</div>
-            <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text)" }}>{item.v}</div>
-            <div style={{ fontSize: 9, color: "var(--muted)", marginTop: 1 }}>{item.sub}</div>
-          </div>
-        ))}
-      </div>
-      <div style={{ marginTop: 8, padding: "6px 10px", background: "rgba(248,113,113,0.08)", border: "0.5px solid rgba(248,113,113,0.2)", borderRadius: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontSize: 11, color: "#f87171" }}>రాహుకాలం</span>
-        <span style={{ fontSize: 12, color: "#f87171", fontWeight: 500 }}>{data.rahu_kalam}</span>
-        <span style={{ fontSize: 9, color: "rgba(248,113,113,0.6)" }}>నివారించండి</span>
-      </div>
-    </div>
-  );
-}
-
-// ── Promise Badge — 3 states ──────────────────────────────────
-function PromiseBadge({ analysis }: { analysis: any }) {
-  if (!analysis?.promise_analysis) return null;
-  const p = analysis.promise_analysis;
-  const strength = (p.promise_strength || "").toLowerCase();
-  const isPromised = p.is_promised;
-  const isConditional = !isPromised && (strength.includes("conditional") || strength.includes("partial") || strength.includes("weak"));
-
-  if (isPromised) return (
-    <span style={{ fontSize: 10, padding: "3px 10px", borderRadius: 4, background: "rgba(52,211,153,0.1)", color: "var(--green)", border: "0.5px solid rgba(52,211,153,0.2)" }}>✓ Promised</span>
-  );
-  if (isConditional) return (
-    <span style={{ fontSize: 10, padding: "3px 10px", borderRadius: 4, background: "rgba(251,191,36,0.1)", color: "#fbbf24", border: "0.5px solid rgba(251,191,36,0.2)" }}>⚡ Conditional</span>
-  );
-  return (
-    <span style={{ fontSize: 10, padding: "3px 10px", borderRadius: 4, background: "rgba(248,113,113,0.1)", color: "var(--red)", border: "0.5px solid rgba(248,113,113,0.2)" }}>✗ Not Promised</span>
-  );
-}
-
-// ── Interfaces ────────────────────────────────────────────────
-interface PlaceSuggestion { name: string; display: string; lat: number; lon: number; }
-interface BirthDetails { name: string; date: string; time: string; ampm: string; place: string; latitude: number | null; longitude: number | null; }
-interface Message { id: string; question: string; answer: string; analysis: any; timestamp: string; feedback?: "correct" | "incorrect"; note?: string; }
 
 // ── Main Component ────────────────────────────────────────────
 export default function Home() {
   const [mode, setMode] = useState<"user" | "astrologer">("user");
-  const [birthDetails, setBirthDetails] = useState<BirthDetails>({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: null, longitude: null });
+  const [birthDetails, setBirthDetails] = useState<BirthDetails>({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: null, longitude: null, gender: "" });
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [placeStatus, setPlaceStatus] = useState<"idle" | "loading" | "found" | "error">("idle");
@@ -161,19 +36,40 @@ export default function Home() {
   const [manualLon, setManualLon] = useState("");
   const [activeTab, setActiveTab] = useState("chart");
   const [analysisLoading, setAnalysisLoading] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState("");
+  const [analysisMessages, setAnalysisMessages] = useState<{ q: string; a: string; isTopic?: boolean }[]>([]);
   const [activeTopic, setActiveTopic] = useState("");
   const [chatQ, setChatQ] = useState("");
-  const [chatHistory, setChatHistory] = useState<{ q: string; a: string }[]>([]);
-  const [analysisLang, setAnalysisLang] = useState<"english" | "telugu_english">("telugu_english");
+  const [analysisLang, setAnalysisLang] = useState<"english" | "telugu_english">("english");
+  const [showLangModal, setShowLangModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [selectedHouse, setSelectedHouse] = useState<number | null>(null);
+  const [savedSessions, setSavedSessions] = useState<ChartSession[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string>("");
+  // Muhurtha wizard state
+  const [mStep, setMStep] = useState<1 | 2 | 3>(1);
+  const [mEventType, setMEventType] = useState("");
+  const [mDateStart, setMDateStart] = useState("");
+  const [mDateEnd, setMDateEnd] = useState("");
+  const [mLoading, setMLoading] = useState(false);
+  const [mResults, setMResults] = useState<any>(null);
+  const [mParticipants, setMParticipants] = useState<ChartSession[]>([]);
+  const [mShowAddParticipant, setMShowAddParticipant] = useState(false);
+  // Inline participant mini-form (shared between muhurtha and match)
+  const [mNewP, setMNewP] = useState({ name: "", date: "", time: "", ampm: "AM" as "AM"|"PM", place: "", latitude: 17.385, longitude: 78.4867, gender: "" as "male"|"female"|"" });
+  const [mNewPPlaceSugg, setMNewPPlaceSugg] = useState<PlaceSuggestion[]>([]);
+  const [mNewPPlaceStatus, setMNewPPlaceStatus] = useState<"idle"|"searching"|"done">("idle");
+  const mNewPSearchRef = useRef<ReturnType<typeof setTimeout>|null>(null);
+  // Marriage match state
+  const [matchPerson2Inline, setMatchPerson2Inline] = useState(false);
+  const [matchLoading, setMatchLoading] = useState(false);
+  const [matchResults, setMatchResults] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const placeSearchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
-  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatHistory]);
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [analysisMessages]);
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) setShowSuggestions(false);
@@ -213,6 +109,30 @@ export default function Home() {
     setPlaceStatus("found"); setShowSuggestions(false); setSuggestions([]);
   };
 
+  const handleMNewPPlaceChange = (val: string) => {
+    setMNewP(p => ({ ...p, place: val, latitude: 17.385, longitude: 78.4867 }));
+    setMNewPPlaceStatus("idle"); setMNewPPlaceSugg([]);
+    if (mNewPSearchRef.current) clearTimeout(mNewPSearchRef.current);
+    if (val.length < 3) return;
+    mNewPSearchRef.current = setTimeout(async () => {
+      setMNewPPlaceStatus("searching");
+      try {
+        const res = await axios.get("https://nominatim.openstreetmap.org/search", { params: { q: val, format: "json", limit: 5, addressdetails: 1, countrycodes: "in", "accept-language": "en" }, headers: { "User-Agent": "DevAstroAI/1.0" } });
+        let features = res.data;
+        if (!features.length) {
+          const g = await axios.get("https://nominatim.openstreetmap.org/search", { params: { q: val, format: "json", limit: 5, addressdetails: 1, "accept-language": "en" }, headers: { "User-Agent": "DevAstroAI/1.0" } });
+          features = g.data;
+        }
+        const results: PlaceSuggestion[] = features.map((f: any) => {
+          const addr = f.address || {};
+          const parts = [addr.city || addr.town || addr.village || addr.county || f.display_name.split(",")[0], addr.state, addr.country].filter(Boolean);
+          return { name: parts[0] || val, display: parts.join(", "), lat: parseFloat(f.lat), lon: parseFloat(f.lon) };
+        });
+        setMNewPPlaceSugg(results); setMNewPPlaceStatus("done");
+      } catch { setMNewPPlaceStatus("idle"); }
+    }, 400);
+  };
+
   const handleManualCoords = () => {
     const lat = parseFloat(manualLat), lon = parseFloat(manualLon);
     if (isNaN(lat) || isNaN(lon)) return;
@@ -246,11 +166,45 @@ export default function Home() {
     return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
   };
 
+  /** Convert a saved ChartSession to the API payload format (YYYY-MM-DD date, 24h time). */
+  const sessionToApiPerson = (s: ChartSession) => {
+    const bd = s.birthDetails;
+    // date: stored as DD/MM/YYYY → convert to YYYY-MM-DD
+    const dp = bd.date.includes("/") ? bd.date.split("/") : bd.date.split("-").reverse();
+    const date = dp.length === 3 ? `${dp[2]}-${dp[1].padStart(2,"0")}-${dp[0].padStart(2,"0")}` : bd.date;
+    // time: stored as HH:MM 12h + ampm → 24h
+    let [hh, mm] = (bd.time || "00:00").split(":").map(Number);
+    if (bd.ampm === "PM" && hh !== 12) hh += 12;
+    if (bd.ampm === "AM" && hh === 12) hh = 0;
+    const time = `${String(hh).padStart(2,"0")}:${String(mm||0).padStart(2,"0")}`;
+    return {
+      name: s.name || bd.name,
+      date,
+      time,
+      latitude: bd.latitude || 17.385,
+      longitude: bd.longitude || 78.4867,
+      timezone_offset: 5.5,
+      gender: bd.gender || "",
+    };
+  };
+
   const handleSetup = async () => {
     if (!birthDetails.name || !birthDetails.date || !birthDetails.time) { alert("Please fill in name, date, and time of birth."); return; }
     if (!birthDetails.latitude || !birthDetails.longitude) { alert("Please select a place from the dropdown or enter coordinates manually."); return; }
     const formattedDate = getFormattedDate();
     if (!formattedDate) { alert("Please enter date as DD/MM/YYYY"); return; }
+
+    // Duplicate detection — switch to existing session instead of re-generating
+    if (mode === "astrologer" && savedSessions.length > 0) {
+      const dupe = savedSessions.find(s =>
+        s.birthDetails.name.trim().toLowerCase() === birthDetails.name.trim().toLowerCase() &&
+        s.birthDetails.date === birthDetails.date &&
+        s.birthDetails.time === birthDetails.time &&
+        s.birthDetails.ampm === birthDetails.ampm
+      );
+      if (dupe) { handleSwitchSession(dupe); return; }
+    }
+
     setChartLoading(true);
     try {
       if (mode === "astrologer") {
@@ -261,6 +215,8 @@ export default function Home() {
         setChartData(res.data);
       }
       setSetupDone(true);
+      setCurrentSessionId(prev => prev || Date.now().toString());
+      if (mode === "astrologer") setShowLangModal(true);
     } catch { alert("Could not generate chart. Please check if the backend is running."); }
     finally { setChartLoading(false); }
   };
@@ -289,11 +245,14 @@ export default function Home() {
     if (!workspaceData) return;
     setActiveTopic(topic); setAnalysisLoading(true); setActiveTab("analysis");
     const formattedDate = getFormattedDate();
+    const topicLabel = TOPICS.find(t => t.id === topic)?.te || topic;
     try {
-      const res = await axios.post(`${API_URL}/astrologer/analyze`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: 5.5, topic, question: `${topic} గురించి పూర్తి KP విశ్లేషణ`, history: [], language: analysisLang });
-      setAnalysisResult(res.data.answer);
-    } catch { setAnalysisResult("విశ్లేషణ విఫలమైంది."); }
-    finally { setAnalysisLoading(false); }
+      // Topic analysis always starts fresh — no prior history for the first message
+      const res = await axios.post(`${API_URL}/astrologer/analyze`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: 5.5, topic, question: `Complete KP analysis for ${topic}`, history: [], language: analysisLang });
+      setAnalysisMessages(prev => [...prev, { q: `${topicLabel} — Full Analysis`, a: res.data.answer, isTopic: true }]);
+    } catch {
+      setAnalysisMessages(prev => [...prev, { q: topicLabel, a: "Analysis failed. Please try again.", isTopic: true }]);
+    } finally { setAnalysisLoading(false); }
   };
 
   const handleWorkspaceChat = async () => {
@@ -301,9 +260,11 @@ export default function Home() {
     const q = chatQ; setChatQ(""); setAnalysisLoading(true); setActiveTab("analysis");
     const formattedDate = getFormattedDate();
     try {
-      const res = await axios.post(`${API_URL}/astrologer/analyze`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: 5.5, topic: "general", question: q, history: chatHistory.slice(-4).map(h => ({ question: h.q, answer: h.a })), language: analysisLang });
-      setChatHistory(prev => [...prev, { q, a: res.data.answer }]);
-      setAnalysisResult(res.data.answer);
+      // CRITICAL FIX: pass ALL prior messages (including topic analysis) as history
+      // This prevents the AI from repeating reasoning already given
+      const history = analysisMessages.slice(-6).map(m => ({ question: m.q, answer: m.a }));
+      const res = await axios.post(`${API_URL}/astrologer/analyze`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: 5.5, topic: activeTopic || "general", question: q, history, language: analysisLang });
+      setAnalysisMessages(prev => [...prev, { q, a: res.data.answer }]);
     } catch { } finally { setAnalysisLoading(false); }
   };
 
@@ -323,10 +284,53 @@ export default function Home() {
 
   const resetAll = () => {
     setSetupDone(false); setMessages([]); setChartData(null); setWorkspaceData(null);
-    setShowChartDetails(false); setAnalysisResult(""); setChatHistory([]);
+    setShowChartDetails(false); setAnalysisMessages([]); setShowLangModal(false);
     setActiveTopic(""); setActiveTab("chart"); setSidebarOpen(true);
-    setBirthDetails({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: null, longitude: null });
+    setBirthDetails({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: null, longitude: null, gender: "" });
+    setPlaceStatus("idle"); setSavedSessions([]); setCurrentSessionId("");
+  };
+
+  const snapshotCurrentSession = (): ChartSession | null => {
+    if (!workspaceData) return null;
+    return { id: currentSessionId || Date.now().toString(), name: workspaceData.name, birthDetails: { ...birthDetails }, workspaceData, analysisMessages: [...analysisMessages], activeTopic, selectedHouse, chatQ, analysisLang, activeTab };
+  };
+
+  const handleNewChart = () => {
+    const snap = snapshotCurrentSession();
+    if (snap) {
+      setSavedSessions(prev => {
+        const idx = prev.findIndex(s => s.id === snap.id);
+        return idx >= 0 ? prev.map((s, i) => i === idx ? snap : s) : [...prev, snap];
+      });
+    }
+    setSetupDone(false); setWorkspaceData(null); setMessages([]); setChartData(null);
+    setAnalysisMessages([]); setActiveTopic(""); setActiveTab("chart"); setSidebarOpen(true);
+    setSelectedHouse(null); setChatQ(""); setCurrentSessionId("");
+    setBirthDetails({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: null, longitude: null, gender: "" });
     setPlaceStatus("idle");
+  };
+
+  const handleRemoveSession = (id: string) => setSavedSessions(prev => prev.filter(s => s.id !== id));
+
+  const handleSwitchSession = (target: ChartSession) => {
+    const snap = snapshotCurrentSession();
+    setSavedSessions(prev => {
+      const withoutTarget = prev.filter(s => s.id !== target.id);
+      if (!snap) return withoutTarget;
+      const idx = withoutTarget.findIndex(s => s.id === snap.id);
+      return idx >= 0 ? withoutTarget.map((s, i) => i === idx ? snap : s) : [...withoutTarget, snap];
+    });
+    setCurrentSessionId(target.id);
+    setBirthDetails(target.birthDetails);
+    setWorkspaceData(target.workspaceData);
+    setAnalysisMessages(target.analysisMessages);
+    setActiveTopic(target.activeTopic);
+    setSelectedHouse(target.selectedHouse);
+    setChatQ(target.chatQ);
+    setAnalysisLang(target.analysisLang);
+    setActiveTab(target.activeTab);
+    setSetupDone(true);
+    setMode("astrologer");
   };
 
   const inputStyle: React.CSSProperties = { width: "100%", background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 8, padding: "10px 14px", fontSize: 14, color: "var(--text)", outline: "none" };
@@ -336,7 +340,9 @@ export default function Home() {
     { id: "chart", label: "చార్ట్", en: "Chart" }, { id: "planets", label: "గ్రహాలు", en: "Planets" },
     { id: "cusps", label: "భావాలు", en: "Cusps" }, { id: "significators", label: "కారకాలు", en: "Significators" },
     { id: "dasha", label: "దశ", en: "Dasha" }, { id: "ruling", label: "రూలింగ్", en: "Ruling" },
-    { id: "panchangam", label: "పంచాంగం", en: "Panchangam" }, { id: "analysis", label: "విశ్లేషణ", en: "Analysis" },
+    { id: "panchangam", label: "పంచాంగం", en: "Panchangam" }, { id: "muhurtha", label: "ముహూర్త", en: "Muhurtha" },
+    { id: "match", label: "సరిపోలన", en: "Match" },
+    { id: "analysis", label: "విశ్లేషణ", en: "Analysis" },
   ];
 
   const TOPICS = [
@@ -344,6 +350,13 @@ export default function Home() {
     { id: "foreign_travel", te: "విదేశాలు" }, { id: "children", te: "సంతానం" }, { id: "education", te: "విద్య" },
     { id: "property", te: "ఆస్తి" }, { id: "wealth", te: "సంపద" },
   ];
+
+  const HOUSE_TOPICS: Record<number, string> = {
+    1: "Self & Vitality", 2: "Wealth & Family", 3: "Siblings & Short Travel",
+    4: "Home & Mother", 5: "Children & Intelligence", 6: "Health & Enemies",
+    7: "Marriage & Partnership", 8: "Longevity & Obstacles", 9: "Fortune & Father",
+    10: "Career & Status", 11: "Gains & Fulfillment", 12: "Losses & Foreign",
+  };
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", fontFamily: "'Noto Sans Telugu','DM Sans',sans-serif" }}>
@@ -379,14 +392,18 @@ export default function Home() {
           .workspace-sidebar .sidebar-section { flex: 1; min-width: 140px; border-bottom: none !important; }
           .workspace-main { min-height: 0; flex: 1; }
           .tab-bar { overflow-x: auto !important; }
-          .tab-bar button { padding: 8px 10px !important; font-size: 11px !important; }
+          .tab-bar button { padding: 10px 14px !important; font-size: 12px !important; min-width: 60px !important; }
           .south-indian-chart { max-width: 100% !important; }
           .grid-4col { grid-template-columns: repeat(2, 1fr) !important; }
           .setup-grid { grid-template-columns: 1fr !important; }
+          .chat-input-container { position: sticky; bottom: 0; background: var(--bg); padding-bottom: env(safe-area-inset-bottom, 8px); z-index: 20; border-top: 0.5px solid var(--border); margin-top: 0 !important; }
+          .house-panel-overlay { position: fixed !important; bottom: 0 !important; left: 0 !important; right: 0 !important; top: auto !important; max-height: 65vh !important; border-radius: 16px 16px 0 0 !important; z-index: 50; }
         }
         @media (max-width: 480px) {
           .workspace-sidebar { max-height: 180px; }
-          nav { padding: 1rem !important; }
+          nav { padding: 0.6rem 1rem !important; }
+          .logo-subtitle { display: none !important; }
+          .logo-title { font-size: 14px !important; }
         }
       `}</style>
 
@@ -402,13 +419,16 @@ export default function Home() {
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 32, height: 32, borderRadius: "50%", border: "1px solid var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent)", fontSize: 14 }}>✦</div>
           <div>
-            <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 17, letterSpacing: "0.02em" }}>DevAstro<span style={{ color: "var(--accent)" }}>AI</span></div>
-            <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.12em", textTransform: "uppercase" }}>KP Astrology Intelligence</div>
+            <div className="logo-title" style={{ fontFamily: "'DM Serif Display',serif", fontSize: 17, letterSpacing: "0.02em" }}>DevAstro<span style={{ color: "var(--accent)" }}>AI</span></div>
+            <div className="logo-subtitle" style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.12em", textTransform: "uppercase" }}>KP Astrology Intelligence</div>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {setupDone && mode === "astrologer" && <span style={{ fontSize: 10, background: "rgba(201,169,110,0.1)", color: "var(--accent)", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "3px 10px" }}>జ్యోతిష్కుడు మోడ్</span>}
-          {setupDone && <button onClick={resetAll} style={{ background: "transparent", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "6px 16px", fontSize: 12, color: "var(--muted)", cursor: "pointer" }}>New Chart</button>}
+          {setupDone && <button onClick={handleNewChart} style={{ background: "transparent", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "6px 16px", fontSize: 12, color: "var(--muted)", cursor: "pointer" }}>New Chart</button>}
+          {setupDone && savedSessions.length > 0 && (
+            <button onClick={resetAll} style={{ background: "transparent", border: "none", fontSize: 11, color: "var(--muted)", cursor: "pointer", opacity: 0.5 }}>Clear All</button>
+          )}
         </div>
       </nav>
 
@@ -489,6 +509,17 @@ export default function Home() {
                 </div>
               </div>
               <div style={{ marginBottom: "1.25rem" }}>
+                <label style={labelStyle}>Gender</label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {(["male", "female"] as const).map(g => (
+                    <button key={g} onClick={() => setBirthDetails(prev => ({ ...prev, gender: g }))}
+                      style={{ flex: 1, padding: "10px", borderRadius: 8, cursor: "pointer", border: `0.5px solid ${birthDetails.gender === g ? "var(--accent)" : "var(--border2)"}`, background: birthDetails.gender === g ? "rgba(201,169,110,0.1)" : "var(--surface2)", color: birthDetails.gender === g ? "var(--accent)" : "var(--muted)", fontSize: 13, fontFamily: "inherit", transition: "all 0.2s" }}>
+                      {g === "male" ? "♂ Male" : "♀ Female"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div style={{ marginBottom: "1.25rem" }}>
                 <label style={labelStyle}>I am a</label>
                 <div style={{ display: "flex", gap: 8 }}>
                   {(["user", "astrologer"] as const).map(m => (
@@ -507,6 +538,28 @@ export default function Home() {
       )}
 
       {/* ── ASTROLOGER WORKSPACE ── */}
+      {/* Language preference modal */}
+      {showLangModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(9,9,15,0.85)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
+          <div style={{ background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 14, padding: "2rem", maxWidth: 360, width: "100%", textAlign: "center" }}>
+            <div style={{ fontSize: 22, color: "var(--accent)", marginBottom: "0.5rem" }}>◈</div>
+            <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 18, marginBottom: "0.5rem" }}>Analysis Language</div>
+            <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: "1.5rem", lineHeight: 1.6 }}>Choose how you want the AI analysis text to appear. Chart data (planet names, house labels) will always show in Telugu + English.</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <button onClick={() => { setAnalysisLang("english"); setShowLangModal(false); }} style={{ padding: "12px 20px", borderRadius: 8, border: "0.5px solid var(--border2)", background: "var(--surface2)", color: "var(--text)", cursor: "pointer", fontSize: 14, fontFamily: "inherit", textAlign: "left" }}>
+                <div style={{ fontWeight: 500, marginBottom: 2 }}>English only</div>
+                <div style={{ fontSize: 11, color: "var(--muted)" }}>Best for analysis quality — AI reasoning stays focused</div>
+              </button>
+              <button onClick={() => { setAnalysisLang("telugu_english"); setShowLangModal(false); }} style={{ padding: "12px 20px", borderRadius: 8, border: "0.5px solid var(--border2)", background: "var(--surface2)", color: "var(--text)", cursor: "pointer", fontSize: 14, fontFamily: "inherit", textAlign: "left" }}>
+                <div style={{ fontWeight: 500, marginBottom: 2 }}>Telugu + English</div>
+                <div style={{ fontSize: 11, color: "var(--muted)" }}>Mixed — technical terms in Telugu, explanations in English</div>
+              </button>
+            </div>
+            <div style={{ fontSize: 10, color: "var(--muted)", marginTop: "1rem" }}>You can change this anytime from the Analysis tab.</div>
+          </div>
+        </div>
+      )}
+
       {setupDone && mode === "astrologer" && workspaceData && (
         <div className="workspace-layout" style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative", zIndex: 5 }}>
 
@@ -536,6 +589,33 @@ export default function Home() {
           {/* Sidebar */}
           {sidebarOpen && (
             <div className="workspace-sidebar" style={{ width: 210, borderRight: "0.5px solid var(--border)", background: "var(--surface)", display: "flex", flexDirection: "column", overflow: "auto", flexShrink: 0, transition: "width 0.2s" }}>
+              {/* Session switcher */}
+              {savedSessions.length > 0 && (
+                <div className="sidebar-section" style={{ padding: "8px 10px", borderBottom: "0.5px solid var(--border)", flexShrink: 0 }}>
+                  <div style={{ fontSize: 9, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 5 }}>Charts</div>
+                  <div style={{ padding: "4px 8px", borderRadius: 6, background: "rgba(201,169,110,0.12)", border: "0.5px solid rgba(201,169,110,0.35)", fontSize: 11, color: "var(--accent)", fontWeight: 500, marginBottom: 3 }}>
+                    ◈ {workspaceData?.name?.split(" ")[0]}
+                    <span style={{ fontSize: 9, color: "rgba(201,169,110,0.6)", marginLeft: 4 }}>active</span>
+                  </div>
+                  {savedSessions.map(s => (
+                    <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 3, marginBottom: 3 }}>
+                      <button onClick={() => handleSwitchSession(s)}
+                        style={{ flex: 1, padding: "4px 8px", borderRadius: 6, background: "var(--surface2)", border: "0.5px solid var(--border2)", fontSize: 11, color: "var(--muted)", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
+                        onMouseEnter={e => (e.currentTarget.style.color = "var(--text)")} onMouseLeave={e => (e.currentTarget.style.color = "var(--muted)")}>
+                        {s.name?.split(" ")[0]}
+                        <span style={{ fontSize: 9, color: "var(--muted)", marginLeft: 4 }}>{s.analysisMessages.length > 0 ? `${s.analysisMessages.length}↑` : s.activeTopic ? s.activeTopic.slice(0, 6) : ""}</span>
+                      </button>
+                      <button onClick={() => handleRemoveSession(s.id)} title="Remove chart"
+                        style={{ background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 13, lineHeight: 1, padding: "2px 4px", opacity: 0.5, flexShrink: 0 }}
+                        onMouseEnter={e => (e.currentTarget.style.opacity = "1")} onMouseLeave={e => (e.currentTarget.style.opacity = "0.5")}>×</button>
+                    </div>
+                  ))}
+                  <button onClick={handleNewChart}
+                    style={{ width: "100%", padding: "3px 8px", borderRadius: 6, background: "transparent", border: "0.5px dashed var(--border2)", fontSize: 10, color: "var(--muted)", cursor: "pointer", fontFamily: "inherit", textAlign: "center" }}>
+                    + New Chart
+                  </button>
+                </div>
+              )}
               <div className="sidebar-section" style={{ padding: "1rem", borderBottom: "0.5px solid var(--border)" }}>
                 <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(201,169,110,0.1)", border: "0.5px solid var(--border2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, color: "var(--accent)", fontWeight: 600, marginBottom: 8 }}>{workspaceData.name[0]?.toUpperCase()}</div>
                 <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 2 }}>{workspaceData.name}</div>
@@ -605,10 +685,26 @@ export default function Home() {
                 <div className="tab-content" style={{ display: "flex", gap: "1.5rem", alignItems: "start", flexWrap: "wrap" }}>
                   <div>
                     <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: "0.6rem" }}>దక్షిణ భారత చార్ట్</div>
-                    <SouthIndianChart planets={workspaceData.planets} cusps={workspaceData.cusps} />
-                    <div style={{ fontSize: 9, color: "var(--muted)", marginTop: 6, textAlign: "center" }}>Hover for details · ↑ = Lagna</div>
+                    <SouthIndianChart
+                      planets={workspaceData.planets}
+                      cusps={workspaceData.cusps}
+                      onHouseClick={h => setSelectedHouse(prev => prev === h ? null : h)}
+                      selectedHouse={selectedHouse}
+                    />
+                    <div style={{ fontSize: 9, color: "var(--muted)", marginTop: 6, textAlign: "center" }}>Tap a house for details · ↑ = Lagna</div>
                   </div>
-                  <div style={{ flex: 1, minWidth: 200 }}>
+                  {selectedHouse && (
+                    <HousePanel
+                      house={selectedHouse}
+                      cusps={workspaceData.cusps}
+                      significators={workspaceData.significators}
+                      planets={workspaceData.planets}
+                      rulingPlanets={workspaceData.ruling_planets?.all_en || []}
+                      antardashas={workspaceData.antardashas || []}
+                      onClose={() => setSelectedHouse(null)}
+                    />
+                  )}
+                  {!selectedHouse && <div style={{ flex: 1, minWidth: 200 }}>
                     <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: "0.75rem" }}>గ్రహ స్థానాలు</div>
                     {workspaceData.planets.map((p: any) => (
                       <div key={p.planet_en} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", background: "var(--surface2)", borderRadius: 6, border: "0.5px solid var(--border)", marginBottom: 3 }}>
@@ -619,26 +715,33 @@ export default function Home() {
                         {p.retrograde && <span style={{ fontSize: 9, color: "var(--red)" }}>℞</span>}
                       </div>
                     ))}
-                  </div>
+                  </div>}
                 </div>
               )}
 
               {/* PLANETS */}
               {activeTab === "planets" && (
                 <div className="tab-content" style={{ overflowX: "auto" }}>
-                  <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: "0.75rem" }}>గ్రహ స్థాన పట్టిక · KP పద్ధతి</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+                    <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>గ్రహ స్థాన పట్టిక · KP పద్ధతి</div>
+                    <div style={{ fontSize: 9, color: "var(--muted)" }}>Click H badge → jump to chart</div>
+                  </div>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 500 }}>
                     <thead><tr>{["గ్రహం", "భావం", "రాశి", "అంశం", "నక్షత్రం", "నక్షత్రాధిపతి", "సబ్ లార్డ్"].map(h => <th key={h} style={{ textAlign: "left", padding: "8px 10px", color: "var(--muted)", fontSize: 10, letterSpacing: "0.06em", borderBottom: "0.5px solid var(--border)", fontWeight: 400, whiteSpace: "nowrap" }}>{h}</th>)}</tr></thead>
                     <tbody>
                       {workspaceData.planets.map((p: any) => (
-                        <tr key={p.planet_en} style={{ borderBottom: "0.5px solid rgba(201,169,110,.06)" }} onMouseEnter={e => (e.currentTarget.style.background = "var(--surface2)")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+                        <tr key={p.planet_en} style={{ borderBottom: "0.5px solid rgba(201,169,110,.06)", cursor: "default" }} onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.04)")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
                           <td style={{ padding: "9px 10px", color: PLANET_COLORS[p.planet_en], fontWeight: 600, whiteSpace: "nowrap" }}>{p.planet_te} {p.retrograde && <span style={{ fontSize: 9, color: "var(--red)" }}>℞</span>}</td>
-                          <td style={{ padding: "9px 10px" }}><span style={{ background: "rgba(201,169,110,0.1)", color: "var(--accent)", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "2px 8px", fontSize: 11, fontWeight: 600 }}>H{p.house}</span></td>
+                          <td style={{ padding: "9px 10px" }}>
+                            <span onClick={() => { setSelectedHouse(parseInt(p.house)); setActiveTab("chart"); }} title="Click to open house panel in Chart tab" style={{ background: "rgba(201,169,110,0.1)", color: "var(--accent)", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "2px 8px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>H{p.house}</span>
+                          </td>
                           <td style={{ padding: "9px 10px", color: "var(--text)" }}>{p.sign_te}</td>
                           <td style={{ padding: "9px 10px", color: "var(--muted)", fontSize: 11 }}>{p.degree_in_sign.toFixed(2)}°</td>
                           <td style={{ padding: "9px 10px", color: "var(--text)" }}>{p.nakshatra_te}</td>
                           <td style={{ padding: "9px 10px", color: PLANET_COLORS[p.star_lord_en] || "var(--text)" }}>{p.star_lord_te}</td>
-                          <td style={{ padding: "9px 10px" }}><span style={{ background: "rgba(201,169,110,.1)", color: "var(--accent)", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "2px 8px", fontSize: 11 }}>{p.sub_lord_te}</span></td>
+                          <td style={{ padding: "9px 10px" }}>
+                            <span onClick={() => { const houseOfSub = workspaceData.cusps.findIndex((c: any) => c.sub_lord_en === p.sub_lord_en || c.star_lord_en === p.sub_lord_en); if (houseOfSub >= 0) { setSelectedHouse(houseOfSub + 1); setActiveTab("chart"); } }} title="Click to explore sub lord's house" style={{ background: "rgba(201,169,110,.1)", color: "var(--accent)", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "2px 8px", fontSize: 11, cursor: "pointer" }}>{p.sub_lord_te}</span>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -648,44 +751,79 @@ export default function Home() {
 
               {/* CUSPS */}
               {activeTab === "cusps" && (
-                <div className="tab-content" style={{ overflowX: "auto" }}>
-                  <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: "0.75rem" }}>భావ కస్పాల పట్టిక · KP కీలకం</div>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 500 }}>
-                    <thead><tr>{["భావం", "రాశి", "అంశం", "నక్షత్రం", "నక్షత్రాధిపతి", "సబ్ లార్డ్"].map(h => <th key={h} style={{ textAlign: "left", padding: "8px 10px", color: "var(--muted)", fontSize: 10, letterSpacing: "0.06em", borderBottom: "0.5px solid var(--border)", fontWeight: 400 }}>{h}</th>)}</tr></thead>
-                    <tbody>
-                      {workspaceData.cusps.map((c: any) => (
-                        <tr key={c.house_num} style={{ borderBottom: "0.5px solid rgba(201,169,110,.06)" }} onMouseEnter={e => (e.currentTarget.style.background = "var(--surface2)")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-                          <td style={{ padding: "9px 10px" }}><span style={{ color: "var(--accent)", fontWeight: 600 }}>H{c.house_num}</span> <span style={{ color: "var(--muted)", fontSize: 10 }}>{c.house_te}</span></td>
-                          <td style={{ padding: "9px 10px", color: "var(--text)" }}>{c.sign_te}</td>
-                          <td style={{ padding: "9px 10px", color: "var(--muted)", fontSize: 11 }}>{c.degree_in_sign.toFixed(2)}°</td>
-                          <td style={{ padding: "9px 10px", color: "var(--text)" }}>{c.nakshatra_te}</td>
-                          <td style={{ padding: "9px 10px", color: PLANET_COLORS[c.star_lord_en] || "var(--text)" }}>{c.star_lord_te}</td>
-                          <td style={{ padding: "9px 10px" }}><span style={{ background: "rgba(201,169,110,.1)", color: "var(--accent)", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "2px 8px", fontSize: 11 }}>{c.sub_lord_te}</span></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="tab-content" style={{ display: "flex", gap: "1rem", alignItems: "start" }}>
+                  <div style={{ flex: 1, overflowX: "auto" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+                      <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>భావ కస్పాల పట్టిక · KP కీలకం</div>
+                      <div style={{ fontSize: 9, color: "var(--muted)" }}>Click any row → house panel</div>
+                    </div>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 500 }}>
+                      <thead><tr>{["భావం", "రాశి", "అంశం", "నక్షత్రం", "నక్షత్రాధిపతి", "సబ్ లార్డ్"].map(h => <th key={h} style={{ textAlign: "left", padding: "8px 10px", color: "var(--muted)", fontSize: 10, letterSpacing: "0.06em", borderBottom: "0.5px solid var(--border)", fontWeight: 400 }}>{h}</th>)}</tr></thead>
+                      <tbody>
+                        {workspaceData.cusps.map((c: any) => (
+                          <tr key={c.house_num} onClick={() => setSelectedHouse(selectedHouse === c.house_num ? null : c.house_num)} style={{ borderBottom: "0.5px solid rgba(201,169,110,.06)", cursor: "pointer", background: selectedHouse === c.house_num ? "rgba(201,169,110,0.08)" : "transparent" }} onMouseEnter={e => { if (selectedHouse !== c.house_num) e.currentTarget.style.background = "rgba(201,169,110,0.04)"; }} onMouseLeave={e => { if (selectedHouse !== c.house_num) e.currentTarget.style.background = "transparent"; }}>
+                            <td style={{ padding: "9px 10px" }}><span style={{ color: selectedHouse === c.house_num ? "var(--accent2)" : "var(--accent)", fontWeight: 700 }}>H{c.house_num}</span> <span style={{ color: "var(--muted)", fontSize: 10 }}>{c.house_te}</span></td>
+                            <td style={{ padding: "9px 10px", color: "var(--text)" }}>{c.sign_te}</td>
+                            <td style={{ padding: "9px 10px", color: "var(--muted)", fontSize: 11 }}>{c.degree_in_sign.toFixed(2)}°</td>
+                            <td style={{ padding: "9px 10px", color: "var(--text)" }}>{c.nakshatra_te}</td>
+                            <td style={{ padding: "9px 10px", color: PLANET_COLORS[c.star_lord_en] || "var(--text)" }}>{c.star_lord_te}</td>
+                            <td style={{ padding: "9px 10px" }}><span style={{ background: "rgba(201,169,110,.1)", color: "var(--accent)", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "2px 8px", fontSize: 11 }}>{c.sub_lord_te}</span></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {selectedHouse && (
+                    <div style={{ width: 280, flexShrink: 0 }}>
+                      <HousePanel
+                        house={selectedHouse}
+                        cusps={workspaceData.cusps}
+                        significators={workspaceData.significators}
+                        planets={workspaceData.planets}
+                        rulingPlanets={workspaceData.ruling_planets?.all_en || []}
+                        antardashas={workspaceData.antardashas || []}
+                        onClose={() => setSelectedHouse(null)}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* SIGNIFICATORS */}
               {activeTab === "significators" && (
-                <div className="tab-content">
-                  <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: "0.75rem" }}>కారక గ్రహాలు · అన్ని భావాలు</div>
-                  <div className="grid-4col" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
-                    {Object.entries(workspaceData.significators).map(([key, sig]: [string, any]) => (
-                      <div key={key} style={{ background: "var(--surface2)", borderRadius: 8, padding: "0.75rem", border: "0.5px solid var(--border)" }}>
-                        <div style={{ fontSize: 11, color: "var(--accent)", fontWeight: 600, marginBottom: 2 }}>H{sig.house_num}</div>
-                        <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 6 }}>{sig.house_te}</div>
-                        {sig.occupants_en.length > 0 && <div style={{ marginBottom: 3 }}><span style={{ fontSize: 9, color: "var(--muted)" }}>నివాసులు: </span>{sig.occupants_te.map((p: string, i: number) => <span key={i} style={{ fontSize: 11, color: PLANET_COLORS[sig.occupants_en[i]] || "var(--accent2)", marginRight: 3 }}>{p}</span>)}</div>}
-                        <div style={{ marginBottom: 3 }}><span style={{ fontSize: 9, color: "var(--muted)" }}>అధిపతి: </span><span style={{ fontSize: 11, color: PLANET_COLORS[sig.house_lord_en] || "var(--green)" }}>{sig.house_lord_te}</span></div>
-                        <div style={{ borderTop: "0.5px solid var(--border)", paddingTop: 4, marginTop: 2 }}>
-                          <span style={{ fontSize: 9, color: "var(--muted)", display: "block", marginBottom: 2 }}>అన్నీ:</span>
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: 2 }}>{sig.all_significators_te.map((p: string, i: number) => <span key={i} style={{ fontSize: 10, color: PLANET_COLORS[sig.all_significators_en[i]] || "var(--text)" }}>{p}</span>)}</div>
+                <div className="tab-content" style={{ display: "flex", gap: "1rem", alignItems: "start" }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+                      <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>కారక గ్రహాలు · అన్ని భావాలు</div>
+                      <div style={{ fontSize: 9, color: "var(--muted)" }}>Click any house → full details</div>
+                    </div>
+                    <div className="grid-4col" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
+                      {Object.entries(workspaceData.significators).map(([key, sig]: [string, any]) => (
+                        <div key={key} onClick={() => setSelectedHouse(selectedHouse === sig.house_num ? null : sig.house_num)} style={{ background: selectedHouse === sig.house_num ? "rgba(201,169,110,0.12)" : "var(--surface2)", borderRadius: 8, padding: "0.75rem", border: `0.5px solid ${selectedHouse === sig.house_num ? "rgba(201,169,110,0.5)" : "var(--border)"}`, cursor: "pointer", transition: "all 0.15s" }} onMouseEnter={e => { if (selectedHouse !== sig.house_num) (e.currentTarget as HTMLElement).style.background = "rgba(201,169,110,0.06)"; }} onMouseLeave={e => { if (selectedHouse !== sig.house_num) (e.currentTarget as HTMLElement).style.background = "var(--surface2)"; }}>
+                          <div style={{ fontSize: 11, color: selectedHouse === sig.house_num ? "var(--accent2)" : "var(--accent)", fontWeight: 700, marginBottom: 2 }}>H{sig.house_num}</div>
+                          <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 6 }}>{sig.house_te}</div>
+                          {sig.occupants_en.length > 0 && <div style={{ marginBottom: 3 }}><span style={{ fontSize: 9, color: "var(--muted)" }}>నివాసులు: </span>{sig.occupants_te.map((p: string, i: number) => <span key={i} style={{ fontSize: 11, color: PLANET_COLORS[sig.occupants_en[i]] || "var(--accent2)", marginRight: 3 }}>{p}</span>)}</div>}
+                          <div style={{ marginBottom: 3 }}><span style={{ fontSize: 9, color: "var(--muted)" }}>అధిపతి: </span><span style={{ fontSize: 11, color: PLANET_COLORS[sig.house_lord_en] || "var(--green)" }}>{sig.house_lord_te}</span></div>
+                          <div style={{ borderTop: "0.5px solid var(--border)", paddingTop: 4, marginTop: 2 }}>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 2 }}>{sig.all_significators_te.map((p: string, i: number) => <span key={i} style={{ fontSize: 10, color: PLANET_COLORS[sig.all_significators_en[i]] || "var(--text)" }}>{p}</span>)}</div>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
+                  {selectedHouse && (
+                    <div style={{ width: 280, flexShrink: 0 }}>
+                      <HousePanel
+                        house={selectedHouse}
+                        cusps={workspaceData.cusps}
+                        significators={workspaceData.significators}
+                        planets={workspaceData.planets}
+                        rulingPlanets={workspaceData.ruling_planets?.all_en || []}
+                        antardashas={workspaceData.antardashas || []}
+                        onClose={() => setSelectedHouse(null)}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -777,38 +915,639 @@ export default function Home() {
                 </div>
               )}
 
+              {/* MUHURTHA */}
+              {activeTab === "muhurtha" && (
+                <div className="tab-content" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                  {/* Step 1 — Event type + Participants */}
+                  {mStep === 1 && (
+                    <div>
+                      <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: "1rem" }}>ఏ సందర్భానికి ముహూర్తం?</div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: "1.25rem" }}>
+                        {[
+                          { id: "marriage", te: "వివాహం", en: "Marriage", icon: "♥" },
+                          { id: "business", te: "వ్యాపారం", en: "Business Opening", icon: "◈" },
+                          { id: "house_warming", te: "గృహప్రవేశం", en: "House Warming", icon: "⌂" },
+                          { id: "travel", te: "ప్రయాణం", en: "Travel", icon: "→" },
+                          { id: "education", te: "విద్య", en: "Education", icon: "◉" },
+                        ].map(ev => (
+                          <button key={ev.id} onClick={() => setMEventType(ev.id)}
+                            style={{ padding: "1rem", background: mEventType === ev.id ? "rgba(201,169,110,0.12)" : "var(--surface2)", border: `0.5px solid ${mEventType === ev.id ? "var(--accent)" : "var(--border)"}`, borderRadius: 10, cursor: "pointer", textAlign: "left" as const, transition: "all 0.2s" }}>
+                            <div style={{ fontSize: 18, marginBottom: 4 }}>{ev.icon}</div>
+                            <div style={{ fontSize: 14, color: "var(--text)", fontWeight: 500 }}>{ev.te}</div>
+                            <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}>{ev.en}</div>
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Participants panel */}
+                      <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem", marginBottom: "1rem" }}>
+                        <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.625rem" }}>
+                          పాల్గొనేవారు — Participants <span style={{ color: "var(--border2)", fontStyle: "normal" }}>(ఐచ్ఛికం / Optional)</span>
+                        </div>
+                        {/* Added participants chips */}
+                        <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 6, marginBottom: mParticipants.length > 0 ? "0.625rem" : 0 }}>
+                          {mParticipants.map((p, i) => (
+                            <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", background: "rgba(201,169,110,0.1)", border: "0.5px solid rgba(201,169,110,0.3)", borderRadius: 20, fontSize: 12, color: "var(--accent)" }}>
+                              <span>{p.name || p.birthDetails.name}</span>
+                              <button onClick={() => setMParticipants(prev => prev.filter((_, j) => j !== i))}
+                                style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", padding: 0, fontSize: 13, lineHeight: 1, display: "flex", alignItems: "center" }}>×</button>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Add from saved sessions dropdown */}
+                        {!mShowAddParticipant && (
+                          <div style={{ display: "flex", gap: 6 }}>
+                            {savedSessions.filter(s => !mParticipants.find(p => p.id === s.id)).length > 0 && (
+                              <div style={{ position: "relative" as const, flex: 1 }}>
+                                <select onChange={e => {
+                                  const found = savedSessions.find(s => s.id === e.target.value);
+                                  if (found) { setMParticipants(prev => [...prev, found]); e.target.value = ""; }
+                                }} defaultValue=""
+                                  style={{ width: "100%", background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "7px 10px", fontSize: 12, color: "var(--muted)", outline: "none", cursor: "pointer", fontFamily: "inherit" }}>
+                                  <option value="" disabled>+ సేవ్ చేసిన చార్ట్ నుండి జోడించు</option>
+                                  {savedSessions.filter(s => !mParticipants.find(p => p.id === s.id)).map(s => (
+                                    <option key={s.id} value={s.id}>{s.name || s.birthDetails.name}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+                            <button onClick={() => setMShowAddParticipant(true)}
+                              style={{ padding: "7px 12px", background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, color: "var(--muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" as const }}>
+                              + కొత్తగా
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Inline mini-form for new participant */}
+                        {mShowAddParticipant && (
+                          <div style={{ display: "flex", flexDirection: "column" as const, gap: 7 }}>
+                            <input placeholder="పేరు / Name" value={mNewP.name} onChange={e => setMNewP(p => ({ ...p, name: e.target.value }))}
+                              style={{ background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "7px 10px", fontSize: 12, color: "var(--text)", outline: "none" }} />
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                              <input placeholder="DD/MM/YYYY" value={mNewP.date} onChange={e => setMNewP(p => ({ ...p, date: e.target.value }))}
+                                style={{ background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "7px 10px", fontSize: 12, color: "var(--text)", outline: "none" }} />
+                              <div style={{ display: "flex", gap: 4 }}>
+                                <input placeholder="HH:MM" value={mNewP.time} onChange={e => setMNewP(p => ({ ...p, time: e.target.value }))}
+                                  style={{ flex: 1, background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "7px 10px", fontSize: 12, color: "var(--text)", outline: "none" }} />
+                                <button onClick={() => setMNewP(p => ({ ...p, ampm: p.ampm === "AM" ? "PM" : "AM" }))}
+                                  style={{ padding: "7px 8px", background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, color: "var(--accent)", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>
+                                  {mNewP.ampm}
+                                </button>
+                              </div>
+                            </div>
+                            {/* Place search */}
+                            <div style={{ position: "relative" as const }}>
+                              <input placeholder="పుట్టిన ఊరు / Place of Birth" value={mNewP.place} onChange={e => handleMNewPPlaceChange(e.target.value)}
+                                style={{ width: "100%", background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "7px 10px", fontSize: 12, color: "var(--text)", outline: "none", boxSizing: "border-box" as const }} />
+                              {mNewPPlaceStatus === "searching" && <div style={{ position: "absolute", right: 10, top: 8, fontSize: 10, color: "var(--muted)" }}>...</div>}
+                              {mNewPPlaceSugg.length > 0 && (
+                                <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100, background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 6, overflow: "hidden", marginTop: 2 }}>
+                                  {mNewPPlaceSugg.map((s, i) => (
+                                    <button key={i} onClick={() => { setMNewP(p => ({ ...p, place: s.display, latitude: s.lat, longitude: s.lon })); setMNewPPlaceSugg([]); setMNewPPlaceStatus("idle"); }}
+                                      style={{ width: "100%", padding: "7px 10px", background: "none", border: "none", borderBottom: "0.5px solid var(--border)", color: "var(--text)", fontSize: 11, textAlign: "left" as const, cursor: "pointer", fontFamily: "inherit" }}>
+                                      {s.display}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            {/* Gender */}
+                            <div style={{ display: "flex", gap: 6 }}>
+                              {(["male","female"] as const).map(g => (
+                                <button key={g} onClick={() => setMNewP(p => ({ ...p, gender: g }))}
+                                  style={{ flex: 1, padding: "6px", borderRadius: 6, cursor: "pointer", border: `0.5px solid ${mNewP.gender === g ? "var(--accent)" : "var(--border2)"}`, background: mNewP.gender === g ? "rgba(201,169,110,0.1)" : "var(--surface)", color: mNewP.gender === g ? "var(--accent)" : "var(--muted)", fontSize: 12, fontFamily: "inherit" }}>
+                                  {g === "male" ? "♂ Male" : "♀ Female"}
+                                </button>
+                              ))}
+                            </div>
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <button onClick={() => {
+                                if (!mNewP.name || !mNewP.date || !mNewP.time) return;
+                                const newSession: ChartSession = {
+                                  id: Date.now().toString(),
+                                  name: mNewP.name,
+                                  birthDetails: { name: mNewP.name, date: mNewP.date, time: mNewP.time, ampm: mNewP.ampm, place: mNewP.place, latitude: mNewP.latitude, longitude: mNewP.longitude, gender: mNewP.gender },
+                                  workspaceData: null, analysisMessages: [], activeTopic: "", selectedHouse: null, chatQ: "", analysisLang: "english", activeTab: "chart"
+                                };
+                                setMParticipants(prev => [...prev, newSession]);
+                                setSavedSessions(prev => [...prev, newSession]);
+                                setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "" });
+                                setMNewPPlaceSugg([]); setMNewPPlaceStatus("idle");
+                                setMShowAddParticipant(false);
+                              }} style={{ flex: 1, padding: "7px", background: "var(--accent)", border: "none", borderRadius: 6, color: "#09090f", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                                జోడించు
+                              </button>
+                              <button onClick={() => { setMShowAddParticipant(false); setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "" }); setMNewPPlaceSugg([]); }}
+                                style={{ padding: "7px 12px", background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, color: "var(--muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+                                రద్దు
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <button onClick={() => setMStep(2)} disabled={!mEventType}
+                        style={{ width: "100%", padding: "12px", background: mEventType ? "var(--accent)" : "var(--surface2)", color: mEventType ? "#09090f" : "var(--muted)", border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: mEventType ? "pointer" : "default", fontFamily: "inherit", transition: "all 0.2s" }}>
+                        తేదీలు ఎంచుకోండి →
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Step 2 — Date selection */}
+                  {mStep === 2 && (
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "0.75rem" }}>
+                        <button onClick={() => setMStep(1)} style={{ background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 18, padding: 0 }}>←</button>
+                        <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>ఏ తేదీలు చూడాలి?</div>
+                      </div>
+                      {/* Participant summary if any */}
+                      {mParticipants.length > 0 && (
+                        <div style={{ padding: "6px 10px", background: "rgba(201,169,110,0.06)", border: "0.5px solid rgba(201,169,110,0.2)", borderRadius: 6, marginBottom: "0.875rem", fontSize: 11, color: "var(--muted)" }}>
+                          పాల్గొనేవారు: {mParticipants.map(p => <span key={p.id} style={{ color: "var(--accent)", marginRight: 6 }}>{p.name || p.birthDetails.name}</span>)}
+                        </div>
+                      )}
+                      {/* Quick picks */}
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: "1rem" }}>
+                        {[
+                          { label: "ఈ వారం", en: "This week", days: 7 },
+                          { label: "వచ్చే వారం", en: "Next week", days: 14 },
+                          { label: "ఈ నెల", en: "This month", days: 30 },
+                          { label: "వచ్చే నెల", en: "Next month", days: 60 },
+                        ].map(q => {
+                          const s = new Date(); s.setDate(s.getDate() + (q.days === 14 ? 7 : 0));
+                          const e = new Date(); e.setDate(e.getDate() + q.days);
+                          const fmt = (d: Date) => d.toISOString().split("T")[0];
+                          return (
+                            <button key={q.label} onClick={() => { setMDateStart(fmt(s)); setMDateEnd(fmt(e)); }}
+                              style={{ padding: "0.75rem", background: "var(--surface2)", border: `0.5px solid ${mDateStart === fmt(s) ? "var(--accent)" : "var(--border)"}`, borderRadius: 8, cursor: "pointer", color: mDateStart === fmt(s) ? "var(--accent)" : "var(--text)", fontSize: 13, fontFamily: "inherit", transition: "all 0.2s" }}>
+                              <div>{q.label}</div>
+                              <div style={{ fontSize: 9, color: "var(--muted)", marginTop: 2 }}>{q.en}</div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {/* Custom date range */}
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: "1rem" }}>
+                        <div>
+                          <div style={{ fontSize: 9, color: "var(--muted)", marginBottom: 4 }}>నుండి (From)</div>
+                          <input type="date" value={mDateStart} onChange={e => setMDateStart(e.target.value)}
+                            style={{ width: "100%", background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "8px 10px", fontSize: 12, color: "var(--text)", outline: "none" }} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 9, color: "var(--muted)", marginBottom: 4 }}>వరకు (To)</div>
+                          <input type="date" value={mDateEnd} onChange={e => setMDateEnd(e.target.value)}
+                            style={{ width: "100%", background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "8px 10px", fontSize: 12, color: "var(--text)", outline: "none" }} />
+                        </div>
+                      </div>
+                      <button onClick={async () => {
+                        if (!mDateStart || !mDateEnd || !workspaceData) return;
+                        setMLoading(true); setMStep(3);
+                        try {
+                          const res = await axios.post(`${API_URL}/muhurtha/find`, {
+                            event_type: mEventType, date_start: mDateStart, date_end: mDateEnd,
+                            latitude: workspaceData.latitude || 17.385, longitude: workspaceData.longitude || 78.4867,
+                            timezone_offset: 5.5, nearby_days: 3,
+                            participants: mParticipants.map(sessionToApiPerson),
+                          });
+                          setMResults(res.data);
+                        } catch { setMResults(null); }
+                        setMLoading(false);
+                      }} disabled={!mDateStart || !mDateEnd || mLoading}
+                        style={{ width: "100%", padding: "12px", background: mDateStart && mDateEnd ? "var(--accent)" : "var(--surface2)", color: mDateStart && mDateEnd ? "#09090f" : "var(--muted)", border: "none", borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: mDateStart && mDateEnd ? "pointer" : "default", fontFamily: "inherit" }}>
+                        ముహూర్తాలు వెతకండి →
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Step 3 — Results */}
+                  {mStep === 3 && (
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "1rem" }}>
+                        <button onClick={() => { setMStep(2); setMResults(null); }} style={{ background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 18, padding: 0 }}>←</button>
+                        <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>
+                          {mEventType.replace("_", " ").toUpperCase()} ముహూర్తాలు · {mDateStart} → {mDateEnd}
+                        </div>
+                      </div>
+
+                      {mLoading && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--muted)", padding: "2rem", justifyContent: "center" }}>
+                          <div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid var(--accent)", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
+                          గ్రహ స్థితులు లెక్కిస్తున్నాం...
+                        </div>
+                      )}
+
+                      {!mLoading && mResults && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                          {/* Nearby better alert */}
+                          {mResults.nearby_better && (
+                            <div style={{ padding: "0.75rem 1rem", background: "rgba(251,191,36,0.08)", border: "0.5px solid rgba(251,191,36,0.3)", borderRadius: 8 }}>
+                              <div style={{ fontSize: 11, color: "#fbbf24", fontWeight: 500, marginBottom: 4 }}>
+                                ⚠ మీరు ఎంచుకున్న తేదీల దగ్గర మంచి ముహూర్తం ఉంది
+                              </div>
+                              <div style={{ fontSize: 12, color: "var(--text)" }}>
+                                {mResults.nearby_better.date_display} — Score: {mResults.nearby_better.score} ({mResults.nearby_better.quality})
+                              </div>
+                              <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
+                                {mResults.nearby_better.start_time}–{mResults.nearby_better.end_time} · Lagna: {mResults.nearby_better.lagna} · Sub Lord: {mResults.nearby_better.lagna_sublord}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Window list */}
+                          {mResults.windows && mResults.windows.length === 0 && (
+                            <div style={{ textAlign: "center" as const, padding: "2rem", color: "var(--muted)", fontSize: 13 }}>
+                              ఈ తేదీల్లో మంచి ముహూర్తాలు కనపడలేదు. వేరే తేదీలు చూడండి.
+                            </div>
+                          )}
+
+                          {(mResults.windows || []).map((w: any, i: number) => (
+                            <div key={i} style={{ padding: "0.875rem 1rem", background: "var(--surface2)", border: `0.5px solid ${w.quality === "Excellent" ? "rgba(201,169,110,0.4)" : w.quality === "Good" ? "rgba(74,222,128,0.3)" : "var(--border)"}`, borderRadius: 10 }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                                <div>
+                                  <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text)" }}>{w.date_display}</div>
+                                  <div style={{ fontSize: 16, color: w.quality === "Excellent" ? "var(--accent)" : w.quality === "Good" ? "#4ade80" : "var(--muted)", fontWeight: 600, marginTop: 2 }}>
+                                    {w.start_time} – {w.end_time}
+                                  </div>
+                                </div>
+                                <div style={{ textAlign: "right" as const }}>
+                                  <div style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, background: w.quality === "Excellent" ? "rgba(201,169,110,0.15)" : w.quality === "Good" ? "rgba(74,222,128,0.1)" : "rgba(255,255,255,0.05)", color: w.quality === "Excellent" ? "var(--accent)" : w.quality === "Good" ? "#4ade80" : "var(--muted)", border: `0.5px solid ${w.quality === "Excellent" ? "rgba(201,169,110,0.3)" : w.quality === "Good" ? "rgba(74,222,128,0.2)" : "var(--border)"}` }}>
+                                    {w.quality === "Excellent" ? "★★★" : w.quality === "Good" ? "★★" : "★"} {w.quality}
+                                  </div>
+                                  <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 3 }}>Score: {w.score}</div>
+                                </div>
+                              </div>
+                              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const, fontSize: 11, marginBottom: 4 }}>
+                                <span style={{ color: "var(--muted)" }}>Lagna: <span style={{ color: "var(--text)" }}>{w.lagna}</span></span>
+                                <span style={{ color: "var(--muted)" }}>·</span>
+                                <span style={{ color: "var(--muted)" }}>Sub Lord: <span style={{ color: "var(--accent2)" }}>{w.lagna_sublord}</span></span>
+                                <span style={{ color: "var(--muted)" }}>·</span>
+                                <span style={{ color: "var(--muted)" }}>H: <span style={{ color: "var(--text)" }}>{w.signified_houses.join(", ")}</span></span>
+                              </div>
+                              {/* Participant resonance badges */}
+                              {w.resonating_with && w.resonating_with.length > 0 && (
+                                <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 4, marginBottom: 4 }}>
+                                  {w.resonating_with.map((name: string, j: number) => (
+                                    <span key={j} style={{ fontSize: 10, padding: "2px 7px", background: "rgba(74,222,128,0.1)", border: "0.5px solid rgba(74,222,128,0.25)", borderRadius: 12, color: "#4ade80" }}>
+                                      {name} ✓
+                                    </span>
+                                  ))}
+                                  {mParticipants.length > 0 && w.participant_resonance < mParticipants.length && (
+                                    <span style={{ fontSize: 10, color: "var(--muted)" }}>
+                                      {w.participant_resonance}/{mParticipants.length} resonating
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                              {(w.in_rahu_kalam || w.is_vishti) && (
+                                <div style={{ marginTop: 4, fontSize: 10, color: "#f87171" }}>
+                                  {w.in_rahu_kalam && "⚠ రాహుకాలం లో ఉంది  "}
+                                  {w.is_vishti && "⚠ విష్టి కరణం"}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+
+                          {/* Search different dates button */}
+                          <button onClick={() => { setMStep(2); setMResults(null); }}
+                            style={{ padding: "10px", background: "transparent", border: "0.5px solid var(--border2)", borderRadius: 8, color: "var(--muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+                            వేరే తేదీలు వెతకండి →
+                          </button>
+                        </div>
+                      )}
+
+                      {!mLoading && !mResults && (
+                        <div style={{ textAlign: "center" as const, padding: "2rem", color: "#f87171", fontSize: 13 }}>
+                          ముహూర్తాలు లోడ్ చేయడంలో సమస్య. మళ్ళీ ప్రయత్నించండి.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* MARRIAGE MATCH */}
+              {activeTab === "match" && (() => {
+                // Person 1 is always the current chart
+                const matchPerson1 = workspaceData ? snapshotCurrentSession() : null;
+                return (
+                <div className="tab-content" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+
+                  {/* Selection step */}
+                  {!matchLoading && !matchResults && (
+                    <div style={{ display: "flex", flexDirection: "column" as const, gap: "1rem" }}>
+                      <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>వివాహ సరిపోలన — Marriage Compatibility</div>
+
+                      {/* Person 1 — always current chart */}
+                      <div style={{ background: "var(--surface2)", border: "0.5px solid rgba(201,169,110,0.4)", borderRadius: 10, padding: "0.875rem 1rem" }}>
+                        <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.5rem" }}>వ్యక్తి 1 — Current Chart</div>
+                        {matchPerson1 ? (
+                          <div>
+                            <div style={{ fontSize: 14, color: "var(--accent)", fontWeight: 500 }}>{matchPerson1.name || matchPerson1.birthDetails.name}</div>
+                            <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
+                              {matchPerson1.birthDetails.date} · {matchPerson1.birthDetails.gender === "male" ? "♂ Male" : matchPerson1.birthDetails.gender === "female" ? "♀ Female" : "Gender not set"}
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: 12, color: "var(--muted)" }}>చార్ట్ లోడ్ చేయండి మొదట (Setup tab).</div>
+                        )}
+                      </div>
+
+                      {/* Person 2 — select from saved or add inline */}
+                      <div style={{ background: "var(--surface2)", border: `0.5px solid ${matchResults ? "rgba(201,169,110,0.4)" : "var(--border)"}`, borderRadius: 10, padding: "0.875rem 1rem" }}>
+                        <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.625rem" }}>వ్యక్తి 2 — Second Person</div>
+                        {/* Show saved sessions (excluding current) */}
+                        {!matchPerson2Inline && (
+                          <div style={{ display: "flex", flexDirection: "column" as const, gap: 6 }}>
+                            {savedSessions.filter(s => s.id !== matchPerson1?.id).length > 0 && (
+                              <select onChange={e => {
+                                const found = savedSessions.find(s => s.id === e.target.value);
+                                if (found) { setMatchResults({ __p2: found }); e.target.value = ""; }
+                              }} value={matchResults?.__p2?.id || ""}
+                                style={{ width: "100%", background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "9px 10px", fontSize: 13, color: "var(--muted)", outline: "none", cursor: "pointer", fontFamily: "inherit" }}>
+                                <option value="" disabled>సేవ్ చేసిన చార్ట్ ఎంచుకోండి...</option>
+                                {savedSessions.filter(s => s.id !== matchPerson1?.id).map(s => (
+                                  <option key={s.id} value={s.id}>{s.name || s.birthDetails.name} {s.birthDetails.gender === "male" ? "♂" : s.birthDetails.gender === "female" ? "♀" : ""}</option>
+                                ))}
+                              </select>
+                            )}
+                            <button onClick={() => setMatchPerson2Inline(true)}
+                              style={{ padding: "8px", background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, color: "var(--muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+                              + కొత్త వ్యక్తి వివరాలు నమోదు చేయండి
+                            </button>
+                          </div>
+                        )}
+                        {/* Inline add form for person 2 */}
+                        {matchPerson2Inline && (
+                          <div style={{ display: "flex", flexDirection: "column" as const, gap: 7 }}>
+                            <input placeholder="పేరు / Name" value={mNewP.name} onChange={e => setMNewP(p => ({ ...p, name: e.target.value }))}
+                              style={{ background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "7px 10px", fontSize: 12, color: "var(--text)", outline: "none" }} />
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                              <input placeholder="DD/MM/YYYY" value={mNewP.date} onChange={e => setMNewP(p => ({ ...p, date: e.target.value }))}
+                                style={{ background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "7px 10px", fontSize: 12, color: "var(--text)", outline: "none" }} />
+                              <div style={{ display: "flex", gap: 4 }}>
+                                <input placeholder="HH:MM" value={mNewP.time} onChange={e => setMNewP(p => ({ ...p, time: e.target.value }))}
+                                  style={{ flex: 1, background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "7px 10px", fontSize: 12, color: "var(--text)", outline: "none" }} />
+                                <button onClick={() => setMNewP(p => ({ ...p, ampm: p.ampm === "AM" ? "PM" : "AM" }))}
+                                  style={{ padding: "7px 8px", background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, color: "var(--accent)", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>
+                                  {mNewP.ampm}
+                                </button>
+                              </div>
+                            </div>
+                            <div style={{ position: "relative" as const }}>
+                              <input placeholder="పుట్టిన ఊరు / Place of Birth" value={mNewP.place} onChange={e => handleMNewPPlaceChange(e.target.value)}
+                                style={{ width: "100%", background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "7px 10px", fontSize: 12, color: "var(--text)", outline: "none", boxSizing: "border-box" as const }} />
+                              {mNewPPlaceStatus === "searching" && <div style={{ position: "absolute", right: 10, top: 8, fontSize: 10, color: "var(--muted)" }}>...</div>}
+                              {mNewPPlaceSugg.length > 0 && (
+                                <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100, background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 6, overflow: "hidden", marginTop: 2 }}>
+                                  {mNewPPlaceSugg.map((s, i) => (
+                                    <button key={i} onClick={() => { setMNewP(p => ({ ...p, place: s.display, latitude: s.lat, longitude: s.lon })); setMNewPPlaceSugg([]); setMNewPPlaceStatus("idle"); }}
+                                      style={{ width: "100%", padding: "7px 10px", background: "none", border: "none", borderBottom: "0.5px solid var(--border)", color: "var(--text)", fontSize: 11, textAlign: "left" as const, cursor: "pointer", fontFamily: "inherit" }}>
+                                      {s.display}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <div style={{ display: "flex", gap: 6 }}>
+                              {(["male","female"] as const).map(g => (
+                                <button key={g} onClick={() => setMNewP(p => ({ ...p, gender: g }))}
+                                  style={{ flex: 1, padding: "6px", borderRadius: 6, cursor: "pointer", border: `0.5px solid ${mNewP.gender === g ? "var(--accent)" : "var(--border2)"}`, background: mNewP.gender === g ? "rgba(201,169,110,0.1)" : "var(--surface)", color: mNewP.gender === g ? "var(--accent)" : "var(--muted)", fontSize: 12, fontFamily: "inherit" }}>
+                                  {g === "male" ? "♂ Male" : "♀ Female"}
+                                </button>
+                              ))}
+                            </div>
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <button onClick={() => {
+                                if (!mNewP.name || !mNewP.date || !mNewP.time) return;
+                                const newSession: ChartSession = {
+                                  id: Date.now().toString(), name: mNewP.name,
+                                  birthDetails: { name: mNewP.name, date: mNewP.date, time: mNewP.time, ampm: mNewP.ampm, place: mNewP.place, latitude: mNewP.latitude, longitude: mNewP.longitude, gender: mNewP.gender },
+                                  workspaceData: null, analysisMessages: [], activeTopic: "", selectedHouse: null, chatQ: "", analysisLang: "english", activeTab: "chart"
+                                };
+                                setSavedSessions(prev => [...prev, newSession]);
+                                setMatchResults({ __p2: newSession });
+                                setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "" });
+                                setMNewPPlaceSugg([]); setMNewPPlaceStatus("idle");
+                                setMatchPerson2Inline(false);
+                              }} style={{ flex: 1, padding: "7px", background: "var(--accent)", border: "none", borderRadius: 6, color: "#09090f", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                                జోడించు
+                              </button>
+                              <button onClick={() => { setMatchPerson2Inline(false); setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "" }); setMNewPPlaceSugg([]); }}
+                                style={{ padding: "7px 12px", background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, color: "var(--muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+                                రద్దు
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        {/* Show selected person 2 */}
+                        {matchResults?.__p2 && !matchPerson2Inline && (
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
+                            <div>
+                              <div style={{ fontSize: 14, color: "var(--accent)", fontWeight: 500 }}>{matchResults.__p2.name || matchResults.__p2.birthDetails.name}</div>
+                              <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
+                                {matchResults.__p2.birthDetails.date} · {matchResults.__p2.birthDetails.gender === "male" ? "♂" : matchResults.__p2.birthDetails.gender === "female" ? "♀" : ""}
+                              </div>
+                            </div>
+                            <button onClick={() => { setMatchResults(null); }} style={{ background: "none", border: "0.5px solid var(--border2)", borderRadius: 6, color: "var(--muted)", cursor: "pointer", padding: "4px 10px", fontSize: 12, fontFamily: "inherit" }}>
+                              మార్చు
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      <button onClick={async () => {
+                        const p2 = matchResults?.__p2;
+                        if (!matchPerson1 || !p2) return;
+                        setMatchLoading(true);
+                        const prevP2 = p2;
+                        setMatchResults(null);
+                        try {
+                          const res = await axios.post(`${API_URL}/compatibility/match`, {
+                            person1: sessionToApiPerson(matchPerson1),
+                            person2: sessionToApiPerson(prevP2),
+                          });
+                          setMatchResults({ ...res.data, __p2: prevP2 });
+                        } catch { setMatchResults({ __p2: prevP2, __error: true }); }
+                        setMatchLoading(false);
+                      }} disabled={!matchPerson1 || !matchResults?.__p2}
+                        style={{ width: "100%", padding: "12px", background: matchPerson1 && matchResults?.__p2 ? "var(--accent)" : "var(--surface2)", color: matchPerson1 && matchResults?.__p2 ? "#09090f" : "var(--muted)", border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: matchPerson1 && matchResults?.__p2 ? "pointer" : "default", fontFamily: "inherit", transition: "all 0.2s" }}>
+                        సరిపోలన చూడు →
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Loading */}
+                  {matchLoading && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--muted)", padding: "3rem", justifyContent: "center" }}>
+                      <div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid var(--accent)", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
+                      గ్రహ స్థానాలు లెక్కిస్తున్నాం...
+                    </div>
+                  )}
+
+                  {/* Results */}
+                  {!matchLoading && matchResults && !matchResults.__error && matchResults.overall_verdict && (() => {
+                    const r = matchResults;
+                    const kp = r.kp_analysis;
+                    const ast = r.ashtakoota;
+                    const kuja = r.kuja_dosha;
+                    const verdictColor = r.overall_verdict === "Highly Compatible" ? "var(--accent)" : r.overall_verdict === "Compatible" ? "#4ade80" : r.overall_verdict === "Conditionally Compatible" ? "#fbbf24" : "#f87171";
+
+                    return (
+                      <div style={{ display: "flex", flexDirection: "column" as const, gap: "0.875rem" }}>
+                        {/* Back button */}
+                        <button onClick={() => setMatchResults({ __p2: r.__p2 })} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 12, fontFamily: "inherit", padding: 0 }}>
+                          ← వేరే వ్యక్తి ఎంచుకోండి
+                        </button>
+
+                        {/* Overall verdict banner */}
+                        <div style={{ padding: "1rem", background: "var(--surface2)", border: `0.5px solid ${verdictColor}`, borderRadius: 10, textAlign: "center" as const }}>
+                          <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}>{r.person1?.name} & {r.person2?.name}</div>
+                          <div style={{ fontSize: 20, fontWeight: 700, color: verdictColor, marginBottom: 4 }}>{r.overall_verdict}</div>
+                          <div style={{ display: "flex", justifyContent: "center", gap: 16, fontSize: 12, color: "var(--muted)" }}>
+                            <span>KP: <span style={{ color: "var(--text)" }}>{kp?.kp_verdict}</span></span>
+                            <span>·</span>
+                            <span>36-Gun: <span style={{ color: "var(--text)" }}>{ast?.total_score}/{ast?.max_score}</span></span>
+                          </div>
+                        </div>
+
+                        {/* KP Analysis */}
+                        <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem" }}>
+                          <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.625rem" }}>KP విశ్లేషణ</div>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+                            {[kp?.chart1_promise, kp?.chart2_promise].map((p: any, i: number) => p && (
+                              <div key={i} style={{ padding: "8px 10px", background: "var(--surface)", borderRadius: 6, border: `0.5px solid ${p.has_promise && !p.has_denial ? "rgba(74,222,128,0.3)" : p.has_denial ? "rgba(248,113,113,0.3)" : "var(--border)"}` }}>
+                                <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 3 }}>{i === 0 ? r.person1?.name : r.person2?.name}</div>
+                                <div style={{ fontSize: 11, fontWeight: 500, color: p.has_promise && !p.has_denial ? "#4ade80" : p.has_denial ? "#f87171" : "var(--muted)" }}>
+                                  H7 SL: {p.sub_lord} → {p.verdict}
+                                </div>
+                                <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}>H{p.signified_houses?.join(", H")}</div>
+                              </div>
+                            ))}
+                          </div>
+                          <div style={{ fontSize: 11, color: "var(--muted)" }}>
+                            Resonance: <span style={{ color: "#4ade80" }}>
+                              {[...(kp?.resonance_1_to_2||[]), ...(kp?.resonance_2_to_1||[])].join(", ") || "None"}
+                            </span> ({kp?.total_resonance_count || 0} planets)
+                          </div>
+                        </div>
+
+                        {/* Ashtakoota */}
+                        <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.625rem" }}>
+                            <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const }}>అష్టకూట — 36 Gun</div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: ast?.total_score >= 25 ? "var(--accent)" : ast?.total_score >= 18 ? "#4ade80" : "#f87171" }}>
+                              {ast?.total_score}/{ast?.max_score} · {ast?.verdict}
+                            </div>
+                          </div>
+                          <div style={{ height: 6, background: "var(--surface)", borderRadius: 3, marginBottom: "0.75rem", overflow: "hidden" }}>
+                            <div style={{ height: "100%", width: `${(ast?.total_score/ast?.max_score)*100}%`, background: ast?.total_score >= 25 ? "var(--accent)" : ast?.total_score >= 18 ? "#4ade80" : "#f87171", borderRadius: 3, transition: "width 0.5s ease" }} />
+                          </div>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5 }}>
+                            {(ast?.kutas || []).map((k: any, i: number) => (
+                              <div key={i} title={k.note} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 8px", background: "var(--surface)", borderRadius: 5, border: `0.5px solid ${k.has_dosha ? "rgba(248,113,113,0.3)" : "var(--border)"}`, cursor: "default" }}>
+                                <span style={{ fontSize: 11, color: k.has_dosha ? "#f87171" : "var(--muted)" }}>{k.kuta}</span>
+                                <span style={{ fontSize: 11, fontWeight: 600, color: k.score >= k.max * 0.6 ? "#4ade80" : k.score > 0 ? "var(--accent)" : "#f87171" }}>{k.score}/{k.max}</span>
+                              </div>
+                            ))}
+                          </div>
+                          {ast?.critical_doshas?.length > 0 && <div style={{ marginTop: 8, fontSize: 11, color: "#f87171" }}>⚠ Doshas: {ast.critical_doshas.join(", ")}</div>}
+                        </div>
+
+                        {/* Kuja Dosha + Moon */}
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                          <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.75rem" }}>
+                            <div style={{ fontSize: 9, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.5rem" }}>కుజ దోష</div>
+                            {[kuja?.person1, kuja?.person2].map((p: any, i: number) => p && (
+                              <div key={i} style={{ marginBottom: 6 }}>
+                                <div style={{ fontSize: 10, color: "var(--muted)" }}>{p.name}</div>
+                                <div style={{ fontSize: 11, fontWeight: 500, color: p.has_dosha ? "#f87171" : "#4ade80" }}>{p.has_dosha ? "Manglik H" + p.mars_house : "No Dosha"}</div>
+                                {p.cancellations?.[0] && <div style={{ fontSize: 9, color: "#4ade80" }}>{p.cancellations[0]}</div>}
+                              </div>
+                            ))}
+                            {kuja?.mutual_cancellation && <div style={{ fontSize: 10, color: "#4ade80" }}>✓ ఇద్దరికీ — రద్దు</div>}
+                          </div>
+                          <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.75rem" }}>
+                            <div style={{ fontSize: 9, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.5rem" }}>చంద్ర వివరాలు</div>
+                            {[r.person1, r.person2].map((p: any, i: number) => p && (
+                              <div key={i} style={{ marginBottom: 6 }}>
+                                <div style={{ fontSize: 10, color: "var(--muted)" }}>{p.name}</div>
+                                <div style={{ fontSize: 11, color: "var(--text)" }}>{p.moon_sign} · {p.moon_nakshatra}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Error */}
+                  {!matchLoading && matchResults?.__error && (
+                    <div style={{ textAlign: "center" as const, padding: "2rem", color: "#f87171", fontSize: 13 }}>
+                      సరిపోలన లోడ్ చేయడంలో సమస్య. మళ్ళీ ప్రయత్నించండి.
+                      <br />
+                      <button onClick={() => setMatchResults({ __p2: matchResults.__p2 })} style={{ marginTop: 12, padding: "6px 14px", background: "none", border: "0.5px solid var(--border2)", borderRadius: 6, color: "var(--muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>← వెనక్కి</button>
+                    </div>
+                  )}
+                </div>
+                );
+              })()}
+
               {/* ANALYSIS */}
               {activeTab === "analysis" && (
-                <div className="tab-content">
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem", flexWrap: "wrap", gap: 8 }}>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <div className="tab-content" style={{ display: "flex", flexDirection: "column", height: "100%", gap: 0 }}>
+                  {/* Topic quick-launch bar */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem", flexWrap: "wrap", gap: 8, flexShrink: 0 }}>
+                    <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
                       {TOPICS.map(t => (
                         <button key={t.id} onClick={() => handleTopicAnalysis(t.id)} disabled={analysisLoading}
-                          style={{ padding: "7px 14px", borderRadius: 6, cursor: "pointer", border: `0.5px solid ${activeTopic === t.id ? "var(--accent)" : "var(--border2)"}`, background: activeTopic === t.id ? "rgba(201,169,110,.12)" : "var(--surface2)", color: activeTopic === t.id ? "var(--accent)" : "var(--muted)", fontSize: 12, fontFamily: "inherit", transition: "all 0.2s" }}>{t.te}</button>
+                          style={{ padding: "5px 12px", borderRadius: 20, cursor: analysisLoading ? "default" : "pointer", border: `0.5px solid ${activeTopic === t.id ? "var(--accent)" : "var(--border2)"}`, background: activeTopic === t.id ? "rgba(201,169,110,.15)" : "var(--surface2)", color: activeTopic === t.id ? "var(--accent)" : "var(--muted)", fontSize: 12, fontFamily: "inherit", transition: "all 0.2s" }}>{t.te}</button>
                       ))}
                     </div>
-                    <div style={{ display: "flex", background: "var(--surface2)", borderRadius: 6, border: "0.5px solid var(--border2)", overflow: "hidden" }}>
-                      {([["telugu_english", "తె+EN"], ["english", "EN"]] as const).map(([val, label]) => (
-                        <button key={val} onClick={() => setAnalysisLang(val)} style={{ padding: "5px 12px", background: analysisLang === val ? "rgba(201,169,110,0.15)" : "transparent", color: analysisLang === val ? "var(--accent)" : "var(--muted)", border: "none", cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>{label}</button>
-                      ))}
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {analysisMessages.length > 0 && (
+                        <button onClick={() => { setAnalysisMessages([]); setActiveTopic(""); }} style={{ background: "transparent", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "3px 10px", fontSize: 11, color: "var(--muted)", cursor: "pointer" }}>Clear</button>
+                      )}
+                      <div style={{ display: "flex", background: "var(--surface2)", borderRadius: 6, border: "0.5px solid var(--border2)", overflow: "hidden" }}>
+                        {([["english", "EN"], ["telugu_english", "తె+EN"]] as const).map(([val, label]) => (
+                          <button key={val} onClick={() => setAnalysisLang(val)} style={{ padding: "4px 10px", background: analysisLang === val ? "rgba(201,169,110,0.15)" : "transparent", color: analysisLang === val ? "var(--accent)" : "var(--muted)", border: "none", cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>{label}</button>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
-                  {analysisLoading && <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--muted)", fontSize: 13, padding: "1rem" }}><div style={{ width: 12, height: 12, borderRadius: "50%", border: "2px solid var(--accent)", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />KP విశ్లేషణ రూపొందిస్తున్నారు...</div>}
-                  {analysisResult && !analysisLoading && (
-                    <div className="md-body" style={{ background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 10, padding: "1.25rem", marginBottom: "1rem" }}>
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{analysisResult}</ReactMarkdown>
-                    </div>
-                  )}
-                  {chatHistory.map((h, i) => (
-                    <div key={i} style={{ marginBottom: "1rem" }}>
-                      <div style={{ fontSize: 12, color: "var(--accent)", marginBottom: 4 }}>↳ {h.q}</div>
-                      <div className="md-body" style={{ background: "var(--surface)", border: "0.5px solid var(--border)", borderRadius: 8, padding: "1rem" }}>
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{h.a}</ReactMarkdown>
+                  {/* Chat messages */}
+                  <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+                    {analysisMessages.length === 0 && !analysisLoading && (
+                      <div style={{ textAlign: "center", padding: "3rem 1rem", color: "var(--muted)" }}>
+                        <div style={{ fontSize: 22, opacity: 0.2, marginBottom: "0.75rem" }}>◈</div>
+                        <div style={{ fontSize: 13 }}>Select a topic above to begin analysis, or ask a question directly.</div>
                       </div>
-                    </div>
-                  ))}
-                  <div ref={chatEndRef} />
+                    )}
+                    {analysisMessages.map((msg, i) => (
+                      <div key={i} style={{ marginBottom: "1.25rem" }}>
+                        {/* Question label */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                          <div style={{ width: 18, height: 18, borderRadius: "50%", background: msg.isTopic ? "rgba(201,169,110,0.15)" : "rgba(255,255,255,0.06)", border: `0.5px solid ${msg.isTopic ? "rgba(201,169,110,0.4)" : "var(--border2)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: msg.isTopic ? "var(--accent)" : "var(--muted)", flexShrink: 0 }}>
+                            {msg.isTopic ? "◈" : "↳"}
+                          </div>
+                          <span style={{ fontSize: 11, color: msg.isTopic ? "var(--accent)" : "var(--text)", fontWeight: msg.isTopic ? 500 : 400 }}>{msg.q}</span>
+                          {i > 0 && <span style={{ fontSize: 9, color: "var(--muted)", marginLeft: "auto" }}>follow-up</span>}
+                        </div>
+                        {/* Answer */}
+                        <div className="md-body" style={{ background: i === analysisMessages.length - 1 ? "var(--surface)" : "rgba(201,169,110,0.02)", border: `0.5px solid ${i === analysisMessages.length - 1 ? "var(--border2)" : "var(--border)"}`, borderRadius: 10, padding: "1rem 1.25rem", marginLeft: 24 }}>
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.a}</ReactMarkdown>
+                        </div>
+                      </div>
+                    ))}
+                    {analysisLoading && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--muted)", fontSize: 13, padding: "0.75rem 0", marginLeft: 24 }}>
+                        <div style={{ width: 10, height: 10, borderRadius: "50%", border: "1.5px solid var(--accent)", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
+                        {activeTopic ? `Analyzing ${activeTopic}...` : "Thinking..."}
+                      </div>
+                    )}
+                    <div ref={chatEndRef} />
+                  </div>
                 </div>
               )}
             </div>
@@ -947,7 +1686,7 @@ export default function Home() {
             </div>
 
             {/* Input bar */}
-            <div style={{ background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 12, padding: "0.875rem 1rem", display: "flex", alignItems: "flex-end", gap: 10, marginTop: "0.75rem", flexShrink: 0 }}>
+            <div className="chat-input-container" style={{ background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 12, padding: "0.875rem 1rem", display: "flex", alignItems: "flex-end", gap: 10, marginTop: "0.75rem", flexShrink: 0 }}>
               <textarea value={question} onChange={e => setQuestion(e.target.value)} onKeyDown={handleKeyDown} placeholder="Ask about career, marriage, travel, health... (Enter to send)" rows={2} style={{ flex: 1, background: "transparent", border: "none", color: "var(--text)", fontSize: 14, resize: "none", outline: "none", lineHeight: 1.6, fontFamily: "inherit" }} />
               <button onClick={handleAsk} disabled={loading || !question.trim()} style={{ background: question.trim() ? "var(--accent)" : "var(--surface2)", color: question.trim() ? "#09090f" : "var(--muted)", border: "none", borderRadius: 8, padding: "10px 18px", fontSize: 13, fontWeight: 500, cursor: question.trim() ? "pointer" : "default", display: "flex", alignItems: "center", gap: 6, transition: "all 0.2s", flexShrink: 0 }}>
                 {loading ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <ArrowRight size={14} />}Ask

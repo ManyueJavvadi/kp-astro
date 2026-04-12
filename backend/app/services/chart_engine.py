@@ -161,7 +161,7 @@ def get_sign(longitude: float) -> str:
         "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
         "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"
     ]
-    return signs[int(longitude / 30)]
+    return signs[int((longitude % 360) / 30)]
 
 
 def generate_chart(date: str, time: str, latitude: float,
