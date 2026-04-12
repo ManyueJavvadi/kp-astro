@@ -1,0 +1,271 @@
+================================================================
+PLANET NATURES IN KP ASTROLOGY
+================================================================
+
+CRITICAL RULE: In KP, a planet's HOUSE SIGNIFICATIONS matter above everything.
+Traditional concepts of benefic/malefic, exaltation/debilitation, and
+friendships between planets are IRRELEVANT in KP.
+
+What DOES matter in KP:
+  1. Which house the planet OCCUPIES (primary signification)
+  2. Which houses the planet RULES (as sign lord of cusp)
+  3. Which planet's star the planet is in (colours the result)
+  4. Which planet's sub the planet is in (decides the gate)
+
+================================================================
+EACH PLANET'S NATURAL SIGNIFICATIONS (Secondary only — house position is primary)
+================================================================
+
+SUN
+  Natural significations: Self, authority, government, father, soul, leadership,
+  health (vitality), bones, eyes, career (status), politics
+  Body part: Heart, right eye, spine, bones
+  Profession: Government service, politics, medicine, administration, gold trade
+  In KP: Sun as significator of H10 = career in government/authority
+  Sun as significator of H7 = formal/legal marriage, strong-willed spouse
+  Sun as significator of H6 = competitive nature, service orientation
+  Retrograde Sun: Revisit relationship with father/authority; career reassessment
+  Combustion note: A planet within 8° of Sun is "combust" but in KP this only
+  slightly reduces its independent expression — it does NOT negate significations.
+
+MOON
+  Natural significations: Mind, mother, emotions, water, liquids, public,
+  imagination, change, travel (short), fertility, nursing, women in general
+  Body part: Mind, left eye, breast, blood (partly), uterus
+  Profession: Nursing, psychology, hospitality, travel, liquids trade, farming
+  In KP: Moon as H4 CSL = strong home/property connection
+  Moon as H7 CSL = emotional marriage, quickly forming attachments
+  Moon as H6 CSL = mental health issues OR service to public
+  Moon changes signs every 2.25 days — acts as a transit trigger for events
+  Retrograde Moon: Very rare. Mental reversals, mother-related revisitation.
+
+MARS
+  Natural significations: Energy, siblings (especially brothers), land/property,
+  surgery, aggression, courage, sports, military, engineering, blood disorders
+  Body part: Blood, muscles, right ear, bile, bone marrow
+  Profession: Military, police, surgery, engineering, construction, sports
+  In KP: Mars as H4 CSL = property acquisition (Mars = land)
+  Mars as H7 CSL = courageous or aggressive spouse; marriage after dispute
+  Mars as H6 CSL = surgery possible; competitive work environment
+  Mars as H8 CSL = surgery confirmed; sudden events
+  Retrograde Mars: Delayed property/surgery; revisiting disputes with siblings
+  Kuja dosha: Mars in H1/2/4/7/8/12 — consider in marriage matching ONLY IF
+  the other chart does not have equal Kuja Dosha for cancellation.
+
+MERCURY
+  Natural significations: Intellect, communication, writing, siblings (younger),
+  business/trade, mathematics, technology, nervous system, skin
+  Body part: Nervous system, skin, arms, hands, tongue
+  Profession: IT/software, accounting, writing, journalism, teaching, trade
+  In KP: Mercury as H10 CSL = career in communication/IT/business
+  Mercury as H7 CSL = intellectual connection in marriage; business partnership
+  Mercury as H3 CSL = strong communication ability; media career
+  Technology career: Mercury + Rahu combination is the strongest indicator
+  for IT, software, and data science careers in KP.
+  Mercury + Saturn = systematic IT work, infrastructure, backend systems
+  Mercury + Jupiter = teaching/training in technology
+  Retrograde Mercury: Delays in paperwork, communication gaps; revisit agreements
+
+JUPITER
+  Natural significations: Wisdom, children, husband (for female chart),
+  religion, law, banking/finance, expansion, luck, higher education, philosophy
+  Body part: Liver, thighs, fat in body, hearing
+  Profession: Law, banking, finance, teaching, religious work, philosophy
+  In KP: Jupiter as H5 CSL = children strongly promised (Jupiter = natural karaka)
+  Jupiter as H9 CSL = luck/fortune, higher education abroad
+  Jupiter as H2 CSL = wealth accumulation, family prosperity
+  Jupiter as H7 CSL = marriage with wise/educated spouse; advisor-type partner
+  Retrograde Jupiter: Delays in children, legal matters, financial expansion
+  NOTE: Jupiter is the KARAKA (natural significator) for:
+  Children (H5), Wealth (H2), Husband in female charts, Long journeys (H9)
+
+VENUS
+  Natural significations: Marriage/relationships, arts, beauty, luxury, vehicles,
+  wife (in male charts), sensual pleasures, music, dance, comfort
+  Body part: Reproductive organs, kidneys, throat, chin
+  Profession: Arts, entertainment, beauty, fashion, luxury goods, diplomacy
+  In KP: Venus as H7 CSL = marriage strongly supported (natural karaka)
+  Venus as H4 CSL = vehicles, home comforts, luxury property
+  Venus as H12 CSL = pleasures abroad, foreign luxury, spiritual retreat
+  Venus as H2 CSL = family wealth, beautiful speech, artistic talent
+  NOTE: Venus is the KARAKA (natural significator) for:
+  Marriage, Arts/beauty, Vehicles, Comfort/luxury
+  Retrograde Venus: Revisiting relationships, delayed marriage, re-evaluation of values
+
+SATURN
+  Natural significations: Discipline, hard work, delay, longevity, servants,
+  chronic conditions, real estate (old property), career (long-term service),
+  restriction, structure, legal obligations
+  Body part: Teeth, bones (structural), joints, knees, skin (chronic)
+  Profession: Engineering, mining, oil/gas, agriculture, real estate, law enforcement
+  In KP: Saturn as H10 CSL = career in service/discipline-oriented field
+  Saturn as H6 CSL = long-term service, chronic health management
+  Saturn as H7 CSL = delayed marriage but once married, lasting bond
+  Saturn as H4 CSL = ancestral property; hard-earned home
+  Retrograde Saturn: Significant delays, re-examination of career/structure
+  IMPORTANT: Saturn does NOT inherently cause "bad" results — it depends
+  entirely on which houses Saturn signifies in THIS specific chart.
+  If Saturn rules H7 and H11 → Saturn becomes a marriage promoter.
+
+RAHU (North Node)
+  Natural significations: Foreigners, technology, unconventional things,
+  politics (shadow/behind-scenes), illusion, mass media, chemicals, drugs
+  Body part: Acts through the planet it's conjunct with
+  Profession: IT, foreign trade, politics, media, chemicals, speculation
+  CRITICAL KP RULE FOR RAHU:
+    Rahu is a shadow planet — it has NO inherent house lordship.
+    Rahu acts as a proxy for:
+    (a) The planet it is CONJUNCT with (highest priority)
+    (b) Its own STAR LORD's significations
+    (c) Its SIGN LORD's significations (lowest priority)
+  Rahu amplifies and intensifies the significations of its proxy planet.
+  Rahu in own star (Ardra, Swati, Shatabhisha) = very strong independent effect.
+  Rahu + Mercury = strongest tech/IT indicator. Rahu intensifies Mercury's tech side.
+  Rahu + Jupiter = foreign education, unconventional wisdom, spiritual technology
+  Rahu + Saturn = mass-scale work, government tech, research
+  Rahu + Venus = foreign relationships, unconventional marriage, arts globally
+  Retrograde Rahu: Always retrograde in mean longitude — use true node for KP.
+  Rahu in mundane: Can indicate collective events, foreign influence, epidemics.
+
+KETU (South Node)
+  Natural significations: Spirituality, past life, liberation (moksha), surgery,
+  sudden separations, intuition, mysticism, isolation, foreign residence (as exile)
+  Body part: Acts through the planet it's conjunct with
+  Profession: Spiritual work, research, surgery, mystical arts, isolation work
+  CRITICAL KP RULE FOR KETU:
+    Same proxy rules as Rahu but Ketu tends toward SEPARATION and WITHDRAWAL.
+    Ketu as H7 CSL with Ketu signifying H12 (foreign) + H7 = separation in marriage
+    or marriage to a foreign/isolated person.
+    Ketu as H12 CSL = spiritual withdrawal, foreign residence, liberation.
+    Ketu + Mars = surgery is almost certain in the running dasha period.
+    Ketu + Saturn = prolonged isolation, chronic separations, research in solitude.
+  Retrograde Ketu: Always retrograde.
+
+================================================================
+PLANET COMBINATIONS (KP Specific)
+================================================================
+
+RAHU + MERCURY = Technology, IT, software, AI, data science
+  If both signify H10/H6/H2 → IT career strongly promised
+
+SATURN + MERCURY = Systems thinking, infrastructure, structured IT
+  Backend engineering, project management, data architecture
+
+JUPITER + MERCURY = Education technology, training, finance systems
+  Teaching, e-learning, financial software
+
+MARS + SATURN = Engineering, construction, heavy industry, military
+  Also: surgery (Mars) combined with chronic conditions (Saturn)
+
+VENUS + MOON = Arts combined with emotional appeal
+  Music, dance, film, psychology-based design
+
+JUPITER + VENUS = Law/finance + luxury
+  Banking, law in luxury sector, artistic career in teaching/management
+
+SUN + MARS = Government + aggression = military/police/government engineering
+  Also: confidence in self, leadership in competitive fields
+
+MOON + JUPITER = Mind + wisdom = counselling, psychology, teaching
+  Emotional intelligence, therapy, child education
+
+================================================================
+PLANET IN OWN STAR — Special Significance
+================================================================
+
+When a planet is in a nakshatra it rules, it gives PURE significations:
+  Sun in Krittika, Uttara Phalguni, or Uttara Ashadha
+  Moon in Rohini, Hasta, or Shravana
+  Mars in Mrigashira, Chitra, or Dhanishtha
+  Mercury in Ashlesha, Jyeshtha, or Revati
+  Jupiter in Punarvasu, Vishakha, or Purva Bhadrapada
+  Venus in Bharani, Purva Phalguni, or Purva Ashadha
+  Saturn in Pushya, Anuradha, or Uttara Bhadrapada
+  Rahu in Ardra, Swati, or Shatabhisha
+  Ketu in Ashwini, Magha, or Mula
+
+Effect: The planet gives its significations without the colouring or
+modification that another planet's star would introduce.
+This is considered one of the PUREST placements in KP.
+
+================================================================
+EXALTATION AND DEBILITATION IN KP
+================================================================
+
+RULE: Exaltation/debilitation signs are IRRELEVANT in KP.
+The house occupied matters infinitely more than the sign quality.
+
+A debilitated planet in a "yes" house = still a good significator.
+An exalted planet in a denial house = still causes denial for that topic.
+
+Example: Mars debilitated (Cancer) but in H11 → Mars still signifies H11.
+For any topic requiring H11, Mars is a valid significator regardless of debilitation.
+
+Example: Jupiter exalted (Cancer) but in H12 → Jupiter signifies H12.
+For a topic needing H12 (like foreign travel), Jupiter is a significator.
+For a topic needing H7 (marriage) and Jupiter rules no "yes" houses → neutral.
+
+================================================================
+COMBUSTION IN KP
+================================================================
+
+TRADITIONAL VIEW: Combust planets (within 8° of Sun) lose their power.
+KP VIEW: Combustion has REDUCED significance. The planet still signifies its
+houses but with slightly diminished independent expression. It does not negate.
+
+KP Rule: A combust planet acts somewhat like the Sun's wishes — it tends to
+bring its results through authority figures, father, or government channels.
+But its house significations remain valid for prediction purposes.
+
+================================================================
+RETROGRADE PLANETS IN KP
+================================================================
+
+TRADITIONAL VIEW: Retrograde reverses results.
+KP VIEW: Retrograde means DELAY, RECONSIDERATION, or RE-ATTEMPT.
+
+Retrograde planet as CSL:
+  The event signified by that cusp will happen but with unusual timing.
+  Often there is a missed opportunity first, then a second chance.
+  The person may refuse initially but reconsider later.
+  Or external circumstances delay then clear up.
+
+Retrograde in dasha:
+  The dasha lord being retrograde does NOT cancel its results.
+  It brings the results in a roundabout way, often after initial setbacks.
+  Timing may be the last portion of the dasha period rather than the first.
+
+The event DOES happen in retrograde CSL/dasha — just not in the expected way.
+
+================================================================
+INTERCEPTED PLANETS AND SIGNS
+================================================================
+
+In KP using unequal houses (Placidus), some signs get intercepted (fully within
+a house without cusp). An intercepted planet:
+  - Still signifies the house it occupies
+  - But if its sign is intercepted, it rules no cusp → reduced lordship signification
+  - This can make a planet a "lone significator" with no house lordship support
+  - Such planets need star-lord chain to build their signification strength
+
+================================================================
+PLANET STRENGTH HIERARCHY IN KP
+================================================================
+
+For any topic, when multiple planets are significators, their strength is:
+
+STRONGEST: Planet that OCCUPIES the relevant house (L1)
+  → Its connection to the topic is direct and unmediated
+
+STRONG: Planet that RULES the relevant house's sign (L2)
+  → Ownership creates inherent responsibility for that house
+
+MEDIUM: Planet in the STAR of an occupant (L3)
+  → Channels the occupant's energy, secondary connection
+
+MODERATE: Planet in the STAR of the house lord (L4)
+  → Even more indirect, needs other support to be decisive
+
+When a planet has BOTH L1 and L2 (occupies AND rules) for the same house:
+  → This is the STRONGEST possible single-planet connection to that house.
+  → Almost guarantees that topic's results in that planet's dasha.

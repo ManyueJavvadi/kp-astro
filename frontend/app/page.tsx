@@ -65,6 +65,13 @@ export default function Home() {
   const [matchResults, setMatchResults] = useState<any>(null);
   // Significators grid toggle
   const [showSigGrid, setShowSigGrid] = useState(false);
+  // PDF export state
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState("");
+  // Quick insights state (keyed by topic)
+  const [quickInsights, setQuickInsights] = useState<Record<string, string>>({});
+  const [insightsLoading, setInsightsLoading] = useState(false);
+  const [expandedInsight, setExpandedInsight] = useState<string | null>(null);
   // Transit state
   const [transitData, setTransitData] = useState<any>(null);
   const [transitLoading, setTransitLoading] = useState(false);
@@ -241,6 +248,11 @@ export default function Home() {
       if (mode === "astrologer") {
         const res = await axios.post(`${API_URL}/astrologer/workspace`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: 5.5 });
         setWorkspaceData(res.data);
+        // Auto-generate quick insights for top 3 topics
+        setQuickInsights({}); setInsightsLoading(true);
+        axios.post(`${API_URL}/astrologer/quick-insights`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: res.data.latitude || 17.385, longitude: res.data.longitude || 78.4867, timezone_offset: 5.5, topics: ["marriage", "career", "health"], language: "telugu_english" })
+          .then(ir => { setQuickInsights(ir.data); setInsightsLoading(false); })
+          .catch(() => setInsightsLoading(false));
       } else {
         const res = await axios.post(`${API_URL}/chart/generate`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: 5.5 });
         setChartData(res.data);
@@ -658,22 +670,28 @@ export default function Home() {
                   <span style={{ fontSize: 9, background: "rgba(201,169,110,0.1)", color: "var(--accent)", border: "0.5px solid var(--border2)", borderRadius: 3, padding: "2px 6px" }}>Placidus</span>
                 </div>
                 <button
+                  disabled={pdfLoading}
                   onClick={async () => {
-                    if (!workspaceData) return;
+                    if (!workspaceData || pdfLoading) return;
+                    setPdfLoading(true); setPdfError("");
                     try {
-                      const res = await axios.post(`${API_URL}/pdf/export`, { workspace: workspaceData }, { responseType: "blob" });
+                      const res = await axios.post(`${API_URL}/pdf/export`, { workspace: workspaceData }, { responseType: "blob", timeout: 30000 });
                       const url = URL.createObjectURL(new Blob([res.data], { type: "application/pdf" }));
                       const a = document.createElement("a");
                       a.href = url;
                       a.download = `${workspaceData.name || "kp_chart"}_report.pdf`;
                       a.click();
                       URL.revokeObjectURL(url);
-                    } catch {}
+                    } catch (e: any) {
+                      setPdfError(e?.response?.status === 500 ? "Server error — try again" : "Download failed");
+                    }
+                    setPdfLoading(false);
                   }}
-                  style={{ marginTop: 8, width: "100%", padding: "5px 0", background: "rgba(201,169,110,0.08)", border: "0.5px solid var(--border2)", borderRadius: 5, color: "var(--accent)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}
+                  style={{ marginTop: 8, width: "100%", padding: "5px 0", background: pdfLoading ? "rgba(201,169,110,0.04)" : "rgba(201,169,110,0.08)", border: "0.5px solid var(--border2)", borderRadius: 5, color: pdfLoading ? "var(--muted)" : "var(--accent)", fontSize: 11, cursor: pdfLoading ? "default" : "pointer", fontFamily: "inherit" }}
                 >
-                  PDF డౌన్‌లోడ్ ↓
+                  {pdfLoading ? "డౌన్‌లోడ్ అవుతోంది..." : "PDF డౌన్‌లోడ్ ↓"}
                 </button>
+                {pdfError && <div style={{ fontSize: 10, color: "#f87171", marginTop: 3, textAlign: "center" as const }}>{pdfError}</div>}
               </div>
               <div className="sidebar-section" style={{ padding: "0.75rem 1rem", borderBottom: "0.5px solid var(--border)" }}>
                 <div style={{ fontSize: 9, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6 }}>పంచాంగం · ఇప్పుడు</div>
@@ -1794,14 +1812,23 @@ export default function Home() {
                     <div>
                       <label style={{ fontSize: 11, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, display: "block", marginBottom: 8 }}>సంఖ్య ఎంచుకోండి (1-249)</label>
                       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                        <input
-                          type="number"
-                          min={1} max={249}
-                          value={horaryNumber}
-                          onChange={e => setHoraryNumber(e.target.value === "" ? "" : Math.max(1, Math.min(249, parseInt(e.target.value) || 1)))}
-                          placeholder="1 - 249"
-                          style={{ padding: "8px 12px", background: "var(--card)", border: "0.5px solid var(--border2)", borderRadius: 6, color: "var(--fg)", fontSize: 22, fontFamily: "inherit", fontWeight: 700, width: 110, textAlign: "center" as const }}
-                        />
+                        <div style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 4 }}>
+                          <input
+                            type="number"
+                            min={1} max={249}
+                            value={horaryNumber}
+                            onChange={e => setHoraryNumber(e.target.value === "" ? "" : Math.max(1, Math.min(249, parseInt(e.target.value) || 1)))}
+                            placeholder="1 - 249"
+                            style={{ padding: "8px 12px", background: "var(--card)", border: "0.5px solid var(--border2)", borderRadius: 6, color: "var(--fg)", fontSize: 22, fontFamily: "inherit", fontWeight: 700, width: 110, textAlign: "center" as const }}
+                          />
+                          <button
+                            onClick={() => {
+                              let n = Math.floor(Math.random() * 249) + 1;
+                              setHoraryNumber(n);
+                            }}
+                            style={{ padding: "4px 18px", background: "rgba(201,169,110,0.1)", border: "0.5px solid var(--border2)", borderRadius: 5, color: "var(--accent)", fontSize: 12, cursor: "pointer", fontFamily: "inherit", width: "100%" }}
+                          >🎲 రాండమ్</button>
+                        </div>
                         <div style={{ display: "flex", gap: 4, flexWrap: "wrap" as const }}>
                           {[1,2,3,4,5,6,7,8,9].map(n => (
                             <button key={n} onClick={() => setHoraryNumber(n * Math.ceil((horaryNumber as number || 1) / 9) || n)}
@@ -1914,6 +1941,61 @@ export default function Home() {
               {/* ANALYSIS */}
               {activeTab === "analysis" && (
                 <div className="tab-content" style={{ display: "flex", flexDirection: "column", height: "100%", gap: 0 }}>
+                  {/* Quick Insights Cards — auto-generated per topic */}
+                  {workspaceData && (insightsLoading || Object.keys(quickInsights).length > 0) && (
+                    <div style={{ marginBottom: 12, flexShrink: 0 }}>
+                      <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>
+                        ⚡ ఈ చార్ట్ కోసం స్పెషల్ అంచనాలు — Chart-Specific Key Insights
+                      </div>
+                      {insightsLoading && !Object.keys(quickInsights).length && (
+                        <div style={{ display: "flex", gap: 8 }}>
+                          {["వివాహం","ఉద్యోగం","ఆరోగ్యం"].map(l => (
+                            <div key={l} style={{ flex: 1, padding: "10px 12px", background: "var(--card)", border: "0.5px solid var(--border2)", borderRadius: 8, minHeight: 80, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <span style={{ fontSize: 11, color: "var(--muted)", animation: "pulse 1.5s infinite" }}>{l} విశ్లేషిస్తోంది...</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {Object.keys(quickInsights).length > 0 && (
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const }}>
+                          {(["marriage", "career", "health"] as const).map(topic => {
+                            const labelMap: Record<string, string> = { marriage: "వివాహం", career: "ఉద్యోగం", health: "ఆరోగ్యం" };
+                            const iconMap: Record<string, string> = { marriage: "💍", career: "💼", health: "🏥" };
+                            const insight = quickInsights[topic];
+                            const isExpanded = expandedInsight === topic;
+                            if (!insight) return null;
+                            // Parse bullet points
+                            const lines = insight.split("\n").filter(l => l.trim());
+                            const firstLine = lines[0] || "";
+                            return (
+                              <div key={topic}
+                                onClick={() => setExpandedInsight(isExpanded ? null : topic)}
+                                style={{ flex: "1 1 200px", minWidth: 180, padding: "10px 12px", background: "var(--card)", border: `0.5px solid ${isExpanded ? "var(--accent)" : "var(--border2)"}`, borderRadius: 8, cursor: "pointer", transition: "all 0.2s" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                                  <span style={{ fontSize: 14 }}>{iconMap[topic]}</span>
+                                  <span style={{ fontSize: 11, color: "var(--accent)", fontWeight: 600 }}>{labelMap[topic]}</span>
+                                  <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--muted)" }}>{isExpanded ? "▲" : "▼"}</span>
+                                </div>
+                                <div style={{ fontSize: 11, color: "var(--fg)", lineHeight: 1.6 }}>
+                                  {isExpanded ? (
+                                    <div style={{ whiteSpace: "pre-wrap" as const }}>{insight}</div>
+                                  ) : (
+                                    <div style={{ color: "var(--muted)", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const }}>{firstLine}</div>
+                                  )}
+                                </div>
+                                {!isExpanded && (
+                                  <button onClick={e => { e.stopPropagation(); handleTopicAnalysis(topic); }}
+                                    style={{ marginTop: 6, padding: "3px 10px", background: "rgba(201,169,110,0.1)", border: "0.5px solid var(--border2)", borderRadius: 4, color: "var(--accent)", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>
+                                    లోతైన విశ్లేషణ →
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {/* Topic quick-launch bar */}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem", flexWrap: "wrap", gap: 8, flexShrink: 0 }}>
                     <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>

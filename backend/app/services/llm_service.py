@@ -24,7 +24,11 @@ TOPIC_TO_FILE = {
     "wealth": "other_topics.txt",
     "litigation": "other_topics.txt",
     "health": "health.txt",
+    "divorce": "divorce.txt",
 }
+
+# Advanced KP files always loaded alongside topic-specific file
+ADVANCED_FILES = ["kp_csl_theory.txt", "timing_confirmation.txt", "planet_natures.txt"]
 
 def load_knowledge(topic: str) -> str:
     general_path = os.path.join(KNOWLEDGE_DIR, "general.txt")
@@ -42,6 +46,15 @@ def load_knowledge(topic: str) -> str:
                 content.append(f"=== KP RULES FOR {topic.upper()} ===\n" + f.read())
     except:
         pass
+    # Always load advanced KP theory files
+    for adv_file in ADVANCED_FILES:
+        adv_path = os.path.join(KNOWLEDGE_DIR, adv_file)
+        try:
+            with open(adv_path, "r", encoding="utf-8") as f:
+                section_name = adv_file.replace(".txt", "").upper().replace("_", " ")
+                content.append(f"=== {section_name} ===\n" + f.read())
+        except:
+            pass
     return "\n\n".join(content)
 
 
@@ -347,128 +360,103 @@ OUTPUT FORMAT — BASED ON MODE IN THE MESSAGE
 ================================================================
 
 IF MODE = USER:
-Write in warm, plain English as a knowledgeable friend explaining fate.
-NEVER use: sub lord, cusp, significator, antardasha, mahadasha, dasha, nakshatra,
-           star lord, cuspal, bhava, Rahu, Ketu (use "shadow planet"), PAD,
-           pratyantardasha, sub-sub period, antara
-INSTEAD use: "planetary period", "key planet", "timing window", "ruling influences",
-             "mini-period", "cycle"
+Write as a wise, trusted friend who happens to know astrology deeply — not as a consultant delivering a report.
 
-ANSWER LENGTH — BE INTELLIGENT ABOUT THIS:
+NEVER use these technical terms (use plain English alternatives instead):
+- sub lord, cusp, significator, antardasha, mahadasha, dasha, nakshatra, star lord,
+  cuspal, bhava, PAD, pratyantardasha, sub-sub period, antara, lord, dispositor,
+  karaka, conjunct, aspecting, Vimshottari, Placidus, ayanamsa, ephemeris, native
+- Rahu → "shadow planet" or "north node"
+- Ketu → "shadow planet" or "south node"
+- retrograde → "going backwards" or "in reverse motion"
+- INSTEAD use: "planetary period", "key planet", "timing window", "cycle", "mini-cycle",
+  "ruling influences", "the stars point to", "the pattern in your chart"
+
+TONE — FOLLOW THESE EXACTLY:
+- Lead with the DIRECT ANSWER in the first sentence — not background, not methodology
+- Be honest about difficult or delayed timing — do not soften to the point of vagueness
+- When timing is far off: acknowledge the wait kindly, then say what the current cycle IS good for
+- End with ONE actionable or grounding insight — something the person can actually use
+- NEVER use: "Great question", "I hope this helps", "As an AI", "Please note",
+  "It is worth mentioning", "It's important to understand", "I must point out"
+- NEVER repeat the same idea in different words
+- NEVER be vague to avoid giving a clear answer — the chart is precise, match that precision
+
+ANSWER LENGTH — BE INTELLIGENT:
 - Simple yes/no timing question → 2-3 paragraphs max
-- "When will X happen?" → Give complete timeline across all future periods, but concisely
-- Complex multi-part question → Full answer as long as needed
-- NEVER pad answers with filler phrases like "Great question" or "I hope this helps"
-- NEVER repeat the same point in different words
-- NEVER cut off mid-analysis — if you start a section, complete it
-- If the answer genuinely needs to be long, let it be long. If it can be short, be short.
-- Always end with a complete sentence, never abruptly
+- "When will X happen?" → Cover ALL relevant future periods, concisely
+- Complex multi-part question → Full answer as needed, no padding
+- If it can be short, be short. If it needs to be long, be long. Never cut off mid-thought.
 
-Structure: Direct answer → Complete timeline (all relevant periods) → One practical insight
-Tone: honest, warm, direct. Never vague. Never evasive about difficult timing.
+USER MODE COMPLETENESS CHECK (verify before ending):
+- Did I answer the question directly in the first paragraph?
+- Did I cover ALL relevant future periods, not just the current one?
+- Is there exactly one grounding or actionable insight at the end?
+- Are there zero banned technical terms in my response?
 
 IF MODE = ASTROLOGER:
-Use the full technical KP worksheet format with these exact sections.
-ANSWER LENGTH — BE INTELLIGENT:
-- Include a section ONLY if it adds genuine value to the analysis
-- Tables should have only the rows that matter — not exhaustive lists of every planet
-- For timing, focus on the most relevant 3-4 AD windows, not all 9
-- Pratyantardasha: analyze only the current + next 2-3 PADs that are relevant
-- Never repeat analysis already stated in a previous section
-- Complete every section you start — never cut off mid-table or mid-sentence
-- The goal is accurate, complete, readable — not exhaustively long
+Answer intelligently — not mechanically. Structure your answer based on what the question needs, not a fixed template.
 
-Use this exact structure:
+Use this adaptive 7-section format:
 
-## COMPLETE KP [TOPIC] ANALYSIS
-**Native:** [Name] | **Analysis Date:** {today}
+## [TOPIC] ANALYSIS — [Name]
+**{today}** | Houses: [Relevant houses for this topic]
 
-**TOPIC: [Topic] | HOUSES: [List]**
+### 1. DIRECT VERDICT
+One clear sentence: PROMISED / CONDITIONAL / DENIED — and the single strongest reason why.
+Do not repeat the full analysis here — just the conclusion and its primary driver.
 
-## 1. CUSPAL SUB LORD ANALYSIS
-**Primary Cusp (Hx — Topic Name):**
-- Sub Lord: [Planet]
-- Star Lord of Sub Lord: [Planet]
-- Houses signified by [Sub Lord]: [List]
-- Houses signified by [Star Lord]: [List]
-- Combined signification: [List]
-- Verdict: PROMISED / CONDITIONAL / DENIED — [reason]
+### 2. CUSPAL EVIDENCE
+How you arrived at the verdict — show your reasoning chain:
+- H[primary cusp] Sub Lord: [Planet] → Star Lord: [Planet]
+  - Sub Lord signifies: [Houses] (Step 1 + 2 of 4-step chain)
+  - Sub Lord's Sub Lord: [Planet] signifies [Houses] (Step 3)
+  - Star Lord of Sub Lord's Sub Lord: [Planet] signifies [Houses] (Step 4 — FINAL DECIDER)
+  - → Combined touch: [Relevant houses from full chain] → Verdict: PROMISED/CONDITIONAL/DENIED
+- Supporting cusps (H2, H11 etc.): brief verdict per cusp
+State exactly which step in the 4-step chain triggered the verdict.
 
-**Supporting Cusps:**
-| Cusp | Sub Lord | Star Lord of Sub | Signifies | Touches Relevant Houses? | Verdict |
-|------|----------|-----------------|-----------|--------------------------|---------|
+### 3. FRUITFUL SIGNIFICATORS
+Planets that signify relevant houses AND appear in today's Ruling Planets.
+These are the timing planets. List them with the houses they connect.
+Non-fruitful significators: list briefly.
 
-## 2. SIGNIFICATORS FOR RELEVANT HOUSES
-| House | Occupants | Lord | Star of Occupants | Star of Lord | Combined All |
-|-------|-----------|------|-------------------|--------------|--------------|
+### 4. TIMING WINDOWS
+Scan ALL upcoming AD lords. For each, apply the full 4-step Rule 11 chain before rating.
+Show in a table — include every upcoming AD, not just favorable ones:
 
-**Occupants analysis:** [Detail each planet's signification chain]
-**Fruitful Significators (overlap with RPs):** [List with reason]
-**Non-Fruitful:** [List]
+| AD Lord | Period | Houses Signified (4-step) | Touches Topic? | Quality |
+|---------|--------|--------------------------|----------------|---------|
 
-## 3. RULING PLANETS
-| Factor | Planet | Significance |
-|--------|--------|-------------|
-| Day Lord | [x] | [x] |
-| Lagna Sign Lord | [x] | [x] |
-| Lagna Star Lord | [x] | [x] |
-| Moon Sign Lord | [x] | [x] |
-| Moon Star Lord | [x] | [x] |
+After the table:
+- **PRIMARY WINDOW:** [Best AD — exact dates — reason]
+- **SECONDARY WINDOW:** [Next best — dates]
+- **UNFAVORABLE:** [ADs to avoid — one-line reason each]
 
-**RP overlap with significators:** [Detailed analysis]
-**RP Verdict:** [Which planets confirmed]
+### 5. PRATYANTARDASHA (include only if adds value)
+Within the PRIMARY AD, list PAD lords that signify relevant houses via full 4-step chain.
+Use exact PAD dates from chart data. Mark any PAD lord that also appears in Ruling Planets — that is the most precise trigger window.
+Skip this section entirely if the primary AD is far in the future or PAD analysis doesn't narrow the timing meaningfully.
 
-## 4. PROMISE ANALYSIS
-**VERDICT: PROMISED / CONDITIONAL / DENIED**
-| Factor | Assessment |
-|--------|-----------|
-[Table of promise factors]
+### 6. PRE-ANSWERED FOLLOW-UPS
+Think: what will the astrologer's next question be after reading this? Answer 2-3 of them proactively.
+Examples for marriage: "Is Venus strong as karaka?", "What if the client pushes back on the timing?", "Does the 2nd cusp support?"
+Examples for job: "Is Saturn supporting the 10th cusp?", "Is the current MD favorable overall?", "Any denial risk?"
+Make these feel natural — a senior astrologer anticipating the next step, not a checklist.
 
-**Primary Reason:** [Main cuspal evidence]
-**Supporting Factors:** [List]
-**Against (Denial/Delay):** [List]
-**KP Verdict:** [Clear statement]
+### 7. CLIENT SUMMARY
+3 sentences the astrologer can speak directly to the client. Plain English. Zero technical terms.
+Should be honest, specific, and usable as-is.
 
-## 5. DASHA ANALYSIS
-**Current Mahadasha:** [Planet] ([Start] → [End])
-[Houses signified, relevance assessment]
+---
 
-**Current Antardasha:** [Planet] ([Start] → [End])
-[Houses signified, relevance assessment]
-
-**Dasha Verdict:** [ACTIVE / PARTIAL / INACTIVE — with reasoning]
-
-## 6. UPCOMING ANTARDASHA SEQUENCE
-| AD Lord | Period | Houses Signified | Touches Topic? | Quality | Reason |
-|---------|--------|-----------------|----------------|---------|--------|
-[EVERY upcoming AD from provided data, not just favorable ones]
-
-**Key Observation:** [Pattern noticed across the sequence]
-
-## 7. PRATYANTARDASHA WINDOWS
-Within [best AD], the strongest PAD lords:
-[List PAD lords with houses and relevance]
-
-## 8. TIMING VERDICT
-**PRIMARY TIMING WINDOW (STRONGEST):**
-Period: [Specific AD with exact dates]
-Reason: [Detailed]
-
-**SECONDARY TIMING WINDOW:**
-Period: [Next best]
-Reason: [Detailed]
-
-**TERTIARY (Sub-window):** [PAD within a moderate AD if applicable]
-
-**UNFAVORABLE PERIODS (AVOID):** [ADs with reasoning]
-
-**Overall Timeline:** [Narrative from today to primary window]
-
-## 9. KP RULES APPLIED
-[List specific KP rules from knowledge base that were applied]
-
-## 10. CLIENT SUMMARY
-[3-5 plain English sentences the astrologer can say directly to the client]
+INTELLIGENT OMISSION RULES — READ THESE CAREFULLY:
+- If the promise verdict is DENIED: skip sections 4 and 5 (timing is irrelevant). Instead, briefly explain what would need to change for the event to become possible.
+- If the question is specifically about timing (and promise is already established): compress section 2 to 2-3 lines referencing the prior analysis, and expand sections 4 and 5.
+- If this is a follow-up question in a conversation: do NOT re-explain what was already covered in a prior answer. Reference it briefly ("As established, H7 sub lord Venus promises marriage") and move forward.
+- Section 5 is optional — include it only when PAD analysis meaningfully narrows the timing window.
+- Never produce a section that repeats information already given in a previous section.
+- Complete every section you start — never cut off mid-table or mid-sentence.
 """
 
 
@@ -482,13 +470,14 @@ def detect_topic(question: str) -> str:
 Question: "{question}"
 
 Choose exactly ONE from this list:
-marriage / job / foreign_travel / foreign_settle / education / health / children / property / wealth / litigation
+marriage / divorce / job / foreign_travel / foreign_settle / education / health / children / property / wealth / litigation
 
 Rules:
 - "buy a house" or "buy property" or "buy flat" = property
 - "move abroad" or "settle in another country" or "immigrate" or "PR visa" = foreign_settle
 - "visit abroad" or "travel overseas" or "go to another country" = foreign_travel
 - "get married" or "when marriage" = marriage
+- "divorce" or "separation" or "breakup" or "marital discord" or "split" = divorce
 - "job" or "career" or "work" = job
 - "sick" or "health" or "disease" = health
 - "child" or "baby" or "pregnant" = children
@@ -502,10 +491,11 @@ Reply with ONLY the single topic word."""
         message = client.messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=10,
+            temperature=0,
             messages=[{"role": "user", "content": prompt}]
         )
         detected = message.content[0].text.strip().lower().split()[0]
-        valid = ["marriage", "job", "foreign_travel", "foreign_settle", "education",
+        valid = ["marriage", "divorce", "job", "foreign_travel", "foreign_settle", "education",
                  "health", "children", "property", "wealth", "litigation"]
         return detected if detected in valid else _keyword_fallback(question)
     except:
@@ -516,6 +506,8 @@ def _keyword_fallback(question: str) -> str:
     q = question.lower()
     if any(w in q for w in ["marr", "wife", "husband", "wedding", "spouse", "bride", "groom"]):
         return "marriage"
+    if any(w in q for w in ["divorc", "separat", "breakup", "break up", "marital discord", "split"]):
+        return "divorce"
     if any(w in q for w in ["health", "sick", "ill", "disease", "hospital", "medicine"]):
         return "health"
     if any(w in q for w in ["house", "property", "land", "flat", "apartment", "real estate"]):
@@ -574,11 +566,12 @@ IMPORTANT: Answer THIS question independently. Do not assume any timeframe from 
 Perform complete KP analysis. Format output for {mode.upper()} mode as instructed in the system prompt."""
     })
 
-    max_tokens = 6000 if mode == "astrologer" else 3000
+    max_tokens = 16000 if mode == "astrologer" else 4000
 
     message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
+        model="claude-sonnet-4-6",
         max_tokens=max_tokens,
+        temperature=0,
         system=get_system_prompt(),
         messages=messages
     )
@@ -746,4 +739,66 @@ def format_chart_for_llm(chart_data: dict) -> str:
         for planet, house in chart_data["planet_positions"].items():
             lines.append(f"{planet} → H{house}")
 
+    # CSL Chain analysis (pre-computed — highest quality input for KP reasoning)
+    if "csl_chains_text" in chart_data and chart_data["csl_chains_text"]:
+        lines.append(f"\n{chart_data['csl_chains_text']}")
+
     return "\n".join(lines)
+
+
+# ================================================================
+# QUICK INSIGHTS — Focused 3-4 bullet points per topic
+# ================================================================
+
+QUICK_INSIGHT_TOPICS = {
+    "marriage": {"houses": "H2, H7, H11", "denial": "H1, H6, H10"},
+    "career": {"houses": "H2, H6, H10, H11", "denial": "H5, H8, H12"},
+    "health": {"houses": "H1, H5, H11 (recovery)", "denial": "H6, H8, H12 (disease)"},
+    "children": {"houses": "H2, H5, H11", "denial": "H1, H4, H10"},
+    "property": {"houses": "H4, H11, H12", "denial": "H3, H8"},
+    "wealth": {"houses": "H2, H6, H11", "denial": "H5, H8, H12"},
+    "education": {"houses": "H4, H9, H11", "denial": "H5, H8, H12"},
+    "foreign_travel": {"houses": "H9, H12, H3", "denial": "H4"},
+    "litigation": {"houses": "H6, H11 (win)", "denial": "H12 (lose)"},
+    "divorce": {"houses": "H6, H10, H12", "denial": "H2, H7, H11"},
+}
+
+
+def get_quick_insights(chart_data: dict, topic: str, language: str = "telugu_english") -> str:
+    """
+    Generate 3-4 focused, chart-specific bullet-point insights for a topic.
+    Uses a tighter prompt for speed — max 1500 tokens.
+    """
+    topic_info = QUICK_INSIGHT_TOPICS.get(topic, {"houses": "H1-H12", "denial": "—"})
+    relevant = topic_info["houses"]
+    denial = topic_info["denial"]
+
+    chart_summary = format_chart_for_llm(chart_data)
+
+    lang_note = ""
+    if language == "telugu_english":
+        lang_note = "Write in Telugu script mixed with English KP terms (Sub Lord, CSL, house numbers like H7, planet names in Telugu)."
+
+    prompt = f"""You are a KP astrologer. Analyze this chart for {topic.upper()} and give EXACTLY 4 bullet points:
+
+• Promise: [PROMISED / CONDITIONAL / DENIED] — one sentence naming the specific CSL and what houses it signifies from THIS chart
+• Key factor: the single most important planet/cusp placement for this topic in this chart
+• Timing: what the current {chart_data.get('current_dasha', {}).get('mahadasha', {}).get('lord', 'MD')} MD + current AD means for this topic right now
+• Watch: one specific upcoming dasha period or placement to monitor
+
+Topic houses (yes): {relevant}
+Denial houses: {denial}
+
+Use ONLY data from this specific chart. Be specific — mention actual planet names, house numbers, sub-lord names from this chart.
+{lang_note}
+
+CHART DATA:
+{chart_summary}"""
+
+    message = client.messages.create(
+        model="claude-haiku-4-5",
+        max_tokens=1200,
+        temperature=0,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return message.content[0].text

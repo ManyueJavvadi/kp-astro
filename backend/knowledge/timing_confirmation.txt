@@ -1,0 +1,230 @@
+================================================================
+KP TIMING CONFIRMATION — The 3-Level Certainty Method
+================================================================
+
+FOUNDATIONAL PRINCIPLE
+In KP astrology, a predicted event MUST be confirmed at THREE levels:
+  Level 1: PROMISE — The CSL of the relevant house signifies the topic houses
+  Level 2: TIMING — Current or upcoming Dasha lords are significators
+  Level 3: RULING PLANETS — The ruling planets at the time of query confirm
+
+All three must align for the event to manifest. When only 2 align = likely
+but delayed. When only 1 aligns = wait for the other two to open.
+
+================================================================
+LEVEL 1: PROMISE VERIFICATION (CSL Analysis)
+================================================================
+
+Already covered in kp_csl_theory.txt.
+The CSL of the relevant house cusp must signify the topic's "yes" houses.
+
+Promise strength:
+  STRONG: CSL directly occupies a "yes" house (L1 signification)
+  MEDIUM: CSL rules a "yes" house or its star lord connects to "yes" houses
+  WEAK: Only sub-lord chain gives the "yes" connection (L3/L4)
+  DENIED: No connection to "yes" houses whatsoever
+
+================================================================
+LEVEL 2: DASHA TIMING VERIFICATION
+================================================================
+
+The Vimsottari Dasha system cascades from large to small time periods:
+  Mahadasha (MD) = 6-20 year period (sets the general theme)
+  Antardasha (AD) = months to years within MD (activates a sub-theme)
+  Pratyantardasha (PAD) = weeks to months within AD (triggers the event)
+  Sookshma (SD) = days within PAD (exact timing)
+
+DASHA RELEVANCE RULE:
+A dasha lord is RELEVANT for a topic when it signifies the topic's "yes" houses.
+
+Cascade Logic:
+  MD lord: Sets the broad decade theme. For the event to happen, MD lord
+           must EITHER directly signify the topic OR allow it by not denying.
+
+  AD lord: The actual EVENT happens in an AD whose lord signifies the topic.
+           This is the most important period to identify.
+
+  PAD lord: The specific MONTH or WEEK within the AD when the event happens.
+            PAD lord must ALSO be a significator of the topic.
+
+KEY RULE: The event happens when MD + AD + PAD lords ALL signify the topic.
+  If MD lord doesn't signify → wait for the next MD
+  If MD signifies but AD doesn't → wait for the right AD within this MD
+  If MD + AD signify but PAD doesn't → wait for the right PAD
+
+SCANNING THE FULL AD SEQUENCE:
+Always scan ALL remaining ADs in the current MD, not just the current one.
+The event window is the AD period where the AD lord is a topic significator.
+
+Example for marriage (topic houses H2/H7/H11):
+  Current MD = Saturn (signifies H7, H11 in this chart → RELEVANT)
+  Current AD = Mercury (signifies H3, H6 → NOT relevant for marriage)
+  Next AD = Ketu (signifies H7, H2 → RELEVANT) [2026-2027]
+  AD after = Venus (signifies H7, H11 → STRONGLY RELEVANT) [2027-2030]
+
+  Prediction: Marriage likely in Venus AD (2027-2030), possibly Ketu AD end (2026).
+  Within Venus AD, look for PAD lords that also signify H2/H7/H11.
+
+================================================================
+IDENTIFYING THE EXACT PERIOD WITHIN THE AD
+================================================================
+
+Within each Antardasha, scan all PAD (Pratyantardasha) periods:
+
+Step 1: List all PAD lords in the relevant AD period
+Step 2: Check each PAD lord's significations
+Step 3: PAD lords that signify the same topic houses = candidate windows
+Step 4: Among those, the one whose running period coincides with the right
+        ruling planets = THE TIME OF THE EVENT
+
+PAD timing for marriage example (within Venus AD):
+  Moon PAD (2 weeks): Moon in H11, rules H4 → H11 ✓, not denial → CANDIDATE
+  Mars PAD (10 days): Mars in H7, rules H7 → H7 ✓ → STRONG CANDIDATE
+  Rahu PAD (1 month): Rahu conjoins Venus in H7 → H7 ✓ → CANDIDATE
+
+Prediction refinement: Event most likely in Mars PAD or Rahu PAD within Venus AD.
+
+================================================================
+LEVEL 3: RULING PLANET CONFIRMATION
+================================================================
+
+Ruling Planets (RPs) at the time of query confirm WHEN the event will happen.
+RPs consist of:
+  1. Day Lord (lord of the weekday)
+  2. Hora Lord (planetary hour at time of query)
+  3. Lagna Sign Lord (lord of the rising sign right now)
+  4. Lagna Star Lord (lord of the lagna nakshatra)
+  5. Moon Sign Lord (lord of Moon's current sign)
+  6. Moon Star Lord (lord of Moon's current nakshatra)
+
+THE RULING PLANET CONFIRMATION METHOD:
+The event will happen in a dasha period where the ruling planets AT THE TIME
+OF THE EVENT match the significant planets for the topic.
+
+In practice for timing:
+  If current RPs include planets that signify the topic → event is NEAR (within months)
+  If current RPs are mostly denial planets → event is not imminent
+
+Using RPs to pin the EXACT date:
+  The event occurs on a day when:
+  - The day lord is a topic significator
+  - The Moon is in a nakshatra whose lord signifies the topic
+  - The hora at the time of event is a significator
+  These "triple confirmation" days within the right dasha period = event dates.
+
+SHORTCUT RULE: If 4+ of the 6 ruling planets are significators of the topic
+= event is imminent (within current AD or next PAD period)
+
+================================================================
+DASHA HIERARCHY AND RESULT TIMING
+================================================================
+
+RULE: The stronger the dasha lord's connection to the topic, the earlier
+in its period the event manifests.
+
+Strong connection (occupies "yes" house OR rules it directly):
+  → Event tends to happen in the FIRST THIRD of that dasha period
+
+Medium connection (via star lord chain):
+  → Event in the MIDDLE THIRD of the dasha period
+
+Weak connection (only sub-lord chain):
+  → Event in the LAST THIRD, or might not happen in that period
+
+COMPOUND TIMING (when multiple significator ADs are available):
+  Pick the AD whose lord has the STRONGEST connection to the topic.
+  Strong = L1 (occupies) > L2 (rules) > L3 (star of occupant) > L4 (star of lord)
+
+================================================================
+TRANSIT CONFIRMATION (OPTIONAL THIRD LAYER)
+================================================================
+
+KP uses transits only to CONFIRM timing already found through dasha analysis.
+Transits do NOT independently predict events — they only validate.
+
+TRANSIT SIGNIFICANCE RULE:
+A transit is significant ONLY when:
+  (a) The transiting planet is the CURRENT MD or AD lord, AND
+  (b) It transits over a natal planet that signifies the topic, OR
+  (c) It transits through a nakshatra whose lord signifies the topic
+
+DOUBLE TRANSIT THEORY:
+When BOTH Jupiter AND Saturn simultaneously transit houses related to the topic
+= event of that nature is nearly certain.
+  Example: Jupiter in H7 + Saturn in H3 → marriage (H7 = marriage, H3 from H7 = 9th = fortune of marriage partner)
+  Example: Jupiter in H2 + Saturn in H11 → significant financial gain
+
+MOON AS TRANSIT TRIGGER:
+On the actual event day, the Moon (fastest planet) will be in a nakshatra
+whose lord is one of the topic significators.
+This is often used to narrow down the exact day within a PAD period.
+
+================================================================
+REJECTING FALSE PROMISES
+================================================================
+
+A CSL may appear to support the topic but the event still doesn't happen.
+Reasons and how to identify:
+
+1. TIMING MISMATCH: CSL promises but no suitable MD/AD is active for years.
+   → Correct: "H7 CSL supports marriage but the dasha timing doesn't align
+     until Venus AD (2028). Marriage promised but timing is distant."
+
+2. RETROGRADE CSL: Promise is there but with a retrograde CSL, the event
+   gets delayed or goes back and forth.
+   → Correct: "H7 CSL Jupiter is retrograde. Marriage will eventually happen
+     but expect at least one disruption, delay, or second attempt."
+
+3. DENIAL PLANET IN DASHA: Even if CSL promises, if the running MD is a
+   pure denial lord (only signifies 1st, 6th, 10th for marriage) → wait.
+   → Correct: "CSL promises marriage but current MD lord signifies only H10
+     (career). Marriage will wait until a marriage-significator's dasha begins."
+
+4. CSL IN STAR OF DENIAL PLANET: The CSL itself occupies or is in the star
+   of a denial planet → the "promise" is actually conditional.
+   → Correct: "H7 CSL Venus is in the star of Saturn (H10 lord). Career/work
+     obligations may delay marriage. Timing will improve when work pressure eases."
+
+5. BADHAKA OR MARAKA: Certain houses are inherently obstructive.
+   Badhaka = H11 lord for movable lagna, H9 lord for fixed, H7 lord for common.
+   If the CSL is the badhaka lord = the event comes with complications.
+
+================================================================
+PRACTICAL TIMING PREDICTION FORMAT
+================================================================
+
+When timing a prediction, always state:
+  1. Is the event PROMISED? (CSL verdict)
+  2. If promised, WHEN? (first suitable MD+AD+PAD combination)
+  3. STRENGTH of that timing (how many significators align)
+  4. Any DELAYS or COMPLICATIONS to note (retrograde, denial house involvement)
+  5. The RULING PLANET confirmation (do current RPs support imminent timing?)
+
+Sample format:
+  "Marriage is PROMISED in this chart (H7 CSL Venus signifies H7, H11).
+   The most suitable timing is Venus AD (Jan 2027 – Jan 2030) within the current
+   Saturn MD. Within Venus AD, the Mars PAD (March-April 2027) shows strongest
+   alignment as Mars signifies H2 and H7. Current ruling planets (Moon star lord
+   = Venus, day lord = Venus) confirm this topic is active. Expect marriage
+   discussions to intensify in late 2026 leading to an event in early-mid 2027."
+
+================================================================
+COMMON TIMING ERRORS TO AVOID
+================================================================
+
+❌ "The event will happen in [current MD] because the MD lord signifies the topic"
+✓ RIGHT: The MD just sets the background. The actual event happens in a specific AD+PAD.
+         Always name the AD and PAD period with exact dates.
+
+❌ "Marriage will happen soon because Venus is transiting H7"
+✓ RIGHT: In KP, transit alone is insufficient. Dasha must corroborate.
+         Venus transit over H7 only matters if Venus is the current MD or AD lord.
+
+❌ "Saturn dasha = delayed marriage"
+✓ RIGHT: Saturn is neither good nor bad — it depends entirely on Saturn's
+         significations in THIS specific chart. Saturn ruling H7 and H11 = perfect
+         for marriage regardless of Saturn's "slow" nature.
+
+❌ Giving a single year as the prediction without naming the AD+PAD
+✓ RIGHT: Always state both the AD period AND the PAD within it for precise timing.
+         "Between March 2027 and August 2027 (Mars PAD within Venus AD)"
