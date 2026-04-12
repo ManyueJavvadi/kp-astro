@@ -1,0 +1,150 @@
+================================================================================
+KP ASTROLOGY — MUHURTHA (AUSPICIOUS TIMING) RULES
+Source: K.S. Krishnamurti KP Readers
+================================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 1: WHAT IS KP MUHURTHA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+KP muhurtha selects the moment when the Lagna (Ascendant) sub-lord signifies
+the houses relevant to the event being undertaken.
+
+THE CORE PRINCIPLE:
+"The sub-lord of the Lagna cusp at the moment of commencement of any enterprise
+will determine the success or failure of that enterprise."
+
+The Lagna sub-lord at the moment of the event must signify the favorable houses
+for that event. If the Lagna sub-lord signifies denial/adverse houses, the event
+started at that time will face obstacles.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 2: EVENT-SPECIFIC HOUSE REQUIREMENTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+MARRIAGE MUHURTHA:
+Primary house: H7 (spouse, partnership)
+Supporting: H2 (family, addition to family), H11 (fulfillment, gains)
+Denial houses: H1 (self over partnership), H6 (disputes), H10 (career focus), H12 (loss)
+Lagna sub-lord must signify H7 for marriage muhurtha.
+Avoid: Rahu Kalam, Vishti Karana, eclipse periods.
+Best weekdays: Wednesday (Mercury), Friday (Venus), Thursday (Jupiter).
+
+BUSINESS OPENING MUHURTHA:
+Primary house: H10 (career, profession, business)
+Supporting: H2 (money), H6 (service/clients), H11 (profits/gains)
+Denial houses: H1 (personal, not business), H5 (speculation), H9 (spiritual), H12 (loss)
+Lagna sub-lord must signify H10 for business muhurtha.
+Best weekdays: Wednesday (Mercury/commerce), Thursday (Jupiter/expansion), Tuesday (Mars/drive).
+
+HOUSE WARMING (GRIHA PRAVESH) MUHURTHA:
+Primary house: H4 (home, property, dwelling)
+Supporting: H11 (fulfillment), H12 (investment paid)
+Denial houses: H3 (change/moving away), H10 (status concerns over home comfort)
+Lagna sub-lord must signify H4 for house warming muhurtha.
+Best: Moon in benefic nakshatra. Avoid Mars-ruled nakshatra for H4 muhurtha.
+Best weekdays: Monday (Moon/home), Thursday (Jupiter/expansion), Friday (Venus/comfort).
+
+TRAVEL MUHURTHA:
+Primary house: H9 (long journeys, fortune)
+Supporting: H3 (short journeys, movement), H12 (foreign lands, expenditure)
+Denial houses: H2 (stay home), H8 (danger), H11 (gains tied to staying)
+Best for travel: H3 (short), H9 (long), H12 (overseas).
+
+EDUCATION/EXAM MUHURTHA:
+Primary house: H4 (education institution) or H9 (higher learning)
+Supporting: H9, H11 (success/fulfillment)
+Denial houses: H3 (change), H12 (loss)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 3: THINGS TO AVOID IN MUHURTHA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CRITICAL AVOIDANCES:
+1. RAHU KALAM — Inauspicious period every day; strictly avoid for all auspicious events.
+   Rahu Kalam = 1/8th of daylight from actual sunrise; varies by weekday and location.
+
+2. VISHTI (BHADRA) KARANA — Half-tithi period that repeats; considered very inauspicious.
+   "Events started in Vishti Karana will have obstacles and difficulties."
+
+3. ECLIPSES — Solar or lunar eclipses make the entire day inauspicious for new beginnings.
+
+4. LAGNA SUB-LORD IN DENIAL HOUSES — If Lagna sub-lord signifies denial houses for the event,
+   that time is unfavorable regardless of other factors.
+
+5. SATURN AND MARS HORA — Generally avoided for auspicious events (though not absolute).
+
+GENERALLY GOOD INDICATORS:
+- Lagna in benefic sign (Taurus, Cancer, Libra, Sagittarius, Pisces, Aquarius)
+- Jupiter or Venus in Lagna or aspecting Lagna
+- Moon in waxing phase (Shukla Paksha — from new moon to full moon)
+- Moon in benefic nakshatra (Rohini, Mrigashira, Hasta, Chitra, Swati, Anuradha, Shravana, Revati, Pushya, Ashwini)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 4: SCORING AND SELECTION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+EXCELLENT WINDOW (Score 70+):
+- Lagna sub-lord signifies primary house (+40)
+- Lagna sub-lord signifies one or more supporting houses (+15 each)
+- No denial houses touched (+20)
+- Not in Rahu Kalam, not Vishti Karana
+Example: For marriage — Lagna sub-lord is Venus, Venus signifies H7, H2, H11 = Excellent
+
+GOOD WINDOW (Score 50-69):
+- Lagna sub-lord signifies primary house
+- Touches at least one supporting house
+- Rahu Kalam avoided
+Example: Lagna sub-lord signifies H7 and H11 but not H2 = Good for marriage
+
+FAIR WINDOW (Score 40-49):
+- Primary house is touched but no supporting houses
+- Should be used only if no better option exists in the date range
+
+AVOID (Score < 40 or any of: in Rahu Kalam, Vishti Karana):
+- Lagna sub-lord does not signify primary house
+- OR denial houses are signified
+- OR Rahu Kalam/Vishti applies
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 5: HOW TO EXPLAIN MUHURTHA TO CLIENTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+When presenting a good muhurtha window, explain:
+1. "At this time, the Lagna (rising sign) is [sign]. The sub-lord of this Lagna is [planet]."
+2. "This [planet] signifies houses [list], which are the key houses for [event type]."
+3. "In KP, when we start an event at a time when these houses are activated in the Lagna,
+   the event begun carries the signature of those houses through its lifetime."
+4. "This window avoids Rahu Kalam and Vishti Karana, making it doubly auspicious."
+
+Example explanation for marriage:
+"At 7:14 AM on this date, the Lagna is in Pisces. The sub-lord of this Lagna cusp is Venus.
+Venus signifies House 7 (marriage, partner), House 2 (family), and House 11 (fulfillment).
+These are exactly the three houses needed for marriage. Venus is the natural karaka for
+marriage relationships, making this window particularly strong. This window also falls
+outside Rahu Kalam, and the Karana (Bava) is auspicious. An Excellent choice."
+
+When a window is in Rahu Kalam:
+"This time window falls within Rahu Kalam, which is traditionally avoided for auspicious
+beginnings. While the Lagna sub-lord is favorable, I recommend the next window at [time]."
+
+When date has no good windows:
+"On this date, all Lagna sub-lords that are active during daytime hours either miss the
+key marriage houses or signify adverse houses (H6/H12). I recommend considering [nearby date]
+which has a significantly stronger window."
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 6: COMBINING WITH NATAL CHART
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+For stronger muhurtha selection, cross-reference with natal chart:
+- The Ruling Planets at the muhurtha time should include planets that also appear as
+  natal Ruling Planets of the concerned person(s).
+- If the muhurtha Lagna sub-lord is also a significator of the relevant houses in the
+  natal chart, the window is doubly confirmed.
+- For marriage: if both partners' natal charts have the muhurtha Lagna sub-lord as a
+  significator of their H7/H2/H11, it is a three-way confirmation.
+
+"The best muhurtha is when the moment's Ruling Planets resonate with the natal
+significators of both parties — this creates a harmony between cosmic timing and
+personal chart promise."

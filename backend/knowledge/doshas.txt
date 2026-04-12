@@ -1,0 +1,225 @@
+ASHTAKOOTA (36-GUN) MATCHING — ALL 8 DOSHAS
+============================================
+KP system uses traditional Ashtakoota scoring as secondary validation. Primary analysis is KP-based.
+Total maximum score: 36 points. Minimum acceptable: 18 points.
+
+---
+
+KUTA 1 — VARNA (Max: 1 point)
+Purpose: Tests spiritual compatibility and social harmony.
+Caste hierarchy (high to low): Brahmin > Kshatriya > Vaishya > Shudra
+
+Sign → Varna mapping:
+  Brahmin:  Cancer, Scorpio, Pisces (water signs)
+  Kshatriya: Aries, Leo, Sagittarius (fire signs)
+  Vaishya:  Taurus, Virgo, Capricorn (earth signs)
+  Shudra:   Gemini, Libra, Aquarius (air signs)
+
+Scoring: Boy's Varna ≥ Girl's Varna → 1 point. Otherwise 0.
+Note: Boy Brahmin + Girl Brahmin = 1 (equal is fine). Boy Shudra + Girl Brahmin = 0.
+
+---
+
+KUTA 2 — VASYA (Max: 2 points)
+Purpose: Tests control, affection, and attraction between partners.
+
+Moon sign Vasya groups:
+  Leo controls: Aries
+  Cancer controls: Scorpio, Sagittarius
+  Aquarius controls: Aries
+  Virgo controls: Pisces, Gemini
+  Scorpio controls: Cancer
+  Capricorn controls: Aries
+  Pisces controls: Capricorn
+
+Scoring:
+  Mutual Vasya (both control each other) = 2 points
+  One-way Vasya (one controls the other) = 1 point
+  Related signs (same element or friendly) = 0.5 points
+  No relationship = 0 points
+
+---
+
+KUTA 3 — TARA (Dina Kuta) (Max: 3 points)
+Purpose: Tests health, longevity, and overall well-being of couple.
+
+Method: Count from bride's birth nakshatra to groom's birth nakshatra (inclusive).
+Divide count by 9. Check the remainder.
+
+Auspicious remainders: 1, 3, 5, 7 → good tara
+Inauspicious remainders: 2, 4, 6, 8 → bad tara (dosha)
+Remainder 0 → counted as 9 → bad
+
+Scoring:
+  Auspicious for both (check both ways) = 3 points
+  Auspicious for one way = 1.5 points
+  Inauspicious = 0 points
+
+---
+
+KUTA 4 — YONI (Max: 4 points)
+Purpose: Tests physical compatibility, sexual harmony, and intimacy.
+
+Nakshatra → Yoni (Animal) mapping:
+  Ashwini, Shatabhisha → Horse (M/F)
+  Bharani, Revati → Elephant (M/F)
+  Pushya, Krittika → Goat (M/F)
+  Rohini, Mrigashira → Serpent (M/F)
+  Moola, Ardra → Dog (M/F)
+  Punarvasu, Ashlesha → Cat (M/F)
+  Magha, Purva Phalguni → Rat (M/F)
+  Uttara Phalguni, Uttara Bhadrapada → Cow (M/F)
+  Hasta, Swati → Buffalo (M/F)
+  Vishakha, Chitra → Tiger (M/F)
+  Jyeshtha, Anuradha → Deer (M/F)
+  Purva Ashadha, Shravana → Monkey (M/F)
+  Uttara Ashadha, Abhijit → Mongoose (neutral)
+  Dhanishtha, Purva Bhadrapada → Lion (M/F)
+
+Enemy Yoni pairs (score 0): Horse-Buffalo, Elephant-Lion, Goat-Monkey, Serpent-Mongoose, Dog-Deer, Cat-Rat, Cow-Tiger
+
+Scoring:
+  Same Yoni, same sex = 4 points
+  Same Yoni, opposite sex = 3 points
+  Friendly Yoni = 2 points
+  Neutral Yoni = 1 point
+  Enemy Yoni = 0 points
+
+---
+
+KUTA 5 — GRAHA MAITRI (Rashyadhipati Mitra) (Max: 5 points)
+Purpose: Tests mental compatibility, intellectual harmony, and friendship.
+
+Method: Check friendship between Moon sign lords of both partners.
+
+Planet natural friendship table:
+  Sun:     Friends: Moon, Mars, Jupiter | Neutral: Mercury | Enemies: Venus, Saturn, Rahu, Ketu
+  Moon:    Friends: Sun, Mercury | Neutral: Mars, Jupiter, Venus, Saturn | Enemies: Rahu, Ketu
+  Mars:    Friends: Sun, Moon, Jupiter | Neutral: Venus, Saturn, Ketu | Enemies: Mercury, Rahu
+  Mercury: Friends: Sun, Venus | Neutral: Mars, Jupiter, Saturn, Rahu | Enemies: Moon, Ketu
+  Jupiter: Friends: Sun, Moon, Mars | Neutral: Saturn | Enemies: Mercury, Venus, Rahu, Ketu
+  Venus:   Friends: Mercury, Saturn | Neutral: Mars, Jupiter | Enemies: Sun, Moon, Rahu, Ketu
+  Saturn:  Friends: Mercury, Venus | Neutral: Jupiter | Enemies: Sun, Moon, Mars, Rahu, Ketu
+
+Sign lords: Aries/Scorpio→Mars, Taurus/Libra→Venus, Gemini/Virgo→Mercury, Cancer→Moon, Leo→Sun, Sagittarius/Pisces→Jupiter, Capricorn/Aquarius→Saturn
+
+Scoring:
+  Both lords mutually friendly = 5 points
+  One friendly, one neutral = 4 points
+  Both neutral = 3 points
+  One friendly, one enemy = 1 point
+  Both enemies = 0 points
+
+---
+
+KUTA 6 — GANA (Max: 6 points)
+Purpose: Tests temperament, nature, and life approach compatibility.
+
+Nakshatra → Gana mapping:
+  Deva (Divine):     Ashwini, Mrigashira, Punarvasu, Pushya, Hasta, Swati, Anuradha, Shravana, Revati
+  Manushya (Human):  Bharani, Rohini, Ardra, Purva Phalguni, Uttara Phalguni, Purva Ashadha, Uttara Ashadha, Shatabhisha, Purva Bhadrapada
+  Rakshasa (Demonic): Krittika, Ashlesha, Magha, Chitra, Vishakha, Jyeshtha, Mula, Dhanishtha, Uttara Bhadrapada
+
+Scoring:
+  Deva + Deva = 6 points
+  Manushya + Manushya = 6 points
+  Rakshasa + Rakshasa = 6 points
+  Deva + Manushya = 5 points
+  Manushya + Deva = 5 points
+  Deva + Rakshasa = 1 point (Gana dosha — serious incompatibility)
+  Rakshasa + Deva = 1 point (Gana dosha)
+  Manushya + Rakshasa = 0 points (critical Gana dosha)
+  Rakshasa + Manushya = 0 points (critical Gana dosha)
+
+Note: Some texts allow Rakshasa girl with Deva boy (0 points but acceptable in practice).
+Exception: If both are Rakshasa, perfectly fine.
+
+---
+
+KUTA 7 — BHAKOOTA (Rashikuta) (Max: 7 points)
+Purpose: Tests financial prosperity, children, and overall life compatibility.
+
+Method: Count from girl's Moon sign to boy's Moon sign (inclusive).
+Count from boy's Moon sign to girl's Moon sign (inclusive).
+
+Inauspicious combinations (Bhakoota dosha — score 0):
+  2-12 relationship (one sign is 2nd or 12th from other)
+  6-8 relationship (one sign is 6th or 8th from other — Shadashtak, very bad)
+  5-9 relationship (one sign is 5th or 9th from other — also considered bad by some)
+
+Auspicious: Any other combination = 7 points
+2-12 = 0 points (financial problems, separation tendency)
+6-8 = 0 points (health issues, conflict, very inauspicious)
+5-9 = 0 points (according to traditional texts — children issues)
+
+Cancellations: Nadi agreement can cancel Bhakoota dosha per some texts.
+
+---
+
+KUTA 8 — NADI (Max: 8 points) — MOST CRITICAL
+Purpose: Tests health, progeny, and genetic compatibility.
+
+Nakshatra → Nadi mapping:
+  Aadi (Vata):   Ashwini, Ardra, Punarvasu, Uttara Phalguni, Hasta, Jyeshtha, Mula, Shatabhisha, Purva Bhadrapada
+  Madhya (Pitta): Bharani, Mrigashira, Pushya, Purva Phalguni, Chitra, Anuradha, Purva Ashadha, Dhanishtha, Uttara Bhadrapada
+  Antya (Kapha): Krittika, Rohini, Ashlesha, Magha, Swati, Vishakha, Uttara Ashadha, Shravana, Revati
+
+Scoring:
+  Different Nadi (Aadi-Madhya, Aadi-Antya, Madhya-Antya) = 8 points (IDEAL)
+  Same Nadi (both Aadi, both Madhya, or both Antya) = 0 points (NADI DOSHA — critical)
+
+Nadi Dosha effects: Serious health issues, infertility, or child health problems.
+
+Nadi Dosha cancellations:
+  1. Boy and girl have the same birth nakshatra but different padas (quarters) — partial cancellation
+  2. Boy and girl have same Moon sign lord — some texts allow this
+  3. Jupiter in Lagna or 7th house of either chart — reduces severity
+
+---
+
+KUJA DOSHA (MANGLIK DOSHA) — Separate from Ashtakoota
+=======================================================
+Purpose: Checks if Mars causes problems in marriage.
+Mars placed in: House 1, 2, 4, 7, 8, or 12 from Lagna → Kuja Dosha present.
+(Some texts include from Moon and Venus positions as well)
+
+Severity levels:
+  H7, H8 placement: Most severe (direct impact on marriage house)
+  H1, H4, H12: Moderate severity
+  H2: Mild (affects family/finances)
+
+Complete Kuja Dosha cancellations:
+  1. Mars in own signs (Aries or Scorpio) — dosha cancelled
+  2. Mars in exaltation (Capricorn) — dosha cancelled
+  3. Mars in Aquarius or Cancer — dosha reduced
+  4. Jupiter conjunct or aspecting Mars — reduced
+  5. Moon in Cancer/Jupiter in Cancer — partial cancellation
+  6. Mars with Ketu — some texts say cancelled
+  7. If both boy and girl have Kuja dosha — doshas cancel each other (most common remedy)
+  8. Mars in same house in both charts — cancels
+
+Double Manglik: Mars in H1, H7, or H8 — most severe — partner must also be double manglik.
+
+KP note: In KP system, Kuja dosha is evaluated through the sub-lord of H7. If H7 sub-lord is Mars
+and Mars signifies H6/H8/H12, the marriage may face challenges regardless of Kuja dosha status.
+
+---
+
+INTERPRETATION GUIDE
+====================
+36 points (perfect): Very rare, considered ideal
+28-36 points: Excellent compatibility
+21-27 points: Good compatibility, recommended for marriage
+18-21 points: Average, proceed with caution
+Below 18: Not recommended traditionally
+
+Critical doshas that override score:
+  Nadi dosha (0 in Nadi kuta) = serious concern even if total score is high
+  6-8 Bhakoota dosha = concern for health and longevity
+  Kuja dosha without cancellation = strong concern, especially if one partner is Manglik and other is not
+
+Remedies mentioned in classical texts:
+  Nadi dosha: Maha Mrityunjaya Japa, Nadi Nirnaya Puja
+  Kuja dosha: Kumbha Vivah (marrying a tree/pot first), Mars-related pujas
+  Gana dosha: Puja and remedies for Rahu/Ketu
+  General: Appropriate gemstones as per personal chart, planetary pujas
