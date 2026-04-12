@@ -63,6 +63,10 @@ export default function Home() {
   const [matchPerson2Inline, setMatchPerson2Inline] = useState(false);
   const [matchLoading, setMatchLoading] = useState(false);
   const [matchResults, setMatchResults] = useState<any>(null);
+  // Transit state
+  const [transitData, setTransitData] = useState<any>(null);
+  const [transitLoading, setTransitLoading] = useState(false);
+  const [transitDate, setTransitDate] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const placeSearchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -70,6 +74,25 @@ export default function Home() {
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [analysisMessages]);
+  // Clear shared inline form state when switching tabs to prevent cross-tab data leakage
+  useEffect(() => {
+    setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "" });
+    setMNewPPlaceSugg([]);
+    setMShowAddParticipant(false);
+    setMatchPerson2Inline(false);
+    // Auto-load transit data when switching to transit tab
+    if (activeTab === "transit" && workspaceData && !transitData && !transitLoading) {
+      setTransitLoading(true);
+      axios.post(`${API_URL}/transit/analyze`, {
+        natal: workspaceData,
+        transit_date: undefined,
+        latitude: workspaceData.latitude || 17.385,
+        longitude: workspaceData.longitude || 78.4867,
+        timezone_offset: 5.5,
+      }).then(res => { setTransitData(res.data); setTransitLoading(false); })
+        .catch(() => setTransitLoading(false));
+    }
+  }, [activeTab]);
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) setShowSuggestions(false);
@@ -342,6 +365,7 @@ export default function Home() {
     { id: "dasha", label: "దశ", en: "Dasha" }, { id: "ruling", label: "రూలింగ్", en: "Ruling" },
     { id: "panchangam", label: "పంచాంగం", en: "Panchangam" }, { id: "muhurtha", label: "ముహూర్త", en: "Muhurtha" },
     { id: "match", label: "సరిపోలన", en: "Match" },
+    { id: "transit", label: "గోచారం", en: "Transit" },
     { id: "analysis", label: "విశ్లేషణ", en: "Analysis" },
   ];
 
@@ -944,10 +968,16 @@ export default function Home() {
                         <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.625rem" }}>
                           పాల్గొనేవారు — Participants <span style={{ color: "var(--border2)", fontStyle: "normal" }}>(ఐచ్ఛికం / Optional)</span>
                         </div>
-                        {/* Added participants chips */}
-                        <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 6, marginBottom: mParticipants.length > 0 ? "0.625rem" : 0 }}>
+                        {/* Participants chips */}
+                        <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 6, marginBottom: "0.625rem" }}>
+                          {/* Main user — always included, locked */}
+                          {workspaceData && (
+                            <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", background: "rgba(201,169,110,0.15)", border: "0.5px solid var(--accent)", borderRadius: 20, fontSize: 12, color: "var(--accent)" }}>
+                              <span>🔒 {workspaceData.name || birthDetails.name} (You)</span>
+                            </div>
+                          )}
                           {mParticipants.map((p, i) => (
-                            <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", background: "rgba(201,169,110,0.1)", border: "0.5px solid rgba(201,169,110,0.3)", borderRadius: 20, fontSize: 12, color: "var(--accent)" }}>
+                            <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", background: "rgba(201,169,110,0.08)", border: "0.5px solid rgba(201,169,110,0.3)", borderRadius: 20, fontSize: 12, color: "var(--accent)" }}>
                               <span>{p.name || p.birthDetails.name}</span>
                               <button onClick={() => setMParticipants(prev => prev.filter((_, j) => j !== i))}
                                 style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", padding: 0, fontSize: 13, lineHeight: 1, display: "flex", alignItems: "center" }}>×</button>
@@ -1108,7 +1138,11 @@ export default function Home() {
                             event_type: mEventType, date_start: mDateStart, date_end: mDateEnd,
                             latitude: workspaceData.latitude || 17.385, longitude: workspaceData.longitude || 78.4867,
                             timezone_offset: 5.5, nearby_days: 3,
-                            participants: mParticipants.map(sessionToApiPerson),
+                            participants: [
+                              // Main user always included as participant 0 for RP resonance
+                              ...(snapshotCurrentSession() ? [sessionToApiPerson(snapshotCurrentSession()!)] : []),
+                              ...mParticipants.map(sessionToApiPerson),
+                            ],
                           });
                           setMResults(res.data);
                         } catch { setMResults(null); }
@@ -1234,7 +1268,7 @@ export default function Home() {
                 <div className="tab-content" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
 
                   {/* Selection step */}
-                  {!matchLoading && !matchResults && (
+                  {!matchLoading && (!matchResults || !matchResults.overall_verdict) && !matchResults?.__error && (
                     <div style={{ display: "flex", flexDirection: "column" as const, gap: "1rem" }}>
                       <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>వివాహ సరిపోలన — Marriage Compatibility</div>
 
@@ -1400,6 +1434,13 @@ export default function Home() {
                           ← వేరే వ్యక్తి ఎంచుకోండి
                         </button>
 
+                        {/* Gender warning if either person has no gender set */}
+                        {(!r.person1?.gender || !r.person2?.gender) && (
+                          <div style={{ padding: "6px 10px", background: "rgba(251,191,36,0.08)", border: "0.5px solid rgba(251,191,36,0.25)", borderRadius: 6, fontSize: 11, color: "#fbbf24" }}>
+                            ⚠ {[!r.person1?.gender && r.person1?.name, !r.person2?.gender && r.person2?.name].filter(Boolean).join(", ")} — Gender not set. Ashtakoota assumes Person 1 = Boy. Set gender in Setup for accurate 36-gun score.
+                          </div>
+                        )}
+
                         {/* Overall verdict banner */}
                         <div style={{ padding: "1rem", background: "var(--surface2)", border: `0.5px solid ${verdictColor}`, borderRadius: 10, textAlign: "center" as const }}>
                           <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}>{r.person1?.name} & {r.person2?.name}</div>
@@ -1492,6 +1533,149 @@ export default function Home() {
                 </div>
                 );
               })()}
+
+              {/* TRANSIT / GOCHAR */}
+              {activeTab === "transit" && (
+                <div className="tab-content">
+                  {!workspaceData ? (
+                    <div style={{ textAlign: "center", padding: "2rem", color: "var(--muted)", fontSize: 13 }}>
+                      పహ్లగా చార్ట్ లోడ్ చేయండి — సెటప్ కార్డ్‌లో వివరాలు నమోదు చేయండి.
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      {/* Header row */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                        <div style={{ fontSize: 13, color: "var(--muted)", flex: 1 }}>
+                          ప్రస్తుత దశ: <span style={{ color: "var(--accent)" }}>{workspaceData.mahadasha?.lord_te || workspaceData.mahadasha?.lord_en || "—"}</span> / <span style={{ color: "var(--fg)" }}>{workspaceData.current_antardasha?.lord_te || workspaceData.current_antardasha?.lord_en || "—"}</span> / <span style={{ color: "var(--muted)" }}>{workspaceData.current_pratyantardasha?.lord_te || workspaceData.current_pratyantardasha?.lord_en || "—"}</span>
+                        </div>
+                        <input
+                          type="date"
+                          value={transitDate}
+                          onChange={e => setTransitDate(e.target.value)}
+                          style={{ padding: "5px 10px", background: "var(--card)", border: "0.5px solid var(--border2)", borderRadius: 6, color: "var(--fg)", fontSize: 12, fontFamily: "inherit" }}
+                        />
+                        <button
+                          onClick={async () => {
+                            if (!workspaceData) return;
+                            setTransitLoading(true);
+                            try {
+                              const res = await axios.post(`${API_URL}/transit/analyze`, {
+                                natal: workspaceData,
+                                transit_date: transitDate || undefined,
+                                latitude: workspaceData.latitude || 17.385,
+                                longitude: workspaceData.longitude || 78.4867,
+                                timezone_offset: 5.5,
+                              });
+                              setTransitData(res.data);
+                            } catch { setTransitData(null); }
+                            setTransitLoading(false);
+                          }}
+                          style={{ padding: "6px 16px", background: "var(--accent)", border: "none", borderRadius: 6, color: "#000", fontSize: 12, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}
+                        >
+                          {transitLoading ? "లోడ్..." : "గోచారం చూడు"}
+                        </button>
+                      </div>
+
+                      {/* Auto-load on first visit */}
+                      {!transitData && !transitLoading && (
+                        <div style={{ textAlign: "center", padding: "1rem", color: "var(--muted)", fontSize: 12 }}>
+                          పై బటన్ నొక్కి నేటి గోచారం చూడండి.
+                        </div>
+                      )}
+
+                      {/* Sade Sati Warning */}
+                      {transitData?.sade_sati?.active && (
+                        <div style={{ padding: "10px 14px", background: "rgba(251,191,36,0.08)", border: "0.5px solid rgba(251,191,36,0.3)", borderRadius: 8, fontSize: 12 }}>
+                          <span style={{ color: "#fbbf24", fontWeight: 600 }}>⚠ సాడేసాతి అక్టివ్</span>
+                          <span style={{ color: "var(--muted)", marginLeft: 8 }}>
+                            {transitData.sade_sati.phase} — చంద్ర రాశి: {transitData.sade_sati.natal_moon_sign}, శని ప్రస్తుత రాశి: {transitData.sade_sati.saturn_in}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Transit table */}
+                      {transitData?.transits && (
+                        <div style={{ overflowX: "auto" }}>
+                          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                            <thead>
+                              <tr style={{ borderBottom: "0.5px solid var(--border2)", color: "var(--muted)" }}>
+                                <th style={{ textAlign: "left", padding: "6px 8px", fontWeight: 500 }}>గ్రహం</th>
+                                <th style={{ textAlign: "left", padding: "6px 8px", fontWeight: 500 }}>రాశి</th>
+                                <th style={{ textAlign: "left", padding: "6px 8px", fontWeight: 500 }}>నక్షత్రం</th>
+                                <th style={{ textAlign: "left", padding: "6px 8px", fontWeight: 500 }}>స్టార్‌లార్డ్</th>
+                                <th style={{ textAlign: "left", padding: "6px 8px", fontWeight: 500 }}>సబ్‌లార్డ్</th>
+                                <th style={{ textAlign: "center", padding: "6px 8px", fontWeight: 500 }}>భావం</th>
+                                <th style={{ textAlign: "left", padding: "6px 8px", fontWeight: 500 }}>వివరణ</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {transitData.transits.map((t: any) => {
+                                const isDasha = t.is_dasha_lord;
+                                const isBhukti = t.is_bhukti_lord;
+                                const isAntara = t.is_antara_lord;
+                                const rowBg = isDasha
+                                  ? "rgba(201,169,110,0.12)"
+                                  : isBhukti
+                                  ? "rgba(201,169,110,0.06)"
+                                  : "transparent";
+                                const nameColor = isDasha
+                                  ? "var(--accent)"
+                                  : isBhukti
+                                  ? "var(--fg)"
+                                  : "var(--muted)";
+                                return (
+                                  <tr key={t.planet} style={{ borderBottom: "0.5px solid rgba(255,255,255,0.05)", background: rowBg }}>
+                                    <td style={{ padding: "7px 8px", color: nameColor, fontWeight: isDasha || isBhukti ? 600 : 400 }}>
+                                      {t.symbol} {t.planet}
+                                      {t.retrograde && <span style={{ color: "#f87171", fontSize: 10, marginLeft: 4 }}>℞</span>}
+                                      {isDasha && <span style={{ marginLeft: 5, fontSize: 9, color: "var(--accent)", background: "rgba(201,169,110,0.2)", padding: "1px 5px", borderRadius: 4 }}>MD</span>}
+                                      {isBhukti && !isDasha && <span style={{ marginLeft: 5, fontSize: 9, color: "var(--fg)", background: "rgba(255,255,255,0.08)", padding: "1px 5px", borderRadius: 4 }}>AD</span>}
+                                      {isAntara && !isDasha && !isBhukti && <span style={{ marginLeft: 5, fontSize: 9, color: "var(--muted)", background: "rgba(255,255,255,0.04)", padding: "1px 5px", borderRadius: 4 }}>PAD</span>}
+                                    </td>
+                                    <td style={{ padding: "7px 8px", color: "var(--fg)" }}>{t.sign}</td>
+                                    <td style={{ padding: "7px 8px", color: "var(--muted)" }}>{t.nakshatra}</td>
+                                    <td style={{ padding: "7px 8px", color: "var(--fg)" }}>{t.star_lord}</td>
+                                    <td style={{ padding: "7px 8px", color: "var(--fg)" }}>{t.sub_lord}</td>
+                                    <td style={{ padding: "7px 8px", textAlign: "center" }}>
+                                      <span style={{ display: "inline-block", padding: "2px 8px", background: "rgba(201,169,110,0.15)", borderRadius: 10, color: "var(--accent)", fontSize: 11, fontWeight: 600 }}>
+                                        H{t.transit_house}
+                                      </span>
+                                      {t.over_natal_position && (
+                                        <span style={{ marginLeft: 4, fontSize: 9, color: "#34d399" }} title="Transiting over natal position">●</span>
+                                      )}
+                                    </td>
+                                    <td style={{ padding: "7px 8px", color: "var(--muted)", fontSize: 11, maxWidth: 200 }}>
+                                      {t.note}
+                                      {t.natal_houses_activated?.length > 0 && (
+                                        <span style={{ color: "#34d399", marginLeft: 4 }}>
+                                          (నాటల్ H{t.natal_houses_activated.join("/")})
+                                        </span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+
+                      {/* KP interpretation summary */}
+                      {transitData?.transits && (
+                        <div style={{ padding: "10px 14px", background: "var(--card)", border: "0.5px solid var(--border2)", borderRadius: 8, fontSize: 12, color: "var(--muted)", lineHeight: 1.7 }}>
+                          <div style={{ color: "var(--accent)", fontWeight: 600, marginBottom: 6 }}>KP గోచార సూత్రం</div>
+                          దశాధిపతి & అంతర్దశాధిపతి గ్రహాలు మాత్రమే ప్రస్తుతం ఎక్కువ ఫలితాన్నిస్తాయి.
+                          ట్రాన్‌జిట్ సబ్‌లార్డ్ కూడా సంబంధిత భావాలను సూచిస్తే — ఆ ఫలితం నిర్ధారణ.
+                          <br />
+                          <span style={{ color: "var(--fg)", fontSize: 11 }}>
+                            ప్రస్తుత తేదీ: {transitData.transit_date}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* ANALYSIS */}
               {activeTab === "analysis" && (

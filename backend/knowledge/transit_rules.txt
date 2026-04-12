@@ -1,0 +1,156 @@
+KP TRANSIT ANALYSIS (GOCHAR) RULES
+====================================
+Transit analysis shows how currently moving planets affect the natal chart.
+In KP astrology, transit significance is determined differently from traditional Parashara methods.
+
+---
+
+FUNDAMENTAL KP TRANSIT PRINCIPLE
+==================================
+A transit is significant ONLY when:
+1. The transiting planet is the current Dasha lord, Bhukti lord, or Antara lord
+2. The transit is over a natal planet or cusp that signifies the relevant topic
+
+If Saturn is transiting your H7 but Saturn is not your Dasha/Bhukti/Antara lord → LESS significant.
+If Venus (Bhukti lord) transits your natal Moon (which signifies H2/H7/H11) → HIGHLY significant for marriage.
+
+---
+
+HOW TO INTERPRET TRANSITS IN KP
+=================================
+
+Step 1 — Find transiting planet's position:
+- Current longitude of the planet
+- Which natal house is the planet transiting through
+- What is the sub-lord of the nakshatra the transiting planet occupies
+
+Step 2 — Check Dasha relevance:
+- Is this planet the current Maha Dasha lord? → Most significant
+- Is it the current Antardasha lord? → Significant
+- Is it the current Pratyantardasha lord? → Mildly significant
+- Unrelated to current dasha → Minor background influence
+
+Step 3 — Check what the transit activates:
+- Transiting planet over natal planet → activates that natal planet's house significations
+- Transiting planet through a house → activates that house's affairs
+- Transiting planet's sublord signifies 2/7/11 → favorable for that house's topic
+
+Step 4 — Check for triggering:
+- When multiple planets transit the same point → stronger activation
+- Sun and Moon transits are fast (daily/monthly) → used for precise timing
+- Saturn and Jupiter transits are slow (monthly/yearly) → long-term trends
+- Rahu/Ketu transits → karmic turning points
+
+---
+
+PLANET-SPECIFIC TRANSIT INTERPRETATIONS
+=========================================
+
+SUN (transits zodiac in ~1 year, ~1 month per sign):
+- Illuminates and energizes the house it passes through
+- Transiting natal Lagna or Lagna sub-lord → health, vitality, self-focus
+- Transiting H10 → career in spotlight
+- Transiting H2 → financial matters highlighted
+- In KP: significant when Sun is Dasha/Bhukti lord
+
+MOON (transits zodiac in ~27 days, ~2.25 days per nakshatra):
+- Emotions, mind, public image
+- Used for day-by-day timing in KP predictions
+- Transiting natal Moon → emotional high or low
+- Transiting natal Sun → identity and soul alignment moment
+- Full Moon/New Moon over natal significators → events crystallize
+
+MARS (transits zodiac in ~2 years):
+- Energy, action, conflict, surgery, accidents
+- Transiting H7 or H8 → relationship tensions (especially if H7 SL period)
+- Transiting natal Mars → increased drive OR aggression
+- Transiting H1 → energy burst, possible health concerns
+- Favorable in Aries/Scorpio/Capricorn transit positions
+
+MERCURY (transits zodiac in ~1 year, varies with retrograde):
+- Communication, intellect, business deals, contracts
+- Retrograde Mercury = revisit, revise, delays in communication matters
+- Transiting H3/H6/H9 → travel, writing, education matters
+- In KP: significant when Mercury Dasha/Bhukti active
+
+JUPITER (transits zodiac in ~12 years, ~1 year per sign):
+- Wisdom, expansion, marriage, children, spirituality, guru
+- Jupiter transiting H2 → wealth expansion
+- Jupiter transiting H5 → children, education, romance
+- Jupiter transiting H9/H11 → luck, gains, spiritual growth
+- Most auspicious transits: over natal Jupiter, Venus, or Moon
+- Called "Guru Peyarchi" — major life changes
+
+VENUS (transits zodiac in ~8 months):
+- Marriage, love, relationships, luxury, arts, vehicles
+- Transiting H7 → romance/marriage events when Venus is Bhukti lord
+- Transiting natal Venus → beauty, pleasure, relationship revival
+- Venus retrograde → reconsider relationships/finances
+
+SATURN (transits zodiac in ~29.5 years, ~2.5 years per sign):
+- Discipline, delays, karma, hard work, elderly, chronic health
+- Sade Sati: Saturn transiting 12th, 1st, 2nd from natal Moon → 7.5-year karmic period
+  - 12th house Saturn: mental stress, expenditure, travel
+  - 1st house Saturn: health challenges, personality restructuring
+  - 2nd house Saturn: financial pressure, family tensions
+- Saturn transiting H8 → major life transformation
+- Positive: Saturn transiting H3/H6/H11 → favorable for hard work rewards
+
+RAHU (transits zodiac in ~18 years, ~18 months per sign, RETROGRADE always):
+- Ambition, obsession, foreign matters, materialism, unconventional paths
+- Rahu transiting H7 → unconventional marriage, foreign connection
+- Rahu transiting H10 → career in unconventional field, fame/notoriety
+- Conjunct natal Moon → mental turbulence OR ambitious new direction
+- In KP: Rahu acts as proxy for its dispositor planet
+
+KETU (always opposite Rahu):
+- Spirituality, detachment, past karma, research, occult
+- Ketu transiting H12 → spiritual growth, foreign settlement
+- Ketu transiting H4 → property-related issues, leaving homeland
+- Conjunction with natal Sun → ego transformation, spiritual quest
+
+---
+
+DOUBLE TRANSIT THEORY (Gochara)
+=================================
+According to traditional transit theory (validated in KP):
+A house/topic gets activated when BOTH Jupiter AND Saturn simultaneously aspect or transit through houses connected to that topic.
+
+Example for marriage:
+- Jupiter transits H7 or H1 (aspect to 7th) AND Saturn transits H7 or H1 → marriage conditions activated
+- This principle helps narrow down the year for major events
+
+---
+
+KP TRANSIT VERIFICATION METHOD
+=================================
+1. Check running Dasha-Bhukti-Antara lords
+2. Find what houses those lords signify natally
+3. Check where those planets are transiting currently
+4. Verify transit sublord also signifies the same houses
+5. All three agreeing → high probability of event
+
+Example: If running period is Saturn-Venus-Moon
+- Saturn natally signifies H2/H7/H11
+- Venus natally signifies H7/H11
+- Today: Saturn transiting H7, Venus transiting H2 → Marriage likely NOW
+
+---
+
+PRACTICAL TIMING USING TRANSITS
+==================================
+For event timing predictions, use this cascade:
+1. Year: Jupiter's annual transit position (Guru Peyarchi)
+2. Month: Saturn's monthly position + current Bhukti lord transit
+3. Week: Sun's weekly transit, Antara lord position
+4. Day: Moon's daily transit (Moon must transit favorable nakshatra/sublord)
+5. Hour: Hora (planetary hour) aligned with event type
+
+---
+
+SPECIAL CONSIDERATIONS
+========================
+- Vakra (retrograde) planets in transit: revisits, delays, reconsideration
+- Combustion (planet within 10° of Sun): planet's strength reduced
+- Mutual aspects between transiting planets amplify effects
+- Eclipses (Rahu/Ketu near Sun/Moon): triggers major karmic events within 6 months
