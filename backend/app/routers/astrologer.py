@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timedelta
 import swisseph as swe
 
 from app.services.chart_engine import (
@@ -14,7 +14,8 @@ from app.services.telugu_terms import (
     get_nakshatra_telugu, get_house_telugu,
     UI_LABELS, PLANETS_TELUGU
 )
-from app.services.llm_service import get_prediction, detect_topic
+from app.services.llm_service import get_prediction, detect_topic, get_quick_insights
+from app.services.csl_chains import compute_csl_chains, format_csl_chains_for_llm
 
 router = APIRouter()
 
@@ -74,9 +75,22 @@ NAKSHATRA_TE = [
     "ఉత్తరభాద్ర", "రేవతి"
 ]
 TITHIS_TE = [
+    # Shukla Paksha (1-15)
     "పాడ్యమి", "విదియ", "తదియ", "చవితి", "పంచమి",
     "షష్ఠి", "సప్తమి", "అష్టమి", "నవమి", "దశమి",
-    "ఏకాదశి", "ద్వాదశి", "త్రయోదశి", "చతుర్దశి", "పౌర్ణమి"
+    "ఏకాదశి", "ద్వాదశి", "త్రయోదశి", "చతుర్దశి", "పౌర్ణమి",
+    # Krishna Paksha (16-30)
+    "బహుళ పాడ్యమి", "బహుళ విదియ", "బహుళ తదియ", "బహుళ చవితి", "బహుళ పంచమి",
+    "బహుళ షష్ఠి", "బహుళ సప్తమి", "బహుళ అష్టమి", "బహుళ నవమి", "బహుళ దశమి",
+    "బహుళ ఏకాదశి", "బహుళ ద్వాదశి", "బహుళ త్రయోదశి", "బహుళ చతుర్దశి", "అమావాస్య",
+]
+TITHIS_EN = [
+    "Shukla Pratipada", "Shukla Dwitiya", "Shukla Tritiya", "Shukla Chaturthi", "Shukla Panchami",
+    "Shukla Shashthi", "Shukla Saptami", "Shukla Ashtami", "Shukla Navami", "Shukla Dashami",
+    "Shukla Ekadashi", "Shukla Dwadashi", "Shukla Trayodashi", "Shukla Chaturdashi", "Pournami",
+    "Krishna Pratipada", "Krishna Dwitiya", "Krishna Tritiya", "Krishna Chaturthi", "Krishna Panchami",
+    "Krishna Shashthi", "Krishna Saptami", "Krishna Ashtami", "Krishna Navami", "Krishna Dashami",
+    "Krishna Ekadashi", "Krishna Dwadashi", "Krishna Trayodashi", "Krishna Chaturdashi", "Amavasya",
 ]
 YOGA_TE = [
     "విష్కంభ", "ప్రీతి", "ఆయుష్మాన్", "సౌభాగ్య", "శోభన",
@@ -96,12 +110,79 @@ YOGA_EN = [
 ]
 DAY_TE = ["సోమవారం", "మంగళవారం", "బుధవారం", "గురువారం", "శుక్రవారం", "శనివారం", "ఆదివారం"]
 DAY_EN = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-RAHU_KALAM = {0: "07:30-09:00", 1: "15:00-16:30", 2: "12:00-13:30",
-              3: "13:30-15:00", 4: "10:30-12:00", 5: "09:00-10:30", 6: "16:30-18:00"}
+
+# Rahu Kalam: 0-based slot index within 8 equal daylight segments (weekday 0=Mon, 6=Sun)
+RAHU_KALAM_SLOTS = {0: 1, 1: 6, 2: 4, 3: 5, 4: 3, 5: 2, 6: 7}
+
+CHARA_KARANAS_EN = ["Bava", "Balava", "Kaulava", "Taitula", "Garija", "Vanija", "Vishti"]
+CHARA_KARANAS_TE = ["బవ", "బాలవ", "కౌలవ", "తైతిల", "గరజ", "వణిజ", "విష్టి"]
+
+# Hora lords cycle: Sun→Venus→Mercury→Moon→Saturn→Jupiter→Mars
+HORA_LORDS_EN = ["Sun", "Venus", "Mercury", "Moon", "Saturn", "Jupiter", "Mars"]
+# Starting hora lord index for each weekday (0=Mon, 6=Sun)
+DAY_HORA_START = {0: 3, 1: 6, 2: 2, 3: 5, 4: 1, 5: 4, 6: 0}
 
 
-def calc_panchangam_for_dt(dt_obj: datetime, timezone_offset: float = 5.5) -> dict:
-    """Calculate panchangam for a datetime object. Uses datetime.weekday() for accuracy."""
+def jd_to_local_time_str(jd: float, timezone_offset: float) -> str:
+    """Convert Julian Day (UT) to local time HH:MM string."""
+    unix_seconds = (jd - 2440588.5) * 86400
+    dt_utc = datetime(1970, 1, 1) + timedelta(seconds=unix_seconds)
+    dt_local = dt_utc + timedelta(hours=timezone_offset)
+    return dt_local.strftime("%H:%M")
+
+
+def get_sunrise_sunset_jd(date_jd: float, lat: float, lon: float) -> tuple:
+    """Get sunrise and sunset as Julian Days (UT). Falls back to 6 AM/6 PM on error."""
+    geopos = (lon, lat, 0.0)
+    try:
+        _, tret = swe.rise_trans(
+            date_jd - 0.5, swe.SUN, b"", 0,
+            swe.CALC_RISE | swe.BIT_DISC_CENTER,
+            geopos, 1013.25, 10.0
+        )
+        sunrise_jd = tret[1]
+        _, tret2 = swe.rise_trans(
+            sunrise_jd, swe.SUN, b"", 0,
+            swe.CALC_SET | swe.BIT_DISC_CENTER,
+            geopos, 1013.25, 10.0
+        )
+        sunset_jd = tret2[1]
+        return sunrise_jd, sunset_jd
+    except Exception:
+        return date_jd - 0.25, date_jd + 0.25  # approx 6 AM / 6 PM
+
+
+def get_karana_name(moon_lon: float, sun_lon: float) -> tuple:
+    """Return (karana_en, karana_te) for current position."""
+    diff = (moon_lon - sun_lon) % 360
+    idx = int(diff / 6)  # 0 to 59
+    if idx == 0:
+        return "Kimstughna", "కింస్తుఘ్న"
+    elif idx <= 56:
+        ci = (idx - 1) % 7
+        return CHARA_KARANAS_EN[ci], CHARA_KARANAS_TE[ci]
+    elif idx == 57:
+        return "Shakuni", "శకుని"
+    elif idx == 58:
+        return "Chatushpada", "చతుష్పాద"
+    else:
+        return "Naga", "నాగ"
+
+
+def get_hora_lord(dt_obj: datetime, sunrise_jd: float, timezone_offset: float, weekday: int) -> str:
+    """Return current hora lord based on hours elapsed since sunrise."""
+    sunrise_str = jd_to_local_time_str(sunrise_jd, timezone_offset)
+    sr_h, sr_m = map(int, sunrise_str.split(":"))
+    sunrise_minutes = sr_h * 60 + sr_m
+    current_minutes = dt_obj.hour * 60 + dt_obj.minute
+    minutes_since_sunrise = (current_minutes - sunrise_minutes) % (24 * 60)
+    hora_num = int(minutes_since_sunrise / 60) % 7
+    return HORA_LORDS_EN[(DAY_HORA_START[weekday] + hora_num) % 7]
+
+
+def calc_panchangam_for_dt(dt_obj: datetime, timezone_offset: float = 5.5,
+                            lat: float = 17.385, lon: float = 78.4867) -> dict:
+    """Calculate panchangam for a datetime object with location-based Rahu Kalam."""
     swe.set_sid_mode(swe.SIDM_KRISHNAMURTI_VP291)
     jd = swe.julday(
         dt_obj.year, dt_obj.month, dt_obj.day,
@@ -114,12 +195,27 @@ def calc_panchangam_for_dt(dt_obj: datetime, timezone_offset: float = 5.5) -> di
     tithi_num = int(diff / 12) + 1
     nakshatra_num = int((moon_lon % 360) / (360 / 27))
     yoga_num = int(((sun_lon + moon_lon) % 360) / (360 / 27)) % 27
+    weekday = dt_obj.weekday()  # 0=Monday, 6=Sunday
 
-    # Use Python datetime weekday() — reliable, no JD math errors
-    weekday = dt_obj.weekday()  # 0=Monday, 5=Saturday, 6=Sunday
+    # Sunrise/sunset → actual Rahu Kalam
+    sunrise_jd, sunset_jd = get_sunrise_sunset_jd(jd, lat, lon)
+    slot_duration = (sunset_jd - sunrise_jd) / 8.0
+    rk_slot = RAHU_KALAM_SLOTS[weekday]
+    rk_start_jd = sunrise_jd + rk_slot * slot_duration
+    rk_end_jd = rk_start_jd + slot_duration
 
+    sunrise_str = jd_to_local_time_str(sunrise_jd, timezone_offset)
+    sunset_str = jd_to_local_time_str(sunset_jd, timezone_offset)
+    rk_start_str = jd_to_local_time_str(rk_start_jd, timezone_offset)
+    rk_end_str = jd_to_local_time_str(rk_end_jd, timezone_offset)
+
+    karana_en, karana_te = get_karana_name(moon_lon, sun_lon)
+    hora_lord = get_hora_lord(dt_obj, sunrise_jd, timezone_offset, weekday)
+
+    tithi_idx = max(0, min(tithi_num - 1, 29))
     return {
-        "tithi": TITHIS_TE[min(tithi_num - 1, 14)],
+        "tithi": TITHIS_TE[tithi_idx],
+        "tithi_en": TITHIS_EN[tithi_idx],
         "tithi_num": tithi_num,
         "nakshatra": NAKSHATRA_TE[nakshatra_num],
         "nakshatra_en": NAKSHATRA_NAMES_EN[nakshatra_num],
@@ -127,19 +223,25 @@ def calc_panchangam_for_dt(dt_obj: datetime, timezone_offset: float = 5.5) -> di
         "yoga_en": YOGA_EN[yoga_num],
         "vara": DAY_TE[weekday],
         "vara_en": DAY_EN[weekday],
-        "rahu_kalam": RAHU_KALAM[weekday],
+        "rahu_kalam": f"{rk_start_str}-{rk_end_str}",
+        "sunrise": sunrise_str,
+        "sunset": sunset_str,
+        "karana": karana_en,
+        "karana_te": karana_te,
+        "hora_lord": hora_lord,
         "date": dt_obj.strftime("%d/%m/%Y"),
         "time": dt_obj.strftime("%H:%M"),
     }
 
 
-def get_today_panchangam(timezone_offset: float = 5.5) -> dict:
-    return calc_panchangam_for_dt(datetime.now(), timezone_offset)
+def get_today_panchangam(timezone_offset: float = 5.5, lat: float = 17.385, lon: float = 78.4867) -> dict:
+    return calc_panchangam_for_dt(datetime.now(), timezone_offset, lat, lon)
 
 
-def get_birth_panchangam(date: str, time: str, timezone_offset: float = 5.5) -> dict:
+def get_birth_panchangam(date: str, time: str, timezone_offset: float = 5.5,
+                          lat: float = 17.385, lon: float = 78.4867) -> dict:
     birth_dt = datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M")
-    return calc_panchangam_for_dt(birth_dt, timezone_offset)
+    return calc_panchangam_for_dt(birth_dt, timezone_offset, lat, lon)
 
 
 # ── Telugu planet name reference for prompts ─────────────────
@@ -262,6 +364,9 @@ def get_workspace(request: WorkspaceRequest):
         "name": request.name,
         "date": request.date,
         "time": request.time,
+        "latitude": request.latitude,
+        "longitude": request.longitude,
+        "timezone_offset": request.timezone_offset,
         "planets": planets_formatted,
         "cusps": cusps_formatted,
         "significators": significators_formatted,
@@ -298,8 +403,9 @@ def get_workspace(request: WorkspaceRequest):
             for p in pratyantardashas
         ],
         "ruling_planets": rp_formatted,
-        "panchangam_today": get_today_panchangam(request.timezone_offset),
-        "panchangam_birth": get_birth_panchangam(request.date, request.time, request.timezone_offset),
+        "panchangam_today": get_today_panchangam(request.timezone_offset, request.latitude, request.longitude),
+        "panchangam_birth": get_birth_panchangam(request.date, request.time, request.timezone_offset, request.latitude, request.longitude),
+        "csl_chains": compute_csl_chains(cusps_formatted, planets_formatted),
         "ui_labels": UI_LABELS,
     }
 
@@ -390,3 +496,72 @@ If you cannot write a word in Telugu, write it in English instead.
     )
 
     return {"topic": topic, "answer": answer, "promise": promise, "timing": timing}
+
+
+# ── Quick Insights endpoint ───────────────────────────────────
+
+class QuickInsightsRequest(BaseModel):
+    name: str
+    date: str
+    time: str
+    latitude: float
+    longitude: float
+    timezone_offset: float = 5.5
+    topics: list = ["marriage", "career", "health"]
+    language: str = "telugu_english"
+
+
+@router.post("/quick-insights")
+def quick_insights(request: QuickInsightsRequest):
+    """
+    Generate 3-4 bullet-point chart-specific observations for each requested topic.
+    Faster than /analyze — uses a focused prompt with max 1500 tokens per topic.
+    Returns a dict keyed by topic name with bullet-point insight strings.
+    """
+    chart = generate_chart(
+        request.date, request.time,
+        request.latitude, request.longitude,
+        request.timezone_offset
+    )
+    moon_longitude = chart["planets"]["Moon"]["longitude"]
+    dashas = calculate_dashas(request.date, request.time, moon_longitude, request.timezone_offset)
+    current_md = get_current_dasha(dashas)
+    antardashas = calculate_antardashas(current_md)
+    current_ad = get_current_antardasha(antardashas)
+    pratyantardashas = calculate_pratyantardashas(current_ad)
+    current_pad = get_current_pratyantardasha(pratyantardashas)
+    all_significators = get_all_house_significators(chart["planets"], chart["cusps"])
+
+    from app.services.chart_engine import get_planet_house_positions
+    planet_positions = get_planet_house_positions(chart["planets"], chart["cusps"])
+
+    cusp_lons = [v.get("cusp_longitude", 0) for v in chart["cusps"].values()]
+    planets_list = [{"planet_en": k, "longitude": v.get("longitude", 0)} for k, v in chart["planets"].items()]
+    cusps_list = [{"house_num": i+1, "cusp_longitude": lon, "sub_lord_en": v.get("sub_lord", "")}
+                  for i, (lon, v) in enumerate(zip(cusp_lons, chart["cusps"].values()))]
+    csl_chains = compute_csl_chains(cusps_list, planets_list)
+    csl_text = format_csl_chains_for_llm(csl_chains)
+
+    chart_data = {
+        "name": request.name,
+        "chart_summary": {"planets": chart["planets"], "cusps": chart["cusps"]},
+        "current_dasha": {
+            "mahadasha": current_md,
+            "antardasha": current_ad,
+            "pratyantardasha": current_pad,
+        },
+        "upcoming_antardashas": antardashas[:9],
+        "significators": all_significators,
+        "planet_positions": planet_positions,
+        "csl_chains_text": csl_text,
+    }
+
+    results = {}
+    for topic in request.topics:
+        try:
+            insight = get_quick_insights(chart_data, topic, request.language)
+            results[topic] = insight
+        except Exception as e:
+            results[topic] = f"Error: {str(e)}"
+
+    return results
