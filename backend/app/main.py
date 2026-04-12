@@ -5,6 +5,8 @@ from app.routers import astrologer
 from app.routers import muhurtha
 from app.routers import compatibility
 from app.routers import transit
+from app.routers import pdf_export
+from app.routers import horary
 
 app = FastAPI(title="KP Astro API", version="0.1.0")
 
@@ -24,6 +26,8 @@ app.include_router(astrologer.router, prefix="/astrologer", tags=["astrologer"])
 app.include_router(muhurtha.router, prefix="/muhurtha", tags=["Muhurtha"])
 app.include_router(compatibility.router, prefix="/compatibility", tags=["Compatibility"])
 app.include_router(transit.router, prefix="/transit", tags=["Transit"])
+app.include_router(pdf_export.router, prefix="/pdf", tags=["PDF"])
+app.include_router(horary.router, prefix="/horary", tags=["Horary"])
 
 @app.get("/")
 def health_check():
