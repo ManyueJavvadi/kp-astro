@@ -63,6 +63,8 @@ export default function Home() {
   const [matchPerson2Inline, setMatchPerson2Inline] = useState(false);
   const [matchLoading, setMatchLoading] = useState(false);
   const [matchResults, setMatchResults] = useState<any>(null);
+  // Significators grid toggle
+  const [showSigGrid, setShowSigGrid] = useState(false);
   // Transit state
   const [transitData, setTransitData] = useState<any>(null);
   const [transitLoading, setTransitLoading] = useState(false);
@@ -852,20 +854,19 @@ export default function Home() {
                           if (sigGrid[p] !== undefined && !sigGrid[p].includes(hNum)) sigGrid[p].push(hNum);
                         });
                       });
-                      const [showGrid, setShowGrid] = React.useState(false);
                       return (
                         <>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
                             <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>కారక గ్రహాలు · అన్ని భావాలు</div>
                             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                               <div style={{ fontSize: 9, color: "var(--muted)" }}>Click any house → full details</div>
-                              <button onClick={() => setShowGrid(g => !g)}
-                                style={{ padding: "3px 10px", background: showGrid ? "rgba(201,169,110,0.2)" : "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 5, color: showGrid ? "var(--accent)" : "var(--muted)", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>
-                                {showGrid ? "గ్రిడ్ దాచు" : "బలం గ్రిడ్ చూడు"}
+                              <button onClick={() => setShowSigGrid(g => !g)}
+                                style={{ padding: "3px 10px", background: showSigGrid ? "rgba(201,169,110,0.2)" : "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 5, color: showSigGrid ? "var(--accent)" : "var(--muted)", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>
+                                {showSigGrid ? "గ్రిడ్ దాచు" : "బలం గ్రిడ్ చూడు"}
                               </button>
                             </div>
                           </div>
-                          {showGrid && (
+                          {showSigGrid && (
                             <div style={{ overflowX: "auto", marginBottom: 16 }}>
                               <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 6 }}>గ్రహ × భావ కారకత్వ మాతృక (Significator Strength Grid)</div>
                               <table style={{ borderCollapse: "collapse", fontSize: 11 }}>
