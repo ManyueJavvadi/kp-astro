@@ -79,6 +79,10 @@ export default function Home() {
   const [horaryTopic, setHoraryTopic] = useState("general");
   const [horaryResult, setHoraryResult] = useState<any>(null);
   const [horaryLoading, setHoraryLoading] = useState(false);
+  // New UI state vars
+  const [housesSubTab, setHousesSubTab] = useState<"cusps"|"sigs"|"ruling"|"panchang">("cusps");
+  const [chartView, setChartView] = useState<"chart"|"planets">("chart");
+  const [showTransitInDasha, setShowTransitInDasha] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const placeSearchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -92,18 +96,6 @@ export default function Home() {
     setMNewPPlaceSugg([]);
     setMShowAddParticipant(false);
     setMatchPerson2Inline(false);
-    // Auto-load transit data when switching to transit tab
-    if (activeTab === "transit" && workspaceData && !transitData && !transitLoading) {
-      setTransitLoading(true);
-      axios.post(`${API_URL}/transit/analyze`, {
-        natal: workspaceData,
-        transit_date: undefined,
-        latitude: workspaceData.latitude || 17.385,
-        longitude: workspaceData.longitude || 78.4867,
-        timezone_offset: 5.5,
-      }).then(res => { setTransitData(res.data); setTransitLoading(false); })
-        .catch(() => setTransitLoading(false));
-    }
   }, [activeTab]);
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -372,14 +364,13 @@ export default function Home() {
   const labelStyle: React.CSSProperties = { display: "block", fontSize: 10, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6 };
 
   const TABS = [
-    { id: "chart", label: "చార్ట్", en: "Chart" }, { id: "planets", label: "గ్రహాలు", en: "Planets" },
-    { id: "cusps", label: "భావాలు", en: "Cusps" }, { id: "significators", label: "కారకాలు", en: "Significators" },
-    { id: "dasha", label: "దశ", en: "Dasha" }, { id: "ruling", label: "రూలింగ్", en: "Ruling" },
-    { id: "panchangam", label: "పంచాంగం", en: "Panchangam" }, { id: "muhurtha", label: "ముహూర్త", en: "Muhurtha" },
-    { id: "match", label: "సరిపోలన", en: "Match" },
-    { id: "transit", label: "గోచారం", en: "Transit" },
-    { id: "horary", label: "ప్రశ్న", en: "Horary" },
+    { id: "chart", label: "చార్ట్", en: "Chart" },
+    { id: "houses", label: "భావాలు", en: "Houses" },
+    { id: "dasha", label: "దశ", en: "Dasha" },
     { id: "analysis", label: "విశ్లేషణ", en: "Analysis" },
+    { id: "muhurtha", label: "ముహూర్త", en: "Muhurtha" },
+    { id: "match", label: "సరిపోలన", en: "Match" },
+    { id: "horary", label: "ప్రశ్న", en: "Horary" },
   ];
 
   const TOPICS = [
@@ -387,6 +378,11 @@ export default function Home() {
     { id: "foreign_travel", te: "విదేశాలు" }, { id: "children", te: "సంతానం" }, { id: "education", te: "విద్య" },
     { id: "property", te: "ఆస్తి" }, { id: "wealth", te: "సంపద" },
   ];
+
+  const TOPIC_EMOJI: Record<string, string> = {
+    marriage: "💍", job: "💼", health: "🏥", foreign_travel: "✈️",
+    children: "👶", education: "📚", property: "🏠", wealth: "💰",
+  };
 
   const HOUSE_TOPICS: Record<number, string> = {
     1: "Self & Vitality", 2: "Wealth & Family", 3: "Siblings & Short Travel",
@@ -461,10 +457,10 @@ export default function Home() {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {setupDone && mode === "astrologer" && <span style={{ fontSize: 10, background: "rgba(201,169,110,0.1)", color: "var(--accent)", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "3px 10px" }}>జ్యోతిష్కుడు మోడ్</span>}
+          {setupDone && mode === "astrologer" && <span style={{ fontSize: 10, background: "rgba(201,169,110,0.1)", color: "var(--accent)", border: "0.5px solid rgba(201,169,110,0.35)", borderRadius: 20, padding: "3px 12px" }}>★ జ్యోతిష్కుడు మోడ్</span>}
           {setupDone && <button onClick={handleNewChart} style={{ background: "transparent", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "6px 16px", fontSize: 12, color: "var(--muted)", cursor: "pointer" }}>New Chart</button>}
           {setupDone && savedSessions.length > 0 && (
-            <button onClick={resetAll} style={{ background: "transparent", border: "none", fontSize: 11, color: "var(--muted)", cursor: "pointer", opacity: 0.5 }}>Clear All</button>
+            <button onClick={() => { if (window.confirm("All saved charts will be cleared. Continue?")) resetAll(); }} style={{ background: "transparent", border: "none", fontSize: 11, color: "var(--muted)", cursor: "pointer", opacity: 0.5 }}>🗑 Clear</button>
           )}
         </div>
       </nav>
@@ -630,23 +626,37 @@ export default function Home() {
               {savedSessions.length > 0 && (
                 <div className="sidebar-section" style={{ padding: "8px 10px", borderBottom: "0.5px solid var(--border)", flexShrink: 0 }}>
                   <div style={{ fontSize: 9, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 5 }}>Charts</div>
-                  <div style={{ padding: "4px 8px", borderRadius: 6, background: "rgba(201,169,110,0.12)", border: "0.5px solid rgba(201,169,110,0.35)", fontSize: 11, color: "var(--accent)", fontWeight: 500, marginBottom: 3 }}>
-                    ◈ {workspaceData?.name?.split(" ")[0]}
-                    <span style={{ fontSize: 9, color: "rgba(201,169,110,0.6)", marginLeft: 4 }}>active</span>
-                  </div>
-                  {savedSessions.map(s => (
-                    <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 3, marginBottom: 3 }}>
-                      <button onClick={() => handleSwitchSession(s)}
-                        style={{ flex: 1, padding: "4px 8px", borderRadius: 6, background: "var(--surface2)", border: "0.5px solid var(--border2)", fontSize: 11, color: "var(--muted)", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
-                        onMouseEnter={e => (e.currentTarget.style.color = "var(--text)")} onMouseLeave={e => (e.currentTarget.style.color = "var(--muted)")}>
-                        {s.name?.split(" ")[0]}
-                        <span style={{ fontSize: 9, color: "var(--muted)", marginLeft: 4 }}>{s.analysisMessages.length > 0 ? `${s.analysisMessages.length}↑` : s.activeTopic ? s.activeTopic.slice(0, 6) : ""}</span>
-                      </button>
-                      <button onClick={() => handleRemoveSession(s.id)} title="Remove chart"
-                        style={{ background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 13, lineHeight: 1, padding: "2px 4px", opacity: 0.5, flexShrink: 0 }}
-                        onMouseEnter={e => (e.currentTarget.style.opacity = "1")} onMouseLeave={e => (e.currentTarget.style.opacity = "0.5")}>×</button>
+                  <div style={{ padding: "8px", borderRadius: 8, background: "rgba(201,169,110,0.08)", border: "0.5px solid rgba(201,169,110,0.4)", marginBottom: 6 }}>
+                    <div style={{ fontSize: 12, color: "var(--accent)", fontWeight: 500, marginBottom: 1 }}>
+                      {workspaceData?.name?.split(" ")[0]}
                     </div>
-                  ))}
+                    <div style={{ fontSize: 10, color: "rgba(201,169,110,0.6)" }}>★ Active</div>
+                  </div>
+                  {savedSessions.map(s => {
+                    const dasha = s.workspaceData?.mahadasha?.lord_en || "";
+                    const ad = s.workspaceData?.current_antardasha?.lord_en || "";
+                    const gender = s.birthDetails?.gender;
+                    const birthYear = s.birthDetails?.date?.split("/")?.[2] || s.birthDetails?.date?.split("-")?.[0] || "";
+                    const dashaLabel = dasha && ad ? `${dasha}–${ad}` : dasha || "";
+                    return (
+                      <div key={s.id} style={{ position: "relative", marginBottom: 6 }}>
+                        <button onClick={() => handleSwitchSession(s)}
+                          style={{ width: "100%", padding: "8px 28px 8px 8px", borderRadius: 8, background: "var(--surface2)", border: "0.5px solid var(--border2)", cursor: "pointer", textAlign: "left", fontFamily: "inherit", transition: "border-color 0.2s" }}
+                          onMouseEnter={e => (e.currentTarget.style.borderColor = "rgba(201,169,110,0.4)")}
+                          onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border2)")}>
+                          <div style={{ fontSize: 12, color: "var(--text)", fontWeight: 500, marginBottom: 2 }}>
+                            {gender === "male" ? "♂ " : gender === "female" ? "♀ " : "◈ "}{s.name?.split(" ")[0]}
+                          </div>
+                          {dashaLabel && <div style={{ fontSize: 10, color: "var(--accent)", marginBottom: 1 }}>{dashaLabel}</div>}
+                          {birthYear && <div style={{ fontSize: 10, color: "var(--muted)" }}>Born {birthYear}</div>}
+                        </button>
+                        <button onClick={() => handleRemoveSession(s.id)}
+                          style={{ position: "absolute", top: 6, right: 6, background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "2px 4px", opacity: 0.5 }}
+                          onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
+                          onMouseLeave={e => (e.currentTarget.style.opacity = "0.5")}>×</button>
+                      </div>
+                    );
+                  })}
                   <button onClick={handleNewChart}
                     style={{ width: "100%", padding: "3px 8px", borderRadius: 6, background: "transparent", border: "0.5px dashed var(--border2)", fontSize: 10, color: "var(--muted)", cursor: "pointer", fontFamily: "inherit", textAlign: "center" }}>
                     + New Chart
@@ -742,75 +752,106 @@ export default function Home() {
 
               {/* CHART */}
               {activeTab === "chart" && (
-                <div className="tab-content" style={{ display: "flex", gap: "1.5rem", alignItems: "start", flexWrap: "wrap" }}>
-                  <div>
-                    <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: "0.6rem" }}>దక్షిణ భారత చార్ట్</div>
-                    <SouthIndianChart
-                      planets={workspaceData.planets}
-                      cusps={workspaceData.cusps}
-                      onHouseClick={h => setSelectedHouse(prev => prev === h ? null : h)}
-                      selectedHouse={selectedHouse}
-                    />
-                    <div style={{ fontSize: 9, color: "var(--muted)", marginTop: 6, textAlign: "center" }}>Tap a house for details · ↑ = Lagna</div>
-                  </div>
-                  {selectedHouse && (
-                    <HousePanel
-                      house={selectedHouse}
-                      cusps={workspaceData.cusps}
-                      significators={workspaceData.significators}
-                      planets={workspaceData.planets}
-                      rulingPlanets={workspaceData.ruling_planets?.all_en || []}
-                      antardashas={workspaceData.antardashas || []}
-                      onClose={() => setSelectedHouse(null)}
-                    />
-                  )}
-                  {!selectedHouse && <div style={{ flex: 1, minWidth: 200 }}>
-                    <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: "0.75rem" }}>గ్రహ స్థానాలు</div>
-                    {workspaceData.planets.map((p: any) => (
-                      <div key={p.planet_en} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", background: "var(--surface2)", borderRadius: 6, border: "0.5px solid var(--border)", marginBottom: 3 }}>
-                        <span style={{ width: 60, fontSize: 12, fontWeight: 600, color: PLANET_COLORS[p.planet_en] }}>{p.planet_te}</span>
-                        <span style={{ fontSize: 11, color: "var(--text)", flex: 1 }}>{p.sign_te}</span>
-                        <span style={{ fontSize: 10, color: "var(--accent)", fontWeight: 600, minWidth: 28 }}>H{p.house}</span>
-                        <span style={{ fontSize: 10, color: "var(--muted)" }}>{p.degree_in_sign.toFixed(1)}°</span>
-                        {p.retrograde && <span style={{ fontSize: 9, color: "var(--red)" }}>℞</span>}
-                      </div>
+                <div className="tab-content">
+                  {/* Chart/Planets toggle */}
+                  <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+                    {[{v:"chart",l:"⊞ Chart"},{v:"planets",l:"≡ Planets"}].map(opt => (
+                      <button key={opt.v} onClick={() => setChartView(opt.v as "chart"|"planets")}
+                        style={{ padding: "5px 14px", borderRadius: 20, border: `0.5px solid ${chartView === opt.v ? "var(--accent)" : "var(--border2)"}`, background: chartView === opt.v ? "rgba(201,169,110,0.12)" : "transparent", color: chartView === opt.v ? "var(--accent)" : "var(--muted)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>
+                        {opt.l}
+                      </button>
                     ))}
-                  </div>}
-                </div>
-              )}
-
-              {/* PLANETS */}
-              {activeTab === "planets" && (
-                <div className="tab-content" style={{ overflowX: "auto" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
-                    <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>గ్రహ స్థాన పట్టిక · KP పద్ధతి</div>
-                    <div style={{ fontSize: 9, color: "var(--muted)" }}>Click H badge → jump to chart</div>
                   </div>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 500 }}>
-                    <thead><tr>{["గ్రహం", "భావం", "రాశి", "అంశం", "నక్షత్రం", "నక్షత్రాధిపతి", "సబ్ లార్డ్"].map(h => <th key={h} style={{ textAlign: "left", padding: "8px 10px", color: "var(--muted)", fontSize: 10, letterSpacing: "0.06em", borderBottom: "0.5px solid var(--border)", fontWeight: 400, whiteSpace: "nowrap" }}>{h}</th>)}</tr></thead>
-                    <tbody>
-                      {workspaceData.planets.map((p: any) => (
-                        <tr key={p.planet_en} style={{ borderBottom: "0.5px solid rgba(201,169,110,.06)", cursor: "default" }} onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.04)")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-                          <td style={{ padding: "9px 10px", color: PLANET_COLORS[p.planet_en], fontWeight: 600, whiteSpace: "nowrap" }}>{p.planet_te} {p.retrograde && <span style={{ fontSize: 9, color: "var(--red)" }}>℞</span>}</td>
-                          <td style={{ padding: "9px 10px" }}>
-                            <span onClick={() => { setSelectedHouse(parseInt(p.house)); setActiveTab("chart"); }} title="Click to open house panel in Chart tab" style={{ background: "rgba(201,169,110,0.1)", color: "var(--accent)", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "2px 8px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>H{p.house}</span>
-                          </td>
-                          <td style={{ padding: "9px 10px", color: "var(--text)" }}>{p.sign_te}</td>
-                          <td style={{ padding: "9px 10px", color: "var(--muted)", fontSize: 11 }}>{p.degree_in_sign.toFixed(2)}°</td>
-                          <td style={{ padding: "9px 10px", color: "var(--text)" }}>{p.nakshatra_te}</td>
-                          <td style={{ padding: "9px 10px", color: PLANET_COLORS[p.star_lord_en] || "var(--text)" }}>{p.star_lord_te}</td>
-                          <td style={{ padding: "9px 10px" }}>
-                            <span onClick={() => { const houseOfSub = workspaceData.cusps.findIndex((c: any) => c.sub_lord_en === p.sub_lord_en || c.star_lord_en === p.sub_lord_en); if (houseOfSub >= 0) { setSelectedHouse(houseOfSub + 1); setActiveTab("chart"); } }} title="Click to explore sub lord's house" style={{ background: "rgba(201,169,110,.1)", color: "var(--accent)", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "2px 8px", fontSize: 11, cursor: "pointer" }}>{p.sub_lord_te}</span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  {chartView === "chart" && (
+                    <div style={{ display: "flex", gap: "1.5rem", alignItems: "start", flexWrap: "wrap" }}>
+                      <div>
+                        <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: "0.6rem" }}>దక్షిణ భారత చార్ట్</div>
+                        <SouthIndianChart
+                          planets={workspaceData.planets}
+                          cusps={workspaceData.cusps}
+                          onHouseClick={h => setSelectedHouse(prev => prev === h ? null : h)}
+                          selectedHouse={selectedHouse}
+                        />
+                        <div style={{ fontSize: 9, color: "var(--muted)", marginTop: 6, textAlign: "center" }}>Tap a house for details · ↑ = Lagna</div>
+                      </div>
+                      {selectedHouse && (
+                        <HousePanel
+                          house={selectedHouse}
+                          cusps={workspaceData.cusps}
+                          significators={workspaceData.significators}
+                          planets={workspaceData.planets}
+                          rulingPlanets={workspaceData.ruling_planets?.all_en || []}
+                          antardashas={workspaceData.antardashas || []}
+                          onClose={() => setSelectedHouse(null)}
+                        />
+                      )}
+                      {!selectedHouse && <div style={{ flex: 1, minWidth: 200 }}>
+                        <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: "0.75rem" }}>గ్రహ స్థానాలు</div>
+                        {workspaceData.planets.map((p: any) => (
+                          <div key={p.planet_en} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", background: "var(--surface2)", borderRadius: 6, border: "0.5px solid var(--border)", marginBottom: 3 }}>
+                            <span style={{ width: 60, fontSize: 12, fontWeight: 600, color: PLANET_COLORS[p.planet_en] }}>{p.planet_te}</span>
+                            <span style={{ fontSize: 11, color: "var(--text)", flex: 1 }}>{p.sign_te}</span>
+                            <span style={{ fontSize: 10, color: "var(--accent)", fontWeight: 600, minWidth: 28 }}>H{p.house}</span>
+                            <span style={{ fontSize: 10, color: "var(--muted)" }}>{p.degree_in_sign.toFixed(1)}°</span>
+                            {p.retrograde && <span style={{ fontSize: 9, color: "var(--red)" }}>℞</span>}
+                          </div>
+                        ))}
+                      </div>}
+                    </div>
+                  )}
+                  {chartView === "planets" && (
+                    <div style={{ overflowX: "auto" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+                        <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>గ్రహ స్థాన పట్టిక · KP పద్ధతి</div>
+                        <div style={{ fontSize: 9, color: "var(--muted)" }}>Click H badge → jump to chart</div>
+                      </div>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 500 }}>
+                        <thead><tr>{["గ్రహం", "భావం", "రాశి", "అంశం", "నక్షత్రం", "నక్షత్రాధిపతి", "సబ్ లార్డ్"].map(h => <th key={h} style={{ textAlign: "left", padding: "8px 10px", color: "var(--muted)", fontSize: 10, letterSpacing: "0.06em", borderBottom: "0.5px solid var(--border)", fontWeight: 400, whiteSpace: "nowrap" }}>{h}</th>)}</tr></thead>
+                        <tbody>
+                          {workspaceData.planets.map((p: any) => (
+                            <tr key={p.planet_en} style={{ borderBottom: "0.5px solid rgba(201,169,110,.06)", cursor: "default" }} onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.04)")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+                              <td style={{ padding: "9px 10px", color: PLANET_COLORS[p.planet_en], fontWeight: 600, whiteSpace: "nowrap" }}>{p.planet_te} {p.retrograde && <span style={{ fontSize: 9, color: "var(--red)" }}>℞</span>}</td>
+                              <td style={{ padding: "9px 10px" }}>
+                                <span onClick={() => { setSelectedHouse(parseInt(p.house)); setChartView("chart"); }} title="Click to open house panel in Chart tab" style={{ background: "rgba(201,169,110,0.1)", color: "var(--accent)", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "2px 8px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>H{p.house}</span>
+                              </td>
+                              <td style={{ padding: "9px 10px", color: "var(--text)" }}>{p.sign_te}</td>
+                              <td style={{ padding: "9px 10px", color: "var(--muted)", fontSize: 11 }}>{p.degree_in_sign.toFixed(2)}°</td>
+                              <td style={{ padding: "9px 10px", color: "var(--text)" }}>{p.nakshatra_te}</td>
+                              <td style={{ padding: "9px 10px", color: PLANET_COLORS[p.star_lord_en] || "var(--text)" }}>{p.star_lord_te}</td>
+                              <td style={{ padding: "9px 10px" }}>
+                                <span onClick={() => { const houseOfSub = workspaceData.cusps.findIndex((c: any) => c.sub_lord_en === p.sub_lord_en || c.star_lord_en === p.sub_lord_en); if (houseOfSub >= 0) { setSelectedHouse(houseOfSub + 1); setChartView("chart"); } }} title="Click to explore sub lord's house" style={{ background: "rgba(201,169,110,.1)", color: "var(--accent)", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "2px 8px", fontSize: 11, cursor: "pointer" }}>{p.sub_lord_te}</span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* CUSPS */}
-              {activeTab === "cusps" && (
+              {/* HOUSES — consolidated tab with sub-tabs */}
+              {activeTab === "houses" && (
+                <div className="tab-content" style={{ padding: "1rem", height: "100%", overflowY: "auto" }}>
+                  {!workspaceData ? (
+                    <div style={{ textAlign: "center", padding: "3rem 1rem" }}>
+                      <div style={{ fontSize: 32, marginBottom: 8 }}>📊</div>
+                      <div style={{ fontSize: 14, color: "var(--muted)" }}>పైన చార్ట్ లోడ్ చేయండి</div>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Sub-tab pill switcher */}
+                      <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
+                        {[{id:"cusps",en:"Cusps"},{id:"sigs",en:"Significators"},{id:"ruling",en:"Ruling"},{id:"panchang",en:"Panchangam"}].map(st => (
+                          <button key={st.id} onClick={() => setHousesSubTab(st.id as any)}
+                            style={{ padding: "5px 14px", borderRadius: 20, border: `0.5px solid ${housesSubTab === st.id ? "var(--accent)" : "var(--border2)"}`, background: housesSubTab === st.id ? "rgba(201,169,110,0.12)" : "transparent", color: housesSubTab === st.id ? "var(--accent)" : "var(--muted)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>
+                            {st.en}
+                          </button>
+                        ))}
+                      </div>
+
+              {/* CUSPS sub-tab */}
+              {housesSubTab === "cusps" && (
                 <div className="tab-content" style={{ display: "flex", gap: "1rem", alignItems: "start" }}>
                   <div style={{ flex: 1, overflowX: "auto" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
@@ -849,8 +890,8 @@ export default function Home() {
                 </div>
               )}
 
-              {/* SIGNIFICATORS */}
-              {activeTab === "significators" && (
+              {/* SIGNIFICATORS sub-tab */}
+              {housesSubTab === "sigs" && (
                 <div className="tab-content" style={{ display: "flex", gap: "1rem", alignItems: "start" }}>
                   <div style={{ flex: 1 }}>
                     {(() => {
@@ -943,6 +984,55 @@ export default function Home() {
                 </div>
               )}
 
+              {/* RULING sub-tab (inline, no outer wrapper) */}
+              {housesSubTab === "ruling" && (
+                <div>
+                  <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: "0.75rem" }}>రూలింగ్ గ్రహాలు · {workspaceData.ruling_planets.query_time}</div>
+                  <div className="setup-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                    <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 10, padding: "1rem" }}>
+                      {[
+                        { l: "వారాధిపతి", en: workspaceData.ruling_planets.day_lord_en, te: workspaceData.ruling_planets.day_lord_te },
+                        { l: "లగ్న రాశ్యధిపతి", en: workspaceData.ruling_planets.lagna_sign_lord_en, te: workspaceData.ruling_planets.lagna_sign_lord_te },
+                        { l: "లగ్న నక్షత్రాధిపతి", en: workspaceData.ruling_planets.lagna_star_lord_en, te: workspaceData.ruling_planets.lagna_star_lord_te },
+                        { l: "చంద్ర రాశ్యధిపతి", en: workspaceData.ruling_planets.moon_sign_lord_en, te: workspaceData.ruling_planets.moon_sign_lord_te },
+                        { l: "చంద్ర నక్షత్రాధిపతి", en: workspaceData.ruling_planets.moon_star_lord_en, te: workspaceData.ruling_planets.moon_star_lord_te },
+                      ].map(item => (
+                        <div key={item.l} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, paddingBottom: 10, borderBottom: "0.5px solid var(--border)" }}>
+                          <span style={{ fontSize: 12, color: "var(--muted)" }}>{item.l}</span>
+                          <span style={{ fontSize: 15, fontWeight: 600, color: PLANET_COLORS[item.en] || "var(--accent)" }}>{item.te}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 10, padding: "1rem" }}>
+                      <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: "0.75rem" }}>అన్ని రూలింగ్ గ్రహాలు</div>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        {workspaceData.ruling_planets.all_te.map((p: string, i: number) => (
+                          <div key={i} style={{ textAlign: "center", padding: "10px 14px", background: `${PLANET_COLORS[workspaceData.ruling_planets.all_en[i]] || "var(--accent)"}15`, border: `0.5px solid ${PLANET_COLORS[workspaceData.ruling_planets.all_en[i]] || "var(--accent)"}30`, borderRadius: 8 }}>
+                            <div style={{ fontSize: 16, fontWeight: 600, color: PLANET_COLORS[workspaceData.ruling_planets.all_en[i]] || "var(--accent)" }}>{p}</div>
+                            <div style={{ fontSize: 9, color: "var(--muted)", marginTop: 2 }}>{workspaceData.ruling_planets.all_en[i]}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* PANCHANGAM sub-tab */}
+              {housesSubTab === "panchang" && (
+                <div>
+                  <div className="setup-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem" }}>
+                    <PanchangamCard data={workspaceData.panchangam_birth} title="జన్మ పంచాంగం" />
+                    <PanchangamCard data={workspaceData.panchangam_today} title="నేటి పంచాంగం" />
+                  </div>
+                </div>
+              )}
+
+                    </>
+                  )}
+                </div>
+              )}
+
               {/* DASHA */}
               {activeTab === "dasha" && (
                 <div className="tab-content">
@@ -984,49 +1074,87 @@ export default function Home() {
                       </div>
                     </div>
                   )}
-                </div>
-              )}
 
-              {/* RULING */}
-              {activeTab === "ruling" && (
-                <div className="tab-content">
-                  <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: "0.75rem" }}>రూలింగ్ గ్రహాలు · {workspaceData.ruling_planets.query_time}</div>
-                  <div className="setup-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-                    <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 10, padding: "1rem" }}>
-                      {[
-                        { l: "వారాధిపతి", en: workspaceData.ruling_planets.day_lord_en, te: workspaceData.ruling_planets.day_lord_te },
-                        { l: "లగ్న రాశ్యధిపతి", en: workspaceData.ruling_planets.lagna_sign_lord_en, te: workspaceData.ruling_planets.lagna_sign_lord_te },
-                        { l: "లగ్న నక్షత్రాధిపతి", en: workspaceData.ruling_planets.lagna_star_lord_en, te: workspaceData.ruling_planets.lagna_star_lord_te },
-                        { l: "చంద్ర రాశ్యధిపతి", en: workspaceData.ruling_planets.moon_sign_lord_en, te: workspaceData.ruling_planets.moon_sign_lord_te },
-                        { l: "చంద్ర నక్షత్రాధిపతి", en: workspaceData.ruling_planets.moon_star_lord_en, te: workspaceData.ruling_planets.moon_star_lord_te },
-                      ].map(item => (
-                        <div key={item.l} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, paddingBottom: 10, borderBottom: "0.5px solid var(--border)" }}>
-                          <span style={{ fontSize: 12, color: "var(--muted)" }}>{item.l}</span>
-                          <span style={{ fontSize: 15, fontWeight: 600, color: PLANET_COLORS[item.en] || "var(--accent)" }}>{item.te}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 10, padding: "1rem" }}>
-                      <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: "0.75rem" }}>అన్ని రూలింగ్ గ్రహాలు</div>
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        {workspaceData.ruling_planets.all_te.map((p: string, i: number) => (
-                          <div key={i} style={{ textAlign: "center", padding: "10px 14px", background: `${PLANET_COLORS[workspaceData.ruling_planets.all_en[i]] || "var(--accent)"}15`, border: `0.5px solid ${PLANET_COLORS[workspaceData.ruling_planets.all_en[i]] || "var(--accent)"}30`, borderRadius: 8 }}>
-                            <div style={{ fontSize: 16, fontWeight: 600, color: PLANET_COLORS[workspaceData.ruling_planets.all_en[i]] || "var(--accent)" }}>{p}</div>
-                            <div style={{ fontSize: 9, color: "var(--muted)", marginTop: 2 }}>{workspaceData.ruling_planets.all_en[i]}</div>
+                  {/* Collapsible Transit Section */}
+                  <div style={{ marginTop: 20, borderTop: "0.5px solid var(--border)", paddingTop: 16 }}>
+                    <button onClick={() => {
+                      const next = !showTransitInDasha;
+                      setShowTransitInDasha(next);
+                      if (next && workspaceData && !transitData && !transitLoading) {
+                        setTransitLoading(true);
+                        axios.post(`${API_URL}/transit/analyze`, {
+                          natal: workspaceData, transit_date: undefined,
+                          latitude: workspaceData.latitude || 17.385,
+                          longitude: workspaceData.longitude || 78.4867,
+                          timezone_offset: 5.5,
+                        }).then(res => { setTransitData(res.data); setTransitLoading(false); })
+                          .catch(() => setTransitLoading(false));
+                      }
+                    }}
+                      style={{ display: "flex", alignItems: "center", gap: 8, background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 12, fontFamily: "inherit", padding: 0, marginBottom: showTransitInDasha ? 12 : 0 }}>
+                      <span style={{ fontSize: 14 }}>🌍</span>
+                      <span>ప్రస్తుత గోచారం</span>
+                      <span style={{ marginLeft: 4, fontSize: 10 }}>{showTransitInDasha ? "▲" : "▼"}</span>
+                    </button>
+                    {showTransitInDasha && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                          <div style={{ fontSize: 13, color: "var(--muted)", flex: 1 }}>
+                            ప్రస్తుత దశ: <span style={{ color: "var(--accent)" }}>{workspaceData.mahadasha?.lord_te}</span> / <span style={{ color: "var(--text)" }}>{workspaceData.current_antardasha?.lord_te}</span>
                           </div>
-                        ))}
+                          <input type="date" value={transitDate} onChange={e => setTransitDate(e.target.value)}
+                            style={{ padding: "5px 10px", background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 6, color: "var(--text)", fontSize: 12, fontFamily: "inherit" }} />
+                          <button onClick={async () => {
+                            if (!workspaceData) return;
+                            setTransitLoading(true);
+                            try {
+                              const res = await axios.post(`${API_URL}/transit/analyze`, { natal: workspaceData, transit_date: transitDate || undefined, latitude: workspaceData.latitude || 17.385, longitude: workspaceData.longitude || 78.4867, timezone_offset: 5.5 });
+                              setTransitData(res.data);
+                            } catch { setTransitData(null); }
+                            setTransitLoading(false);
+                          }}
+                            style={{ padding: "6px 16px", background: "var(--accent)", border: "none", borderRadius: 6, color: "#000", fontSize: 12, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>
+                            {transitLoading ? "లోడ్..." : "రిఫ్రెష్"}
+                          </button>
+                        </div>
+                        {transitLoading && <div style={{ textAlign: "center", padding: "1rem", color: "var(--muted)", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />లోడ్ అవుతోంది...</div>}
+                        {transitData?.sade_sati?.active && (
+                          <div style={{ padding: "10px 14px", background: "rgba(251,191,36,0.08)", border: "0.5px solid rgba(251,191,36,0.3)", borderRadius: 8, fontSize: 12 }}>
+                            <span style={{ color: "#fbbf24", fontWeight: 600 }}>⚠ సాడేసాతి అక్టివ్</span>
+                            <span style={{ color: "var(--muted)", marginLeft: 8 }}>{transitData.sade_sati.phase}</span>
+                          </div>
+                        )}
+                        {transitData?.transits && (
+                          <div style={{ overflowX: "auto" }}>
+                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                              <thead><tr style={{ borderBottom: "0.5px solid var(--border2)", color: "var(--muted)" }}>
+                                {["గ్రహం","రాశి","నక్షత్రం","స్టార్‌లార్డ్","సబ్‌లార్డ్","భావం","వివరణ"].map(h => <th key={h} style={{ textAlign: "left", padding: "6px 8px", fontWeight: 500 }}>{h}</th>)}
+                              </tr></thead>
+                              <tbody>
+                                {transitData.transits.map((t: any) => {
+                                  const isDasha = t.is_dasha_lord; const isBhukti = t.is_bhukti_lord;
+                                  return (
+                                    <tr key={t.planet} style={{ borderBottom: "0.5px solid rgba(255,255,255,0.05)", background: isDasha ? "rgba(201,169,110,0.12)" : isBhukti ? "rgba(201,169,110,0.06)" : "transparent" }}>
+                                      <td style={{ padding: "7px 8px", color: isDasha ? "var(--accent)" : isBhukti ? "var(--text)" : "var(--muted)", fontWeight: isDasha || isBhukti ? 600 : 400 }}>
+                                        {t.symbol} {t.planet}{t.retrograde && <span style={{ color: "#f87171", fontSize: 10, marginLeft: 4 }}>℞</span>}
+                                        {isDasha && <span style={{ marginLeft: 5, fontSize: 9, color: "var(--accent)", background: "rgba(201,169,110,0.2)", padding: "1px 5px", borderRadius: 4 }}>MD</span>}
+                                        {isBhukti && !isDasha && <span style={{ marginLeft: 5, fontSize: 9, color: "var(--text)", background: "rgba(255,255,255,0.08)", padding: "1px 5px", borderRadius: 4 }}>AD</span>}
+                                      </td>
+                                      <td style={{ padding: "7px 8px", color: "var(--text)" }}>{t.sign}</td>
+                                      <td style={{ padding: "7px 8px", color: "var(--muted)" }}>{t.nakshatra}</td>
+                                      <td style={{ padding: "7px 8px", color: "var(--text)" }}>{t.star_lord}</td>
+                                      <td style={{ padding: "7px 8px", color: "var(--text)" }}>{t.sub_lord}</td>
+                                      <td style={{ padding: "7px 8px", textAlign: "center" }}><span style={{ display: "inline-block", padding: "2px 8px", background: "rgba(201,169,110,0.15)", borderRadius: 10, color: "var(--accent)", fontSize: 11, fontWeight: 600 }}>H{t.transit_house}</span></td>
+                                      <td style={{ padding: "7px 8px", color: "var(--muted)", fontSize: 11, maxWidth: 180 }}>{t.note}</td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* PANCHANGAM */}
-              {activeTab === "panchangam" && (
-                <div className="tab-content">
-                  <div className="setup-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem" }}>
-                    <PanchangamCard data={workspaceData.panchangam_birth} title="జన్మ పంచాంగం" />
-                    <PanchangamCard data={workspaceData.panchangam_today} title="నేటి పంచాంగం" />
+                    )}
                   </div>
                 </div>
               )}
@@ -1597,6 +1725,77 @@ export default function Home() {
                           {ast?.critical_doshas?.length > 0 && <div style={{ marginTop: 8, fontSize: 11, color: "#f87171" }}>⚠ Doshas: {ast.critical_doshas.join(", ")}</div>}
                         </div>
 
+                        {/* Venus Karaka Panel */}
+                        {(r.venus_chart1 || r.venus_chart2) && (
+                          <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem" }}>
+                            <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>♀ Venus Karaka Analysis</div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                              {[{v: r.venus_chart1, name: r.person1?.name || "Person 1"}, {v: r.venus_chart2, name: r.person2?.name || "Person 2"}].map((item, i) => item.v && (
+                                <div key={i} style={{ background: "var(--surface)", borderRadius: 8, padding: "10px 12px" }}>
+                                  <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 4 }}>{item.name}</div>
+                                  <div style={{ fontSize: 12, color: "var(--text)", marginBottom: 2 }}>H{item.v.house} · <span style={{ color: item.v.strength === "Strong" ? "var(--green)" : item.v.strength === "Afflicted" ? "var(--red)" : "var(--accent)" }}>{item.v.strength}</span></div>
+                                  <div style={{ fontSize: 11, color: item.v.signifies_h7 ? "var(--green)" : "var(--muted)" }}>{item.v.signifies_h7 ? "✓ Signifies H7" : "○ Doesn't signify H7"}</div>
+                                  {item.v.enhances_promise && <div style={{ fontSize: 10, color: "var(--green)", marginTop: 2 }}>✓ Enhances marriage promise</div>}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Supporting Cusps */}
+                        {(r.supporting_cusps_chart1 || r.supporting_cusps_chart2) && (
+                          <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem" }}>
+                            <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>Supporting Cusps (H2 & H11)</div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                              {[{sc: r.supporting_cusps_chart1, name: r.person1?.name || "Person 1"}, {sc: r.supporting_cusps_chart2, name: r.person2?.name || "Person 2"}].map((item, i) => item.sc && (
+                                <div key={i} style={{ background: "var(--surface)", borderRadius: 8, padding: "10px 12px" }}>
+                                  <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 6 }}>{item.name}</div>
+                                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                                    <span style={{ fontSize: 11, color: "var(--muted)" }}>H2 CSL: {item.sc.h2_csl}</span>
+                                    <span style={{ fontSize: 11, color: item.sc.h2_supports ? "var(--green)" : "var(--muted)" }}>{item.sc.h2_supports ? "✓" : "✗"}</span>
+                                  </div>
+                                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                    <span style={{ fontSize: 11, color: "var(--muted)" }}>H11 CSL: {item.sc.h11_csl}</span>
+                                    <span style={{ fontSize: 11, color: item.sc.h11_supports ? "var(--green)" : "var(--muted)" }}>{item.sc.h11_supports ? "✓" : "✗"}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Timing & Dasha Overlap */}
+                        {r.timing_verdict && (
+                          <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem" }}>
+                            <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>Dasha Timing Overlap</div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                              <span style={{ fontSize: 13, fontWeight: 500, color: r.timing_verdict === "Aligned" ? "var(--green)" : r.timing_verdict === "Misaligned" ? "var(--red)" : "var(--accent)" }}>● {r.timing_verdict}</span>
+                            </div>
+                            {r.shared_significators?.length > 0 && (
+                              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                                {r.shared_significators.map((p: string) => (
+                                  <span key={p} style={{ fontSize: 10, background: "rgba(201,169,110,0.1)", color: "var(--accent)", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "2px 6px" }}>{p}</span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* H7 Sub Lord Spouse Characteristics */}
+                        {r.h7_lord_both?.marriage_type && (
+                          <div style={{ border: "0.5px solid rgba(201,169,110,0.25)", borderRadius: 10, padding: "0.875rem 1rem" }}>
+                            <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>H7 Sub Lord Characteristics</div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                              {([["Marriage Type", r.h7_lord_both.marriage_type], ["Spouse Nature", r.h7_lord_both.spouse_nature], ["Age Gap", r.h7_lord_both.age_gap], ["Note", r.h7_lord_both.caution]] as [string,string][]).filter(([,v]) => v).map(([k, v]) => (
+                                <div key={k}>
+                                  <div style={{ fontSize: 9, color: "var(--muted)", marginBottom: 2 }}>{k}</div>
+                                  <div style={{ fontSize: 11, color: "var(--text)" }}>{v}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
                         {/* Kuja Dosha + Moon */}
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                           <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.75rem" }}>
@@ -1636,8 +1835,8 @@ export default function Home() {
                 );
               })()}
 
-              {/* TRANSIT / GOCHAR */}
-              {activeTab === "transit" && (
+              {/* TRANSIT — now inside Dasha tab, this block intentionally removed */}
+              {false && (
                 <div className="tab-content">
                   {!workspaceData ? (
                     <div style={{ textAlign: "center", padding: "2rem", color: "var(--muted)", fontSize: 13 }}>
@@ -1864,21 +2063,29 @@ export default function Home() {
                       const confColor = v.confidence === "HIGH" ? "#34d399" : v.confidence === "MEDIUM" ? "#fbbf24" : "#888899";
                       return (
                         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                          {/* Verdict banner */}
-                          <div style={{ padding: "14px 18px", background: `rgba(${v.verdict==="YES"?"52,211,153":v.verdict==="NO"?"248,113,113":"251,191,36"},0.08)`, border: `0.5px solid ${verdictColor}40`, borderRadius: 10 }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                              <span style={{ fontSize: 28, color: verdictColor, fontWeight: 800 }}>{v.verdict}</span>
-                              <div style={{ flex: 1 }}>
-                                <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
-                                  <span style={{ fontSize: 10, color: confColor, border: `0.5px solid ${confColor}60`, borderRadius: 4, padding: "1px 6px" }}>
-                                    విశ్వాసం: {v.confidence}
-                                  </span>
-                                  {v.rp_confirms_csl && <span style={{ fontSize: 10, color: "#34d399", border: "0.5px solid #34d39960", borderRadius: 4, padding: "1px 6px" }}>RP ✓</span>}
-                                  {v.moon_supports && <span style={{ fontSize: 10, color: "#c9a96e", border: "0.5px solid #c9a96e60", borderRadius: 4, padding: "1px 6px" }}>చంద్రుడు ✓</span>}
-                                </div>
-                                <div style={{ fontSize: 12, color: "var(--fg)" }}>{v.explanation}</div>
-                              </div>
+                          {/* Verdict banner — redesigned */}
+                          <div style={{ textAlign: "center", padding: "1.5rem 1rem", background: "var(--surface2)", borderRadius: 10, marginBottom: 4 }}>
+                            <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 44, fontWeight: 400, color: verdictColor, marginBottom: 6, lineHeight: 1 }}>
+                              {v.verdict || "MAYBE"}
                             </div>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 8 }}>
+                              <span style={{ fontSize: 11, color: confColor }}>
+                                {v.confidence === "HIGH" ? "●" : v.confidence === "MEDIUM" ? "◐" : "○"}
+                              </span>
+                              <span style={{ fontSize: 11, color: "var(--muted)", letterSpacing: "0.06em" }}>{v.confidence || "LOW"} CONFIDENCE</span>
+                              {v.rp_confirms_csl && <span style={{ fontSize: 10, background: "rgba(52,211,153,0.1)", color: "#34d399", border: "0.5px solid rgba(52,211,153,0.2)", borderRadius: 4, padding: "2px 6px" }}>RP ✓</span>}
+                              {v.moon_supports && <span style={{ fontSize: 10, background: "rgba(201,169,110,0.1)", color: "var(--accent)", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "2px 6px" }}>Moon ✓</span>}
+                            </div>
+                            {v.ruling_planets?.length > 0 && (
+                              <div style={{ display: "flex", gap: 4, justifyContent: "center", flexWrap: "wrap", marginBottom: 8 }}>
+                                {v.ruling_planets.map((rp: string) => (
+                                  <span key={rp} style={{ fontSize: 11, background: "rgba(201,169,110,0.1)", color: "var(--accent)", border: "0.5px solid var(--border2)", borderRadius: 20, padding: "3px 10px" }}>{rp}</span>
+                                ))}
+                              </div>
+                            )}
+                            {(v.verdict_reason || v.explanation) && (
+                              <div style={{ fontSize: 11, color: "var(--muted)", fontStyle: "italic", lineHeight: 1.5, maxWidth: 360, margin: "0 auto" }}>{v.verdict_reason || v.explanation}</div>
+                            )}
                           </div>
 
                           {/* 3-Layer Analysis */}
@@ -1983,15 +2190,9 @@ export default function Home() {
               {/* ANALYSIS */}
               {activeTab === "analysis" && (
                 <div className="tab-content" style={{ display: "flex", flexDirection: "column", height: "100%", gap: 0 }}>
-                  {/* Topic quick-launch bar */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem", flexWrap: "wrap", gap: 8, flexShrink: 0 }}>
-                    <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                      {TOPICS.map(t => (
-                        <button key={t.id} onClick={() => handleTopicAnalysis(t.id)} disabled={analysisLoading}
-                          style={{ padding: "5px 12px", borderRadius: 20, cursor: analysisLoading ? "default" : "pointer", border: `0.5px solid ${activeTopic === t.id ? "var(--accent)" : "var(--border2)"}`, background: activeTopic === t.id ? "rgba(201,169,110,.15)" : "var(--surface2)", color: activeTopic === t.id ? "var(--accent)" : "var(--muted)", fontSize: 12, fontFamily: "inherit", transition: "all 0.2s" }}>{t.te}</button>
-                      ))}
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {/* Topic quick-launch — emoji card grid */}
+                  <div style={{ marginBottom: "0.75rem", flexShrink: 0 }}>
+                    <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, marginBottom: 10 }}>
                       {analysisMessages.length > 0 && (
                         <button onClick={() => { setAnalysisMessages([]); setActiveTopic(""); }} style={{ background: "transparent", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "3px 10px", fontSize: 11, color: "var(--muted)", cursor: "pointer" }}>Clear</button>
                       )}
@@ -2001,14 +2202,26 @@ export default function Home() {
                         ))}
                       </div>
                     </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
+                      {TOPICS.map(t => (
+                        <button key={t.id} onClick={() => handleTopicAnalysis(t.id)} disabled={analysisLoading}
+                          style={{ padding: "10px 6px", borderRadius: 10, border: `0.5px solid ${activeTopic === t.id ? "var(--accent)" : "var(--border2)"}`, background: activeTopic === t.id ? "rgba(201,169,110,0.15)" : "var(--surface2)", cursor: analysisLoading ? "default" : "pointer", fontFamily: "inherit", textAlign: "center", transition: "all 0.2s" }}
+                          onMouseEnter={e => { if (activeTopic !== t.id) (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(201,169,110,0.4)"; }}
+                          onMouseLeave={e => { if (activeTopic !== t.id) (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border2)"; }}>
+                          <div style={{ fontSize: 22, marginBottom: 4 }}>{TOPIC_EMOJI[t.id]}</div>
+                          <div style={{ fontSize: 11, color: activeTopic === t.id ? "var(--accent)" : "var(--text)", fontWeight: activeTopic === t.id ? 500 : 400 }}>{t.te}</div>
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   {/* Chat messages */}
                   <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
                     {analysisMessages.length === 0 && !analysisLoading && (
-                      <div style={{ textAlign: "center", padding: "3rem 1rem", color: "var(--muted)" }}>
-                        <div style={{ fontSize: 22, opacity: 0.2, marginBottom: "0.75rem" }}>◈</div>
-                        <div style={{ fontSize: 13 }}>Select a topic above to begin analysis, or ask a question directly.</div>
+                      <div style={{ textAlign: "center", padding: "2rem 1rem" }}>
+                        <div style={{ fontSize: 28, marginBottom: 8 }}>⬆</div>
+                        <div style={{ fontSize: 14, color: "var(--muted)", marginBottom: 4 }}>పై నుండి అంశాన్ని ఎంచుకోండి</div>
+                        <div style={{ fontSize: 11, color: "var(--muted)", opacity: 0.6 }}>or type your question below</div>
                       </div>
                     )}
                     {analysisMessages.map((msg, i) => (
