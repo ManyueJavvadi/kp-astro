@@ -348,6 +348,22 @@ PRIMARY: Strongest AD (best house signification + RP overlap)
 SECONDARY: Next best AD
 TERTIARY: Specific PAD within a favorable AD (use exact PAD dates provided)
 
+CRITICAL NOTE ON CONSISTENCY: The PRIMARY/SECONDARY/TERTIARY ranking can legitimately
+differ between sessions because today's Ruling Planets change daily. When an AD lord
+IS in today's RP, it gets elevated in ranking. Always state which RP-overlap elevated
+a window, so the client understands the ranking is calibrated to today's date.
+Add a single line: "Note: Window rankings reflect today's Ruling Planets and may
+shift slightly on other days." Only add this line in Section 4.
+
+H6 SPECIAL RULE FOR SERVICE/CONTRACT ROLES:
+H6 is the house of SERVICE — not merely competition. When a dasha/PAD lord signifies H6:
+- It means service/employment/contract work is ACTIVE in that period
+- For consultancy, contractor, or service-based job roles: H6 + H2 activation
+  means the engagement/contract IS happening (not just "competition is running")
+- H10 + H11 confirmation = offer letter receipt / formal appointment / first payment
+- NEVER describe H6 activation alone as "practice" or "not meaningful"
+- Correct framing: "H6 active = service engagement live; H10/H11 = formal confirmation follows"
+
 STEP 7 — RULING PLANETS CONFIRMATION
 Cross-check timing windows against Ruling Planets.
 RP overlap = confirmed timing window.
