@@ -114,6 +114,64 @@ MARRIAGE_DENIAL_HOUSES = {1, 6, 10}
 MARRIAGE_PROMISE_HOUSES = {2, 7, 11}
 KUJA_HOUSES = {1, 2, 4, 7, 8, 12}
 
+# H7 sub-lord interpretations for marriage type / spouse nature
+H7_SUBLORD_TRAITS = {
+    "Sun": {
+        "marriage_type": "Formal, dignified marriage — often arranged",
+        "spouse_nature": "Authoritative, proud, warm-hearted",
+        "age_gap": "Small age gap, spouse may be older",
+        "caution": "Ego clashes possible; spouse needs respect"
+    },
+    "Moon": {
+        "marriage_type": "Emotionally driven marriage",
+        "spouse_nature": "Emotional, caring, changeable moods",
+        "age_gap": "Similar age",
+        "caution": "Emotional dependency; mood swings"
+    },
+    "Mars": {
+        "marriage_type": "Quick or impulsive marriage, sometimes love",
+        "spouse_nature": "Energetic, assertive, passionate",
+        "age_gap": "Spouse may be younger",
+        "caution": "Quarrels, arguments — anger management needed"
+    },
+    "Mercury": {
+        "marriage_type": "Intellectual match, may involve multiple relationships",
+        "spouse_nature": "Witty, communicative, youthful",
+        "age_gap": "Similar or younger spouse",
+        "caution": "Commitment issues; dual-mindedness possible"
+    },
+    "Jupiter": {
+        "marriage_type": "Traditional, auspicious marriage",
+        "spouse_nature": "Wise, learned, generous, philosophical",
+        "age_gap": "Spouse often older or mature",
+        "caution": "Over-idealism; may be too orthodox"
+    },
+    "Venus": {
+        "marriage_type": "Love marriage or very pleasant arranged marriage",
+        "spouse_nature": "Beautiful, artistic, luxury-loving, charming",
+        "age_gap": "Similar or younger spouse",
+        "caution": "Indulgence; excessive pleasure-seeking"
+    },
+    "Saturn": {
+        "marriage_type": "Delayed marriage; serious, mature relationship",
+        "spouse_nature": "Serious, responsible, hardworking, reserved",
+        "age_gap": "Large age gap (5+ years), spouse often significantly older",
+        "caution": "Dissatisfaction, coldness, heavy responsibilities"
+    },
+    "Rahu": {
+        "marriage_type": "Unconventional, inter-caste, inter-religion, or foreign spouse",
+        "spouse_nature": "Ambitious, worldly, unconventional",
+        "age_gap": "Varies widely",
+        "caution": "Karmic delays, sudden circumstances, non-traditional setup"
+    },
+    "Ketu": {
+        "marriage_type": "Karmic or spiritual marriage; may be detached",
+        "spouse_nature": "Spiritual, introverted, detached from material life",
+        "age_gap": "Varies",
+        "caution": "Separation tendency; emotional detachment"
+    },
+}
+
 
 # ── Chart builder ─────────────────────────────────────────────
 
@@ -186,18 +244,58 @@ def _planet_significations(planet_name: str, planets: dict, cusp_lons: list) -> 
     return result
 
 
+def _get_cusp_sub_lord_sigs(house_num: int, chart: dict) -> tuple[str, set]:
+    """Get the CSL and its significations for a given house number."""
+    cusp_lon = chart["cusp_lons"][house_num - 1] % 360
+    csl = get_sub_lord(cusp_lon)
+    sigs = _planet_significations(csl, chart["planets"], chart["cusp_lons"])
+    return csl, sigs
+
+
 def _h7_sublord_promise(chart: dict) -> dict:
-    """Check if H7 sub-lord promises marriage."""
+    """Check if H7 sub-lord promises marriage. Includes richer KP data."""
     h7_sl = chart["h7_sub_lord"]
     sigs = _planet_significations(h7_sl, chart["planets"], chart["cusp_lons"])
     has_promise = bool(sigs & MARRIAGE_PROMISE_HOUSES)
     has_denial = bool(sigs & MARRIAGE_DENIAL_HOUSES)
+
+    # H7 sign lord (not sub-lord) — additional indicator
+    h7_lon = chart["cusp_lons"][6] % 360
+    h7_sign_lord = SIGN_LORDS.get(get_sign(h7_lon), "")
+    h7_lord_sigs = _planet_significations(h7_sign_lord, chart["planets"], chart["cusp_lons"])
+    h7_lord_supports = bool(h7_lord_sigs & MARRIAGE_PROMISE_HOUSES)
+
+    # H7 sub-lord traits (marriage type, spouse nature, caution)
+    traits = H7_SUBLORD_TRAITS.get(h7_sl, {})
+
+    # Marriage type classification
+    sigs_set = set(sigs)
+    if h7_sl in ("Rahu", "Ketu"):
+        marriage_type = "Unconventional/Karmic"
+    elif 5 in sigs_set and 7 in sigs_set and 11 in sigs_set:
+        marriage_type = "Love Marriage"
+    elif 12 in sigs_set and 7 in sigs_set and 11 in sigs_set:
+        marriage_type = "Secret/Private Marriage"
+    elif 2 in sigs_set and 7 in sigs_set and 11 in sigs_set:
+        marriage_type = "Traditional/Arranged Marriage"
+    elif 5 in sigs_set:
+        marriage_type = "Love component present"
+    else:
+        marriage_type = "Not determined"
+
     return {
         "sub_lord": h7_sl,
         "signified_houses": sorted(sigs),
         "has_promise": has_promise,
         "has_denial": has_denial,
         "verdict": "Promised" if has_promise and not has_denial else ("Denied" if has_denial else "Conditional"),
+        "h7_sign_lord": h7_sign_lord,
+        "h7_lord_supports": h7_lord_supports,
+        "marriage_type": marriage_type,
+        "spouse_nature": traits.get("spouse_nature", ""),
+        "age_gap": traits.get("age_gap", ""),
+        "marriage_style": traits.get("marriage_type", ""),
+        "caution": traits.get("caution", ""),
     }
 
 
@@ -224,11 +322,146 @@ def _ruling_planets(chart: dict) -> set:
     return rps
 
 
+# ── Extended KP Marriage Analysis ────────────────────────────
+
+def _venus_analysis(chart: dict) -> dict:
+    """
+    Analyze Venus as the primary marriage karaka (significator).
+    Strong Venus = enhanced marriage promise. Weak Venus = caution.
+    """
+    if "Venus" not in chart["planets"]:
+        return {"status": "Not found", "enhances_promise": False}
+
+    venus_lon = chart["planets"]["Venus"]["longitude"]
+    venus_house = _get_planet_house(venus_lon, chart["cusp_lons"])
+    venus_sign = get_sign(venus_lon % 360)
+    venus_sigs = _planet_significations("Venus", chart["planets"], chart["cusp_lons"])
+
+    # Venus in H6, H8, H12 is afflicted (denial/loss houses)
+    afflicted = venus_house in {6, 8, 12}
+
+    # Venus signifying H7 = direct marriage indicator
+    signifies_h7 = 7 in venus_sigs
+    signifies_h11 = 11 in venus_sigs
+    signifies_h2 = 2 in venus_sigs
+
+    # Venus in Ruling Planets check (sign lord of Moon or Lagna)
+    moon_sign_lord = SIGN_LORDS.get(chart["moon_sign"], "")
+    lagna_sign_lord = SIGN_LORDS.get(chart["lagna_sign"], "")
+    is_rp = "Venus" in {moon_sign_lord, lagna_sign_lord,
+                        get_nakshatra_and_starlord(chart["moon_lon"]).get("star_lord", ""),
+                        get_nakshatra_and_starlord(chart["lagna_lon"]).get("star_lord", "")}
+
+    # Strength assessment
+    if not afflicted and (signifies_h7 or signifies_h2 or signifies_h11) and is_rp:
+        strength = "Strong"
+        enhances = True
+    elif not afflicted and (signifies_h7 or signifies_h11):
+        strength = "Good"
+        enhances = True
+    elif afflicted:
+        strength = "Afflicted"
+        enhances = False
+    else:
+        strength = "Moderate"
+        enhances = bool(venus_sigs & MARRIAGE_PROMISE_HOUSES)
+
+    return {
+        "house": venus_house,
+        "sign": venus_sign,
+        "significations": sorted(venus_sigs),
+        "signifies_h7": signifies_h7,
+        "is_ruling_planet": is_rp,
+        "afflicted": afflicted,
+        "strength": strength,
+        "enhances_promise": enhances,
+    }
+
+
+def _supporting_cusps(chart: dict) -> dict:
+    """
+    Analyze H2 and H11 CSLs as supporting marriage gates.
+    H2 CSL signifying H7/H11 → arrangements completed.
+    H11 CSL signifying H7/H2 → fulfillment/fruit of marriage.
+    """
+    h2_csl, h2_sigs = _get_cusp_sub_lord_sigs(2, chart)
+    h11_csl, h11_sigs = _get_cusp_sub_lord_sigs(11, chart)
+
+    h2_supports = bool(h2_sigs & {7, 11})
+    h11_supports = bool(h11_sigs & {2, 7})
+
+    return {
+        "h2_csl": h2_csl,
+        "h2_sigs": sorted(h2_sigs),
+        "h2_supports": h2_supports,
+        "h11_csl": h11_csl,
+        "h11_sigs": sorted(h11_sigs),
+        "h11_supports": h11_supports,
+        "both_support": h2_supports and h11_supports,
+    }
+
+
+def _dasha_overlap_check(chart1_data: dict, chart2_data: dict, chart1: dict, chart2: dict) -> dict:
+    """
+    Check if both persons' current dasha periods are favorable for marriage.
+    Returns info on whether their active periods align for marriage timing.
+    Note: chart1_data is the raw person dict, chart is the computed chart dict.
+    """
+    try:
+        # We look at what's in workspace data (current dasha if available)
+        # Since we only have natal data here, we compute a simple check:
+        # Are the current dasha lords (if knowable) favorable?
+        # Proxy: do the Ruling Planets of each chart share common significators?
+        rp1 = _ruling_planets(chart1)
+        rp2 = _ruling_planets(chart2)
+
+        sigs1 = _marriage_significators(chart1)
+        sigs2 = _marriage_significators(chart2)
+
+        # Cross-resonance: how many shared significators appear in both RP sets?
+        shared_sigs = sigs1 & sigs2
+        common_rp = rp1 & rp2
+
+        # Planets that are significators in both charts AND in both ruling planets
+        strong_timing = shared_sigs & common_rp
+
+        if strong_timing:
+            timing_verdict = "Aligned"
+            timing_note = f"Planets {sorted(strong_timing)} are marriage significators in BOTH charts AND Ruling Planets of both — strong timing alignment."
+        elif shared_sigs:
+            timing_verdict = "Partial"
+            timing_note = f"Shared significators {sorted(shared_sigs)} exist but not confirmed by both RPs."
+        elif common_rp:
+            timing_verdict = "Partial"
+            timing_note = f"Both charts share RPs {sorted(common_rp)} — timing may align but significators differ."
+        else:
+            timing_verdict = "Misaligned"
+            timing_note = "No common significators or Ruling Planets — timing may not align currently."
+
+        return {
+            "timing_verdict": timing_verdict,
+            "timing_note": timing_note,
+            "shared_significators": sorted(shared_sigs),
+            "common_ruling_planets": sorted(common_rp),
+            "strong_timing_planets": sorted(strong_timing),
+        }
+    except Exception:
+        return {"timing_verdict": "Unknown", "timing_note": "Could not compute timing alignment."}
+
+
 # ── KP Compatibility ──────────────────────────────────────────
 
 def _kp_compatibility(chart1: dict, chart2: dict) -> dict:
     promise1 = _h7_sublord_promise(chart1)
     promise2 = _h7_sublord_promise(chart2)
+
+    # Venus karaka analysis for both charts
+    venus1 = _venus_analysis(chart1)
+    venus2 = _venus_analysis(chart2)
+
+    # Supporting cusps (H2 CSL, H11 CSL) for both charts
+    support1 = _supporting_cusps(chart1)
+    support2 = _supporting_cusps(chart2)
 
     sigs1 = _marriage_significators(chart1)
     sigs2 = _marriage_significators(chart2)
@@ -239,11 +472,41 @@ def _kp_compatibility(chart1: dict, chart2: dict) -> dict:
     resonance_2to1 = sorted(sigs2 & rp1)
     total_resonance = len(set(resonance_1to2) | set(resonance_2to1))
 
-    if promise1["has_promise"] and promise2["has_promise"] and total_resonance >= 3:
+    # Critical Venus Override: if Venus is strong in a chart, it can elevate
+    # a "Denied" promise to "Conditional" (KP rule: karaka strength overrides weak CSL)
+    p1_effective = promise1["has_promise"]
+    p2_effective = promise2["has_promise"]
+
+    if promise1["has_denial"] and venus1["enhances_promise"]:
+        p1_effective = True  # Venus karaka overrides denial → Conditional
+        promise1 = dict(promise1)
+        promise1["verdict"] = "Conditional (Venus overrides)"
+        promise1["venus_override"] = True
+    if promise2["has_denial"] and venus2["enhances_promise"]:
+        p2_effective = True
+        promise2 = dict(promise2)
+        promise2["verdict"] = "Conditional (Venus overrides)"
+        promise2["venus_override"] = True
+
+    # H7 sign lord support adds another layer of confirmation
+    h7_lord_both = promise1.get("h7_lord_supports", False) and promise2.get("h7_lord_supports", False)
+
+    # Supporting cusps strengthen the verdict
+    support_score = sum([
+        1 if support1["h2_supports"] else 0,
+        1 if support1["h11_supports"] else 0,
+        1 if support2["h2_supports"] else 0,
+        1 if support2["h11_supports"] else 0,
+    ])
+
+    # Verdict determination (enriched)
+    if p1_effective and p2_effective and total_resonance >= 3 and support_score >= 2:
         verdict = "Strong Match"
-    elif promise1["has_promise"] and promise2["has_promise"] and total_resonance >= 1:
+    elif p1_effective and p2_effective and total_resonance >= 3:
+        verdict = "Strong Match"
+    elif p1_effective and p2_effective and total_resonance >= 1:
         verdict = "Good Match"
-    elif (promise1["has_promise"] or promise2["has_promise"]) and total_resonance >= 1:
+    elif (p1_effective or p2_effective) and total_resonance >= 1:
         verdict = "Fair Match"
     elif promise1["has_denial"] or promise2["has_denial"]:
         verdict = "Caution"
@@ -253,6 +516,10 @@ def _kp_compatibility(chart1: dict, chart2: dict) -> dict:
     return {
         "chart1_promise": promise1,
         "chart2_promise": promise2,
+        "venus_chart1": venus1,
+        "venus_chart2": venus2,
+        "supporting_cusps_chart1": support1,
+        "supporting_cusps_chart2": support2,
         "significators_chart1": sorted(sigs1),
         "significators_chart2": sorted(sigs2),
         "ruling_planets_chart1": sorted(rp1),
@@ -260,6 +527,8 @@ def _kp_compatibility(chart1: dict, chart2: dict) -> dict:
         "resonance_1_to_2": resonance_1to2,
         "resonance_2_to_1": resonance_2to1,
         "total_resonance_count": total_resonance,
+        "h7_lord_both_support": h7_lord_both,
+        "support_score": support_score,
         "kp_verdict": verdict,
     }
 
@@ -541,6 +810,7 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
         name_boy, name_girl = person1["name"], person2["name"]
 
     kp = _kp_compatibility(chart1, chart2)
+    timing = _dasha_overlap_check(person1, person2, chart1, chart2)
     ashtakoota = _ashtakoota(chart_boy, chart_girl)
     dosha_p1 = _check_kuja_dosha(chart1)
     dosha_p2 = _check_kuja_dosha(chart2)
@@ -579,6 +849,7 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
                     "moon_sign": chart2["moon_sign"], "moon_nakshatra": chart2["moon_nakshatra"], "lagna": chart2["lagna_sign"]},
         "boy_girl": {"boy": name_boy, "girl": name_girl},
         "kp_analysis": kp,
+        "timing_analysis": timing,
         "ashtakoota": ashtakoota,
         "kuja_dosha": {
             "person1": {"name": person1["name"], **dosha_p1},

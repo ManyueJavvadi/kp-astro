@@ -68,10 +68,7 @@ export default function Home() {
   // PDF export state
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState("");
-  // Quick insights state (keyed by topic)
-  const [quickInsights, setQuickInsights] = useState<Record<string, string>>({});
-  const [insightsLoading, setInsightsLoading] = useState(false);
-  const [expandedInsight, setExpandedInsight] = useState<string | null>(null);
+  // (quick insights removed)
   // Transit state
   const [transitData, setTransitData] = useState<any>(null);
   const [transitLoading, setTransitLoading] = useState(false);
@@ -248,11 +245,6 @@ export default function Home() {
       if (mode === "astrologer") {
         const res = await axios.post(`${API_URL}/astrologer/workspace`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: 5.5 });
         setWorkspaceData(res.data);
-        // Auto-generate quick insights for top 3 topics
-        setQuickInsights({}); setInsightsLoading(true);
-        axios.post(`${API_URL}/astrologer/quick-insights`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: res.data.latitude || 17.385, longitude: res.data.longitude || 78.4867, timezone_offset: 5.5, topics: ["marriage", "career", "health"], language: "telugu_english" })
-          .then(ir => { setQuickInsights(ir.data); setInsightsLoading(false); })
-          .catch(() => setInsightsLoading(false));
       } else {
         const res = await axios.post(`${API_URL}/chart/generate`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: 5.5 });
         setChartData(res.data);
@@ -1045,20 +1037,30 @@ export default function Home() {
                   {/* Step 1 — Event type + Participants */}
                   {mStep === 1 && (
                     <div>
-                      <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: "1rem" }}>ఏ సందర్భానికి ముహూర్తం?</div>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: "1.25rem" }}>
+                      <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: "0.75rem" }}>ఏ సందర్భానికి ముహూర్తం?</div>
+                      {/* Free-form event type input */}
+                      <input
+                        type="text"
+                        placeholder="సందర్భం టైప్ చేయండి (e.g. vehicle delivery, marriage...)"
+                        value={mEventType}
+                        onChange={e => setMEventType(e.target.value)}
+                        style={{ width: "100%", padding: "10px 14px", background: "var(--card)", border: `0.5px solid ${mEventType ? "var(--accent)" : "var(--border2)"}`, borderRadius: 8, color: "var(--fg)", fontSize: 13, fontFamily: "inherit", marginBottom: 10, outline: "none" }}
+                      />
+                      {/* Quick-pick chips */}
+                      <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 6, marginBottom: "1.25rem" }}>
                         {[
-                          { id: "marriage", te: "వివాహం", en: "Marriage", icon: "♥" },
-                          { id: "business", te: "వ్యాపారం", en: "Business Opening", icon: "◈" },
-                          { id: "house_warming", te: "గృహప్రవేశం", en: "House Warming", icon: "⌂" },
-                          { id: "travel", te: "ప్రయాణం", en: "Travel", icon: "→" },
-                          { id: "education", te: "విద్య", en: "Education", icon: "◉" },
-                        ].map(ev => (
-                          <button key={ev.id} onClick={() => setMEventType(ev.id)}
-                            style={{ padding: "1rem", background: mEventType === ev.id ? "rgba(201,169,110,0.12)" : "var(--surface2)", border: `0.5px solid ${mEventType === ev.id ? "var(--accent)" : "var(--border)"}`, borderRadius: 10, cursor: "pointer", textAlign: "left" as const, transition: "all 0.2s" }}>
-                            <div style={{ fontSize: 18, marginBottom: 4 }}>{ev.icon}</div>
-                            <div style={{ fontSize: 14, color: "var(--text)", fontWeight: 500 }}>{ev.te}</div>
-                            <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}>{ev.en}</div>
+                          ["వివాహం", "Marriage"],
+                          ["వాహన డెలివరీ", "Vehicle Delivery"],
+                          ["వ్యాపారం", "Business Opening"],
+                          ["గృహప్రవేశం", "House Warming"],
+                          ["ప్రయాణం", "Travel"],
+                          ["విద్య", "Education"],
+                          ["వైద్యం / ఆపరేషన్", "Medical / Surgery"],
+                          ["పెట్టుబడి", "Investment"],
+                        ].map(([te, en]) => (
+                          <button key={en} onClick={() => setMEventType(en)}
+                            style={{ padding: "4px 12px", background: mEventType === en ? "rgba(201,169,110,0.15)" : "var(--surface2)", border: `0.5px solid ${mEventType === en ? "var(--accent)" : "var(--border)"}`, borderRadius: 20, cursor: "pointer", fontSize: 12, color: mEventType === en ? "var(--accent)" : "var(--muted)", fontFamily: "inherit", whiteSpace: "nowrap" as const }}>
+                            {te}
                           </button>
                         ))}
                       </div>
@@ -1829,14 +1831,6 @@ export default function Home() {
                             style={{ padding: "4px 18px", background: "rgba(201,169,110,0.1)", border: "0.5px solid var(--border2)", borderRadius: 5, color: "var(--accent)", fontSize: 12, cursor: "pointer", fontFamily: "inherit", width: "100%" }}
                           >🎲 రాండమ్</button>
                         </div>
-                        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" as const }}>
-                          {[1,2,3,4,5,6,7,8,9].map(n => (
-                            <button key={n} onClick={() => setHoraryNumber(n * Math.ceil((horaryNumber as number || 1) / 9) || n)}
-                              style={{ padding: "4px 8px", background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 5, color: "var(--muted)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>
-                              {n}
-                            </button>
-                          ))}
-                        </div>
                         <button
                           onClick={async () => {
                             if (!horaryNumber || !horaryQuestion.trim()) return;
@@ -1867,20 +1861,67 @@ export default function Home() {
                       const r = horaryResult;
                       const v = r.verdict || {};
                       const verdictColor = v.verdict === "YES" ? "#34d399" : v.verdict === "NO" ? "#f87171" : "#fbbf24";
+                      const confColor = v.confidence === "HIGH" ? "#34d399" : v.confidence === "MEDIUM" ? "#fbbf24" : "#888899";
                       return (
                         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                           {/* Verdict banner */}
                           <div style={{ padding: "14px 18px", background: `rgba(${v.verdict==="YES"?"52,211,153":v.verdict==="NO"?"248,113,113":"251,191,36"},0.08)`, border: `0.5px solid ${verdictColor}40`, borderRadius: 10 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                               <span style={{ fontSize: 28, color: verdictColor, fontWeight: 800 }}>{v.verdict}</span>
-                              <div>
-                                <div style={{ fontSize: 11, color: "var(--muted)" }}>విశ్వాసం: {v.confidence}</div>
-                                <div style={{ fontSize: 12, color: "var(--fg)", marginTop: 2 }}>{v.explanation}</div>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
+                                  <span style={{ fontSize: 10, color: confColor, border: `0.5px solid ${confColor}60`, borderRadius: 4, padding: "1px 6px" }}>
+                                    విశ్వాసం: {v.confidence}
+                                  </span>
+                                  {v.rp_confirms_csl && <span style={{ fontSize: 10, color: "#34d399", border: "0.5px solid #34d39960", borderRadius: 4, padding: "1px 6px" }}>RP ✓</span>}
+                                  {v.moon_supports && <span style={{ fontSize: 10, color: "#c9a96e", border: "0.5px solid #c9a96e60", borderRadius: 4, padding: "1px 6px" }}>చంద్రుడు ✓</span>}
+                                </div>
+                                <div style={{ fontSize: 12, color: "var(--fg)" }}>{v.explanation}</div>
                               </div>
                             </div>
                           </div>
 
-                          {/* Lagna info */}
+                          {/* 3-Layer Analysis */}
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const }}>3-స్థాయి KP విశ్లేషణ</div>
+                            {/* Layer 1: Lagna CSL */}
+                            <div style={{ padding: "8px 12px", background: "var(--card)", border: "0.5px solid var(--border2)", borderRadius: 7 }}>
+                              <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 3 }}>స్థాయి 1 — లగ్న CSL (ప్రశ్న ఫలప్రదమా?)</div>
+                              <div style={{ fontSize: 12, color: "var(--fg)" }}>
+                                <span style={{ color: "var(--accent)", fontWeight: 600 }}>{v.lagna_csl}</span>
+                                {" → H"}{(v.lagna_csl_significations || []).join(", H")}
+                                <span style={{ marginLeft: 8, color: v.lagna_fruitful ? "#34d399" : "#f87171", fontSize: 11 }}>
+                                  {v.lagna_fruitful ? "✓ ఫలప్రదం" : "✗ నిరుపయోగం"}
+                                </span>
+                              </div>
+                            </div>
+                            {/* Layer 2: Query House CSL */}
+                            <div style={{ padding: "8px 12px", background: "var(--card)", border: "0.5px solid var(--border2)", borderRadius: 7 }}>
+                              <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 3 }}>స్థాయి 2 — H{v.query_house} CSL (నిజమైన నిర్ణయం)</div>
+                              <div style={{ fontSize: 12, color: "var(--fg)" }}>
+                                <span style={{ color: "var(--accent)", fontWeight: 600 }}>{v.query_csl}</span>
+                                {" → H"}{(v.query_csl_significations || []).join(", H")}
+                                {v.h2_supports && <span style={{ marginLeft: 6, fontSize: 10, color: "#34d399" }}>H2✓</span>}
+                                {v.h11_supports && <span style={{ marginLeft: 4, fontSize: 10, color: "#34d399" }}>H11✓</span>}
+                              </div>
+                            </div>
+                            {/* Layer 3: Ruling Planets */}
+                            <div style={{ padding: "8px 12px", background: "var(--card)", border: "0.5px solid var(--border2)", borderRadius: 7 }}>
+                              <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 3 }}>స్థాయి 3 — నియమిత గ్రహాలు (నిర్ధారణ)</div>
+                              <div style={{ fontSize: 12, color: "var(--fg)", display: "flex", gap: 6, flexWrap: "wrap" as const }}>
+                                {(v.ruling_planets || []).map((rp: string) => (
+                                  <span key={rp} style={{
+                                    padding: "2px 8px", borderRadius: 10, fontSize: 11,
+                                    background: (v.rp_signifying_yes || []).includes(rp) ? "rgba(52,211,153,0.12)" : "var(--surface2)",
+                                    color: (v.rp_signifying_yes || []).includes(rp) ? "#34d399" : "var(--muted)",
+                                    border: rp === v.query_csl ? "0.5px solid var(--accent)" : "0.5px solid var(--border2)"
+                                  }}>{rp}</span>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Lagna info grid */}
                           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                             {[
                               ["ప్రశ్న సంఖ్య", `#${r.prashna_number}`],
@@ -1888,7 +1929,7 @@ export default function Home() {
                               ["లగ్న నక్షత్రం", r.lagna?.nakshatra],
                               ["లగ్న స్టార్‌లార్డ్", r.lagna?.star_lord],
                               ["లగ్న సబ్‌లార్డ్", r.lagna?.sub_lord],
-                              ["టాపిక్ భావాలు (అనుకూల)", (r.topic_houses?.yes || []).map((h: number) => `H${h}`).join(", ")],
+                              ["అనుకూల భావాలు", (v.yes_houses || []).map((h: number) => `H${h}`).join(", ")],
                             ].map(([label, val]) => (
                               <div key={label} style={{ padding: "7px 10px", background: "var(--card)", border: "0.5px solid var(--border2)", borderRadius: 6 }}>
                                 <div style={{ fontSize: 9, color: "var(--accent)", marginBottom: 2 }}>{label}</div>
@@ -1910,9 +1951,10 @@ export default function Home() {
                               </thead>
                               <tbody>
                                 {(r.planets || []).map((p: any) => (
-                                  <tr key={p.planet} style={{ borderBottom: "0.5px solid rgba(255,255,255,0.04)" }}>
-                                    <td style={{ padding: "5px 7px", color: "var(--fg)", fontWeight: 500 }}>
+                                  <tr key={p.planet} style={{ borderBottom: "0.5px solid rgba(255,255,255,0.04)", background: p.is_ruling_planet ? "rgba(201,169,110,0.04)" : "transparent" }}>
+                                    <td style={{ padding: "5px 7px", color: p.is_ruling_planet ? "var(--accent)" : "var(--fg)", fontWeight: p.is_ruling_planet ? 600 : 400 }}>
                                       {p.planet}{p.retrograde && <span style={{ color: "#f87171", fontSize: 9, marginLeft: 3 }}>℞</span>}
+                                      {p.is_ruling_planet && <span style={{ color: "var(--accent)", fontSize: 8, marginLeft: 3 }}>RP</span>}
                                     </td>
                                     <td style={{ padding: "5px 7px", color: "var(--muted)" }}>{p.sign}</td>
                                     <td style={{ padding: "5px 7px", color: "var(--muted)" }}>{p.nakshatra}</td>
@@ -1941,61 +1983,6 @@ export default function Home() {
               {/* ANALYSIS */}
               {activeTab === "analysis" && (
                 <div className="tab-content" style={{ display: "flex", flexDirection: "column", height: "100%", gap: 0 }}>
-                  {/* Quick Insights Cards — auto-generated per topic */}
-                  {workspaceData && (insightsLoading || Object.keys(quickInsights).length > 0) && (
-                    <div style={{ marginBottom: 12, flexShrink: 0 }}>
-                      <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>
-                        ⚡ ఈ చార్ట్ కోసం స్పెషల్ అంచనాలు — Chart-Specific Key Insights
-                      </div>
-                      {insightsLoading && !Object.keys(quickInsights).length && (
-                        <div style={{ display: "flex", gap: 8 }}>
-                          {["వివాహం","ఉద్యోగం","ఆరోగ్యం"].map(l => (
-                            <div key={l} style={{ flex: 1, padding: "10px 12px", background: "var(--card)", border: "0.5px solid var(--border2)", borderRadius: 8, minHeight: 80, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              <span style={{ fontSize: 11, color: "var(--muted)", animation: "pulse 1.5s infinite" }}>{l} విశ్లేషిస్తోంది...</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {Object.keys(quickInsights).length > 0 && (
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const }}>
-                          {(["marriage", "career", "health"] as const).map(topic => {
-                            const labelMap: Record<string, string> = { marriage: "వివాహం", career: "ఉద్యోగం", health: "ఆరోగ్యం" };
-                            const iconMap: Record<string, string> = { marriage: "💍", career: "💼", health: "🏥" };
-                            const insight = quickInsights[topic];
-                            const isExpanded = expandedInsight === topic;
-                            if (!insight) return null;
-                            // Parse bullet points
-                            const lines = insight.split("\n").filter(l => l.trim());
-                            const firstLine = lines[0] || "";
-                            return (
-                              <div key={topic}
-                                onClick={() => setExpandedInsight(isExpanded ? null : topic)}
-                                style={{ flex: "1 1 200px", minWidth: 180, padding: "10px 12px", background: "var(--card)", border: `0.5px solid ${isExpanded ? "var(--accent)" : "var(--border2)"}`, borderRadius: 8, cursor: "pointer", transition: "all 0.2s" }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                                  <span style={{ fontSize: 14 }}>{iconMap[topic]}</span>
-                                  <span style={{ fontSize: 11, color: "var(--accent)", fontWeight: 600 }}>{labelMap[topic]}</span>
-                                  <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--muted)" }}>{isExpanded ? "▲" : "▼"}</span>
-                                </div>
-                                <div style={{ fontSize: 11, color: "var(--fg)", lineHeight: 1.6 }}>
-                                  {isExpanded ? (
-                                    <div style={{ whiteSpace: "pre-wrap" as const }}>{insight}</div>
-                                  ) : (
-                                    <div style={{ color: "var(--muted)", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const }}>{firstLine}</div>
-                                  )}
-                                </div>
-                                {!isExpanded && (
-                                  <button onClick={e => { e.stopPropagation(); handleTopicAnalysis(topic); }}
-                                    style={{ marginTop: 6, padding: "3px 10px", background: "rgba(201,169,110,0.1)", border: "0.5px solid var(--border2)", borderRadius: 4, color: "var(--accent)", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>
-                                    లోతైన విశ్లేషణ →
-                                  </button>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )}
                   {/* Topic quick-launch bar */}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem", flexWrap: "wrap", gap: 8, flexShrink: 0 }}>
                     <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>

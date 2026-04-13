@@ -17,7 +17,7 @@ class Participant(BaseModel):
 
 
 class MuhurthaRequest(BaseModel):
-    event_type: str           # "marriage" | "business" | "house_warming" | "travel" | "education"
+    event_type: str           # Free-form text e.g. "vehicle delivery" or preset key like "marriage"
     date_start: str           # "2026-04-15"
     date_end: str             # "2026-05-15"
     latitude: float           # primary location for Lagna calculation

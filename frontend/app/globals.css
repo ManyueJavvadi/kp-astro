@@ -31,6 +31,12 @@ input, textarea, select, button {
   font-family: 'DM Sans', sans-serif;
 }
 
+/* Fix select dropdown option visibility in dark mode */
+select option {
+  background: #1a1a24;
+  color: #f0f0f0;
+}
+
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }

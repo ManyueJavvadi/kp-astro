@@ -14,12 +14,50 @@ from app.services.chart_engine import (
 # ── Event house requirements ──────────────────────────────────
 
 EVENT_HOUSE_GROUPS = {
-    "marriage":      {"primary": 7,  "supporting": [2, 11], "denial": [1, 6, 10, 12]},
+    "marriage":      {"primary": 7,  "supporting": [2, 11],    "denial": [1, 6, 10, 12]},
     "business":      {"primary": 10, "supporting": [2, 6, 11], "denial": [1, 5, 9, 12]},
-    "house_warming": {"primary": 4,  "supporting": [11, 12], "denial": [3, 10]},
-    "travel":        {"primary": 9,  "supporting": [3, 12], "denial": [2, 8, 11]},
-    "education":     {"primary": 4,  "supporting": [9, 11], "denial": [3, 12]},
+    "house_warming": {"primary": 4,  "supporting": [11, 12],   "denial": [3, 10]},
+    "travel":        {"primary": 9,  "supporting": [3, 12],    "denial": [2, 8, 11]},
+    "education":     {"primary": 4,  "supporting": [9, 11],    "denial": [3, 12]},
+    # Extended event types
+    "vehicle":       {"primary": 4,  "supporting": [11],       "denial": [3, 8, 12]},
+    "medical":       {"primary": 1,  "supporting": [5, 11],    "denial": [6, 8, 12]},
+    "legal":         {"primary": 6,  "supporting": [11],       "denial": [5, 8, 12]},
+    "investment":    {"primary": 2,  "supporting": [5, 11],    "denial": [8, 12]},
+    "general":       {"primary": 1,  "supporting": [2, 11],    "denial": [6, 8, 12]},
 }
+
+
+def classify_event(event_text: str) -> str:
+    """Map free-form event description to a known event key."""
+    text = event_text.lower()
+    if any(w in text for w in ["marriage", "wedding", "vivah", "పెళ్ళి", "వివాహ", "kalyanam"]):
+        return "marriage"
+    if any(w in text for w in ["vehicle", "car", "bike", "auto", "scooter", "vahana",
+                                "delivery", "వాహన", "కార్", "బైక్"]):
+        return "vehicle"
+    if any(w in text for w in ["business", "shop", "office", "opening", "start", "launch",
+                                "వ్యాపార", "దుకాణం"]):
+        return "business"
+    if any(w in text for w in ["house", "home", "graha", "griha", "warming", "flat",
+                                "apartment", "గృహ", "ఇల్లు", "నివాసం"]):
+        return "house_warming"
+    if any(w in text for w in ["travel", "journey", "trip", "tour", "flight", "train",
+                                "prayanam", "ప్రయాణ"]):
+        return "travel"
+    if any(w in text for w in ["education", "school", "college", "exam", "study", "course",
+                                "admission", "విద్య", "పరీక్ష"]):
+        return "education"
+    if any(w in text for w in ["medical", "surgery", "operation", "hospital", "treatment",
+                                "doctor", "వైద్య", "ఆపరేషన్"]):
+        return "medical"
+    if any(w in text for w in ["legal", "court", "case", "lawsuit", "vyajyam", "వ్యాజ్య",
+                                "కోర్టు"]):
+        return "legal"
+    if any(w in text for w in ["invest", "stock", "fund", "property buy", "land", "gold",
+                                "పెట్టుబడి"]):
+        return "investment"
+    return "general"
 
 # ── Sign lords ────────────────────────────────────────────────
 
@@ -280,8 +318,12 @@ def find_muhurtha_windows(
 ) -> dict:
     """
     Find muhurtha windows in [date_start, date_end], plus ±nearby_days.
+    event_type can be a free-form string — it is classified automatically.
     Returns {windows, date_windows, nearby_better, best_window, participant_rps_used}.
     """
+    # Classify free-form event description into a known event key
+    classified_event = classify_event(event_type)
+
     start_dt = datetime.strptime(date_start, "%Y-%m-%d")
     end_dt = datetime.strptime(date_end, "%Y-%m-%d")
 
@@ -296,7 +338,7 @@ def find_muhurtha_windows(
             if rps:
                 participant_rps.append((p.get("name", ""), rps))
 
-    selected_raw = _scan_date_range(start_dt, end_dt, event_type, lat, lon, tz_offset, participant_rps)
+    selected_raw = _scan_date_range(start_dt, end_dt, classified_event, lat, lon, tz_offset, participant_rps)
     selected_windows = _merge_windows(selected_raw)
     selected_windows.sort(key=lambda w: w["score"], reverse=True)
 
@@ -314,7 +356,7 @@ def find_muhurtha_windows(
     if nearby_days > 0:
         nearby_start = start_dt - timedelta(days=nearby_days)
         nearby_end = end_dt + timedelta(days=nearby_days)
-        nearby_raw = _scan_date_range(nearby_start, nearby_end, event_type, lat, lon, tz_offset, participant_rps)
+        nearby_raw = _scan_date_range(nearby_start, nearby_end, classified_event, lat, lon, tz_offset, participant_rps)
         nearby_merged = _merge_windows(nearby_raw)
         nearby_merged.sort(key=lambda w: w["score"], reverse=True)
 
@@ -331,7 +373,8 @@ def find_muhurtha_windows(
         "date_windows": date_windows,
         "best_window": selected_windows[0] if selected_windows else None,
         "nearby_better": nearby_better,
-        "event_type": event_type,
+        "event_type": classified_event,
+        "event_label": event_type,
         "searched_range": {"start": date_start, "end": date_end},
         "participants_loaded": [name for name, _ in participant_rps],
     }
