@@ -55,7 +55,7 @@ export default function Home() {
   const [mParticipants, setMParticipants] = useState<ChartSession[]>([]);
   const [mShowAddParticipant, setMShowAddParticipant] = useState(false);
   // Inline participant mini-form (shared between muhurtha and match)
-  const [mNewP, setMNewP] = useState({ name: "", date: "", time: "", ampm: "AM" as "AM"|"PM", place: "", latitude: 17.385, longitude: 78.4867, gender: "" as "male"|"female"|"" });
+  const [mNewP, setMNewP] = useState({ name: "", date: "", time: "", ampm: "AM" as "AM"|"PM", place: "", latitude: 17.385, longitude: 78.4867, gender: "" as "male"|"female"|"", timezone_offset: 5.5 });
   const [mNewPPlaceSugg, setMNewPPlaceSugg] = useState<PlaceSuggestion[]>([]);
   const [mNewPPlaceStatus, setMNewPPlaceStatus] = useState<"idle"|"searching"|"done">("idle");
   const mNewPSearchRef = useRef<ReturnType<typeof setTimeout>|null>(null);
@@ -83,6 +83,9 @@ export default function Home() {
   const [housesSubTab, setHousesSubTab] = useState<"cusps"|"sigs"|"ruling"|"panchang">("cusps");
   const [chartView, setChartView] = useState<"chart"|"planets">("chart");
   const [showTransitInDasha, setShowTransitInDasha] = useState(false);
+  // Timezone (auto-detected from place)
+  const [timezoneOffset, setTimezoneOffset] = useState(5.5);
+  const [timezoneLabel, setTimezoneLabel] = useState("IST");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const placeSearchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -92,7 +95,7 @@ export default function Home() {
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [analysisMessages]);
   // Clear shared inline form state when switching tabs to prevent cross-tab data leakage
   useEffect(() => {
-    setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "" });
+    setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "", timezone_offset: 5.5 });
     setMNewPPlaceSugg([]);
     setMShowAddParticipant(false);
     setMatchPerson2Inline(false);
@@ -109,12 +112,8 @@ export default function Home() {
     if (query.length < 3) { setSuggestions([]); setShowSuggestions(false); return; }
     setPlaceStatus("loading");
     try {
-      const res = await axios.get("https://nominatim.openstreetmap.org/search", { params: { q: query, format: "json", limit: 5, addressdetails: 1, countrycodes: "in", "accept-language": "en" }, headers: { "User-Agent": "DevAstroAI/1.0" } });
-      let features = res.data;
-      if (features.length === 0) {
-        const g = await axios.get("https://nominatim.openstreetmap.org/search", { params: { q: query, format: "json", limit: 5, addressdetails: 1, "accept-language": "en" }, headers: { "User-Agent": "DevAstroAI/1.0" } });
-        features = g.data;
-      }
+      const res = await axios.get("https://nominatim.openstreetmap.org/search", { params: { q: query, format: "json", limit: 5, addressdetails: 1, "accept-language": "en" }, headers: { "User-Agent": "DevAstroAI/1.0" } });
+      const features = res.data;
       const results: PlaceSuggestion[] = features.map((f: any) => {
         const addr = f.address || {};
         const parts = [addr.city || addr.town || addr.village || addr.county || f.display_name.split(",")[0], addr.state, addr.country].filter(Boolean);
@@ -134,6 +133,17 @@ export default function Home() {
   const handleSelectPlace = (s: PlaceSuggestion) => {
     setBirthDetails(prev => ({ ...prev, place: s.display, latitude: s.lat, longitude: s.lon }));
     setPlaceStatus("found"); setShowSuggestions(false); setSuggestions([]);
+    // Auto-detect timezone from coordinates (silent fallback to IST)
+    axios.get("https://api.bigdatacloud.net/data/reverse-geocode-client", {
+      params: { latitude: s.lat, longitude: s.lon, localityLanguage: "en" }
+    }).then(res => {
+      const tz = res.data?.timezone;
+      if (tz?.gmtOffset !== undefined) {
+        const offset = Math.round((tz.gmtOffset / 3600) * 2) / 2;
+        setTimezoneOffset(offset);
+        setTimezoneLabel(tz.zoneAbbr || `UTC${offset >= 0 ? "+" : ""}${offset}`);
+      }
+    }).catch(() => {});
   };
 
   const handleMNewPPlaceChange = (val: string) => {
@@ -144,12 +154,8 @@ export default function Home() {
     mNewPSearchRef.current = setTimeout(async () => {
       setMNewPPlaceStatus("searching");
       try {
-        const res = await axios.get("https://nominatim.openstreetmap.org/search", { params: { q: val, format: "json", limit: 5, addressdetails: 1, countrycodes: "in", "accept-language": "en" }, headers: { "User-Agent": "DevAstroAI/1.0" } });
-        let features = res.data;
-        if (!features.length) {
-          const g = await axios.get("https://nominatim.openstreetmap.org/search", { params: { q: val, format: "json", limit: 5, addressdetails: 1, "accept-language": "en" }, headers: { "User-Agent": "DevAstroAI/1.0" } });
-          features = g.data;
-        }
+        const res = await axios.get("https://nominatim.openstreetmap.org/search", { params: { q: val, format: "json", limit: 5, addressdetails: 1, "accept-language": "en" }, headers: { "User-Agent": "DevAstroAI/1.0" } });
+        const features = res.data;
         const results: PlaceSuggestion[] = features.map((f: any) => {
           const addr = f.address || {};
           const parts = [addr.city || addr.town || addr.village || addr.county || f.display_name.split(",")[0], addr.state, addr.country].filter(Boolean);
@@ -169,15 +175,54 @@ export default function Home() {
 
   const handleDateChange = (val: string) => {
     let v = val.replace(/\D/g, "");
-    if (v.length >= 2) v = v.slice(0, 2) + "/" + v.slice(2);
-    if (v.length >= 5) v = v.slice(0, 5) + "/" + v.slice(5);
+    if (v.length >= 2) {
+      const dd = Math.min(31, Math.max(1, parseInt(v.slice(0, 2)) || 1));
+      v = String(dd).padStart(2, "0") + "/" + v.slice(2);
+    }
+    if (v.length >= 5) {
+      const mm = Math.min(12, Math.max(1, parseInt(v.slice(3, 5)) || 1));
+      v = v.slice(0, 3) + String(mm).padStart(2, "0") + "/" + v.slice(5);
+    }
     setBirthDetails(prev => ({ ...prev, date: v.slice(0, 10) }));
   };
 
   const handleTimeChange = (val: string) => {
     let v = val.replace(/\D/g, "");
-    if (v.length >= 2) v = v.slice(0, 2) + ":" + v.slice(2);
+    if (v.length >= 2) {
+      const hh = Math.min(12, Math.max(1, parseInt(v.slice(0, 2)) || 1));
+      v = String(hh).padStart(2, "0") + ":" + v.slice(2);
+    }
+    if (v.length >= 5) {
+      const mm = Math.min(59, parseInt(v.slice(3, 5)) || 0);
+      v = v.slice(0, 3) + String(mm).padStart(2, "0");
+    }
     setBirthDetails(prev => ({ ...prev, time: v.slice(0, 5) }));
+  };
+
+  const handleMNewPDateChange = (val: string) => {
+    let v = val.replace(/\D/g, "");
+    if (v.length >= 2) {
+      const dd = Math.min(31, Math.max(1, parseInt(v.slice(0, 2)) || 1));
+      v = String(dd).padStart(2, "0") + "/" + v.slice(2);
+    }
+    if (v.length >= 5) {
+      const mm = Math.min(12, Math.max(1, parseInt(v.slice(3, 5)) || 1));
+      v = v.slice(0, 3) + String(mm).padStart(2, "0") + "/" + v.slice(5);
+    }
+    setMNewP(p => ({ ...p, date: v.slice(0, 10) }));
+  };
+
+  const handleMNewPTimeChange = (val: string) => {
+    let v = val.replace(/\D/g, "");
+    if (v.length >= 2) {
+      const hh = Math.min(12, Math.max(1, parseInt(v.slice(0, 2)) || 1));
+      v = String(hh).padStart(2, "0") + ":" + v.slice(2);
+    }
+    if (v.length >= 5) {
+      const mm = Math.min(59, parseInt(v.slice(3, 5)) || 0);
+      v = v.slice(0, 3) + String(mm).padStart(2, "0");
+    }
+    setMNewP(p => ({ ...p, time: v.slice(0, 5) }));
   };
 
   const getTime24 = () => {
@@ -210,7 +255,7 @@ export default function Home() {
       time,
       latitude: bd.latitude || 17.385,
       longitude: bd.longitude || 78.4867,
-      timezone_offset: 5.5,
+      timezone_offset: bd.timezone_offset ?? 5.5,
       gender: bd.gender || "",
     };
   };
@@ -220,6 +265,10 @@ export default function Home() {
     if (!birthDetails.latitude || !birthDetails.longitude) { alert("Please select a place from the dropdown or enter coordinates manually."); return; }
     const formattedDate = getFormattedDate();
     if (!formattedDate) { alert("Please enter date as DD/MM/YYYY"); return; }
+    const timeParts = birthDetails.time.split(":").map(Number);
+    if (timeParts.length !== 2 || isNaN(timeParts[0]) || isNaN(timeParts[1]) || timeParts[0] < 1 || timeParts[0] > 12 || timeParts[1] < 0 || timeParts[1] > 59) {
+      alert("Please enter a valid time (HH:MM, hours 01–12, minutes 00–59)"); return;
+    }
 
     // Duplicate detection — switch to existing session instead of re-generating
     if (mode === "astrologer" && savedSessions.length > 0) {
@@ -235,10 +284,10 @@ export default function Home() {
     setChartLoading(true);
     try {
       if (mode === "astrologer") {
-        const res = await axios.post(`${API_URL}/astrologer/workspace`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: 5.5 });
+        const res = await axios.post(`${API_URL}/astrologer/workspace`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: timezoneOffset });
         setWorkspaceData(res.data);
       } else {
-        const res = await axios.post(`${API_URL}/chart/generate`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: 5.5 });
+        const res = await axios.post(`${API_URL}/chart/generate`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: timezoneOffset });
         setChartData(res.data);
       }
       setSetupDone(true);
@@ -259,7 +308,7 @@ export default function Home() {
       const res = await axios.post(`${API_URL}/prediction/ask`, {
         name: birthDetails.name, date: formattedDate, time: getTime24(),
         latitude: birthDetails.latitude, longitude: birthDetails.longitude,
-        timezone_offset: 5.5, topic: "auto", question: currentQuestion, mode: "user",
+        timezone_offset: timezoneOffset, topic: "auto", question: currentQuestion, mode: "user",
         history: messages.slice(-4).map(m => ({ question: m.question, answer: m.answer }))
       });
       setMessages(prev => [...prev, { id: Date.now().toString(), question: currentQuestion, answer: res.data.answer, analysis: res.data.analysis, timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }]);
@@ -275,7 +324,7 @@ export default function Home() {
     const topicLabel = TOPICS.find(t => t.id === topic)?.te || topic;
     try {
       // Topic analysis always starts fresh — no prior history for the first message
-      const res = await axios.post(`${API_URL}/astrologer/analyze`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: 5.5, topic, question: `Complete KP analysis for ${topic}`, history: [], language: analysisLang });
+      const res = await axios.post(`${API_URL}/astrologer/analyze`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: timezoneOffset, topic, question: `Complete KP analysis for ${topic}`, history: [], language: analysisLang });
       setAnalysisMessages(prev => [...prev, { q: `${topicLabel} — Full Analysis`, a: res.data.answer, isTopic: true }]);
     } catch {
       setAnalysisMessages(prev => [...prev, { q: topicLabel, a: "Analysis failed. Please try again.", isTopic: true }]);
@@ -290,7 +339,7 @@ export default function Home() {
       // CRITICAL FIX: pass ALL prior messages (including topic analysis) as history
       // This prevents the AI from repeating reasoning already given
       const history = analysisMessages.slice(-6).map(m => ({ question: m.q, answer: m.a }));
-      const res = await axios.post(`${API_URL}/astrologer/analyze`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: 5.5, topic: activeTopic || "general", question: q, history, language: analysisLang });
+      const res = await axios.post(`${API_URL}/astrologer/analyze`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: timezoneOffset, topic: activeTopic || "general", question: q, history, language: analysisLang });
       setAnalysisMessages(prev => [...prev, { q, a: res.data.answer }]);
     } catch { } finally { setAnalysisLoading(false); }
   };
@@ -319,7 +368,7 @@ export default function Home() {
 
   const snapshotCurrentSession = (): ChartSession | null => {
     if (!workspaceData) return null;
-    return { id: currentSessionId || Date.now().toString(), name: workspaceData.name, birthDetails: { ...birthDetails }, workspaceData, analysisMessages: [...analysisMessages], activeTopic, selectedHouse, chatQ, analysisLang, activeTab };
+    return { id: currentSessionId || Date.now().toString(), name: workspaceData.name, birthDetails: { ...birthDetails, timezone_offset: timezoneOffset }, workspaceData, analysisMessages: [...analysisMessages], activeTopic, selectedHouse, chatQ, analysisLang, activeTab };
   };
 
   const handleNewChart = () => {
@@ -450,7 +499,7 @@ export default function Home() {
       {/* Nav */}
       <nav style={{ position: "relative", zIndex: 10, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1.25rem 2.5rem", borderBottom: "0.5px solid var(--border)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: "50%", border: "1px solid var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent)", fontSize: 14 }}>✦</div>
+          <div style={{ width: 34, height: 34, borderRadius: "50%", border: "1px solid var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent)", fontSize: 18, background: "rgba(201,169,110,0.06)" }}>♏</div>
           <div>
             <div className="logo-title" style={{ fontFamily: "'DM Serif Display',serif", fontSize: 17, letterSpacing: "0.02em" }}>DevAstro<span style={{ color: "var(--accent)" }}>AI</span></div>
             <div className="logo-subtitle" style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.12em", textTransform: "uppercase" }}>KP Astrology Intelligence</div>
@@ -475,7 +524,21 @@ export default function Home() {
             <h1 style={{ fontFamily: "'DM Serif Display',serif", fontSize: "clamp(2rem,5vw,3.2rem)", lineHeight: 1.15, marginBottom: "1rem", background: "linear-gradient(135deg,#fff 0%,var(--accent2) 60%,var(--accent) 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
               Ancient wisdom,<br /><em>precise answers</em>
             </h1>
-            <p style={{ fontSize: 15, color: "var(--muted)", lineHeight: 1.7, maxWidth: 420, margin: "0 auto" }}>Enter your birth details. Our KP engine calculates your chart with Swiss Ephemeris precision.</p>
+            {/* Credit + trust block */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, marginTop: 12 }}>
+              <p style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.7, maxWidth: 440, margin: 0, textAlign: "center" }}>
+                Precise KP analysis powered by <span style={{ color: "var(--accent2)" }}>Swiss Ephemeris</span> — the gold standard in astronomical computation.
+              </p>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
+                <span style={{ fontSize: 11, color: "var(--muted)" }}>Built by</span>
+                <a href="https://www.linkedin.com/in/manyue-javvadi-datascientist/" target="_blank" rel="noopener noreferrer"
+                  style={{ fontSize: 11, color: "var(--accent)", textDecoration: "none", borderBottom: "0.5px solid rgba(201,169,110,0.4)" }}>
+                  Manyue Javvadi · Data Engineer ↗
+                </a>
+                <span style={{ fontSize: 11, color: "var(--muted)", opacity: 0.4 }}>·</span>
+                <span style={{ fontSize: 11, color: "var(--muted)" }}>Supervised &amp; trusted by KP Astrologers</span>
+              </div>
+            </div>
           </div>
 
           <div style={{ background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 14, overflow: "hidden" }}>
@@ -525,7 +588,13 @@ export default function Home() {
                       ))}
                     </div>
                   )}
-                  {placeStatus === "found" && birthDetails.latitude && <div style={{ fontSize: 10, color: "var(--green)", marginTop: 4 }}>✓ {birthDetails.latitude.toFixed(4)}°N, {birthDetails.longitude?.toFixed(4)}°E</div>}
+                  {placeStatus === "found" && birthDetails.latitude && (
+                    <div style={{ fontSize: 10, color: "var(--green)", marginTop: 4 }}>
+                      ✓ {birthDetails.latitude.toFixed(4)}°, {birthDetails.longitude?.toFixed(4)}°
+                      · <span style={{ color: "var(--accent)" }}>{timezoneLabel}</span>
+                      {` (UTC${timezoneOffset >= 0 ? "+" : ""}${timezoneOffset})`}
+                    </div>
+                  )}
                   {placeStatus === "error" && !manualCoords && (
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
                       <span style={{ fontSize: 10, color: "var(--red)" }}>Place not found.</span>
@@ -1086,7 +1155,7 @@ export default function Home() {
                           natal: workspaceData, transit_date: undefined,
                           latitude: workspaceData.latitude || 17.385,
                           longitude: workspaceData.longitude || 78.4867,
-                          timezone_offset: 5.5,
+                          timezone_offset: timezoneOffset,
                         }).then(res => { setTransitData(res.data); setTransitLoading(false); })
                           .catch(() => setTransitLoading(false));
                       }
@@ -1108,7 +1177,7 @@ export default function Home() {
                             if (!workspaceData) return;
                             setTransitLoading(true);
                             try {
-                              const res = await axios.post(`${API_URL}/transit/analyze`, { natal: workspaceData, transit_date: transitDate || undefined, latitude: workspaceData.latitude || 17.385, longitude: workspaceData.longitude || 78.4867, timezone_offset: 5.5 });
+                              const res = await axios.post(`${API_URL}/transit/analyze`, { natal: workspaceData, transit_date: transitDate || undefined, latitude: workspaceData.latitude || 17.385, longitude: workspaceData.longitude || 78.4867, timezone_offset: timezoneOffset });
                               setTransitData(res.data);
                             } catch { setTransitData(null); }
                             setTransitLoading(false);
@@ -1245,10 +1314,10 @@ export default function Home() {
                             <input placeholder="పేరు / Name" value={mNewP.name} onChange={e => setMNewP(p => ({ ...p, name: e.target.value }))}
                               style={{ background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "7px 10px", fontSize: 12, color: "var(--text)", outline: "none" }} />
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-                              <input placeholder="DD/MM/YYYY" value={mNewP.date} onChange={e => setMNewP(p => ({ ...p, date: e.target.value }))}
+                              <input placeholder="DD/MM/YYYY" value={mNewP.date} onChange={e => handleMNewPDateChange(e.target.value)} maxLength={10}
                                 style={{ background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "7px 10px", fontSize: 12, color: "var(--text)", outline: "none" }} />
                               <div style={{ display: "flex", gap: 4 }}>
-                                <input placeholder="HH:MM" value={mNewP.time} onChange={e => setMNewP(p => ({ ...p, time: e.target.value }))}
+                                <input placeholder="HH:MM" value={mNewP.time} onChange={e => handleMNewPTimeChange(e.target.value)} maxLength={5}
                                   style={{ flex: 1, background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "7px 10px", fontSize: 12, color: "var(--text)", outline: "none" }} />
                                 <button onClick={() => setMNewP(p => ({ ...p, ampm: p.ampm === "AM" ? "PM" : "AM" }))}
                                   style={{ padding: "7px 8px", background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, color: "var(--accent)", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>
@@ -1264,7 +1333,17 @@ export default function Home() {
                               {mNewPPlaceSugg.length > 0 && (
                                 <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100, background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 6, overflow: "hidden", marginTop: 2 }}>
                                   {mNewPPlaceSugg.map((s, i) => (
-                                    <button key={i} onClick={() => { setMNewP(p => ({ ...p, place: s.display, latitude: s.lat, longitude: s.lon })); setMNewPPlaceSugg([]); setMNewPPlaceStatus("idle"); }}
+                                    <button key={i} onClick={() => {
+                                      setMNewP(p => ({ ...p, place: s.display, latitude: s.lat, longitude: s.lon }));
+                                      setMNewPPlaceSugg([]); setMNewPPlaceStatus("idle");
+                                      // Auto-detect timezone for inline participant
+                                      axios.get("https://api.bigdatacloud.net/data/reverse-geocode-client", {
+                                        params: { latitude: s.lat, longitude: s.lon, localityLanguage: "en" }
+                                      }).then(r => {
+                                        const offset = Math.round(((r.data?.timezone?.gmtOffset || 19800) / 3600) * 2) / 2;
+                                        setMNewP(p => ({ ...p, timezone_offset: offset }));
+                                      }).catch(() => {});
+                                    }}
                                       style={{ width: "100%", padding: "7px 10px", background: "none", border: "none", borderBottom: "0.5px solid var(--border)", color: "var(--text)", fontSize: 11, textAlign: "left" as const, cursor: "pointer", fontFamily: "inherit" }}>
                                       {s.display}
                                     </button>
@@ -1287,18 +1366,18 @@ export default function Home() {
                                 const newSession: ChartSession = {
                                   id: Date.now().toString(),
                                   name: mNewP.name,
-                                  birthDetails: { name: mNewP.name, date: mNewP.date, time: mNewP.time, ampm: mNewP.ampm, place: mNewP.place, latitude: mNewP.latitude, longitude: mNewP.longitude, gender: mNewP.gender },
+                                  birthDetails: { name: mNewP.name, date: mNewP.date, time: mNewP.time, ampm: mNewP.ampm, place: mNewP.place, latitude: mNewP.latitude, longitude: mNewP.longitude, gender: mNewP.gender, timezone_offset: mNewP.timezone_offset },
                                   workspaceData: null, analysisMessages: [], activeTopic: "", selectedHouse: null, chatQ: "", analysisLang: "english", activeTab: "chart"
                                 };
                                 setMParticipants(prev => [...prev, newSession]);
                                 setSavedSessions(prev => [...prev, newSession]);
-                                setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "" });
+                                setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "", timezone_offset: 5.5 });
                                 setMNewPPlaceSugg([]); setMNewPPlaceStatus("idle");
                                 setMShowAddParticipant(false);
                               }} style={{ flex: 1, padding: "7px", background: "var(--accent)", border: "none", borderRadius: 6, color: "#09090f", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
                                 జోడించు
                               </button>
-                              <button onClick={() => { setMShowAddParticipant(false); setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "" }); setMNewPPlaceSugg([]); }}
+                              <button onClick={() => { setMShowAddParticipant(false); setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "", timezone_offset: 5.5 }); setMNewPPlaceSugg([]); }}
                                 style={{ padding: "7px 12px", background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, color: "var(--muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
                                 రద్దు
                               </button>
@@ -1367,7 +1446,7 @@ export default function Home() {
                           const res = await axios.post(`${API_URL}/muhurtha/find`, {
                             event_type: mEventType, date_start: mDateStart, date_end: mDateEnd,
                             latitude: workspaceData.latitude || 17.385, longitude: workspaceData.longitude || 78.4867,
-                            timezone_offset: 5.5, nearby_days: 3,
+                            timezone_offset: timezoneOffset, nearby_days: 3,
                             participants: [
                               // Main user always included as participant 0 for RP resonance
                               ...(snapshotCurrentSession() ? [sessionToApiPerson(snapshotCurrentSession()!)] : []),
@@ -1547,10 +1626,10 @@ export default function Home() {
                             <input placeholder="పేరు / Name" value={mNewP.name} onChange={e => setMNewP(p => ({ ...p, name: e.target.value }))}
                               style={{ background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "7px 10px", fontSize: 12, color: "var(--text)", outline: "none" }} />
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-                              <input placeholder="DD/MM/YYYY" value={mNewP.date} onChange={e => setMNewP(p => ({ ...p, date: e.target.value }))}
+                              <input placeholder="DD/MM/YYYY" value={mNewP.date} onChange={e => handleMNewPDateChange(e.target.value)} maxLength={10}
                                 style={{ background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "7px 10px", fontSize: 12, color: "var(--text)", outline: "none" }} />
                               <div style={{ display: "flex", gap: 4 }}>
-                                <input placeholder="HH:MM" value={mNewP.time} onChange={e => setMNewP(p => ({ ...p, time: e.target.value }))}
+                                <input placeholder="HH:MM" value={mNewP.time} onChange={e => handleMNewPTimeChange(e.target.value)} maxLength={5}
                                   style={{ flex: 1, background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "7px 10px", fontSize: 12, color: "var(--text)", outline: "none" }} />
                                 <button onClick={() => setMNewP(p => ({ ...p, ampm: p.ampm === "AM" ? "PM" : "AM" }))}
                                   style={{ padding: "7px 8px", background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, color: "var(--accent)", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>
@@ -1565,7 +1644,16 @@ export default function Home() {
                               {mNewPPlaceSugg.length > 0 && (
                                 <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100, background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 6, overflow: "hidden", marginTop: 2 }}>
                                   {mNewPPlaceSugg.map((s, i) => (
-                                    <button key={i} onClick={() => { setMNewP(p => ({ ...p, place: s.display, latitude: s.lat, longitude: s.lon })); setMNewPPlaceSugg([]); setMNewPPlaceStatus("idle"); }}
+                                    <button key={i} onClick={() => {
+                                      setMNewP(p => ({ ...p, place: s.display, latitude: s.lat, longitude: s.lon }));
+                                      setMNewPPlaceSugg([]); setMNewPPlaceStatus("idle");
+                                      axios.get("https://api.bigdatacloud.net/data/reverse-geocode-client", {
+                                        params: { latitude: s.lat, longitude: s.lon, localityLanguage: "en" }
+                                      }).then(r => {
+                                        const offset = Math.round(((r.data?.timezone?.gmtOffset || 19800) / 3600) * 2) / 2;
+                                        setMNewP(p => ({ ...p, timezone_offset: offset }));
+                                      }).catch(() => {});
+                                    }}
                                       style={{ width: "100%", padding: "7px 10px", background: "none", border: "none", borderBottom: "0.5px solid var(--border)", color: "var(--text)", fontSize: 11, textAlign: "left" as const, cursor: "pointer", fontFamily: "inherit" }}>
                                       {s.display}
                                     </button>
@@ -1586,18 +1674,18 @@ export default function Home() {
                                 if (!mNewP.name || !mNewP.date || !mNewP.time) return;
                                 const newSession: ChartSession = {
                                   id: Date.now().toString(), name: mNewP.name,
-                                  birthDetails: { name: mNewP.name, date: mNewP.date, time: mNewP.time, ampm: mNewP.ampm, place: mNewP.place, latitude: mNewP.latitude, longitude: mNewP.longitude, gender: mNewP.gender },
+                                  birthDetails: { name: mNewP.name, date: mNewP.date, time: mNewP.time, ampm: mNewP.ampm, place: mNewP.place, latitude: mNewP.latitude, longitude: mNewP.longitude, gender: mNewP.gender, timezone_offset: mNewP.timezone_offset },
                                   workspaceData: null, analysisMessages: [], activeTopic: "", selectedHouse: null, chatQ: "", analysisLang: "english", activeTab: "chart"
                                 };
                                 setSavedSessions(prev => [...prev, newSession]);
                                 setMatchResults({ __p2: newSession });
-                                setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "" });
+                                setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "", timezone_offset: 5.5 });
                                 setMNewPPlaceSugg([]); setMNewPPlaceStatus("idle");
                                 setMatchPerson2Inline(false);
                               }} style={{ flex: 1, padding: "7px", background: "var(--accent)", border: "none", borderRadius: 6, color: "#09090f", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
                                 జోడించు
                               </button>
-                              <button onClick={() => { setMatchPerson2Inline(false); setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "" }); setMNewPPlaceSugg([]); }}
+                              <button onClick={() => { setMatchPerson2Inline(false); setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "", timezone_offset: 5.5 }); setMNewPPlaceSugg([]); }}
                                 style={{ padding: "7px 12px", background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, color: "var(--muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
                                 రద్దు
                               </button>
@@ -1865,7 +1953,7 @@ export default function Home() {
                                 transit_date: transitDate || undefined,
                                 latitude: workspaceData.latitude || 17.385,
                                 longitude: workspaceData.longitude || 78.4867,
-                                timezone_offset: 5.5,
+                                timezone_offset: timezoneOffset,
                               });
                               setTransitData(res.data);
                             } catch { setTransitData(null); }
@@ -2041,7 +2129,7 @@ export default function Home() {
                                 topic: horaryTopic,
                                 latitude: workspaceData?.latitude || 17.385,
                                 longitude: workspaceData?.longitude || 78.4867,
-                                timezone_offset: 5.5,
+                                timezone_offset: timezoneOffset,
                               });
                               setHoraryResult(res.data);
                             } catch { setHoraryResult(null); }

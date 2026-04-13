@@ -148,10 +148,10 @@ def generate_pdf(workspace: dict) -> bytes:
     story.append(HRFlowable(width="100%", thickness=1, color=GOLD, spaceAfter=10))
 
     # Birth Details table
-    story.append(Paragraph("జన్మ వివరాలు — Birth Details", s["section"]))
+    story.append(Paragraph("Birth Details", s["section"]))
     birth_data = [
-        ["Name / పేరు", name, "Date / తేదీ", date],
-        ["Time / సమయం", time, "Place / స్థలం", place or f"{lat:.3f}°N, {lon:.3f}°E"],
+        ["Name", name, "Date", date],
+        ["Time", time, "Place", place or f"{lat:.3f}°N, {lon:.3f}°E"],
         ["Latitude", f"{lat:.4f}°", "Longitude", f"{lon:.4f}°"],
     ]
     bt = Table(birth_data, colWidths=[38 * mm, 58 * mm, 32 * mm, 50 * mm])
@@ -168,13 +168,13 @@ def generate_pdf(workspace: dict) -> bytes:
     story.append(Spacer(1, 8))
 
     # ── South Indian Chart ────────────────────────────────────────────────────
-    story.append(Paragraph("జన్మ కుండలి — Birth Chart (South Indian)", s["section"]))
+    story.append(Paragraph("Birth Chart (South Indian)", s["section"]))
     chart_table = _south_indian_chart(planets, cusps)
     story.append(chart_table)
     story.append(Spacer(1, 10))
 
     # ── Planet Positions ──────────────────────────────────────────────────────
-    story.append(Paragraph("గ్రహ స్థానాలు — Planet Positions", s["section"]))
+    story.append(Paragraph("Planet Positions", s["section"]))
     p_header = ["Planet", "Sign", "Deg", "Nakshatra", "Star Lord", "Sub Lord", "House", "R"]
     p_rows = [p_header]
     for p in planets:
@@ -196,12 +196,12 @@ def generate_pdf(workspace: dict) -> bytes:
     story.append(Spacer(1, 10))
 
     # ── House Cusps ───────────────────────────────────────────────────────────
-    story.append(Paragraph("భావ కస్పులు — House Cusps", s["section"]))
+    story.append(Paragraph("House Cusps", s["section"]))
     c_header = ["House", "Sign", "Cusp Lon", "Nakshatra", "Star Lord", "Sub Lord"]
     c_rows = [c_header]
     for c in sorted(cusps, key=lambda x: x.get("house_num", 0)):
         c_rows.append([
-            f"H{c.get('house_num', '')} {c.get('house_te', '')}",
+            f"H{c.get('house_num', '')} {c.get('house_en', '')}",
             c.get("sign_en", ""),
             f"{c.get('cusp_longitude', 0):.4f}°",
             c.get("nakshatra_en", ""),
@@ -214,7 +214,7 @@ def generate_pdf(workspace: dict) -> bytes:
     story.append(Spacer(1, 10))
 
     # ── Dasha ─────────────────────────────────────────────────────────────────
-    story.append(Paragraph("దశ — Vimsottari Dasha", s["section"]))
+    story.append(Paragraph("Vimsottari Dasha", s["section"]))
     dasha_summary = [
         ["Period", "Lord", "From", "To"],
         ["Maha Dasha (MD)", mahadasha.get("lord_en", "—"), mahadasha.get("start", "—"), mahadasha.get("end", "—")],
@@ -232,7 +232,7 @@ def generate_pdf(workspace: dict) -> bytes:
 
     # Next antardashas
     if antardashas:
-        story.append(Paragraph("తదుపరి అంతర్దశలు — Upcoming Antardasha Periods", s["section"]))
+        story.append(Paragraph("Upcoming Antardasha Periods", s["section"]))
         ad_header = ["#", "Lord", "From", "To", "Current"]
         ad_rows = [ad_header]
         shown = 0
@@ -257,13 +257,16 @@ def generate_pdf(workspace: dict) -> bytes:
         story.append(Spacer(1, 10))
 
     # ── Ruling Planets ────────────────────────────────────────────────────────
-    story.append(Paragraph("రూలింగ్ గ్రహాలు — Ruling Planets", s["section"]))
+    story.append(Paragraph("Ruling Planets", s["section"]))
+    all_rps = ruling.get("all_en", "—")
+    if isinstance(all_rps, list):
+        all_rps = ", ".join(all_rps) if all_rps else "—"
     rp_data = [
         ["Lagna Sign Lord", ruling.get("lagna_sign_lord_en", "—"),
          "Lagna Star Lord", ruling.get("lagna_star_lord_en", "—")],
         ["Moon Sign Lord", ruling.get("moon_sign_lord_en", "—"),
          "Moon Star Lord", ruling.get("moon_star_lord_en", "—")],
-        ["Day Lord", ruling.get("day_lord_en", "—"), "All RPs", ruling.get("all_en", "—")],
+        ["Day Lord", ruling.get("day_lord_en", "—"), "All RPs", all_rps],
     ]
     rpt = Table(rp_data, colWidths=[40 * mm, 32 * mm, 40 * mm, 32 * mm + 12 * mm])
     rpt.setStyle(TableStyle(_table_style_base() + [
@@ -280,17 +283,23 @@ def generate_pdf(workspace: dict) -> bytes:
 
     # ── Significators ─────────────────────────────────────────────────────────
     if significators:
-        story.append(Paragraph("కారకాలు — House Significators", s["section"]))
+        story.append(Paragraph("House Significators", s["section"]))
         sig_header = ["House", "Occupants", "House Lord", "All Significators"]
         sig_rows = [sig_header]
         for i in range(1, 13):
             key = f"House_{i}"
             sig = significators.get(key, {})
+            occupants = sig.get("occupants_en", "—") or "—"
+            if isinstance(occupants, list):
+                occupants = ", ".join(occupants) if occupants else "—"
+            all_sigs = sig.get("all_significators_en", "—") or "—"
+            if isinstance(all_sigs, list):
+                all_sigs = ", ".join(all_sigs) if all_sigs else "—"
             sig_rows.append([
-                f"H{i} {sig.get('house_te', '')}",
-                sig.get("occupants_en", "—") or "—",
+                f"H{i}",
+                occupants,
                 sig.get("house_lord_en", "—"),
-                sig.get("all_significators_en", "—"),
+                all_sigs,
             ])
         sigt = Table(sig_rows, colWidths=[28 * mm, 28 * mm, 28 * mm, 72 * mm])
         sigt.setStyle(TableStyle(_table_style_base()))
