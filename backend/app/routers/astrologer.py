@@ -407,6 +407,26 @@ def get_workspace(request: WorkspaceRequest):
         "panchangam_birth": get_birth_panchangam(request.date, request.time, request.timezone_offset, request.latitude, request.longitude),
         "csl_chains": compute_csl_chains(cusps_formatted, planets_formatted),
         "ui_labels": UI_LABELS,
+        # Full mahadasha list for timeline visualization
+        "dashas": [
+            {
+                "lord": md.get("lord", ""),
+                "lord_en": md.get("lord", ""),
+                "lord_te": get_planet_telugu(md.get("lord", "")),
+                "start": md.get("start", ""),
+                "end": md.get("end", ""),
+                "years": md.get("years", 0),
+            }
+            for md in dashas
+        ],
+        # Current dasha (alias for mahadasha with unified field names)
+        "current_dasha": {
+            "lord": current_md.get("lord", ""),
+            "lord_en": current_md.get("lord", ""),
+            "lord_te": get_planet_telugu(current_md.get("lord", "")),
+            "start": current_md.get("start", ""),
+            "end": current_md.get("end", ""),
+        },
     }
 
 

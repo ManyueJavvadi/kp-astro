@@ -17,6 +17,13 @@
   --gold-glow: rgba(201,169,110,0.15);
   --green: #34d399;
   --red: #f87171;
+  /* Extended design system */
+  --card: #16161f;
+  --elevated: #1c1c28;
+  --hero-gradient: linear-gradient(135deg, #1a0a2e 0%, #0d0d1a 60%, #1a1205 100%);
+  --planet-glow: rgba(201,169,110,0.2);
+  --success: #34d399;
+  --warning: #fbbf24;
 }
 
 html, body {
@@ -62,3 +69,115 @@ select option {
 .markdown-body blockquote { border-left: 2px solid var(--accent); padding-left: 1rem; margin: 1rem 0; color: var(--muted); font-style: italic; }
 .markdown-body code { background: var(--surface2); padding: 2px 6px; border-radius: 4px; font-size: 12px; color: var(--accent); }
 .markdown-body hr { border: none; border-top: 0.5px solid var(--border); margin: 1.2rem 0; }
+
+/* ── KP Design System Utility Classes ── */
+.kp-card {
+  background: var(--card);
+  border: 0.5px solid var(--border2);
+  border-radius: 14px;
+}
+.kp-card-elevated {
+  background: var(--elevated);
+  border: 0.5px solid rgba(201,169,110,0.15);
+  border-radius: 14px;
+}
+.planet-icon {
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.house-card {
+  transition: border-color 0.15s, background 0.15s;
+  cursor: pointer;
+}
+.house-card:hover {
+  border-color: rgba(201,169,110,0.4) !important;
+  background: rgba(201,169,110,0.06) !important;
+}
+.fade-in {
+  animation: fadeIn 0.25s ease;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse-gold {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(201,169,110,0.3); }
+  50%       { box-shadow: 0 0 0 6px rgba(201,169,110,0); }
+}
+.glow-gold {
+  animation: pulse-gold 2s infinite;
+}
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.slide-in { animation: slideIn 0.2s ease; }
+
+/* Chat bubbles */
+.chat-bubble-ai {
+  background: var(--card);
+  border: 0.5px solid var(--border2);
+  border-radius: 4px 14px 14px 14px;
+}
+.chat-bubble-user {
+  background: rgba(201,169,110,0.08);
+  border: 0.5px solid rgba(201,169,110,0.2);
+  border-radius: 14px 4px 14px 14px;
+}
+
+/* Pill / badge */
+.kp-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Tab bar active indicator */
+.tab-active-bar {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+/* Dasha segment */
+.dasha-seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: filter 0.15s;
+  cursor: default;
+  border-right: 1px solid rgba(0,0,0,0.3);
+}
+.dasha-seg:hover { filter: brightness(1.25); }
+.dasha-seg.current {
+  border: 2px solid var(--accent) !important;
+  border-radius: 4px;
+  z-index: 2;
+}
+
+/* Choghadiya quality colors */
+.cho-amrit  { background: rgba(52,211,153,0.18); color: #34d399; border-color: rgba(52,211,153,0.3); }
+.cho-shubh  { background: rgba(251,191,36,0.15);  color: #fbbf24; border-color: rgba(251,191,36,0.3); }
+.cho-labh   { background: rgba(96,165,250,0.15);  color: #60a5fa; border-color: rgba(96,165,250,0.3); }
+.cho-chal   { background: rgba(167,139,250,0.15); color: #a78bfa; border-color: rgba(167,139,250,0.3); }
+.cho-rog    { background: rgba(248,113,113,0.15); color: #f87171; border-color: rgba(248,113,113,0.3); }
+.cho-kaal   { background: rgba(107,114,128,0.15); color: #9ca3af; border-color: rgba(107,114,128,0.3); }
+.cho-udveg  { background: rgba(245,158,11,0.15);  color: #f59e0b; border-color: rgba(245,158,11,0.3); }

@@ -10,7 +10,14 @@ import DashaTimeline from "./components/DashaTimeline";
 import PanchangamCard from "./components/PanchangamCard";
 import PromiseBadge from "./components/PromiseBadge";
 import HousePanel from "./components/HousePanel";
+import PlanetList from "./components/workspace/PlanetList";
+import HouseOverviewGrid from "./components/workspace/HouseOverviewGrid";
+import CSLChainView from "./components/workspace/CSLChainView";
+import PersonHeroBanner from "./components/workspace/PersonHeroBanner";
+import DashaStrip from "./components/workspace/DashaStrip";
+import ChoghadiyaClock from "./components/panchang/ChoghadiyaClock";
 import type { PlaceSuggestion, BirthDetails, Message, ChartSession } from "./types";
+import type { WorkspaceData } from "./types/workspace";
 
 const API_URL = "https://devastroai.up.railway.app";
 
@@ -80,9 +87,17 @@ export default function Home() {
   const [horaryResult, setHoraryResult] = useState<any>(null);
   const [horaryLoading, setHoraryLoading] = useState(false);
   // New UI state vars
-  const [housesSubTab, setHousesSubTab] = useState<"cusps"|"sigs"|"ruling"|"panchang">("cusps");
+  const [housesSubTab, setHousesSubTab] = useState<"overview"|"cusps"|"sigs"|"ruling"|"panchang">("overview");
   const [chartView, setChartView] = useState<"chart"|"planets">("chart");
   const [showTransitInDasha, setShowTransitInDasha] = useState(false);
+  // Quick insights
+  const [quickInsights, setQuickInsights] = useState<Record<string, string>>({});
+  // Panchangam location tab
+  const [panchangLocation, setPanchangLocation] = useState<"birth"|"current">("birth");
+  const [panchangCurrentData, setPanchangCurrentData] = useState<any>(null);
+  const [panchangLoading, setPanchangLoading] = useState(false);
+  // CSL chain view selected house (for houses overview)
+  const [cslSelectedHouse, setCslSelectedHouse] = useState<number | null>(null);
   // Timezone (auto-detected from place)
   const [timezoneOffset, setTimezoneOffset] = useState(5.5);
   const [timezoneLabel, setTimezoneLabel] = useState("IST");
@@ -93,6 +108,8 @@ export default function Home() {
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [analysisMessages]);
+  // Load quick insights when analysis tab opens
+  useEffect(() => { if (activeTab === "analysis" && workspaceData) { loadQuickInsights(); } }, [activeTab, workspaceData]);
   // Clear shared inline form state when switching tabs to prevent cross-tab data leakage
   useEffect(() => {
     setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "", timezone_offset: 5.5 });
@@ -331,6 +348,23 @@ export default function Home() {
     } finally { setAnalysisLoading(false); }
   };
 
+  const loadQuickInsights = async () => {
+    if (!workspaceData || Object.keys(quickInsights).length > 0) return;
+    const formattedDate = getFormattedDate();
+    if (!formattedDate) return;
+    try {
+      const res = await axios.post(`${API_URL}/astrologer/quick-insights`, {
+        name: birthDetails.name, date: formattedDate, time: getTime24(),
+        latitude: birthDetails.latitude, longitude: birthDetails.longitude,
+        timezone_offset: timezoneOffset,
+        topics: ["marriage", "job", "health", "foreign_travel", "children", "education", "property", "wealth"],
+        language: analysisLang,
+      });
+      // Response is { topic: insight_string } directly
+      if (res.data && typeof res.data === "object") setQuickInsights(res.data);
+    } catch { /* silent fail — quick insights are optional */ }
+  };
+
   const handleWorkspaceChat = async () => {
     if (!chatQ.trim()) return;
     const q = chatQ; setChatQ(""); setAnalysisLoading(true); setActiveTab("analysis");
@@ -413,13 +447,14 @@ export default function Home() {
   const labelStyle: React.CSSProperties = { display: "block", fontSize: 10, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6 };
 
   const TABS = [
-    { id: "chart", label: "చార్ట్", en: "Chart" },
-    { id: "houses", label: "భావాలు", en: "Houses" },
-    { id: "dasha", label: "దశ", en: "Dasha" },
-    { id: "analysis", label: "విశ్లేషణ", en: "Analysis" },
-    { id: "muhurtha", label: "ముహూర్త", en: "Muhurtha" },
-    { id: "match", label: "సరిపోలన", en: "Match" },
-    { id: "horary", label: "ప్రశ్న", en: "Horary" },
+    { id: "chart",    label: "చార్ట్",      en: "Chart",     icon: "⊞" },
+    { id: "houses",   label: "భావాలు",      en: "Houses",    icon: "🏠" },
+    { id: "dasha",    label: "దశ",          en: "Dasha",     icon: "⏳" },
+    { id: "analysis", label: "విశ్లేషణ",   en: "Analysis",  icon: "💬" },
+    { id: "panchang", label: "పంచాంగం",    en: "Panchang",  icon: "📅" },
+    { id: "muhurtha", label: "ముహూర్త",    en: "Muhurtha",  icon: "⏰" },
+    { id: "match",    label: "సరిపోలన",    en: "Match",     icon: "💍" },
+    { id: "horary",   label: "ప్రశ్న",     en: "Horary",    icon: "🔮" },
   ];
 
   const TOPICS = [
@@ -518,11 +553,13 @@ export default function Home() {
       {!setupDone && (
         <main style={{ flex: 1, position: "relative", zIndex: 5, maxWidth: 760, margin: "0 auto", width: "100%", padding: "2rem 1.5rem" }}>
           <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
-            <div style={{ fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--accent)", marginBottom: "1rem", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-              <span style={{ width: 30, height: "0.5px", background: "var(--accent)", display: "inline-block", opacity: 0.5 }} />Krishnamurti Paddhati System<span style={{ width: 30, height: "0.5px", background: "var(--accent)", display: "inline-block", opacity: 0.5 }} />
+            {/* KP badge */}
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "5px 16px", borderRadius: 20, background: "rgba(201,169,110,0.08)", border: "0.5px solid rgba(201,169,110,0.3)", marginBottom: "1.25rem" }}>
+              <span style={{ fontSize: 14 }}>♏</span>
+              <span style={{ fontSize: 11, letterSpacing: "0.14em", color: "var(--accent)", textTransform: "uppercase" as const }}>Krishnamurti Paddhati System</span>
             </div>
             <h1 style={{ fontFamily: "'DM Serif Display',serif", fontSize: "clamp(2rem,5vw,3.2rem)", lineHeight: 1.15, marginBottom: "1rem", background: "linear-gradient(135deg,#fff 0%,var(--accent2) 60%,var(--accent) 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-              Ancient wisdom,<br /><em>precise answers</em>
+              Decode the cosmos,<br /><em>reveal your destiny</em>
             </h1>
             {/* Credit + trust block */}
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, marginTop: 12 }}>
@@ -539,12 +576,19 @@ export default function Home() {
                 <span style={{ fontSize: 11, color: "var(--muted)" }}>Supervised &amp; trusted by KP Astrologers</span>
               </div>
             </div>
+            {/* Feature chips */}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", marginTop: 16 }}>
+              {["♏ KP System", "🌟 Vimsottari Dasha", "🏠 12 Houses + CSL", "💍 Marriage", "⏰ Muhurtha", "🔮 Horary Prashna"].map(f => (
+                <span key={f} style={{ fontSize: 11, padding: "4px 12px", borderRadius: 20, border: "0.5px solid rgba(201,169,110,0.25)", color: "var(--muted)", background: "rgba(201,169,110,0.04)" }}>{f}</span>
+              ))}
+            </div>
           </div>
 
-          <div style={{ background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 14, overflow: "hidden" }}>
+          <div style={{ background: "var(--surface)", border: "0.5px solid rgba(201,169,110,0.25)", borderRadius: 14, overflow: "hidden", boxShadow: "0 0 0 1px rgba(201,169,110,0.08), 0 0 32px rgba(201,169,110,0.05)" }}>
             <div style={{ padding: "1.25rem 1.75rem", borderBottom: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--accent)" }} />
               <span style={{ fontSize: 12, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" }}>Birth Details</span>
+              <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--muted)", opacity: 0.6 }}>✨ Swiss Ephemeris Precision</span>
             </div>
             <div style={{ padding: "1.75rem" }}>
               <div className="setup-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
@@ -631,8 +675,8 @@ export default function Home() {
                   ))}
                 </div>
               </div>
-              <button onClick={handleSetup} disabled={chartLoading} style={{ width: "100%", background: "var(--accent)", color: "#09090f", border: "none", borderRadius: 8, padding: "12px", fontSize: 14, fontWeight: 500, cursor: chartLoading ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: chartLoading ? 0.7 : 1, fontFamily: "inherit" }}>
-                {chartLoading ? <><Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />Calculating chart...</> : <>Generate My Chart <ArrowRight size={16} /></>}
+              <button onClick={handleSetup} disabled={chartLoading} style={{ width: "100%", background: chartLoading ? "var(--surface2)" : "linear-gradient(135deg, var(--accent), var(--accent2))", color: "#09090f", border: "none", borderRadius: 8, padding: "12px", fontSize: 14, fontWeight: 600, cursor: chartLoading ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: chartLoading ? 0.7 : 1, fontFamily: "inherit", letterSpacing: "0.02em" }}>
+                {chartLoading ? <><Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />Calculating chart...</> : <>♏ Generate My KP Chart <ArrowRight size={16} /></>}
               </button>
             </div>
           </div>
@@ -663,7 +707,32 @@ export default function Home() {
       )}
 
       {setupDone && mode === "astrologer" && workspaceData && (
-        <div className="workspace-layout" style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative", zIndex: 5 }}>
+        <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden", position: "relative", zIndex: 5 }}>
+        {/* Person Hero Banner — always visible above tabs */}
+        <PersonHeroBanner
+          workspaceData={workspaceData as WorkspaceData}
+          birthDetails={birthDetails}
+          onNewChart={handleNewChart}
+          onPdf={async () => {
+            if (!workspaceData || pdfLoading) return;
+            setPdfLoading(true); setPdfError("");
+            try {
+              const res = await axios.post(`${API_URL}/pdf/export`, { workspace: workspaceData }, { responseType: "blob", timeout: 30000 });
+              const url = URL.createObjectURL(new Blob([res.data], { type: "application/pdf" }));
+              const a = document.createElement("a"); a.href = url;
+              a.download = `${workspaceData.name || "kp_chart"}_report.pdf`; a.click();
+              URL.revokeObjectURL(url);
+            } catch (e: any) {
+              setPdfError(e?.response?.status === 500 ? "Server error — try again" : "Download failed");
+            }
+            setPdfLoading(false);
+          }}
+          pdfLoading={pdfLoading}
+          savedSessions={savedSessions}
+          onSwitchSession={handleSwitchSession}
+          astrologerMode={true}
+        />
+        <div className="workspace-layout" style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
           {/* Sidebar toggle — fixed to top-left on mobile, side on desktop */}
           <button
@@ -810,8 +879,10 @@ export default function Home() {
             {/* Tabs */}
             <div className="tab-bar" style={{ display: "flex", borderBottom: "0.5px solid var(--border)", background: "var(--surface)", overflowX: "auto", flexShrink: 0 }}>
               {TABS.map(tab => (
-                <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ padding: "0.75rem 1rem", background: "transparent", border: "none", borderBottom: activeTab === tab.id ? "2px solid var(--accent)" : "2px solid transparent", color: activeTab === tab.id ? "var(--accent)" : "var(--muted)", cursor: "pointer", fontSize: 13, fontFamily: "inherit", whiteSpace: "nowrap", transition: "all 0.2s", flexShrink: 0 }}>
-                  <div>{tab.label}</div><div style={{ fontSize: 9, opacity: 0.6 }}>{tab.en}</div>
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ padding: "0.65rem 1rem", background: "transparent", border: "none", borderBottom: activeTab === tab.id ? "2px solid var(--accent)" : "2px solid transparent", color: activeTab === tab.id ? "var(--accent)" : "var(--muted)", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", transition: "all 0.2s", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+                  <span style={{ fontSize: 14 }}>{(tab as any).icon}</span>
+                  <span style={{ fontSize: 11 }}>{tab.label}</span>
+                  <span style={{ fontSize: 8, opacity: 0.5 }}>{tab.en}</span>
                 </button>
               ))}
             </div>
@@ -819,10 +890,10 @@ export default function Home() {
             {/* Tab content */}
             <div style={{ flex: 1, overflow: "auto", padding: "1.25rem" }}>
 
-              {/* CHART */}
+              {/* CHART — two-column: chart left, PlanetList right */}
               {activeTab === "chart" && (
                 <div className="tab-content">
-                  {/* Chart/Planets toggle */}
+                  {/* Mobile toggle */}
                   <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
                     {[{v:"chart",l:"⊞ Chart"},{v:"planets",l:"≡ Planets"}].map(opt => (
                       <button key={opt.v} onClick={() => setChartView(opt.v as "chart"|"planets")}
@@ -831,71 +902,62 @@ export default function Home() {
                       </button>
                     ))}
                   </div>
-                  {chartView === "chart" && (
-                    <div style={{ display: "flex", gap: "1.5rem", alignItems: "start", flexWrap: "wrap" }}>
-                      <div>
-                        <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: "0.6rem" }}>దక్షిణ భారత చార్ట్</div>
-                        <SouthIndianChart
-                          planets={workspaceData.planets}
-                          cusps={workspaceData.cusps}
-                          onHouseClick={h => setSelectedHouse(prev => prev === h ? null : h)}
-                          selectedHouse={selectedHouse}
-                        />
-                        <div style={{ fontSize: 9, color: "var(--muted)", marginTop: 6, textAlign: "center" }}>Tap a house for details · ↑ = Lagna</div>
+
+                  <div style={{ display: "flex", gap: "1.5rem", alignItems: "start", flexWrap: "wrap" }}>
+                    {/* LEFT — Chart */}
+                    {(chartView === "chart" || chartView === "planets") && (
+                      <div style={{ flexShrink: 0 }}>
+                        {chartView === "chart" && (
+                          <>
+                            <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: "0.6rem" }}>దక్షిణ భారత చార్ట్</div>
+                            <SouthIndianChart
+                              planets={workspaceData.planets}
+                              cusps={workspaceData.cusps}
+                              onHouseClick={h => setSelectedHouse(prev => prev === h ? null : h)}
+                              selectedHouse={selectedHouse}
+                            />
+                            <div style={{ fontSize: 9, color: "var(--muted)", marginTop: 6, textAlign: "center" }}>Tap a house for details · ↑ = Lagna</div>
+                          </>
+                        )}
                       </div>
-                      {selectedHouse && (
-                        <HousePanel
-                          house={selectedHouse}
-                          cusps={workspaceData.cusps}
-                          significators={workspaceData.significators}
-                          planets={workspaceData.planets}
-                          rulingPlanets={workspaceData.ruling_planets?.all_en || []}
-                          antardashas={workspaceData.antardashas || []}
-                          onClose={() => setSelectedHouse(null)}
-                        />
-                      )}
-                      {!selectedHouse && <div style={{ flex: 1, minWidth: 200 }}>
-                        <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: "0.75rem" }}>గ్రహ స్థానాలు</div>
-                        {workspaceData.planets.map((p: any) => (
-                          <div key={p.planet_en} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", background: "var(--surface2)", borderRadius: 6, border: "0.5px solid var(--border)", marginBottom: 3 }}>
-                            <span style={{ width: 60, fontSize: 12, fontWeight: 600, color: PLANET_COLORS[p.planet_en] }}>{p.planet_te}</span>
-                            <span style={{ fontSize: 11, color: "var(--text)", flex: 1 }}>{p.sign_te}</span>
-                            <span style={{ fontSize: 10, color: "var(--accent)", fontWeight: 600, minWidth: 28 }}>H{p.house}</span>
-                            <span style={{ fontSize: 10, color: "var(--muted)" }}>{p.degree_in_sign.toFixed(1)}°</span>
-                            {p.retrograde && <span style={{ fontSize: 9, color: "var(--red)" }}>℞</span>}
-                          </div>
-                        ))}
-                      </div>}
-                    </div>
-                  )}
-                  {chartView === "planets" && (
-                    <div style={{ overflowX: "auto" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
-                        <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>గ్రహ స్థాన పట్టిక · KP పద్ధతి</div>
-                        <div style={{ fontSize: 9, color: "var(--muted)" }}>Click H badge → jump to chart</div>
+                    )}
+
+                    {/* RIGHT — PlanetList (star lord → sub lord) */}
+                    {chartView === "chart" && !selectedHouse && (
+                      <div style={{ flex: 1, minWidth: 260 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                          <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>Planet Positions · KP</div>
+                          <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 6, background: "rgba(201,169,110,0.1)", color: "var(--accent)", border: "0.5px solid rgba(201,169,110,0.25)" }}>Star → Sub Lord</span>
+                        </div>
+                        <div style={{ background: "var(--card)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 14, overflow: "hidden" }}>
+                          <PlanetList planets={workspaceData.planets} />
+                        </div>
                       </div>
-                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 500 }}>
-                        <thead><tr>{["గ్రహం", "భావం", "రాశి", "అంశం", "నక్షత్రం", "నక్షత్రాధిపతి", "సబ్ లార్డ్"].map(h => <th key={h} style={{ textAlign: "left", padding: "8px 10px", color: "var(--muted)", fontSize: 10, letterSpacing: "0.06em", borderBottom: "0.5px solid var(--border)", fontWeight: 400, whiteSpace: "nowrap" }}>{h}</th>)}</tr></thead>
-                        <tbody>
-                          {workspaceData.planets.map((p: any) => (
-                            <tr key={p.planet_en} style={{ borderBottom: "0.5px solid rgba(201,169,110,.06)", cursor: "default" }} onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.04)")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-                              <td style={{ padding: "9px 10px", color: PLANET_COLORS[p.planet_en], fontWeight: 600, whiteSpace: "nowrap" }}>{p.planet_te} {p.retrograde && <span style={{ fontSize: 9, color: "var(--red)" }}>℞</span>}</td>
-                              <td style={{ padding: "9px 10px" }}>
-                                <span onClick={() => { setSelectedHouse(parseInt(p.house)); setChartView("chart"); }} title="Click to open house panel in Chart tab" style={{ background: "rgba(201,169,110,0.1)", color: "var(--accent)", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "2px 8px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>H{p.house}</span>
-                              </td>
-                              <td style={{ padding: "9px 10px", color: "var(--text)" }}>{p.sign_te}</td>
-                              <td style={{ padding: "9px 10px", color: "var(--muted)", fontSize: 11 }}>{p.degree_in_sign.toFixed(2)}°</td>
-                              <td style={{ padding: "9px 10px", color: "var(--text)" }}>{p.nakshatra_te}</td>
-                              <td style={{ padding: "9px 10px", color: PLANET_COLORS[p.star_lord_en] || "var(--text)" }}>{p.star_lord_te}</td>
-                              <td style={{ padding: "9px 10px" }}>
-                                <span onClick={() => { const houseOfSub = workspaceData.cusps.findIndex((c: any) => c.sub_lord_en === p.sub_lord_en || c.star_lord_en === p.sub_lord_en); if (houseOfSub >= 0) { setSelectedHouse(houseOfSub + 1); setChartView("chart"); } }} title="Click to explore sub lord's house" style={{ background: "rgba(201,169,110,.1)", color: "var(--accent)", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "2px 8px", fontSize: 11, cursor: "pointer" }}>{p.sub_lord_te}</span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+                    )}
+
+                    {/* House panel overlay */}
+                    {selectedHouse && (
+                      <HousePanel
+                        house={selectedHouse}
+                        cusps={workspaceData.cusps}
+                        significators={workspaceData.significators}
+                        planets={workspaceData.planets}
+                        rulingPlanets={workspaceData.ruling_planets?.all_en || []}
+                        antardashas={workspaceData.antardashas || []}
+                        onClose={() => setSelectedHouse(null)}
+                      />
+                    )}
+
+                    {/* Mobile: planets-only view (full table) */}
+                    {chartView === "planets" && (
+                      <div style={{ flex: 1, minWidth: 260 }}>
+                        <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: "0.75rem" }}>గ్రహ స్థాన పట్టిక · KP పద్ధతి</div>
+                        <div style={{ background: "var(--card)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 14, overflow: "hidden" }}>
+                          <PlanetList planets={workspaceData.planets} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -911,13 +973,54 @@ export default function Home() {
                     <>
                       {/* Sub-tab pill switcher */}
                       <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
-                        {[{id:"cusps",en:"Cusps"},{id:"sigs",en:"Significators"},{id:"ruling",en:"Ruling"},{id:"panchang",en:"Panchangam"}].map(st => (
-                          <button key={st.id} onClick={() => setHousesSubTab(st.id as any)}
+                        {[{id:"overview",en:"Overview 🏠"},{id:"cusps",en:"Cusps"},{id:"sigs",en:"Significators"},{id:"ruling",en:"Ruling"},{id:"panchang",en:"Panchangam"}].map(st => (
+                          <button key={st.id} onClick={() => { setHousesSubTab(st.id as any); setCslSelectedHouse(null); }}
                             style={{ padding: "5px 14px", borderRadius: 20, border: `0.5px solid ${housesSubTab === st.id ? "var(--accent)" : "var(--border2)"}`, background: housesSubTab === st.id ? "rgba(201,169,110,0.12)" : "transparent", color: housesSubTab === st.id ? "var(--accent)" : "var(--muted)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>
                             {st.en}
                           </button>
                         ))}
                       </div>
+
+                      {/* OVERVIEW sub-tab — HouseOverviewGrid */}
+                      {housesSubTab === "overview" && (
+                        <div className="tab-content">
+                          <div style={{ display: "flex", gap: 12, alignItems: "start", flexWrap: "wrap" }}>
+                            <div style={{ flex: 1, minWidth: 340 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                                <span style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>భావ సారాంశం</span>
+                                <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 6, background: "rgba(201,169,110,0.1)", color: "var(--accent)", border: "0.5px solid rgba(201,169,110,0.25)" }}>CSL = KP Unique</span>
+                              </div>
+                              <HouseOverviewGrid
+                                cusps={workspaceData.cusps}
+                                planets={workspaceData.planets}
+                                selectedHouse={cslSelectedHouse}
+                                onHouseClick={h => setCslSelectedHouse(prev => prev === h ? null : h)}
+                              />
+                            </div>
+                            {/* CSL Chain view panel */}
+                            {cslSelectedHouse && workspaceData.csl_chains && workspaceData.csl_chains[String(cslSelectedHouse)] && (
+                              <div style={{ width: 300, flexShrink: 0 }} className="fade-in">
+                                <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 8 }}>CSL Chain Analysis</div>
+                                <CSLChainView
+                                  houseNum={cslSelectedHouse}
+                                  chain={workspaceData.csl_chains[String(cslSelectedHouse)]}
+                                />
+                                <div style={{ marginTop: 8 }}>
+                                  <HousePanel
+                                    house={cslSelectedHouse}
+                                    cusps={workspaceData.cusps}
+                                    significators={workspaceData.significators}
+                                    planets={workspaceData.planets}
+                                    rulingPlanets={workspaceData.ruling_planets?.all_en || []}
+                                    antardashas={workspaceData.antardashas || []}
+                                    onClose={() => setCslSelectedHouse(null)}
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
 
               {/* CUSPS sub-tab */}
               {housesSubTab === "cusps" && (
@@ -1105,8 +1208,21 @@ export default function Home() {
               {/* DASHA */}
               {activeTab === "dasha" && (
                 <div className="tab-content">
-                  <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: "1rem" }}>దశ కాలరేఖ · {workspaceData.mahadasha.lord_te} మహాదశ</div>
-                  <DashaTimeline mahadasha={workspaceData.mahadasha} antardashas={workspaceData.antardashas} />
+                  {/* New visual DashaStrip with MD timeline + PAD tree */}
+                  <DashaStrip
+                    dashas={workspaceData.dashas ?? []}
+                    currentDasha={workspaceData.current_dasha ?? workspaceData.mahadasha}
+                    antardashas={workspaceData.antardashas ?? []}
+                    currentAntardasha={workspaceData.current_antardasha}
+                    pratyantardashas={workspaceData.pratyantardashas ?? []}
+                    currentPratyantardasha={workspaceData.current_pratyantardasha}
+                  />
+
+                  {/* Legacy DashaTimeline (compact fallback) */}
+                  <div style={{ marginTop: 16, borderTop: "0.5px solid var(--border)", paddingTop: 16 }}>
+                    <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: "0.75rem" }}>Antardasha Timeline · {workspaceData.mahadasha?.lord_te} MD</div>
+                    <DashaTimeline mahadasha={workspaceData.mahadasha} antardashas={workspaceData.antardashas} />
+                  </div>
 
                   {/* PAD section */}
                   {workspaceData.pratyantardashas && (
@@ -1225,6 +1341,140 @@ export default function Home() {
                       </div>
                     )}
                   </div>
+                </div>
+              )}
+
+              {/* PANCHANGAM TAB — birth vs current location */}
+              {activeTab === "panchang" && (
+                <div className="tab-content">
+                  {/* Location toggle */}
+                  <div style={{ display: "flex", gap: 8, marginBottom: 16, alignItems: "center" }}>
+                    <span style={{ fontSize: 11, color: "var(--muted)" }}>Location:</span>
+                    {([["birth","🏠 Birth Location"],["current","📍 Current Location"]] as const).map(([val, label]) => (
+                      <button key={val} onClick={async () => {
+                        setPanchangLocation(val);
+                        if (val === "current" && !panchangCurrentData && !panchangLoading) {
+                          setPanchangLoading(true);
+                          try {
+                            // Try browser geolocation first
+                            const pos = await new Promise<GeolocationPosition>((res, rej) =>
+                              navigator.geolocation.getCurrentPosition(res, rej, { timeout: 5000 })
+                            ).catch(() => null);
+                            const lat = pos?.coords.latitude ?? birthDetails.latitude ?? 17.385;
+                            const lon = pos?.coords.longitude ?? birthDetails.longitude ?? 78.4867;
+                            const r = await axios.post(`${API_URL}/panchangam/location`, {
+                              latitude: lat, longitude: lon, timezone_offset: timezoneOffset,
+                            });
+                            setPanchangCurrentData(r.data);
+                          } catch { setPanchangCurrentData(null); }
+                          setPanchangLoading(false);
+                        }
+                      }}
+                        style={{ padding: "5px 14px", borderRadius: 20, border: `0.5px solid ${panchangLocation === val ? "var(--accent)" : "var(--border2)"}`, background: panchangLocation === val ? "rgba(201,169,110,0.12)" : "transparent", color: panchangLocation === val ? "var(--accent)" : "var(--muted)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {panchangLoading && (
+                    <div style={{ textAlign: "center", padding: "2rem", color: "var(--muted)", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                      <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />Loading current location panchang...
+                    </div>
+                  )}
+
+                  {panchangLocation === "birth" && (
+                    <div className="setup-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem" }}>
+                      <PanchangamCard data={workspaceData.panchangam_birth} title="జన్మ పంచాంగం" />
+                      <PanchangamCard data={workspaceData.panchangam_today} title="నేటి పంచాంగం (Birth Location)" />
+                    </div>
+                  )}
+
+                  {panchangLocation === "current" && panchangCurrentData && !panchangLoading && (
+                    <div>
+                      {/* Today's panchang for current location */}
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, marginBottom: 16 }}>
+                        {[
+                          { label: "Vara", value: panchangCurrentData.vara_en, icon: "📅" },
+                          { label: "Tithi", value: panchangCurrentData.tithi_en, icon: "🌙" },
+                          { label: "Nakshatra", value: panchangCurrentData.nakshatra_en, icon: "⭐" },
+                          { label: "Yoga", value: panchangCurrentData.yoga_en, icon: "☯" },
+                        ].map(item => (
+                          <div key={item.label} style={{ background: "var(--card)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "12px 10px", textAlign: "center" }}>
+                            <div style={{ fontSize: 18, marginBottom: 4 }}>{item.icon}</div>
+                            <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 4, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>{item.label}</div>
+                            <div style={{ fontSize: 12, color: "var(--text)", fontWeight: 500 }}>{item.value}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Sunrise / Sunset / Rahu Kalam */}
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
+                        {[
+                          { l: "Sunrise", v: panchangCurrentData.sunrise, icon: "🌅" },
+                          { l: "Sunset", v: panchangCurrentData.sunset, icon: "🌇" },
+                          { l: "Rahu Kalam", v: panchangCurrentData.rahu_kalam, icon: "⚠" },
+                        ].map(item => (
+                          <div key={item.l} style={{ background: "var(--card)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "10px 12px", display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ fontSize: 16 }}>{item.icon}</span>
+                            <div>
+                              <div style={{ fontSize: 9, color: "var(--muted)", textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>{item.l}</div>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: item.l === "Rahu Kalam" ? "#f87171" : "var(--text)" }}>{item.v}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Current Hora */}
+                      {panchangCurrentData.current_hora && (
+                        <div style={{ marginBottom: 16, padding: "12px 16px", background: "rgba(201,169,110,0.08)", border: "0.5px solid rgba(201,169,110,0.25)", borderRadius: 12, display: "flex", alignItems: "center", gap: 12 }}>
+                          <span style={{ fontSize: 20 }}>⚡</span>
+                          <div>
+                            <div style={{ fontSize: 10, color: "var(--muted)", textTransform: "uppercase" as const }}>Current Hora</div>
+                            <div style={{ fontSize: 14, fontWeight: 600, color: PLANET_COLORS[panchangCurrentData.current_hora.lord] ?? "var(--accent)" }}>
+                              {panchangCurrentData.current_hora.lord}
+                            </div>
+                            <div style={{ fontSize: 11, color: "var(--muted)" }}>
+                              {panchangCurrentData.current_hora.start} – {panchangCurrentData.current_hora.end}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Choghadiya Clock + list */}
+                      {panchangCurrentData.choghadiya && panchangCurrentData.choghadiya.length > 0 && (
+                        <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 20, alignItems: "start" }}>
+                          <ChoghadiyaClock
+                            periods={panchangCurrentData.choghadiya}
+                            sunrise={panchangCurrentData.sunrise}
+                            sunset={panchangCurrentData.sunset}
+                            showDay={true}
+                          />
+                          <div>
+                            <div style={{ fontSize: 10, color: "var(--muted)", textTransform: "uppercase" as const, letterSpacing: "0.05em", marginBottom: 8 }}>Choghadiya Periods</div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                              {panchangCurrentData.choghadiya.map((c: any, i: number) => (
+                                <div key={i} style={{
+                                  display: "flex", alignItems: "center", gap: 8,
+                                  padding: "5px 10px", borderRadius: 8,
+                                  background: c.is_current ? "rgba(201,169,110,0.1)" : "transparent",
+                                  border: c.is_current ? "0.5px solid rgba(201,169,110,0.3)" : "0.5px solid transparent",
+                                }}>
+                                  <span style={{
+                                    width: 8, height: 8, borderRadius: 2, flexShrink: 0,
+                                    background: c.quality === "auspicious" ? "#34d399" : c.quality === "inauspicious" ? "#f87171" : "#a78bfa"
+                                  }} />
+                                  <span style={{ fontSize: 12, fontWeight: c.is_current ? 600 : 400, color: c.is_current ? "var(--accent)" : "var(--text)", minWidth: 60 }}>{c.name}</span>
+                                  <span style={{ fontSize: 10, color: "var(--muted)" }}>{c.start} – {c.end}</span>
+                                  {c.is_current && <span style={{ fontSize: 9, color: "var(--accent)", marginLeft: "auto" }}>◀ Now</span>}
+                                  <span style={{ fontSize: 9, color: c.is_day ? "#fbbf24" : "#93c5fd", marginLeft: "auto", opacity: 0.7 }}>{c.is_day ? "☀" : "🌙"}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -2275,36 +2525,45 @@ export default function Home() {
                 </div>
               )}
 
-              {/* ANALYSIS */}
+              {/* ANALYSIS — chat bubble design + quick insights */}
               {activeTab === "analysis" && (
                 <div className="tab-content" style={{ display: "flex", flexDirection: "column", height: "100%", gap: 0 }}>
-                  {/* Topic quick-launch — emoji card grid */}
+                  {/* Topic pills + language */}
                   <div style={{ marginBottom: "0.75rem", flexShrink: 0 }}>
-                    <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                      {analysisMessages.length > 0 && (
-                        <button onClick={() => { setAnalysisMessages([]); setActiveTopic(""); }} style={{ background: "transparent", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "3px 10px", fontSize: 11, color: "var(--muted)", cursor: "pointer" }}>Clear</button>
-                      )}
-                      <div style={{ display: "flex", background: "var(--surface2)", borderRadius: 6, border: "0.5px solid var(--border2)", overflow: "hidden" }}>
-                        {([["english", "EN"], ["telugu_english", "తె+EN"]] as const).map(([val, label]) => (
-                          <button key={val} onClick={() => setAnalysisLang(val)} style={{ padding: "4px 10px", background: analysisLang === val ? "rgba(201,169,110,0.15)" : "transparent", color: analysisLang === val ? "var(--accent)" : "var(--muted)", border: "none", cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>{label}</button>
-                        ))}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                      <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" as const }}>Topics</div>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        {analysisMessages.length > 0 && (
+                          <button onClick={() => { setAnalysisMessages([]); setActiveTopic(""); }} style={{ background: "transparent", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "3px 10px", fontSize: 11, color: "var(--muted)", cursor: "pointer" }}>Clear</button>
+                        )}
+                        <div style={{ display: "flex", background: "var(--surface2)", borderRadius: 6, border: "0.5px solid var(--border2)", overflow: "hidden" }}>
+                          {([["english", "EN"], ["telugu_english", "తె+EN"]] as const).map(([val, label]) => (
+                            <button key={val} onClick={() => setAnalysisLang(val)} style={{ padding: "4px 10px", background: analysisLang === val ? "rgba(201,169,110,0.15)" : "transparent", color: analysisLang === val ? "var(--accent)" : "var(--muted)", border: "none", cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>{label}</button>
+                          ))}
+                        </div>
                       </div>
                     </div>
+                    {/* Topic cards with quick insight preview */}
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
                       {TOPICS.map(t => (
                         <button key={t.id} onClick={() => handleTopicAnalysis(t.id)} disabled={analysisLoading}
-                          style={{ padding: "10px 6px", borderRadius: 10, border: `0.5px solid ${activeTopic === t.id ? "var(--accent)" : "var(--border2)"}`, background: activeTopic === t.id ? "rgba(201,169,110,0.15)" : "var(--surface2)", cursor: analysisLoading ? "default" : "pointer", fontFamily: "inherit", textAlign: "center", transition: "all 0.2s" }}
+                          style={{ padding: "10px 6px", borderRadius: 10, border: `0.5px solid ${activeTopic === t.id ? "var(--accent)" : "var(--border2)"}`, background: activeTopic === t.id ? "rgba(201,169,110,0.15)" : "var(--card)", cursor: analysisLoading ? "default" : "pointer", fontFamily: "inherit", textAlign: "center", transition: "all 0.2s" }}
                           onMouseEnter={e => { if (activeTopic !== t.id) (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(201,169,110,0.4)"; }}
                           onMouseLeave={e => { if (activeTopic !== t.id) (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border2)"; }}>
                           <div style={{ fontSize: 22, marginBottom: 4 }}>{TOPIC_EMOJI[t.id]}</div>
                           <div style={{ fontSize: 11, color: activeTopic === t.id ? "var(--accent)" : "var(--text)", fontWeight: activeTopic === t.id ? 500 : 400 }}>{t.te}</div>
+                          {quickInsights[t.id] && (
+                            <div style={{ fontSize: 9, color: "var(--muted)", marginTop: 4, lineHeight: 1.4, textAlign: "left" }}>
+                              {quickInsights[t.id].split("\n")[0]?.slice(0, 60)}…
+                            </div>
+                          )}
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  {/* Chat messages */}
-                  <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+                  {/* Chat messages — bubble style */}
+                  <div style={{ flex: 1, overflowY: "auto", minHeight: 0, paddingRight: 2 }}>
                     {analysisMessages.length === 0 && !analysisLoading && (
                       <div style={{ textAlign: "center", padding: "2rem 1rem" }}>
                         <div style={{ fontSize: 28, marginBottom: 8 }}>⬆</div>
@@ -2313,23 +2572,22 @@ export default function Home() {
                       </div>
                     )}
                     {analysisMessages.map((msg, i) => (
-                      <div key={i} style={{ marginBottom: "1.25rem" }}>
-                        {/* Question label */}
-                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                          <div style={{ width: 18, height: 18, borderRadius: "50%", background: msg.isTopic ? "rgba(201,169,110,0.15)" : "rgba(255,255,255,0.06)", border: `0.5px solid ${msg.isTopic ? "rgba(201,169,110,0.4)" : "var(--border2)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: msg.isTopic ? "var(--accent)" : "var(--muted)", flexShrink: 0 }}>
-                            {msg.isTopic ? "◈" : "↳"}
+                      <div key={i} style={{ marginBottom: "1rem" }} className="fade-in">
+                        {/* User question bubble — right aligned */}
+                        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}>
+                          <div className="chat-bubble-user" style={{ padding: "8px 14px", maxWidth: "72%", fontSize: 12, color: "#d0d0d8", lineHeight: 1.5 }}>
+                            {msg.isTopic && <span style={{ fontSize: 9, color: "var(--accent)", display: "block", marginBottom: 2 }}>◈ Topic Analysis</span>}
+                            {msg.q}
                           </div>
-                          <span style={{ fontSize: 11, color: msg.isTopic ? "var(--accent)" : "var(--text)", fontWeight: msg.isTopic ? 500 : 400 }}>{msg.q}</span>
-                          {i > 0 && <span style={{ fontSize: 9, color: "var(--muted)", marginLeft: "auto" }}>follow-up</span>}
                         </div>
-                        {/* Answer */}
-                        <div className="md-body" style={{ background: i === analysisMessages.length - 1 ? "var(--surface)" : "rgba(201,169,110,0.02)", border: `0.5px solid ${i === analysisMessages.length - 1 ? "var(--border2)" : "var(--border)"}`, borderRadius: 10, padding: "1rem 1.25rem", marginLeft: 24 }}>
+                        {/* AI answer bubble — left aligned */}
+                        <div className="chat-bubble-ai md-body" style={{ padding: "1rem 1.25rem", maxWidth: "94%" }}>
                           <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.a}</ReactMarkdown>
                         </div>
                       </div>
                     ))}
                     {analysisLoading && (
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--muted)", fontSize: 13, padding: "0.75rem 0", marginLeft: 24 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--muted)", fontSize: 13, padding: "0.75rem 1rem" }}>
                         <div style={{ width: 10, height: 10, borderRadius: "50%", border: "1.5px solid var(--accent)", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
                         {activeTopic ? `Analyzing ${activeTopic}...` : "Thinking..."}
                       </div>
@@ -2348,6 +2606,7 @@ export default function Home() {
                 style={{ background: chatQ.trim() ? "var(--accent)" : "var(--surface2)", color: chatQ.trim() ? "#09090f" : "var(--muted)", border: "none", borderRadius: 8, padding: "9px 18px", fontSize: 13, cursor: chatQ.trim() ? "pointer" : "default", fontWeight: 500, fontFamily: "inherit" }}>అడగు</button>
             </div>
           </div>
+        </div>
         </div>
       )}
 

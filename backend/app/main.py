@@ -7,6 +7,7 @@ from app.routers import compatibility
 from app.routers import transit
 from app.routers import pdf_export
 from app.routers import horary
+from app.routers import panchangam
 
 app = FastAPI(title="KP Astro API", version="0.1.0")
 
@@ -28,6 +29,7 @@ app.include_router(compatibility.router, prefix="/compatibility", tags=["Compati
 app.include_router(transit.router, prefix="/transit", tags=["Transit"])
 app.include_router(pdf_export.router, prefix="/pdf", tags=["PDF"])
 app.include_router(horary.router, prefix="/horary", tags=["Horary"])
+app.include_router(panchangam.router, prefix="/panchangam", tags=["Panchangam"])
 
 @app.get("/")
 def health_check():
