@@ -61,6 +61,11 @@ export default function Home() {
   const [mResults, setMResults] = useState<any>(null);
   const [mParticipants, setMParticipants] = useState<ChartSession[]>([]);
   const [mShowAddParticipant, setMShowAddParticipant] = useState(false);
+  const [mEventLoc, setMEventLoc] = useState<{lat:number;lon:number;tz:number;place:string}|null>(null);
+  const [mEventLocMode, setMEventLocMode] = useState<"same"|"different">("same");
+  const [mEventLocSugg, setMEventLocSugg] = useState<PlaceSuggestion[]>([]);
+  const [mEventLocSearching, setMEventLocSearching] = useState(false);
+  const mEventLocSearchRef = useRef<ReturnType<typeof setTimeout>|null>(null);
   // Inline participant mini-form (shared between muhurtha and match)
   const [mNewP, setMNewP] = useState({ name: "", date: "", time: "", ampm: "AM" as "AM"|"PM", place: "", latitude: 17.385, longitude: 78.4867, gender: "" as "male"|"female"|"", timezone_offset: 5.5 });
   const [mNewPPlaceSugg, setMNewPPlaceSugg] = useState<PlaceSuggestion[]>([]);
@@ -187,6 +192,25 @@ export default function Home() {
         });
         setMNewPPlaceSugg(results); setMNewPPlaceStatus("done");
       } catch { setMNewPPlaceStatus("idle"); }
+    }, 400);
+  };
+
+  const handleMEventLocSearch = (val: string) => {
+    setMEventLoc(null);
+    setMEventLocSugg([]);
+    if (mEventLocSearchRef.current) clearTimeout(mEventLocSearchRef.current);
+    if (val.length < 3) return;
+    mEventLocSearchRef.current = setTimeout(async () => {
+      setMEventLocSearching(true);
+      try {
+        const res = await axios.get("https://nominatim.openstreetmap.org/search", { params: { q: val, format: "json", limit: 5, addressdetails: 1, "accept-language": "en" }, headers: { "User-Agent": "DevAstroAI/1.0" } });
+        const results: PlaceSuggestion[] = res.data.map((f: any) => {
+          const addr = f.address || {};
+          const parts = [addr.city || addr.town || addr.village || addr.county || f.display_name.split(",")[0], addr.state, addr.country].filter(Boolean);
+          return { name: parts[0] || val, display: parts.join(", "), lat: parseFloat(f.lat), lon: parseFloat(f.lon) };
+        });
+        setMEventLocSugg(results);
+      } catch {} finally { setMEventLocSearching(false); }
     }, 400);
   };
 
@@ -1451,22 +1475,25 @@ export default function Home() {
                           {/* 5-card panchang grid */}
                           <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 8, marginBottom: 14 }}>
                             {[
-                              { label: "Vara", value: panchangCurrentData.vara_en, icon: "📅" },
-                              { label: "Tithi", value: panchangCurrentData.tithi_en?.replace("Shukla ","S·").replace("Krishna ","K·"), icon: "🌙" },
-                              { label: "Nakshatra", value: panchangCurrentData.nakshatra_en, icon: "⭐" },
-                              { label: "Yoga", value: panchangCurrentData.yoga_en, icon: "☯" },
-                              { label: "Karana", value: panchangCurrentData.karana, icon: "🔱" },
+                              { label: "Vara", value: panchangCurrentData.vara_en, icon: "📅", ends: null },
+                              { label: "Tithi", value: panchangCurrentData.tithi_en?.replace("Shukla ","S·").replace("Krishna ","K·"), icon: "🌙", ends: panchangCurrentData.tithi_ends_at },
+                              { label: "Nakshatra", value: panchangCurrentData.nakshatra_en, icon: "⭐", ends: panchangCurrentData.nakshatra_ends_at },
+                              { label: "Yoga", value: panchangCurrentData.yoga_en, icon: "☯", ends: panchangCurrentData.yoga_ends_at },
+                              { label: "Karana", value: panchangCurrentData.karana2 ? `${panchangCurrentData.karana} → ${panchangCurrentData.karana2}` : panchangCurrentData.karana, icon: "🔱", ends: panchangCurrentData.karana_ends_at },
                             ].map(item => (
                               <div key={item.label} style={{ background: "var(--card)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "10px 8px", textAlign: "center" }}>
                                 <div style={{ fontSize: 16, marginBottom: 4 }}>{item.icon}</div>
                                 <div style={{ fontSize: 9, color: "var(--muted)", marginBottom: 3, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>{item.label}</div>
                                 <div style={{ fontSize: 11, color: "var(--text)", fontWeight: 500, lineHeight: 1.3 }}>{item.value}</div>
+                                {item.ends && (
+                                  <div style={{ fontSize: 9, color: "var(--muted)", marginTop: 3, opacity: 0.7 }}>until {item.ends}</div>
+                                )}
                               </div>
                             ))}
                           </div>
 
                           {/* Warning cards: Rahu Kalam / Yamagandam */}
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: panchangCurrentData.abhijit_muhurtha ? 8 : 14 }}>
                             <div style={{ padding: "8px 12px", background: "rgba(248,113,113,0.08)", border: "0.5px solid rgba(248,113,113,0.25)", borderRadius: 10, display: "flex", alignItems: "center", gap: 8 }}>
                               <span style={{ fontSize: 14 }}>⚠️</span>
                               <div>
@@ -1482,6 +1509,29 @@ export default function Home() {
                               </div>
                             </div>
                           </div>
+                          {/* Abhijit Muhurtha — gold auspicious card */}
+                          {panchangCurrentData.abhijit_muhurtha?.valid && (
+                            <div style={{ padding: "8px 14px", background: "rgba(201,169,110,0.10)", border: "0.5px solid rgba(201,169,110,0.4)", borderRadius: 10, display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                              <span style={{ fontSize: 18 }}>👑</span>
+                              <div>
+                                <div style={{ fontSize: 9, color: "var(--accent)", textTransform: "uppercase" as const, letterSpacing: "0.05em", fontWeight: 600 }}>Abhijit Muhurtha</div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--accent)" }}>
+                                  {panchangCurrentData.abhijit_muhurtha.start} – {panchangCurrentData.abhijit_muhurtha.end}
+                                </div>
+                                <div style={{ fontSize: 9, color: "var(--muted)", marginTop: 1 }}>Universally auspicious · Center of daylight</div>
+                              </div>
+                            </div>
+                          )}
+                          {/* Gulika Kalam warning card */}
+                          {panchangCurrentData.gulika_kalam && (
+                            <div style={{ padding: "8px 12px", background: "rgba(167,139,250,0.06)", border: "0.5px solid rgba(167,139,250,0.2)", borderRadius: 10, display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                              <span style={{ fontSize: 14 }}>🔮</span>
+                              <div>
+                                <div style={{ fontSize: 9, color: "#a78bfa", textTransform: "uppercase" as const, letterSpacing: "0.05em", fontWeight: 600 }}>Gulika Kalam</div>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: "#a78bfa" }}>{panchangCurrentData.gulika_kalam}</div>
+                              </div>
+                            </div>
+                          )}
 
                           {/* Current Hora */}
                           {panchangCurrentData.current_hora && (
@@ -1838,6 +1888,47 @@ export default function Home() {
                         <button onClick={() => setMStep(1)} style={{ background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 18, padding: 0 }}>←</button>
                         <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>ఏ తేదీలు చూడాలి?</div>
                       </div>
+                      {/* Event location section */}
+                      <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem", marginBottom: "1rem" }}>
+                        <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.625rem" }}>
+                          📍 Event Location
+                        </div>
+                        <div style={{ display: "flex", gap: 6, marginBottom: mEventLocMode === "different" ? 10 : 0 }}>
+                          {(["same","different"] as const).map(mode => (
+                            <button key={mode} onClick={() => { setMEventLocMode(mode); if(mode==="same") setMEventLoc(null); }}
+                              style={{ flex: 1, padding: "8px 6px", background: mEventLocMode === mode ? "rgba(201,169,110,0.12)" : "var(--card)", border: `0.5px solid ${mEventLocMode === mode ? "rgba(201,169,110,0.55)" : "var(--border2)"}`, borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontSize: 11, color: mEventLocMode === mode ? "var(--accent)" : "var(--muted)", fontWeight: mEventLocMode === mode ? 600 : 400, transition: "all 0.15s" }}>
+                              {mode === "same" ? "🏠 Same as birth" : "📍 Different location"}
+                            </button>
+                          ))}
+                        </div>
+                        {mEventLocMode === "different" && (
+                          <div style={{ position: "relative" as const }}>
+                            <input
+                              placeholder="Search event location..."
+                              defaultValue={mEventLoc?.place || ""}
+                              onChange={e => handleMEventLocSearch(e.target.value)}
+                              style={{ width: "100%", background: "var(--card)", border: `0.5px solid ${mEventLoc ? "var(--accent)" : "var(--border2)"}`, borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "var(--text)", outline: "none", boxSizing: "border-box" as const }}
+                            />
+                            {mEventLocSearching && <div style={{ position: "absolute", right: 10, top: 9, fontSize: 10, color: "var(--muted)" }}>...</div>}
+                            {mEventLoc && <div style={{ fontSize: 10, color: "#34d399", marginTop: 4 }}>✓ {mEventLoc.place}</div>}
+                            {mEventLocSugg.length > 0 && (
+                              <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100, background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 6, overflow: "hidden", marginTop: 2 }}>
+                                {mEventLocSugg.map((s, i) => (
+                                  <button key={i} onClick={() => {
+                                    axios.get("https://api.bigdatacloud.net/data/reverse-geocode-client", { params: { latitude: s.lat, longitude: s.lon, localityLanguage: "en" } })
+                                      .then(r => { const tz = Math.round(((r.data?.timezone?.gmtOffset || 0) / 3600) * 2) / 2; setMEventLoc({ lat: s.lat, lon: s.lon, tz, place: s.display }); })
+                                      .catch(() => setMEventLoc({ lat: s.lat, lon: s.lon, tz: 0, place: s.display }));
+                                    setMEventLocSugg([]);
+                                  }} style={{ width: "100%", padding: "7px 10px", background: "none", border: "none", borderBottom: "0.5px solid var(--border)", color: "var(--text)", fontSize: 11, textAlign: "left" as const, cursor: "pointer", fontFamily: "inherit" }}>
+                                    {s.display}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
                       {/* Participant summary if any */}
                       {mParticipants.length > 0 && (
                         <div style={{ padding: "6px 10px", background: "rgba(201,169,110,0.06)", border: "0.5px solid rgba(201,169,110,0.2)", borderRadius: 6, marginBottom: "0.875rem", fontSize: 11, color: "var(--muted)" }}>
@@ -1885,6 +1976,7 @@ export default function Home() {
                             event_type: mEventType, date_start: mDateStart, date_end: mDateEnd,
                             latitude: workspaceData.latitude || 17.385, longitude: workspaceData.longitude || 78.4867,
                             timezone_offset: timezoneOffset, nearby_days: 3,
+                            ...(mEventLoc ? { event_lat: mEventLoc.lat, event_lon: mEventLoc.lon, event_tz: mEventLoc.tz } : {}),
                             participants: [
                               // Main user always included as participant 0 for RP resonance
                               ...(snapshotCurrentSession() ? [sessionToApiPerson(snapshotCurrentSession()!)] : []),
@@ -1990,6 +2082,34 @@ export default function Home() {
                                   {w.is_vishti && <span style={{ fontSize: 9, padding: "2px 7px", background: "rgba(248,113,113,0.1)", border: "0.5px solid rgba(248,113,113,0.25)", borderRadius: 10, color: "#f87171" }}>⚠ Vishti</span>}
                                 </div>
                               )}
+                              {/* KP factors row */}
+                              <div style={{ display: "flex", gap: 5, flexWrap: "wrap" as const, marginTop: 5 }}>
+                                {w.in_abhijit && (
+                                  <span style={{ fontSize: 9, padding: "2px 8px", background: "rgba(201,169,110,0.18)", border: "0.5px solid rgba(201,169,110,0.5)", borderRadius: 10, color: "var(--accent)", fontWeight: 700 }}>
+                                    👑 Abhijit
+                                  </span>
+                                )}
+                                {w.tara_bala_name && (
+                                  <span style={{ fontSize: 9, padding: "2px 7px", background: w.tara_bala_good ? "rgba(52,211,153,0.1)" : "rgba(248,113,113,0.1)", border: `0.5px solid ${w.tara_bala_good ? "rgba(52,211,153,0.3)" : "rgba(248,113,113,0.3)"}`, borderRadius: 10, color: w.tara_bala_good ? "#34d399" : "#f87171" }}>
+                                    ⭐ {w.tara_bala_name} Tara {w.tara_bala_good ? "✓" : "✗"}
+                                  </span>
+                                )}
+                                {w.tara_bala_name && (
+                                  <span style={{ fontSize: 9, padding: "2px 7px", background: w.chandrabala_good ? "rgba(52,211,153,0.1)" : "rgba(248,113,113,0.1)", border: `0.5px solid ${w.chandrabala_good ? "rgba(52,211,153,0.3)" : "rgba(248,113,113,0.3)"}`, borderRadius: 10, color: w.chandrabala_good ? "#34d399" : "#f87171" }}>
+                                    🌙 Chandrabala {w.chandrabala_good ? "✓" : "✗"}
+                                  </span>
+                                )}
+                                {w.hora_lord && (
+                                  <span style={{ fontSize: 9, padding: "2px 7px", background: w.hora_auspicious ? "rgba(52,211,153,0.08)" : "rgba(148,163,184,0.08)", border: `0.5px solid ${w.hora_auspicious ? "rgba(52,211,153,0.25)" : "rgba(148,163,184,0.2)"}`, borderRadius: 10, color: w.hora_auspicious ? "#34d399" : "#94a3b8" }}>
+                                    ⚡ {w.hora_lord} Hora
+                                  </span>
+                                )}
+                                {w.lagna_lord_retrograde && (
+                                  <span style={{ fontSize: 9, padding: "2px 7px", background: "rgba(251,191,36,0.1)", border: "0.5px solid rgba(251,191,36,0.3)", borderRadius: 10, color: "#fbbf24" }}>
+                                    ℞ Lagna Lord Retrograde
+                                  </span>
+                                )}
+                              </div>
                             </div>
                             );
                           })}

@@ -2,6 +2,16 @@
 Panchangam router — location-based Panchangam endpoint.
 Allows frontend to fetch Panchang for any coordinates (current user location,
 not just birth location), and returns Choghadiya + Hora sequence.
+
+Accuracy fixes (Phase 3):
+  - Sunrise uses upper limb + refraction (not disc center) = true observed sunrise
+  - Tithi/Nakshatra/Yoga computed at sunrise, not noon
+  - Hora uses proportional day/night hours (12 day + 12 night)
+  - Binary-search transition times for Tithi, Nakshatra, Yoga
+  - Abhijit Muhurtha added (8th of 15 muhurtas)
+  - Durmuhurtha uses 15-muhurta day division (not hardcoded times)
+  - Two Karanas per day with transition time
+  - Gulika Kalam added
 """
 
 from fastapi import APIRouter
@@ -13,7 +23,7 @@ import swisseph as swe
 
 router = APIRouter()
 
-# ── Constants (shared with astrologer.py) ───────────────────────
+# ── Constants ───────────────────────────────────────────────────────
 
 NAKSHATRA_NAMES_EN = [
     "Ashwini", "Bharani", "Krittika", "Rohini", "Mrigashira",
@@ -41,36 +51,45 @@ YOGA_EN = [
 ]
 DAY_EN = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
-RAHU_KALAM_SLOTS = {0: 1, 1: 6, 2: 4, 3: 5, 4: 3, 5: 2, 6: 7}
+RAHU_KALAM_SLOTS  = {0: 1, 1: 6, 2: 4, 3: 5, 4: 3, 5: 2, 6: 7}
 YAMAGANDAM_SLOTS  = {0: 4, 1: 3, 2: 2, 3: 1, 4: 0, 5: 6, 6: 5}
+GULIKA_SLOTS      = {0: 6, 1: 5, 2: 4, 3: 3, 4: 2, 5: 1, 6: 0}
+
+# Durmuhurtha: two 1/15-day (1 muhurta) slots per weekday (0-indexed from sunrise)
+DURMUHURTHA_SLOTS = {
+    0: [6, 7],   # Monday
+    1: [4, 7],   # Tuesday
+    2: [5, 7],   # Wednesday
+    3: [5, 7],   # Thursday
+    4: [2, 7],   # Friday
+    5: [7, 8],   # Saturday
+    6: [2, 6],   # Sunday
+}
 
 CHARA_KARANAS_EN = ["Bava", "Balava", "Kaulava", "Taitula", "Garija", "Vanija", "Vishti"]
 
 # Hora lords: Sun→Venus→Mercury→Moon→Saturn→Jupiter→Mars (repeating)
-HORA_LORDS = ["Sun", "Venus", "Mercury", "Moon", "Saturn", "Jupiter", "Mars"]
+HORA_LORDS    = ["Sun", "Venus", "Mercury", "Moon", "Saturn", "Jupiter", "Mars"]
 DAY_HORA_START = {0: 3, 1: 6, 2: 2, 3: 5, 4: 1, 5: 4, 6: 0}  # 0=Mon, 6=Sun
 
-# Choghadiya day sequence starting from weekday lord
-# Order: day starts from this index into CHOGHADIYA_NAMES
 CHOGHADIYA_DAY_SEQ = {
-    0: ["Amrit", "Kaal", "Shubh", "Rog", "Udveg", "Chal", "Labh", "Amrit"],  # Mon
-    1: ["Rog", "Udveg", "Chal", "Labh", "Amrit", "Kaal", "Shubh", "Rog"],   # Tue
-    2: ["Labh", "Amrit", "Kaal", "Shubh", "Rog", "Udveg", "Chal", "Labh"],  # Wed
-    3: ["Shubh", "Rog", "Udveg", "Chal", "Labh", "Amrit", "Kaal", "Shubh"], # Thu
-    4: ["Chal", "Labh", "Amrit", "Kaal", "Shubh", "Rog", "Udveg", "Chal"],  # Fri
-    5: ["Kaal", "Shubh", "Rog", "Udveg", "Chal", "Labh", "Amrit", "Kaal"],  # Sat
-    6: ["Udveg", "Chal", "Labh", "Amrit", "Kaal", "Shubh", "Rog", "Udveg"], # Sun
+    0: ["Amrit", "Kaal",  "Shubh", "Rog",   "Udveg", "Chal",  "Labh",  "Amrit"],  # Mon
+    1: ["Rog",   "Udveg", "Chal",  "Labh",  "Amrit", "Kaal",  "Shubh", "Rog"],    # Tue
+    2: ["Labh",  "Amrit", "Kaal",  "Shubh", "Rog",   "Udveg", "Chal",  "Labh"],   # Wed
+    3: ["Shubh", "Rog",   "Udveg", "Chal",  "Labh",  "Amrit", "Kaal",  "Shubh"],  # Thu
+    4: ["Chal",  "Labh",  "Amrit", "Kaal",  "Shubh", "Rog",   "Udveg", "Chal"],   # Fri
+    5: ["Kaal",  "Shubh", "Rog",   "Udveg", "Chal",  "Labh",  "Amrit", "Kaal"],   # Sat
+    6: ["Udveg", "Chal",  "Labh",  "Amrit", "Kaal",  "Shubh", "Rog",   "Udveg"],  # Sun
 }
 CHOGHADIYA_NIGHT_SEQ = {
-    0: ["Chal", "Labh", "Amrit", "Kaal", "Shubh", "Rog", "Udveg", "Chal"],  # Mon
-    1: ["Kaal", "Shubh", "Rog", "Udveg", "Chal", "Labh", "Amrit", "Kaal"],  # Tue
-    2: ["Udveg", "Chal", "Labh", "Amrit", "Kaal", "Shubh", "Rog", "Udveg"], # Wed
-    3: ["Amrit", "Kaal", "Shubh", "Rog", "Udveg", "Chal", "Labh", "Amrit"], # Thu
-    4: ["Rog", "Udveg", "Chal", "Labh", "Amrit", "Kaal", "Shubh", "Rog"],   # Fri
-    5: ["Labh", "Amrit", "Kaal", "Shubh", "Rog", "Udveg", "Chal", "Labh"],  # Sat
-    6: ["Shubh", "Rog", "Udveg", "Chal", "Labh", "Amrit", "Kaal", "Shubh"], # Sun
+    0: ["Chal",  "Labh",  "Amrit", "Kaal",  "Shubh", "Rog",   "Udveg", "Chal"],   # Mon
+    1: ["Kaal",  "Shubh", "Rog",   "Udveg", "Chal",  "Labh",  "Amrit", "Kaal"],   # Tue
+    2: ["Udveg", "Chal",  "Labh",  "Amrit", "Kaal",  "Shubh", "Rog",   "Udveg"],  # Wed
+    3: ["Amrit", "Kaal",  "Shubh", "Rog",   "Udveg", "Chal",  "Labh",  "Amrit"],  # Thu
+    4: ["Rog",   "Udveg", "Chal",  "Labh",  "Amrit", "Kaal",  "Shubh", "Rog"],    # Fri
+    5: ["Labh",  "Amrit", "Kaal",  "Shubh", "Rog",   "Udveg", "Chal",  "Labh"],   # Sat
+    6: ["Shubh", "Rog",   "Udveg", "Chal",  "Labh",  "Amrit", "Kaal",  "Shubh"],  # Sun
 }
-
 CHOGHADIYA_QUALITY = {
     "Amrit": "auspicious", "Shubh": "auspicious", "Labh": "auspicious",
     "Chal": "neutral",
@@ -78,7 +97,7 @@ CHOGHADIYA_QUALITY = {
 }
 
 
-# ── Helpers ─────────────────────────────────────────────────────
+# ── Core Helpers ─────────────────────────────────────────────────────
 
 def jd_to_local_time_str(jd: float, tz_offset: float) -> str:
     unix_seconds = (jd - 2440588.5) * 86400
@@ -88,23 +107,41 @@ def jd_to_local_time_str(jd: float, tz_offset: float) -> str:
 
 
 def get_sunrise_sunset_jd(date_jd: float, lat: float, lon: float) -> tuple:
+    """
+    True observed sunrise/sunset: upper limb of Sun + atmospheric refraction.
+    (NOT disc center — that would be geometric sunrise, 2-3 min later than observed)
+    """
     geopos = (lon, lat, 0.0)
     try:
         _, tret = swe.rise_trans(
             date_jd - 0.5, swe.SUN, b"", 0,
-            swe.CALC_RISE | swe.BIT_DISC_CENTER,
+            swe.CALC_RISE,  # upper limb + refraction (no BIT_DISC_CENTER)
             geopos, 1013.25, 10.0
         )
         sunrise_jd = tret[1]
         _, tret2 = swe.rise_trans(
             sunrise_jd, swe.SUN, b"", 0,
-            swe.CALC_SET | swe.BIT_DISC_CENTER,
+            swe.CALC_SET,   # upper limb + refraction
             geopos, 1013.25, 10.0
         )
         sunset_jd = tret2[1]
         return sunrise_jd, sunset_jd
     except Exception:
         return date_jd - 0.25, date_jd + 0.25
+
+
+def get_next_sunrise_jd(sunset_jd: float, lat: float, lon: float) -> float:
+    """Get the next sunrise JD after a given sunset JD (for proportional hora)."""
+    geopos = (lon, lat, 0.0)
+    try:
+        _, tret = swe.rise_trans(
+            sunset_jd, swe.SUN, b"", 0,
+            swe.CALC_RISE,
+            geopos, 1013.25, 10.0
+        )
+        return tret[1]
+    except Exception:
+        return sunset_jd + 0.5  # fallback: ~12 hours later
 
 
 def get_karana_name(moon_lon: float, sun_lon: float) -> str:
@@ -121,12 +158,107 @@ def get_karana_name(moon_lon: float, sun_lon: float) -> str:
     return "Naga"
 
 
+def get_karana_pair(moon_lon: float, sun_lon: float, sunrise_jd: float,
+                     tz_offset: float) -> dict:
+    """Return current karana and second karana with transition time."""
+    diff = (moon_lon - sun_lon) % 360
+    idx1 = int(diff / 6)
+    idx2 = idx1 + 1
+
+    def idx_to_name(idx: int) -> str:
+        if idx == 0:
+            return "Kimstughna"
+        elif idx <= 56:
+            return CHARA_KARANAS_EN[(idx - 1) % 7]
+        elif idx == 57:
+            return "Shakuni"
+        elif idx == 58:
+            return "Chatushpada"
+        return "Naga"
+
+    name1 = idx_to_name(idx1)
+    name2 = idx_to_name(idx2 % 60)
+
+    # Find transition time: binary search for when moon-sun diff crosses next 6° boundary
+    boundary = (idx1 + 1) * 6.0
+    transition_jd = None
+    try:
+        lo, hi = sunrise_jd, sunrise_jd + 1.05
+        def diff_at(jd: float) -> float:
+            m = swe.calc_ut(jd, swe.MOON, swe.FLG_SIDEREAL)[0][0]
+            s = swe.calc_ut(jd, swe.SUN,  swe.FLG_SIDEREAL)[0][0]
+            return (m - s) % 360
+
+        d_lo = diff_at(lo)
+        d_hi = diff_at(hi)
+        # Only search if boundary is crossed in this window
+        if (d_lo < boundary <= d_hi) or (d_hi < d_lo and boundary >= d_lo):
+            for _ in range(38):
+                mid = (lo + hi) / 2.0
+                d_mid = diff_at(mid)
+                if d_mid < boundary:
+                    lo = mid
+                else:
+                    hi = mid
+            transition_jd = (lo + hi) / 2.0
+    except Exception:
+        pass
+
+    return {
+        "karana1": name1,
+        "karana2": name2,
+        "karana1_ends": jd_to_local_time_str(transition_jd, tz_offset) if transition_jd else None,
+    }
+
+
+# ── Binary Search Transition Helpers ────────────────────────────────
+
+def _moon_tithi_num(jd: float) -> int:
+    moon = swe.calc_ut(jd, swe.MOON, swe.FLG_SIDEREAL)[0][0]
+    sun  = swe.calc_ut(jd, swe.SUN,  swe.FLG_SIDEREAL)[0][0]
+    return int(((moon - sun) % 360) / 12)
+
+def _moon_nak_num(jd: float) -> int:
+    moon = swe.calc_ut(jd, swe.MOON, swe.FLG_SIDEREAL)[0][0]
+    return int((moon % 360) / (360 / 27))
+
+def _yoga_num(jd: float) -> int:
+    moon = swe.calc_ut(jd, swe.MOON, swe.FLG_SIDEREAL)[0][0]
+    sun  = swe.calc_ut(jd, swe.SUN,  swe.FLG_SIDEREAL)[0][0]
+    return int(((moon + sun) % 360) / (360 / 27)) % 27
+
+
+def find_transition_jd(start_jd: float, end_jd: float, val_fn) -> Optional[float]:
+    """
+    Binary search to find JD when val_fn(jd) changes from its value at start_jd.
+    Returns None if no change detected in [start_jd, end_jd].
+    38 iterations → ~0.3 second precision.
+    """
+    try:
+        v_start = val_fn(start_jd)
+        v_end   = val_fn(end_jd)
+        if v_start == v_end:
+            return None
+        lo, hi = start_jd, end_jd
+        for _ in range(38):
+            mid = (lo + hi) / 2.0
+            if val_fn(mid) == v_start:
+                lo = mid
+            else:
+                hi = mid
+        return (lo + hi) / 2.0
+    except Exception:
+        return None
+
+
+# ── Choghadiya / Hora ─────────────────────────────────────────────────
+
 def build_choghadiya(sunrise_jd: float, sunset_jd: float, weekday: int,
                       tz_offset: float, now_jd: float) -> list:
     """Build full day+night choghadiya period list."""
     periods = []
-    day_duration = (sunset_jd - sunrise_jd) / 8.0
-    night_total = 1.0 - (sunset_jd - sunrise_jd)  # remainder = night
+    day_duration   = (sunset_jd - sunrise_jd) / 8.0
+    night_total    = 1.0 - (sunset_jd - sunrise_jd)
     night_duration = night_total / 8.0
 
     day_names   = CHOGHADIYA_DAY_SEQ.get(weekday, CHOGHADIYA_DAY_SEQ[0])
@@ -136,48 +268,65 @@ def build_choghadiya(sunrise_jd: float, sunset_jd: float, weekday: int,
         s = sunrise_jd + i * day_duration
         e = s + day_duration
         periods.append({
-            "name": name,
-            "quality": CHOGHADIYA_QUALITY.get(name, "neutral"),
+            "name": name, "quality": CHOGHADIYA_QUALITY.get(name, "neutral"),
             "start": jd_to_local_time_str(s, tz_offset),
             "end":   jd_to_local_time_str(e, tz_offset),
-            "is_current": s <= now_jd < e,
-            "is_day": True,
+            "is_current": s <= now_jd < e, "is_day": True,
         })
 
     for i, name in enumerate(night_names):
         s = sunset_jd + i * night_duration
         e = s + night_duration
         periods.append({
-            "name": name,
-            "quality": CHOGHADIYA_QUALITY.get(name, "neutral"),
+            "name": name, "quality": CHOGHADIYA_QUALITY.get(name, "neutral"),
             "start": jd_to_local_time_str(s, tz_offset),
             "end":   jd_to_local_time_str(e, tz_offset),
+            "is_current": s <= now_jd < e, "is_day": False,
+        })
+    return periods
+
+
+def build_hora_sequence(sunrise_jd: float, sunset_jd: float, weekday: int,
+                         tz_offset: float, now_jd: float,
+                         lat: float, lon: float) -> list:
+    """
+    24 proportional planetary hours: 12 day + 12 night.
+    Day hora = (sunset-sunrise)/12. Night hora = (next_sunrise-sunset)/12.
+    (NOT fixed 1-hour slots — those are wrong for any non-equinox location.)
+    """
+    next_sunrise_jd = get_next_sunrise_jd(sunset_jd, lat, lon)
+    day_dur   = (sunset_jd        - sunrise_jd)   / 12.0
+    night_dur = (next_sunrise_jd  - sunset_jd)    / 12.0
+    start_idx = DAY_HORA_START[weekday]
+    periods   = []
+
+    for i in range(12):
+        s = sunrise_jd + i * day_dur
+        e = s + day_dur
+        lord = HORA_LORDS[(start_idx + i) % 7]
+        periods.append({
+            "lord": lord, "start": jd_to_local_time_str(s, tz_offset),
+            "end": jd_to_local_time_str(e, tz_offset),
             "is_current": s <= now_jd < e,
+            "is_auspicious": lord in ("Jupiter", "Venus", "Mercury"),
+            "is_day": True,
+        })
+
+    for i in range(12):
+        s = sunset_jd + i * night_dur
+        e = s + night_dur
+        lord = HORA_LORDS[(start_idx + 12 + i) % 7]
+        periods.append({
+            "lord": lord, "start": jd_to_local_time_str(s, tz_offset),
+            "end": jd_to_local_time_str(e, tz_offset),
+            "is_current": s <= now_jd < e,
+            "is_auspicious": lord in ("Jupiter", "Venus", "Mercury"),
             "is_day": False,
         })
     return periods
 
 
-def build_hora_sequence(sunrise_jd: float, weekday: int,
-                         tz_offset: float, now_jd: float) -> list:
-    """24 planetary hours starting from sunrise."""
-    start_idx = DAY_HORA_START[weekday]
-    periods = []
-    for i in range(24):
-        s = sunrise_jd + i / 24.0
-        e = s + 1 / 24.0
-        lord = HORA_LORDS[(start_idx + i) % 7]
-        periods.append({
-            "lord": lord,
-            "start": jd_to_local_time_str(s, tz_offset),
-            "end":   jd_to_local_time_str(e, tz_offset),
-            "is_current": s <= now_jd < e,
-            "is_auspicious": lord in ("Jupiter", "Venus", "Mercury"),
-        })
-    return periods
-
-
-# ── Request / Response ────────────────────────────────────────────
+# ── Request Models ───────────────────────────────────────────────────
 
 class PanchangamLocationRequest(BaseModel):
     latitude: float
@@ -185,83 +334,6 @@ class PanchangamLocationRequest(BaseModel):
     timezone_offset: float = 5.5
     date: Optional[str] = None   # YYYY-MM-DD, defaults to today
 
-
-@router.post("/location")
-def get_location_panchangam(req: PanchangamLocationRequest):
-    """
-    Calculate today's (or given date's) Panchangam for any geographic location.
-    Returns full panchang + choghadiya + hora sequence.
-    """
-    swe.set_sid_mode(swe.SIDM_KRISHNAMURTI_VP291)
-
-    # Resolve target date
-    if req.date:
-        target = datetime.strptime(req.date, "%Y-%m-%d")
-    else:
-        # Today in the target timezone
-        utc_now = datetime.utcnow()
-        target = utc_now + timedelta(hours=req.timezone_offset)
-        target = target.replace(hour=12, minute=0, second=0, microsecond=0)
-
-    # Julian Day at noon on target date (UTC)
-    jd_noon = swe.julday(target.year, target.month, target.day,
-                          12.0 - req.timezone_offset)
-
-    # Current moment as JD
-    now_jd = swe.julday(*datetime.utcnow().timetuple()[:3],
-                         datetime.utcnow().hour + datetime.utcnow().minute / 60.0)
-
-    # Planet positions
-    moon_lon = swe.calc_ut(jd_noon, swe.MOON, swe.FLG_SIDEREAL)[0][0]
-    sun_lon  = swe.calc_ut(jd_noon, swe.SUN,  swe.FLG_SIDEREAL)[0][0]
-
-    diff      = (moon_lon - sun_lon) % 360
-    tithi_num = int(diff / 12) + 1
-    naks_num  = int((moon_lon % 360) / (360 / 27))
-    yoga_num  = int(((sun_lon + moon_lon) % 360) / (360 / 27)) % 27
-    weekday   = target.weekday()  # 0=Mon
-
-    # Sunrise / sunset
-    sunrise_jd, sunset_jd = get_sunrise_sunset_jd(jd_noon, req.latitude, req.longitude)
-    slot_dur = (sunset_jd - sunrise_jd) / 8.0
-
-    rk_slot = RAHU_KALAM_SLOTS[weekday]
-    rk_start_jd = sunrise_jd + rk_slot * slot_dur
-    rk_end_jd   = rk_start_jd + slot_dur
-
-    yg_slot = YAMAGANDAM_SLOTS[weekday]
-    yg_start_jd = sunrise_jd + yg_slot * slot_dur
-    yg_end_jd   = yg_start_jd + slot_dur
-
-    # Hora & Choghadiya
-    choghadiya   = build_choghadiya(sunrise_jd, sunset_jd, weekday, req.timezone_offset, now_jd)
-    hora_sequence = build_hora_sequence(sunrise_jd, weekday, req.timezone_offset, now_jd)
-    current_hora  = next((h for h in hora_sequence if h["is_current"]), hora_sequence[0])
-
-    return {
-        "date":         target.strftime("%d/%m/%Y"),
-        "vara_en":      DAY_EN[weekday],
-        "tithi_en":     TITHIS_EN[min(tithi_num - 1, 29)],
-        "tithi_num":    tithi_num,
-        "nakshatra_en": NAKSHATRA_NAMES_EN[naks_num],
-        "yoga_en":      YOGA_EN[yoga_num],
-        "karana":       get_karana_name(moon_lon, sun_lon),
-        "sunrise":      jd_to_local_time_str(sunrise_jd, req.timezone_offset),
-        "sunset":       jd_to_local_time_str(sunset_jd,  req.timezone_offset),
-        "rahu_kalam":   f"{jd_to_local_time_str(rk_start_jd, req.timezone_offset)}-{jd_to_local_time_str(rk_end_jd, req.timezone_offset)}",
-        "yamagandam":   f"{jd_to_local_time_str(yg_start_jd, req.timezone_offset)}-{jd_to_local_time_str(yg_end_jd, req.timezone_offset)}",
-        "hora_lord":    current_hora["lord"],
-        "current_hora": current_hora,
-        "choghadiya":   choghadiya,
-        "hora_sequence": hora_sequence,
-        # Timing helpers for frontend clock accuracy
-        "now_local_time":     jd_to_local_time_str(now_jd, req.timezone_offset),
-        "day_duration_min":   round((sunset_jd - sunrise_jd) * 24 * 60, 1),
-        "night_duration_min": round((1.0 - (sunset_jd - sunrise_jd)) * 24 * 60, 1),
-    }
-
-
-# ── Monthly Calendar Endpoint ─────────────────────────────────────
 
 class CalendarRequest(BaseModel):
     latitude: float
@@ -271,12 +343,137 @@ class CalendarRequest(BaseModel):
     month: int  # 1-12
 
 
+# ── Main Location Endpoint ───────────────────────────────────────────
+
+@router.post("/location")
+def get_location_panchangam(req: PanchangamLocationRequest):
+    """
+    Calculate today's (or given date's) Panchangam for any geographic location.
+    Returns full panchang + choghadiya + hora sequence.
+    All values based on TRUE sunrise (upper limb + refraction).
+    Tithi/Nakshatra/Yoga computed at sunrise (traditional rule: "tithi of the day = tithi at sunrise").
+    """
+    swe.set_sid_mode(swe.SIDM_KRISHNAMURTI_VP291)
+
+    # Resolve target date
+    if req.date:
+        target = datetime.strptime(req.date, "%Y-%m-%d")
+    else:
+        utc_now = datetime.utcnow()
+        target  = utc_now + timedelta(hours=req.timezone_offset)
+        target  = target.replace(hour=12, minute=0, second=0, microsecond=0)
+
+    # Julian Day at noon on target date (UTC) — used only for sunrise search window
+    jd_noon = swe.julday(target.year, target.month, target.day,
+                          12.0 - req.timezone_offset)
+
+    # Current moment as JD (UT)
+    _now = datetime.utcnow()
+    now_jd = swe.julday(_now.year, _now.month, _now.day,
+                         _now.hour + _now.minute / 60.0 + _now.second / 3600.0)
+
+    # ── Sunrise / Sunset ──────────────────────────────────────────
+    sunrise_jd, sunset_jd = get_sunrise_sunset_jd(jd_noon, req.latitude, req.longitude)
+
+    # ── Planet positions AT SUNRISE (traditional rule) ─────────────
+    moon_lon = swe.calc_ut(sunrise_jd, swe.MOON, swe.FLG_SIDEREAL)[0][0]
+    sun_lon  = swe.calc_ut(sunrise_jd, swe.SUN,  swe.FLG_SIDEREAL)[0][0]
+
+    diff      = (moon_lon - sun_lon) % 360
+    tithi_num = int(diff / 12) + 1
+    naks_num  = int((moon_lon % 360) / (360 / 27))
+    yoga_num  = int(((sun_lon + moon_lon) % 360) / (360 / 27)) % 27
+    weekday   = target.weekday()
+
+    # ── 8-Slot Kalam windows (Rahu/Yama/Gulika) ────────────────────
+    slot_dur    = (sunset_jd - sunrise_jd) / 8.0
+    rk_start_jd = sunrise_jd + RAHU_KALAM_SLOTS[weekday]  * slot_dur
+    yg_start_jd = sunrise_jd + YAMAGANDAM_SLOTS[weekday]  * slot_dur
+    gl_start_jd = sunrise_jd + GULIKA_SLOTS[weekday]      * slot_dur
+
+    # ── 15-Muhurta Durmuhurtha ─────────────────────────────────────
+    muhurta_dur   = (sunset_jd - sunrise_jd) / 15.0
+    durm_slots    = DURMUHURTHA_SLOTS[weekday]
+    durm_windows  = [
+        {
+            "start": jd_to_local_time_str(sunrise_jd + s * muhurta_dur, req.timezone_offset),
+            "end":   jd_to_local_time_str(sunrise_jd + (s + 1) * muhurta_dur, req.timezone_offset),
+        }
+        for s in durm_slots
+    ]
+
+    # ── Abhijit Muhurtha (8th of 15 muhurtas, not on Wednesday) ────
+    abhijit_start_jd = sunrise_jd + 7 * muhurta_dur
+    abhijit_end_jd   = abhijit_start_jd + muhurta_dur
+    abhijit_valid    = (weekday != 2)  # False on Wednesday
+
+    # ── Transition times (binary search) ────────────────────────────
+    search_end = sunrise_jd + 1.1  # search until ~1 day ahead
+    tithi_ends_jd     = find_transition_jd(sunrise_jd, search_end, _moon_tithi_num)
+    nakshatra_ends_jd = find_transition_jd(sunrise_jd, search_end, _moon_nak_num)
+    yoga_ends_jd      = find_transition_jd(sunrise_jd, search_end, _yoga_num)
+
+    # ── Karana pair ──────────────────────────────────────────────────
+    karana_pair = get_karana_pair(moon_lon, sun_lon, sunrise_jd, req.timezone_offset)
+
+    # ── Hora & Choghadiya ────────────────────────────────────────────
+    choghadiya    = build_choghadiya(sunrise_jd, sunset_jd, weekday, req.timezone_offset, now_jd)
+    hora_sequence = build_hora_sequence(sunrise_jd, sunset_jd, weekday,
+                                         req.timezone_offset, now_jd,
+                                         req.latitude, req.longitude)
+    current_hora  = next((h for h in hora_sequence if h["is_current"]), hora_sequence[0])
+
+    # ── Moon/Sun Rashi (sign) ────────────────────────────────────────
+    SIGN_NAMES = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo",
+                  "Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"]
+    moon_sign = SIGN_NAMES[int((moon_lon % 360) / 30)]
+    sun_sign  = SIGN_NAMES[int((sun_lon  % 360) / 30)]
+
+    return {
+        "date":          target.strftime("%d/%m/%Y"),
+        "vara_en":       DAY_EN[weekday],
+        "tithi_en":      TITHIS_EN[min(tithi_num - 1, 29)],
+        "tithi_num":     tithi_num,
+        "tithi_ends_at": jd_to_local_time_str(tithi_ends_jd, req.timezone_offset) if tithi_ends_jd else None,
+        "nakshatra_en":  NAKSHATRA_NAMES_EN[naks_num],
+        "nakshatra_ends_at": jd_to_local_time_str(nakshatra_ends_jd, req.timezone_offset) if nakshatra_ends_jd else None,
+        "yoga_en":       YOGA_EN[yoga_num],
+        "yoga_ends_at":  jd_to_local_time_str(yoga_ends_jd, req.timezone_offset) if yoga_ends_jd else None,
+        "karana":        karana_pair["karana1"],
+        "karana2":       karana_pair["karana2"],
+        "karana_ends_at": karana_pair["karana1_ends"],
+        "moon_sign":     moon_sign,
+        "sun_sign":      sun_sign,
+        "sunrise":       jd_to_local_time_str(sunrise_jd,  req.timezone_offset),
+        "sunset":        jd_to_local_time_str(sunset_jd,   req.timezone_offset),
+        "rahu_kalam":    f"{jd_to_local_time_str(rk_start_jd, req.timezone_offset)}-{jd_to_local_time_str(rk_start_jd + slot_dur, req.timezone_offset)}",
+        "yamagandam":    f"{jd_to_local_time_str(yg_start_jd, req.timezone_offset)}-{jd_to_local_time_str(yg_start_jd + slot_dur, req.timezone_offset)}",
+        "gulika_kalam":  f"{jd_to_local_time_str(gl_start_jd, req.timezone_offset)}-{jd_to_local_time_str(gl_start_jd + slot_dur, req.timezone_offset)}",
+        "durmuhurtha":   durm_windows,
+        "abhijit_muhurtha": {
+            "start": jd_to_local_time_str(abhijit_start_jd, req.timezone_offset),
+            "end":   jd_to_local_time_str(abhijit_end_jd,   req.timezone_offset),
+            "valid": abhijit_valid,
+        },
+        "hora_lord":     current_hora["lord"],
+        "current_hora":  current_hora,
+        "choghadiya":    choghadiya,
+        "hora_sequence": hora_sequence,
+        # Timing helpers for frontend clock accuracy
+        "now_local_time":     jd_to_local_time_str(now_jd, req.timezone_offset),
+        "day_duration_min":   round((sunset_jd - sunrise_jd) * 24 * 60, 1),
+        "night_duration_min": round((1.0 - (sunset_jd - sunrise_jd)) * 24 * 60, 1),
+    }
+
+
+# ── Monthly Calendar Endpoint ─────────────────────────────────────────
+
 @router.post("/calendar")
 def get_monthly_calendar(req: CalendarRequest):
     """
     Return daily panchang for every day in a given month.
-    Returns an array of day objects — Tithi, Nakshatra, Yoga, Karana, sunrise, sunset.
-    Fast: ~30 Swiss Ephemeris calls, < 100ms.
+    Uses true sunrise for each day; tithi/nakshatra at sunrise.
+    Returns array of day objects with transition time support.
     """
     swe.set_sid_mode(swe.SIDM_KRISHNAMURTI_VP291)
 
@@ -285,64 +482,68 @@ def get_monthly_calendar(req: CalendarRequest):
 
     days_in_month = calendar_module.monthrange(req.year, req.month)[1]
     result = []
-
     geopos = (req.longitude, req.latitude, 0.0)
 
     for day in range(1, days_in_month + 1):
         dt = datetime(req.year, req.month, day)
         date_str = dt.strftime("%Y-%m-%d")
 
-        # Julian Day at noon local → UT
+        # Julian Day at noon local → UT (used as search window center)
         jd_noon = swe.julday(req.year, req.month, day, 12.0 - req.timezone_offset)
 
-        # Moon & Sun longitude (sidereal, KP)
-        moon_lon = swe.calc_ut(jd_noon, swe.MOON, swe.FLG_SIDEREAL)[0][0]
-        sun_lon  = swe.calc_ut(jd_noon, swe.SUN,  swe.FLG_SIDEREAL)[0][0]
+        # True sunrise for this day
+        try:
+            _, tret_r = swe.rise_trans(jd_noon - 0.5, swe.SUN, b"", 0,
+                                       swe.CALC_RISE, geopos, 1013.25, 10.0)
+            sunrise_jd = tret_r[1]
+            _, tret_s = swe.rise_trans(sunrise_jd, swe.SUN, b"", 0,
+                                       swe.CALC_SET, geopos, 1013.25, 10.0)
+            sunset_jd = tret_s[1]
+            sunrise_str = jd_to_local_time_str(sunrise_jd, req.timezone_offset)
+            sunset_str  = jd_to_local_time_str(sunset_jd,  req.timezone_offset)
+        except Exception:
+            sunrise_jd  = jd_noon - 0.25
+            sunset_jd   = jd_noon + 0.25
+            sunrise_str = "—"
+            sunset_str  = "—"
+
+        # Moon & Sun at SUNRISE (traditional rule)
+        moon_lon = swe.calc_ut(sunrise_jd, swe.MOON, swe.FLG_SIDEREAL)[0][0]
+        sun_lon  = swe.calc_ut(sunrise_jd, swe.SUN,  swe.FLG_SIDEREAL)[0][0]
 
         diff      = (moon_lon - sun_lon) % 360
         tithi_num = int(diff / 12) + 1
         naks_num  = int((moon_lon % 360) / (360 / 27))
         yoga_num  = int(((sun_lon + moon_lon) % 360) / (360 / 27)) % 27
 
+        # Tithi/Nakshatra transition times
+        tithi_ends_jd     = find_transition_jd(sunrise_jd, sunrise_jd + 1.1, _moon_tithi_num)
+        nakshatra_ends_jd = find_transition_jd(sunrise_jd, sunrise_jd + 1.1, _moon_nak_num)
+
         # Moon phase
         moon_phase = "waxing"
-        if tithi_num == 15:
-            moon_phase = "full"
-        elif tithi_num == 30:
-            moon_phase = "new"
-        elif tithi_num > 15:
-            moon_phase = "waning"
+        if tithi_num == 15:   moon_phase = "full"
+        elif tithi_num == 30: moon_phase = "new"
+        elif tithi_num > 15:  moon_phase = "waning"
 
-        # Sunrise / sunset (quick, no fallback needed for calendar)
-        try:
-            _, tret_r = swe.rise_trans(jd_noon - 0.5, swe.SUN, b"", 0,
-                                       swe.CALC_RISE | swe.BIT_DISC_CENTER, geopos, 1013.25, 10.0)
-            sunrise_jd = tret_r[1]
-            _, tret_s = swe.rise_trans(sunrise_jd, swe.SUN, b"", 0,
-                                       swe.CALC_SET | swe.BIT_DISC_CENTER, geopos, 1013.25, 10.0)
-            sunset_jd = tret_s[1]
-            sunrise_str = jd_to_local_time_str(sunrise_jd, req.timezone_offset)
-            sunset_str  = jd_to_local_time_str(sunset_jd,  req.timezone_offset)
-        except Exception:
-            sunrise_str = "—"
-            sunset_str  = "—"
-
-        weekday = dt.weekday()  # 0=Mon
+        weekday = dt.weekday()
 
         result.append({
-            "date":         date_str,
-            "day":          day,
-            "weekday":      weekday,        # 0=Mon, 6=Sun
-            "vara_en":      DAY_EN[weekday],
-            "tithi_en":     TITHIS_EN[min(tithi_num - 1, 29)],
-            "tithi_num":    tithi_num,
-            "nakshatra_en": NAKSHATRA_NAMES_EN[naks_num],
-            "yoga_en":      YOGA_EN[yoga_num],
-            "karana":       get_karana_name(moon_lon, sun_lon),
-            "sunrise":      sunrise_str,
-            "sunset":       sunset_str,
-            "moon_phase":   moon_phase,
-            "is_today":     date_str == today_str,
+            "date":          date_str,
+            "day":           day,
+            "weekday":       weekday,
+            "vara_en":       DAY_EN[weekday],
+            "tithi_en":      TITHIS_EN[min(tithi_num - 1, 29)],
+            "tithi_num":     tithi_num,
+            "tithi_ends_at": jd_to_local_time_str(tithi_ends_jd, req.timezone_offset) if tithi_ends_jd else None,
+            "nakshatra_en":  NAKSHATRA_NAMES_EN[naks_num],
+            "nakshatra_ends_at": jd_to_local_time_str(nakshatra_ends_jd, req.timezone_offset) if nakshatra_ends_jd else None,
+            "yoga_en":       YOGA_EN[yoga_num],
+            "karana":        get_karana_name(moon_lon, sun_lon),
+            "sunrise":       sunrise_str,
+            "sunset":        sunset_str,
+            "moon_phase":    moon_phase,
+            "is_today":      date_str == today_str,
         })
 
     return {"year": req.year, "month": req.month, "days": result}

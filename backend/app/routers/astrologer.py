@@ -137,13 +137,13 @@ def get_sunrise_sunset_jd(date_jd: float, lat: float, lon: float) -> tuple:
     try:
         _, tret = swe.rise_trans(
             date_jd - 0.5, swe.SUN, b"", 0,
-            swe.CALC_RISE | swe.BIT_DISC_CENTER,
+            swe.CALC_RISE,
             geopos, 1013.25, 10.0
         )
         sunrise_jd = tret[1]
         _, tret2 = swe.rise_trans(
             sunrise_jd, swe.SUN, b"", 0,
-            swe.CALC_SET | swe.BIT_DISC_CENTER,
+            swe.CALC_SET,
             geopos, 1013.25, 10.0
         )
         sunset_jd = tret2[1]
