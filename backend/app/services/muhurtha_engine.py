@@ -71,6 +71,29 @@ SIGN_LORDS = {
 # Rahu Kalam slot index (0-based) per weekday (0=Mon, 6=Sun)
 RAHU_KALAM_SLOTS = {0: 1, 1: 6, 2: 4, 3: 5, 4: 3, 5: 2, 6: 7}
 
+# Yamagandam slot index per weekday
+YAMAGANDAM_SLOTS = {0: 4, 1: 3, 2: 2, 3: 1, 4: 0, 5: 6, 6: 5}
+
+# Gulika Kalam slot index per weekday
+GULIKA_SLOTS = {0: 6, 1: 5, 2: 4, 3: 3, 4: 2, 5: 1, 6: 0}
+
+# Auspicious Tithi numbers (1-based, 30 = Amavasya)
+AUSPICIOUS_TITHIS = {2, 3, 5, 7, 10, 11, 13}
+INAUSPICIOUS_TITHIS = {4, 6, 8, 12, 14, 15, 30}
+
+# Auspicious Nakshatras for muhurtha (by index 0-26)
+# Ashwini(0), Mrigashira(4), Punarvasu(6), Pushya(7), Hasta(12),
+# Chitra(13), Swati(14), Jyeshtha(17), Shravana(21), Dhanishtha(22), Shatabhisha(23)
+AUSPICIOUS_NAKSHATRA_IDX = {0, 4, 6, 7, 12, 13, 14, 17, 21, 22, 23}
+
+# Inauspicious Yoga indices (0-based): Vishkambha(0), Ganda(9), Vyaghata(12),
+# Vajra(14), Vyatipata(16), Parigha(18), Vaidhriti(26)
+INAUSPICIOUS_YOGA_IDX = {0, 9, 12, 14, 16, 18, 26}
+
+# Good weekdays for muhurtha (0=Mon, 6=Sun)
+GOOD_VARA = {0, 2, 3, 4}   # Mon, Wed, Thu, Fri
+BAD_VARA  = {1, 5}          # Tue, Sat
+
 
 # ── Helpers ───────────────────────────────────────────────────
 
@@ -100,8 +123,8 @@ def _sublord_significations(sublord: str, planets: dict, cusp_lons: list) -> lis
     return list(set([occupied] + ruled + ([sl_house] if sl_house else [])))
 
 
-def _get_rahu_kalam_jd(jd_noon: float, lat: float, lon: float, weekday: int) -> tuple:
-    """Return (rk_start_jd, rk_end_jd) for the day."""
+def _get_day_slots(jd_noon: float, lat: float, lon: float, weekday: int) -> dict:
+    """Compute sunrise/sunset and return all inauspicious time windows for a day."""
     geopos = (lon, lat, 0.0)
     try:
         _, tr = swe.rise_trans(jd_noon - 0.5, swe.SUN, b"", 0,
@@ -113,9 +136,44 @@ def _get_rahu_kalam_jd(jd_noon: float, lat: float, lon: float, weekday: int) -> 
     except Exception:
         sunrise = jd_noon - 0.25
         sunset = jd_noon + 0.25
+
     slot_dur = (sunset - sunrise) / 8.0
-    slot = RAHU_KALAM_SLOTS[weekday]
-    return sunrise + slot * slot_dur, sunrise + (slot + 1) * slot_dur
+
+    rk_slot = RAHU_KALAM_SLOTS[weekday]
+    rk_start = sunrise + rk_slot * slot_dur
+    rk_end   = rk_start + slot_dur
+
+    yg_slot  = YAMAGANDAM_SLOTS[weekday]
+    yg_start = sunrise + yg_slot * slot_dur
+    yg_end   = yg_start + slot_dur
+
+    gl_slot  = GULIKA_SLOTS[weekday]
+    gl_start = sunrise + gl_slot * slot_dur
+    gl_end   = gl_start + slot_dur
+
+    # Durmuhurtha: ~48 min windows at 10:24-11:12 and 15:00-15:48 local
+    # Approximate as offsets from sunrise (sun typically rises between 5:30-7:30)
+    # Better: compute as fixed clock hours. Sunrise_jd → local HH
+    # We'll use the JD to approximate: sunrise + 4h/24 ≈ 10:30 window
+    # Use absolute JD offset from midnight:
+    durm1_start = jd_noon - 1.0/24 * 1.55  # ~10:24 local = approx
+    durm1_end   = durm1_start + 48.0 / 1440.0
+    durm2_start = jd_noon + 3.0 / 24.0     # ~15:00 local = noon + 3h
+    durm2_end   = durm2_start + 48.0 / 1440.0
+
+    return {
+        "rk":   (rk_start, rk_end),
+        "yg":   (yg_start, yg_end),
+        "gl":   (gl_start, gl_end),
+        "dur1": (durm1_start, durm1_end),
+        "dur2": (durm2_start, durm2_end),
+    }
+
+
+# Keep backward-compatible alias
+def _get_rahu_kalam_jd(jd_noon: float, lat: float, lon: float, weekday: int) -> tuple:
+    slots = _get_day_slots(jd_noon, lat, lon, weekday)
+    return slots["rk"]
 
 
 def _is_vishti(moon_lon: float, sun_lon: float) -> bool:
@@ -146,7 +204,9 @@ def _quality(score: int) -> str:
         return "Excellent"
     if score >= 55:
         return "Good"
-    return "Fair"
+    if score >= 30:
+        return "Fair"
+    return "Avoid"
 
 
 # ── Multi-chart participant RP calculation ────────────────────
@@ -194,7 +254,7 @@ def _scan_date_range(
 
     raw_windows = []
     planet_cache: dict = {}
-    rahu_cache: dict = {}
+    slot_cache: dict = {}   # replaces rahu_cache — stores all inauspicious windows
 
     current = start_dt.replace(hour=5, minute=0, second=0, microsecond=0)
     end = end_dt.replace(hour=21, minute=0, second=0, microsecond=0)
@@ -211,12 +271,17 @@ def _scan_date_range(
             planet_cache[hr_key] = get_planet_positions(jd)
         planets = planet_cache[hr_key]
 
-        # Rahu Kalam cached per day
+        # Inauspicious time slots cached per day
         day_key = current.strftime("%Y-%m-%d")
-        if day_key not in rahu_cache:
+        if day_key not in slot_cache:
             jd_noon = swe.julday(current.year, current.month, current.day, 12.0 - tz_offset)
-            rahu_cache[day_key] = _get_rahu_kalam_jd(jd_noon, lat, lon, current.weekday())
-        rk_start, rk_end = rahu_cache[day_key]
+            slot_cache[day_key] = _get_day_slots(jd_noon, lat, lon, current.weekday())
+        slots = slot_cache[day_key]
+        rk_start, rk_end = slots["rk"]
+        yg_start, yg_end = slots["yg"]
+        gl_start, gl_end = slots["gl"]
+        d1_start, d1_end = slots["dur1"]
+        d2_start, d2_end = slots["dur2"]
 
         # House cusps
         cusps, _ = swe.houses_ex(jd, lat, lon, b'P', swe.FLG_SIDEREAL)
@@ -229,21 +294,51 @@ def _scan_date_range(
 
         base_score = _score(signified, event_type)
 
-        # Multi-chart participant resonance bonus: +10 per participant whose RP includes lagna_sl
+        # ── Traditional panchang factors ──────────────────────────
+        moon_lon = planets.get("Moon", {}).get("longitude", 0)
+        sun_lon  = planets.get("Sun",  {}).get("longitude", 0)
+
+        # Tithi
+        tithi_num = int(((moon_lon - sun_lon) % 360) / 12) + 1
+        if tithi_num in AUSPICIOUS_TITHIS:
+            base_score += 20
+        elif tithi_num in INAUSPICIOUS_TITHIS:
+            base_score -= 30
+
+        # Moon Nakshatra
+        naks_idx = int((moon_lon % 360) / (360 / 27))
+        if naks_idx in AUSPICIOUS_NAKSHATRA_IDX:
+            base_score += 15
+
+        # Yoga
+        yoga_idx = int(((sun_lon + moon_lon) % 360) / (360 / 27)) % 27
+        if yoga_idx in INAUSPICIOUS_YOGA_IDX:
+            base_score -= 40
+
+        # Weekday (Vara)
+        vara = current.weekday()
+        if vara in GOOD_VARA:
+            base_score += 10
+        elif vara in BAD_VARA:
+            base_score -= 15
+
+        # ── Multi-chart participant resonance bonus ────────────────
         resonating_with = [name for name, rps in participant_rps if lagna_sl in rps]
         participant_bonus = len(resonating_with) * 10
 
-        in_rk = rk_start <= jd <= rk_end
-        vishti = _is_vishti(
-            planets.get("Moon", {}).get("longitude", 0),
-            planets.get("Sun", {}).get("longitude", 0)
-        )
+        # ── Inauspicious time penalties ───────────────────────────
+        in_rk    = rk_start <= jd <= rk_end
+        in_yg    = yg_start <= jd <= yg_end
+        in_gl    = gl_start <= jd <= gl_end
+        in_durm  = (d1_start <= jd <= d1_end) or (d2_start <= jd <= d2_end)
+        vishti   = _is_vishti(moon_lon, sun_lon)
 
         effective_score = base_score + participant_bonus
-        if in_rk:
-            effective_score -= 50
-        if vishti:
-            effective_score -= 30
+        if in_rk:   effective_score -= 50
+        if in_yg:   effective_score -= 60
+        if in_gl:   effective_score -= 50
+        if in_durm: effective_score -= 80
+        if vishti:  effective_score -= 30
 
         if base_score >= 40:
             raw_windows.append({
@@ -257,10 +352,14 @@ def _scan_date_range(
                 "lagna_star_lord": lagna_star,
                 "signified_houses": sorted(signified),
                 "base_score": base_score,
+                "tithi_num": tithi_num,
                 "participant_resonance": len(resonating_with),
                 "resonating_with": resonating_with,
                 "score": max(0, effective_score),
                 "in_rahu_kalam": in_rk,
+                "in_yamagandam": in_yg,
+                "in_gulika": in_gl,
+                "in_durmuhurtha": in_durm,
                 "is_vishti": vishti,
                 "quality": _quality(max(0, effective_score)),
             })

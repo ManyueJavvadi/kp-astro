@@ -7,13 +7,10 @@ interface ChoghadiyaClockProps {
   sunrise: string;  // "HH:MM"
   sunset: string;   // "HH:MM"
   showDay: boolean; // true = day choghadiya, false = night
+  nowLocalTime?: string;     // "HH:MM" in panchang's own timezone (from backend)
+  dayDurationMin?: number;   // actual day duration in minutes (from backend)
+  nightDurationMin?: number; // actual night duration in minutes (from backend)
 }
-
-const QUALITY_COLORS: Record<string, string> = {
-  auspicious:   "#34d399",
-  neutral:      "#a78bfa",
-  inauspicious: "#f87171",
-};
 
 const NAME_COLORS: Record<string, string> = {
   Amrit: "#34d399",
@@ -31,9 +28,14 @@ function timeToMinutes(t: string): number {
 }
 
 function minutesToAngle(minutes: number, startMinutes: number, totalMinutes: number): number {
-  // Map minutes within day period to 0-360 degrees
-  const fraction = ((minutes - startMinutes) % totalMinutes) / totalMinutes;
-  return fraction * 360 - 90; // -90 so 0 = top (12 o'clock)
+  let adjusted = minutes;
+  // Handle midnight wrap-around for night periods spanning midnight
+  // If adjusted time is more than half a total cycle before start, add 24h
+  if (adjusted < startMinutes && (startMinutes - adjusted) > totalMinutes / 2) {
+    adjusted += 1440; // add 24 hours
+  }
+  const fraction = ((adjusted - startMinutes) % totalMinutes) / totalMinutes;
+  return fraction * 360 - 90; // -90 so 0° = top (12 o'clock)
 }
 
 function polarToXY(angle: number, r: number, cx: number, cy: number): [number, number] {
@@ -48,19 +50,30 @@ function describeArc(cx: number, cy: number, r: number, startAngle: number, endA
   return `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z`;
 }
 
-export default function ChoghadiyaClock({ periods, sunrise, sunset, showDay }: ChoghadiyaClockProps) {
+export default function ChoghadiyaClock({
+  periods, sunrise, sunset, showDay,
+  nowLocalTime, dayDurationMin, nightDurationMin,
+}: ChoghadiyaClockProps) {
   const CX = 110, CY = 110, R = 90, R_INNER = 55;
 
   const filtered = useMemo(() => periods.filter(p => p.is_day === showDay), [periods, showDay]);
 
   const startRef  = showDay ? sunrise : sunset;
-  const totalMins = 8 * 90; // 8 × 90-minute segments
+
+  // Use actual duration from backend; fall back to 8*90=720 only if not provided
+  const totalMins = showDay
+    ? (dayDurationMin ?? 720)
+    : (nightDurationMin ?? 720);
 
   const startMinutes = timeToMinutes(startRef);
-  const nowMinutes   = (() => {
+
+  // Use backend's now_local_time (panchang timezone) instead of browser clock
+  // This avoids timezone mismatch when browser TZ ≠ panchang TZ
+  const nowMinutes = useMemo(() => {
+    if (nowLocalTime) return timeToMinutes(nowLocalTime);
     const now = new Date();
     return now.getHours() * 60 + now.getMinutes();
-  })();
+  }, [nowLocalTime]);
 
   const segments = useMemo(() => {
     return filtered.map(p => {
@@ -68,7 +81,9 @@ export default function ChoghadiyaClock({ periods, sunrise, sunset, showDay }: C
       const pEnd   = timeToMinutes(p.end);
       const sa = minutesToAngle(pStart, startMinutes, totalMins) - 90;
       const ea = minutesToAngle(pEnd,   startMinutes, totalMins) - 90;
-      const isCurrent = p.is_current || (nowMinutes >= pStart && nowMinutes < pEnd);
+      const isCurrent = p.is_current || (
+        nowMinutes >= pStart && nowMinutes < pEnd
+      );
       return { ...p, sa, ea, isCurrent };
     });
   }, [filtered, startMinutes, nowMinutes, totalMins]);
