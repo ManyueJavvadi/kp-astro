@@ -21,6 +21,12 @@ import calendar as calendar_module
 from typing import Optional, List
 import swisseph as swe
 
+from app.services.telugu_terms import (
+    NAKSHATRAS_TELUGU, TITHIS_TELUGU, YOGAS_TELUGU,
+    KARANAS_TELUGU, DAYS_TELUGU, TELUGU_YEARS, TELUGU_MONTHS,
+    SIGNS_TELUGU,
+)
+
 router = APIRouter()
 
 # ── Constants ───────────────────────────────────────────────────────
@@ -142,6 +148,30 @@ def get_next_sunrise_jd(sunset_jd: float, lat: float, lon: float) -> float:
         return tret[1]
     except Exception:
         return sunset_jd + 0.5  # fallback: ~12 hours later
+
+
+def get_moonrise_moonset_jd(date_jd: float, lat: float, lon: float):
+    """Moonrise and moonset for the day. Returns (moonrise_jd, moonset_jd) or None for each."""
+    geopos = (lon, lat, 0.0)
+    moonrise_jd = None
+    moonset_jd = None
+    try:
+        _, tret = swe.rise_trans(
+            date_jd - 0.5, swe.MOON, b"", 0,
+            swe.CALC_RISE, geopos, 1013.25, 10.0
+        )
+        moonrise_jd = tret[1]
+    except Exception:
+        pass
+    try:
+        _, tret2 = swe.rise_trans(
+            date_jd - 0.5, swe.MOON, b"", 0,
+            swe.CALC_SET, geopos, 1013.25, 10.0
+        )
+        moonset_jd = tret2[1]
+    except Exception:
+        pass
+    return moonrise_jd, moonset_jd
 
 
 def get_karana_name(moon_lon: float, sun_lon: float) -> str:
@@ -326,6 +356,138 @@ def build_hora_sequence(sunrise_jd: float, sunset_jd: float, weekday: int,
     return periods
 
 
+# ── Telugu Name Helpers ──────────────────────────────────────────────
+
+KARANA_TELUGU_MAP = {
+    "Bava": "బవ", "Balava": "బాలవ", "Kaulava": "కౌలవ",
+    "Taitula": "తైతిల", "Garija": "గర", "Vanija": "వణిజ",
+    "Vishti": "విష్టి", "Kimstughna": "కింస్తుఘ్న",
+    "Shakuni": "శకుని", "Chatushpada": "చతుష్పాద", "Naga": "నాగ",
+}
+
+SIGN_NAMES = [
+    "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
+    "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"
+]
+
+# Map sidereal sun sign to Telugu month name
+SIGN_TO_MASA = {
+    "Aries": "Vaisakha", "Taurus": "Jyeshtha", "Gemini": "Ashadha",
+    "Cancer": "Shravana", "Leo": "Bhadrapada", "Virgo": "Ashwina",
+    "Libra": "Kartika", "Scorpio": "Margashirsha", "Sagittarius": "Pausha",
+    "Capricorn": "Magha", "Aquarius": "Phalguna", "Pisces": "Chaitra",
+}
+
+# Rutu (season) from masa
+MASA_TO_RUTU = {
+    "Chaitra": "వసంత ఋతువు", "Vaisakha": "వసంత ఋతువు",
+    "Jyeshtha": "గ్రీష్మ ఋతువు", "Ashadha": "గ్రీష్మ ఋతువు",
+    "Shravana": "వర్ష ఋతువు", "Bhadrapada": "వర్ష ఋతువు",
+    "Ashwina": "శరద్ ఋతువు", "Kartika": "శరద్ ఋతువు",
+    "Margashirsha": "హేమంత ఋతువు", "Pausha": "హేమంత ఋతువు",
+    "Magha": "శిశిర ఋతువు", "Phalguna": "శిశిర ఋతువు",
+}
+
+
+def get_tithi_telugu(tithi_num: int) -> str:
+    """Convert 1-based tithi number to Telugu string with paksha prefix."""
+    idx = (tithi_num - 1) % 15  # 0-14
+    paksha = "శుక్ల" if tithi_num <= 15 else "కృష్ణ"
+    tithi_name = TITHIS_TELUGU[idx]
+    if tithi_num == 15:
+        return "పౌర్ణమి"
+    elif tithi_num == 30:
+        return "అమావాస్య"
+    return f"{paksha} {tithi_name}"
+
+
+def get_nakshatra_telugu(naks_num: int) -> str:
+    """Convert 0-based nakshatra index to Telugu name."""
+    en_name = NAKSHATRA_NAMES_EN[naks_num]
+    return NAKSHATRAS_TELUGU.get(en_name, en_name)
+
+
+def get_yoga_telugu(yoga_num: int) -> str:
+    """Convert 0-based yoga index to Telugu name."""
+    return YOGAS_TELUGU[yoga_num] if yoga_num < len(YOGAS_TELUGU) else YOGA_EN[yoga_num]
+
+
+def get_karana_telugu(karana_en: str) -> str:
+    return KARANA_TELUGU_MAP.get(karana_en, karana_en)
+
+
+def get_vara_telugu(weekday: int) -> str:
+    """weekday: 0=Monday..6=Sunday (Python convention)."""
+    en_name = DAY_EN[weekday]
+    return DAYS_TELUGU.get(en_name, en_name)
+
+
+def get_samvatsara(year: int) -> str:
+    """60-year cycle samvatsara name in Telugu."""
+    idx = (year + 3101 - 1) % 60
+    return TELUGU_YEARS[idx] if idx < len(TELUGU_YEARS) else ""
+
+
+def get_ayana(sun_lon: float) -> str:
+    """Uttarayana (270-90°) or Dakshinayana (90-270°) based on sidereal Sun."""
+    if sun_lon >= 270 or sun_lon < 90:
+        return "ఉత్తరాయణం"
+    return "దక్షిణాయనం"
+
+
+def get_masa_rutu(sun_sign: str):
+    """Return (masa_en, masa_te, rutu_te) from sun's sidereal sign."""
+    masa_en = SIGN_TO_MASA.get(sun_sign, "Chaitra")
+    masa_te = TELUGU_MONTHS.get(masa_en, masa_en)
+    rutu_te = MASA_TO_RUTU.get(masa_en, "")
+    return masa_en, masa_te, rutu_te
+
+
+def get_tithi_short(tithi_num: int) -> str:
+    """Short tithi label for calendar cell, e.g. 'శు·3' or 'కృ·12'."""
+    idx = (tithi_num - 1) % 15 + 1
+    if tithi_num == 15:
+        return "పౌర్ణమి"
+    elif tithi_num == 30:
+        return "అమావాస్య"
+    paksha = "శు" if tithi_num <= 15 else "కృ"
+    return f"{paksha}·{idx}"
+
+
+def get_nakshatra_short(naks_num: int) -> str:
+    """First few Telugu chars of nakshatra for calendar cell."""
+    te = get_nakshatra_telugu(naks_num)
+    # Take up to 4 Telugu characters
+    return te[:4] if len(te) >= 4 else te
+
+
+def get_special_marker(tithi_num: int) -> Optional[str]:
+    """Return special day marker or None."""
+    if tithi_num == 15:
+        return "పౌర్ణమి"
+    elif tithi_num == 30:
+        return "అమావాస్య"
+    elif tithi_num == 11 or tithi_num == 26:
+        return "ఏకాదశి"
+    return None
+
+
+def get_moon_phase_icon(tithi_num: int) -> str:
+    """Return moon phase emoji for calendar cell."""
+    if tithi_num == 15:
+        return "🌕"
+    elif tithi_num == 30:
+        return "🌑"
+    elif tithi_num <= 7:
+        return "🌒"
+    elif tithi_num <= 14:
+        return "🌔"
+    elif tithi_num <= 22:
+        return "🌖"
+    else:
+        return "🌘"
+
+
 # ── Request Models ───────────────────────────────────────────────────
 
 class PanchangamLocationRequest(BaseModel):
@@ -424,13 +586,20 @@ def get_location_panchangam(req: PanchangamLocationRequest):
     current_hora  = next((h for h in hora_sequence if h["is_current"]), hora_sequence[0])
 
     # ── Moon/Sun Rashi (sign) ────────────────────────────────────────
-    SIGN_NAMES = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo",
-                  "Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"]
     moon_sign = SIGN_NAMES[int((moon_lon % 360) / 30)]
     sun_sign  = SIGN_NAMES[int((sun_lon  % 360) / 30)]
 
+    # ── Moonrise / Moonset ──────────────────────────────────────────
+    moonrise_jd, moonset_jd = get_moonrise_moonset_jd(jd_noon, req.latitude, req.longitude)
+
+    # ── Telugu identity: Samvatsara, Ayana, Masa, Rutu ──────────────
+    samvatsara_te = get_samvatsara(target.year)
+    ayana_te      = get_ayana(sun_lon)
+    masa_en, masa_te, rutu_te = get_masa_rutu(sun_sign)
+
     return {
         "date":          target.strftime("%d/%m/%Y"),
+        # English names
         "vara_en":       DAY_EN[weekday],
         "tithi_en":      TITHIS_EN[min(tithi_num - 1, 29)],
         "tithi_num":     tithi_num,
@@ -442,10 +611,30 @@ def get_location_panchangam(req: PanchangamLocationRequest):
         "karana":        karana_pair["karana1"],
         "karana2":       karana_pair["karana2"],
         "karana_ends_at": karana_pair["karana1_ends"],
+        # Telugu names
+        "vara_te":       get_vara_telugu(weekday),
+        "tithi_te":      get_tithi_telugu(tithi_num),
+        "nakshatra_te":  get_nakshatra_telugu(naks_num),
+        "yoga_te":       get_yoga_telugu(yoga_num),
+        "karana_te":     get_karana_telugu(karana_pair["karana1"]),
+        "karana2_te":    get_karana_telugu(karana_pair["karana2"]),
+        # Telugu identity
+        "samvatsara_te": samvatsara_te,
+        "ayana_te":      ayana_te,
+        "masa_en":       masa_en,
+        "masa_te":       masa_te,
+        "rutu_te":       rutu_te,
+        # Signs
         "moon_sign":     moon_sign,
+        "moon_sign_te":  SIGNS_TELUGU.get(moon_sign, moon_sign),
         "sun_sign":      sun_sign,
+        "sun_sign_te":   SIGNS_TELUGU.get(sun_sign, sun_sign),
+        # Celestial times
         "sunrise":       jd_to_local_time_str(sunrise_jd,  req.timezone_offset),
         "sunset":        jd_to_local_time_str(sunset_jd,   req.timezone_offset),
+        "moonrise":      jd_to_local_time_str(moonrise_jd, req.timezone_offset) if moonrise_jd else None,
+        "moonset":       jd_to_local_time_str(moonset_jd,  req.timezone_offset) if moonset_jd else None,
+        # Inauspicious times
         "rahu_kalam":    f"{jd_to_local_time_str(rk_start_jd, req.timezone_offset)}-{jd_to_local_time_str(rk_start_jd + slot_dur, req.timezone_offset)}",
         "yamagandam":    f"{jd_to_local_time_str(yg_start_jd, req.timezone_offset)}-{jd_to_local_time_str(yg_start_jd + slot_dur, req.timezone_offset)}",
         "gulika_kalam":  f"{jd_to_local_time_str(gl_start_jd, req.timezone_offset)}-{jd_to_local_time_str(gl_start_jd + slot_dur, req.timezone_offset)}",
@@ -455,6 +644,7 @@ def get_location_panchangam(req: PanchangamLocationRequest):
             "end":   jd_to_local_time_str(abhijit_end_jd,   req.timezone_offset),
             "valid": abhijit_valid,
         },
+        # Hora & Choghadiya
         "hora_lord":     current_hora["lord"],
         "current_hora":  current_hora,
         "choghadiya":    choghadiya,
@@ -533,17 +723,39 @@ def get_monthly_calendar(req: CalendarRequest):
             "day":           day,
             "weekday":       weekday,
             "vara_en":       DAY_EN[weekday],
+            "vara_te":       get_vara_telugu(weekday),
             "tithi_en":      TITHIS_EN[min(tithi_num - 1, 29)],
             "tithi_num":     tithi_num,
+            "tithi_te":      get_tithi_telugu(tithi_num),
+            "tithi_short":   get_tithi_short(tithi_num),
             "tithi_ends_at": jd_to_local_time_str(tithi_ends_jd, req.timezone_offset) if tithi_ends_jd else None,
             "nakshatra_en":  NAKSHATRA_NAMES_EN[naks_num],
+            "nakshatra_te":  get_nakshatra_telugu(naks_num),
+            "nakshatra_short": get_nakshatra_short(naks_num),
             "nakshatra_ends_at": jd_to_local_time_str(nakshatra_ends_jd, req.timezone_offset) if nakshatra_ends_jd else None,
             "yoga_en":       YOGA_EN[yoga_num],
+            "yoga_te":       get_yoga_telugu(yoga_num),
             "karana":        get_karana_name(moon_lon, sun_lon),
             "sunrise":       sunrise_str,
             "sunset":        sunset_str,
             "moon_phase":    moon_phase,
+            "moon_phase_icon": get_moon_phase_icon(tithi_num),
+            "special":       get_special_marker(tithi_num),
             "is_today":      date_str == today_str,
         })
 
-    return {"year": req.year, "month": req.month, "days": result}
+    # Month-level identity from first day's sun position
+    first_sun_lon = swe.calc_ut(
+        swe.julday(req.year, req.month, 15, 12.0 - req.timezone_offset),
+        swe.SUN, swe.FLG_SIDEREAL
+    )[0][0]
+    month_sun_sign = SIGN_NAMES[int((first_sun_lon % 360) / 30)]
+    masa_en, masa_te, _ = get_masa_rutu(month_sun_sign)
+    samvatsara_te = get_samvatsara(req.year)
+
+    return {
+        "year": req.year, "month": req.month, "days": result,
+        "samvatsara_te": samvatsara_te,
+        "masa_te": masa_te,
+        "masa_en": masa_en,
+    }

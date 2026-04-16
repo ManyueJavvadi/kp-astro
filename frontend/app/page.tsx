@@ -97,15 +97,13 @@ export default function Home() {
   const [showTransitInDasha, setShowTransitInDasha] = useState(false);
   // Quick insights
   const [quickInsights, setQuickInsights] = useState<Record<string, string>>({});
-  // Panchangam location tab
-  const [panchangLocation, setPanchangLocation] = useState<"birth"|"current">("birth");
-  const [panchangCurrentData, setPanchangCurrentData] = useState<any>(null);
-  const [panchangLoading, setPanchangLoading] = useState(false);
-  const [currentLocationName, setCurrentLocationName] = useState<string>("");
-  // Panchangam calendar
-  const [panchangSubTab, setPanchangSubTab] = useState<"today"|"calendar">("today");
+  // Panchangam — auto-detect location, single page
+  const [pcData, setPcData] = useState<any>(null);
+  const [pcLoading, setPcLoading] = useState(false);
+  const [pcLocationName, setPcLocationName] = useState<string>("");
+  const [pcDetectedCoords, setPcDetectedCoords] = useState<{lat: number; lon: number; tz: number} | null>(null);
   const [calMonth, setCalMonth] = useState<{year: number; month: number}>({ year: new Date().getFullYear(), month: new Date().getMonth() + 1 });
-  const [calData, setCalData] = useState<any[]>([]);
+  const [calData, setCalData] = useState<any>(null);
   const [calLoading, setCalLoading] = useState(false);
   const [calSelectedDay, setCalSelectedDay] = useState<string | null>(null);
   // CSL chain view selected house (for houses overview)
@@ -1375,343 +1373,303 @@ export default function Home() {
               )}
 
               {/* PANCHANGAM TAB */}
-              {activeTab === "panchang" && (
+              {activeTab === "panchang" && (() => {
+                /* ── Panchangam auto-detect helpers ── */
+                const pcFetchLocation = async (dateStr?: string) => {
+                  if (pcLoading) return;
+                  setPcLoading(true);
+                  try {
+                    let lat: number, lon: number, tz: number;
+                    if (pcDetectedCoords) {
+                      lat = pcDetectedCoords.lat; lon = pcDetectedCoords.lon; tz = pcDetectedCoords.tz;
+                    } else {
+                      const pos = await new Promise<GeolocationPosition>((res, rej) =>
+                        navigator.geolocation.getCurrentPosition(res, rej, { timeout: 5000 })
+                      ).catch(() => null);
+                      lat = pos?.coords.latitude ?? birthDetails.latitude ?? 17.385;
+                      lon = pos?.coords.longitude ?? birthDetails.longitude ?? 78.4867;
+                      tz = -(new Date().getTimezoneOffset()) / 60;
+                      setPcDetectedCoords({ lat, lon, tz });
+                      try {
+                        const geo = await axios.get("https://api.bigdatacloud.net/data/reverse-geocode-client", {
+                          params: { latitude: lat, longitude: lon, localityLanguage: "en" }
+                        });
+                        const d = geo.data;
+                        const city = d?.city || d?.locality || d?.principalSubdivision || "";
+                        const country = d?.countryName || "";
+                        setPcLocationName(city && country ? `${city}, ${country}` : city || country || `${lat.toFixed(3)}°, ${lon.toFixed(3)}°`);
+                      } catch { setPcLocationName(`${lat.toFixed(3)}°, ${lon.toFixed(3)}°`); }
+                    }
+                    const r = await axios.post(`${API_URL}/panchangam/location`, {
+                      latitude: lat, longitude: lon, timezone_offset: tz, ...(dateStr ? { date: dateStr } : {}),
+                    });
+                    setPcData(r.data);
+                    // Also load calendar if not loaded
+                    if (!calData) {
+                      setCalLoading(true);
+                      const cm = dateStr ? { year: parseInt(dateStr.split("-")[0]), month: parseInt(dateStr.split("-")[1]) } : calMonth;
+                      axios.post(`${API_URL}/panchangam/calendar`, { latitude: lat, longitude: lon, timezone_offset: tz, year: cm.year, month: cm.month })
+                        .then(cr => setCalData(cr.data)).catch(() => setCalData(null)).finally(() => setCalLoading(false));
+                    }
+                  } catch { setPcData(null); }
+                  setPcLoading(false);
+                };
+                const pcFetchCalendar = (yr: number, mo: number) => {
+                  const coords = pcDetectedCoords || { lat: birthDetails.latitude ?? 17.385, lon: birthDetails.longitude ?? 78.4867, tz: -(new Date().getTimezoneOffset()) / 60 };
+                  setCalLoading(true); setCalData(null);
+                  axios.post(`${API_URL}/panchangam/calendar`, { latitude: coords.lat, longitude: coords.lon, timezone_offset: coords.tz, year: yr, month: mo })
+                    .then(r => setCalData(r.data)).catch(() => setCalData(null)).finally(() => setCalLoading(false));
+                };
+                const handleDayClick = (dateStr: string) => {
+                  if (calSelectedDay === dateStr) { setCalSelectedDay(null); return; }
+                  setCalSelectedDay(dateStr);
+                  // Fetch that day's full panchangam
+                  const coords = pcDetectedCoords || { lat: birthDetails.latitude ?? 17.385, lon: birthDetails.longitude ?? 78.4867, tz: -(new Date().getTimezoneOffset()) / 60 };
+                  setPcLoading(true);
+                  axios.post(`${API_URL}/panchangam/location`, { latitude: coords.lat, longitude: coords.lon, timezone_offset: coords.tz, date: dateStr })
+                    .then(r => setPcData(r.data)).catch(() => {}).finally(() => setPcLoading(false));
+                };
+                const prevMonth = () => {
+                  const prev = calMonth.month === 1 ? { year: calMonth.year - 1, month: 12 } : { year: calMonth.year, month: calMonth.month - 1 };
+                  setCalMonth(prev); setCalSelectedDay(null); pcFetchCalendar(prev.year, prev.month);
+                };
+                const nextMonth = () => {
+                  const next = calMonth.month === 12 ? { year: calMonth.year + 1, month: 1 } : { year: calMonth.year, month: calMonth.month + 1 };
+                  setCalMonth(next); setCalSelectedDay(null); pcFetchCalendar(next.year, next.month);
+                };
+                // Auto-load on first open
+                if (!pcData && !pcLoading) { pcFetchLocation(); }
+
+                const weekdayHeaders = ["ఆ", "సో", "మం", "బు", "గు", "శు", "శ"];
+                const calDays = calData?.days ?? [];
+                const firstWeekday = calDays[0]?.weekday ?? 0;
+                const paddedDays: (any | null)[] = [...Array(firstWeekday).fill(null), ...calDays];
+                while (paddedDays.length % 7 !== 0) paddedDays.push(null);
+
+                return (
                 <div className="tab-content">
-
-                  {/* ── Top row: Location toggle + sub-tabs ── */}
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
-                    {/* Location toggle */}
-                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                      <span style={{ fontSize: 11, color: "var(--muted)" }}>Location:</span>
-                      {([["birth","🏠 Birth"] as const,["current","📍 Current"] as const]).map(([val, label]) => (
-                        <button key={val} onClick={async () => {
-                          setPanchangLocation(val);
-                          if (val === "current" && !panchangCurrentData && !panchangLoading) {
-                            setPanchangLoading(true);
-                            try {
-                              const pos = await new Promise<GeolocationPosition>((res, rej) =>
-                                navigator.geolocation.getCurrentPosition(res, rej, { timeout: 5000 })
-                              ).catch(() => null);
-                              const lat = pos?.coords.latitude ?? birthDetails.latitude ?? 17.385;
-                              const lon = pos?.coords.longitude ?? birthDetails.longitude ?? 78.4867;
-                              const browserOffset = -(new Date().getTimezoneOffset()) / 60;
-                              try {
-                                const geo = await axios.get("https://api.bigdatacloud.net/data/reverse-geocode-client", {
-                                  params: { latitude: lat, longitude: lon, localityLanguage: "en" }
-                                });
-                                const d = geo.data;
-                                const city = d?.city || d?.locality || d?.principalSubdivision || "";
-                                const country = d?.countryName || "";
-                                setCurrentLocationName(city && country ? `${city}, ${country}` : city || country || `${lat.toFixed(3)}°, ${lon.toFixed(3)}°`);
-                              } catch { setCurrentLocationName(`${lat.toFixed(3)}°, ${lon.toFixed(3)}°`); }
-                              const r = await axios.post(`${API_URL}/panchangam/location`, {
-                                latitude: lat, longitude: lon, timezone_offset: browserOffset,
-                              });
-                              setPanchangCurrentData(r.data);
-                            } catch { setPanchangCurrentData(null); }
-                            setPanchangLoading(false);
-                          }
-                        }}
-                          style={{ padding: "5px 14px", borderRadius: 20, border: `0.5px solid ${panchangLocation === val ? "var(--accent)" : "var(--border2)"}`, background: panchangLocation === val ? "rgba(201,169,110,0.12)" : "transparent", color: panchangLocation === val ? "var(--accent)" : "var(--muted)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>
-                          {label}
-                        </button>
-                      ))}
+                  {/* Loading */}
+                  {pcLoading && !pcData && (
+                    <div style={{ textAlign: "center", padding: "2rem", color: "var(--muted)", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                      <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />Detecting location...
                     </div>
-                    {/* Sub-tabs: Today / Calendar */}
-                    <div style={{ display: "flex", gap: 4, background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: 3 }}>
-                      {(["today","calendar"] as const).map(st => (
-                        <button key={st} onClick={() => {
-                          setPanchangSubTab(st);
-                          if (st === "calendar" && calData.length === 0) {
-                            // Fetch current month calendar
-                            const lat = panchangLocation === "current" && panchangCurrentData ? (birthDetails.latitude ?? 17.385) : (birthDetails.latitude ?? 17.385);
-                            const lon = panchangLocation === "current" && panchangCurrentData ? (birthDetails.longitude ?? 78.4867) : (birthDetails.longitude ?? 78.4867);
-                            const tzOff = panchangLocation === "current" ? -(new Date().getTimezoneOffset()) / 60 : timezoneOffset;
-                            setCalLoading(true);
-                            axios.post(`${API_URL}/panchangam/calendar`, { latitude: lat, longitude: lon, timezone_offset: tzOff, year: calMonth.year, month: calMonth.month })
-                              .then(r => setCalData(r.data.days ?? []))
-                              .catch(() => setCalData([]))
-                              .finally(() => setCalLoading(false));
-                          }
-                        }}
-                          style={{ padding: "5px 14px", borderRadius: 7, fontSize: 11, fontFamily: "inherit", cursor: "pointer", border: "none", background: panchangSubTab === st ? "rgba(201,169,110,0.15)" : "transparent", color: panchangSubTab === st ? "var(--accent)" : "var(--muted)", fontWeight: panchangSubTab === st ? 600 : 400 }}>
-                          {st === "today" ? "📆 Today" : "📅 Calendar"}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  )}
 
-                  {/* ── TODAY sub-tab ── */}
-                  {panchangSubTab === "today" && (
+                  {pcData && (
                     <>
-                      {panchangLoading && (
-                        <div style={{ textAlign: "center", padding: "2rem", color: "var(--muted)", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                          <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />Detecting location...
-                        </div>
-                      )}
+                      {/* 1. Location bar */}
+                      <div className="pc-location-bar">
+                        <span className="pc-location-icon">📍</span>
+                        <span className="pc-location-city">{pcLocationName || "Detected Location"}</span>
+                        <span style={{ fontSize: 12, color: "var(--muted)" }}>· {pcData.date}</span>
+                        <span className="pc-location-note">Calculated for {pcLocationName || "your location"}</span>
+                      </div>
 
-                      {panchangLocation === "birth" && (
-                        <div className="setup-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem" }}>
-                          <PanchangamCard data={workspaceData.panchangam_birth} title="జన్మ పంచాంగం" />
-                          <PanchangamCard data={workspaceData.panchangam_today} title="నేటి పంచాంగం (Birth Location)" />
-                        </div>
-                      )}
-
-                      {panchangLocation === "current" && panchangCurrentData && !panchangLoading && (
-                        <div>
-                          {/* Location header */}
-                          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", background: "rgba(201,169,110,0.06)", border: "0.5px solid rgba(201,169,110,0.2)", borderRadius: 10, marginBottom: 14 }}>
-                            <span style={{ fontSize: 16 }}>📍</span>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--accent)" }}>{currentLocationName || "Detected Location"}</div>
-                              <div style={{ fontSize: 10, color: "var(--muted)" }}>Current location panchang · {panchangCurrentData.date}</div>
-                            </div>
-                            <div style={{ fontSize: 11, color: "var(--muted)", textAlign: "right" }}>
-                              <div>🌅 {panchangCurrentData.sunrise}</div>
-                              <div>🌇 {panchangCurrentData.sunset}</div>
-                            </div>
+                      {/* 2. Monthly calendar grid */}
+                      <div className="pc-section">
+                        <div className="pc-cal-nav">
+                          <button onClick={prevMonth}><ChevronLeft size={16} /></button>
+                          <div style={{ textAlign: "center" }}>
+                            <span className="pc-cal-title">
+                              {new Date(calMonth.year, calMonth.month - 1).toLocaleString("en-US", { month: "long", year: "numeric" })}
+                            </span>
+                            {calData?.masa_te && <span className="pc-cal-subtitle">{calData.masa_te}</span>}
                           </div>
-
-                          {/* 5-card panchang grid */}
-                          <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 8, marginBottom: 14 }}>
-                            {[
-                              { label: "Vara", value: panchangCurrentData.vara_en, icon: "📅", ends: null },
-                              { label: "Tithi", value: panchangCurrentData.tithi_en?.replace("Shukla ","S·").replace("Krishna ","K·"), icon: "🌙", ends: panchangCurrentData.tithi_ends_at },
-                              { label: "Nakshatra", value: panchangCurrentData.nakshatra_en, icon: "⭐", ends: panchangCurrentData.nakshatra_ends_at },
-                              { label: "Yoga", value: panchangCurrentData.yoga_en, icon: "☯", ends: panchangCurrentData.yoga_ends_at },
-                              { label: "Karana", value: panchangCurrentData.karana2 ? `${panchangCurrentData.karana} → ${panchangCurrentData.karana2}` : panchangCurrentData.karana, icon: "🔱", ends: panchangCurrentData.karana_ends_at },
-                            ].map(item => (
-                              <div key={item.label} style={{ background: "var(--card)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "10px 8px", textAlign: "center" }}>
-                                <div style={{ fontSize: 16, marginBottom: 4 }}>{item.icon}</div>
-                                <div style={{ fontSize: 9, color: "var(--muted)", marginBottom: 3, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>{item.label}</div>
-                                <div style={{ fontSize: 11, color: "var(--text)", fontWeight: 500, lineHeight: 1.3 }}>{item.value}</div>
-                                {item.ends && (
-                                  <div style={{ fontSize: 9, color: "var(--muted)", marginTop: 3, opacity: 0.7 }}>until {item.ends}</div>
-                                )}
-                              </div>
+                          <button onClick={nextMonth}><ChevronRight size={16} /></button>
+                        </div>
+                        {calLoading ? (
+                          <div style={{ textAlign: "center", padding: "1.5rem", color: "var(--muted)", fontSize: 12 }}>
+                            <Loader2 size={14} style={{ animation: "spin 1s linear infinite", display: "inline-block", marginRight: 6 }} />Loading...
+                          </div>
+                        ) : calDays.length > 0 && (
+                          <div className="pc-cal-grid">
+                            {weekdayHeaders.map(d => (
+                              <div key={d} className="pc-cal-weekday">{d}</div>
                             ))}
+                            {paddedDays.map((day, idx) => {
+                              if (!day) return <div key={idx} className="pc-cal-cell empty" />;
+                              const specialClass = day.special === "పౌర్ణమి" ? "pournami" : day.special === "అమావాస్య" ? "amavasya" : day.special === "ఏకాదశి" ? "ekadasi" : "";
+                              return (
+                                <div key={day.date}
+                                  className={`pc-cal-cell${day.is_today ? " today" : ""}${calSelectedDay === day.date ? " selected" : ""}`}
+                                  onClick={() => handleDayClick(day.date)}>
+                                  <div className="pc-cal-date-row">
+                                    <span className="pc-cal-day-num">{day.day}</span>
+                                    <span className="pc-cal-moon">{day.moon_phase_icon}</span>
+                                  </div>
+                                  <div className="pc-cal-tithi">{day.tithi_short}</div>
+                                  <div className="pc-cal-nakshatra">{day.nakshatra_short}</div>
+                                  {day.special && <div className={`pc-cal-special ${specialClass}`}>{day.special}</div>}
+                                </div>
+                              );
+                            })}
                           </div>
+                        )}
+                      </div>
 
-                          {/* Warning cards: Rahu Kalam / Yamagandam */}
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: panchangCurrentData.abhijit_muhurtha ? 8 : 14 }}>
-                            <div style={{ padding: "8px 12px", background: "rgba(248,113,113,0.08)", border: "0.5px solid rgba(248,113,113,0.25)", borderRadius: 10, display: "flex", alignItems: "center", gap: 8 }}>
-                              <span style={{ fontSize: 14 }}>⚠️</span>
-                              <div>
-                                <div style={{ fontSize: 9, color: "#f87171", textTransform: "uppercase" as const, letterSpacing: "0.05em", fontWeight: 600 }}>Rahu Kalam</div>
-                                <div style={{ fontSize: 12, fontWeight: 600, color: "#f87171" }}>{panchangCurrentData.rahu_kalam}</div>
-                              </div>
+                      {/* 3. Telugu identity strip */}
+                      <div className="pc-identity-strip">
+                        {[
+                          { label: "SAMVATSARA", value: pcData.samvatsara_te },
+                          { label: "AYANA", value: pcData.ayana_te },
+                          { label: "RUTU", value: pcData.rutu_te },
+                          { label: "MASA", value: pcData.masa_te },
+                        ].filter(p => p.value).map(pill => (
+                          <div key={pill.label} className="pc-identity-pill">
+                            <span className="pc-identity-label">{pill.label}</span>
+                            <span className="pc-identity-value">{pill.value}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* 4. Five elements cards */}
+                      <div className="pc-elements-grid">
+                        {[
+                          { cls: "el-vara", icon: "📅", te: pcData.vara_te, en: pcData.vara_en, ends: null },
+                          { cls: "el-tithi", icon: "🌙", te: pcData.tithi_te, en: pcData.tithi_en, ends: pcData.tithi_ends_at },
+                          { cls: "el-nakshatra", icon: "⭐", te: pcData.nakshatra_te, en: pcData.nakshatra_en, ends: pcData.nakshatra_ends_at },
+                          { cls: "el-yoga", icon: "☯", te: pcData.yoga_te, en: pcData.yoga_en, ends: pcData.yoga_ends_at },
+                          { cls: "el-karana", icon: "🔱", te: pcData.karana_te, en: pcData.karana, ends: pcData.karana_ends_at },
+                        ].map(card => (
+                          <div key={card.cls} className={`pc-element-card ${card.cls}`}>
+                            <div className="pc-element-icon">{card.icon}</div>
+                            <div className="pc-element-te">{card.te}</div>
+                            <div className="pc-element-en">{card.en}</div>
+                            {card.ends && <div className="pc-element-until">until {card.ends}</div>}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* 5. Sun & Moon times */}
+                      <div className="pc-celestial-grid">
+                        {[
+                          { icon: "🌅", label: "Sunrise", time: pcData.sunrise, warm: true },
+                          { icon: "🌇", label: "Sunset", time: pcData.sunset, warm: true },
+                          { icon: "🌙", label: "Moonrise", time: pcData.moonrise || "—", warm: false },
+                          { icon: "🌒", label: "Moonset", time: pcData.moonset || "—", warm: false },
+                        ].map(c => (
+                          <div key={c.label} className={`pc-celestial-card ${c.warm ? "warm" : "cool"}`}>
+                            <div className="pc-celestial-icon">{c.icon}</div>
+                            <div className="pc-celestial-label">{c.label}</div>
+                            <div className="pc-celestial-time">{c.time}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* 6. Inauspicious times */}
+                      <div className="pc-section">
+                        <div className="pc-section-title">నివారించవలసిన సమయాలు</div>
+                        <div className="pc-avoid-grid">
+                          <div className="pc-avoid-card danger">
+                            <span className="pc-avoid-emoji">⚠️</span>
+                            <span className="pc-avoid-label">Rahu Kalam</span>
+                            <span className="pc-avoid-time">{pcData.rahu_kalam}</span>
+                          </div>
+                          <div className="pc-avoid-card warning">
+                            <span className="pc-avoid-emoji">🛑</span>
+                            <span className="pc-avoid-label">Yamagandam</span>
+                            <span className="pc-avoid-time">{pcData.yamagandam}</span>
+                          </div>
+                          <div className="pc-avoid-card purple">
+                            <span className="pc-avoid-emoji">🔮</span>
+                            <span className="pc-avoid-label">Gulika Kalam</span>
+                            <span className="pc-avoid-time">{pcData.gulika_kalam}</span>
+                          </div>
+                          {pcData.durmuhurtha?.map((dm: any, i: number) => (
+                            <div key={i} className="pc-avoid-card warning">
+                              <span className="pc-avoid-emoji">⏳</span>
+                              <span className="pc-avoid-label">Durmuhurtha {i + 1}</span>
+                              <span className="pc-avoid-time">{dm.start} – {dm.end}</span>
                             </div>
-                            <div style={{ padding: "8px 12px", background: "rgba(251,191,36,0.06)", border: "0.5px solid rgba(251,191,36,0.2)", borderRadius: 10, display: "flex", alignItems: "center", gap: 8 }}>
-                              <span style={{ fontSize: 14 }}>🛑</span>
-                              <div>
-                                <div style={{ fontSize: 9, color: "#fbbf24", textTransform: "uppercase" as const, letterSpacing: "0.05em", fontWeight: 600 }}>Yamagandam</div>
-                                <div style={{ fontSize: 12, fontWeight: 600, color: "#fbbf24" }}>{panchangCurrentData.yamagandam}</div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* 7. Abhijit Muhurtha */}
+                      {pcData.abhijit_muhurtha?.valid && (
+                        <div className="pc-auspicious-card">
+                          <span className="pc-auspicious-icon">👑</span>
+                          <div>
+                            <div className="pc-auspicious-label">Abhijit Muhurtha</div>
+                            <div style={{ fontSize: 10, color: "var(--muted)" }}>Universally auspicious</div>
+                          </div>
+                          <span className="pc-auspicious-time">{pcData.abhijit_muhurtha.start} – {pcData.abhijit_muhurtha.end}</span>
+                        </div>
+                      )}
+
+                      {/* 8. Current Hora */}
+                      {pcData.current_hora && (
+                        <div className="pc-hora-card">
+                          <div className="pc-hora-icon" style={{ color: PLANET_COLORS[pcData.current_hora.lord] ?? "var(--accent)" }}>⚡</div>
+                          <div>
+                            <div className="pc-hora-label">Current Hora</div>
+                            <div className="pc-hora-lord" style={{ color: PLANET_COLORS[pcData.current_hora.lord] ?? "var(--accent)" }}>
+                              {pcData.current_hora.lord}
+                              {pcData.current_hora.is_auspicious && <span style={{ color: "#34d399", fontSize: 11, marginLeft: 8 }}>Auspicious</span>}
+                            </div>
+                          </div>
+                          <span className="pc-hora-time">{pcData.current_hora.start} – {pcData.current_hora.end}</span>
+                        </div>
+                      )}
+
+                      {/* 9. Choghadiya */}
+                      {pcData.choghadiya && pcData.choghadiya.length > 0 && (
+                        <div className="pc-section">
+                          <div className="pc-section-title">Choghadiya</div>
+                          <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: 20, alignItems: "start" }}>
+                            <ChoghadiyaClock
+                              periods={pcData.choghadiya}
+                              sunrise={pcData.sunrise}
+                              sunset={pcData.sunset}
+                              showDay={true}
+                              nowLocalTime={pcData.now_local_time}
+                              dayDurationMin={pcData.day_duration_min}
+                              nightDurationMin={pcData.night_duration_min}
+                            />
+                            <div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                                <span style={{ fontSize: 11, color: "#fbbf24" }}>☀ Day</span>
+                                <span style={{ fontSize: 9, color: "var(--muted)" }}>Sunrise {pcData.sunrise}</span>
+                              </div>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 3, marginBottom: 10 }}>
+                                {pcData.choghadiya.filter((c: any) => c.is_day).map((c: any, i: number) => {
+                                  const qColor = c.quality === "auspicious" ? "#34d399" : c.quality === "inauspicious" ? "#f87171" : "#a78bfa";
+                                  return (
+                                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 10px", borderRadius: 7, background: c.is_current ? `${qColor}12` : "transparent", border: `0.5px solid ${c.is_current ? qColor + "40" : "transparent"}` }}>
+                                      <span style={{ width: 7, height: 7, borderRadius: 2, flexShrink: 0, background: qColor }} />
+                                      <span style={{ fontSize: 11, fontWeight: c.is_current ? 700 : 400, color: c.is_current ? qColor : "var(--text)", minWidth: 58 }}>{c.name}</span>
+                                      <span style={{ fontSize: 10, color: "var(--muted)" }}>{c.start}–{c.end}</span>
+                                      {c.is_current && <span style={{ fontSize: 9, color: qColor, fontWeight: 700, marginLeft: "auto" }}>NOW</span>}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                                <span style={{ fontSize: 11, color: "#93c5fd" }}>🌙 Night</span>
+                                <span style={{ fontSize: 9, color: "var(--muted)" }}>Sunset {pcData.sunset}</span>
+                              </div>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                                {pcData.choghadiya.filter((c: any) => !c.is_day).map((c: any, i: number) => {
+                                  const qColor = c.quality === "auspicious" ? "#34d399" : c.quality === "inauspicious" ? "#f87171" : "#a78bfa";
+                                  return (
+                                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 10px", borderRadius: 7, background: c.is_current ? `${qColor}12` : "transparent", border: `0.5px solid ${c.is_current ? qColor + "40" : "transparent"}` }}>
+                                      <span style={{ width: 7, height: 7, borderRadius: 2, flexShrink: 0, background: qColor }} />
+                                      <span style={{ fontSize: 11, fontWeight: c.is_current ? 700 : 400, color: c.is_current ? qColor : "var(--text)", minWidth: 58 }}>{c.name}</span>
+                                      <span style={{ fontSize: 10, color: "var(--muted)" }}>{c.start}–{c.end}</span>
+                                      {c.is_current && <span style={{ fontSize: 9, color: qColor, fontWeight: 700, marginLeft: "auto" }}>NOW</span>}
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </div>
                           </div>
-                          {/* Abhijit Muhurtha — gold auspicious card */}
-                          {panchangCurrentData.abhijit_muhurtha?.valid && (
-                            <div style={{ padding: "8px 14px", background: "rgba(201,169,110,0.10)", border: "0.5px solid rgba(201,169,110,0.4)", borderRadius: 10, display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-                              <span style={{ fontSize: 18 }}>👑</span>
-                              <div>
-                                <div style={{ fontSize: 9, color: "var(--accent)", textTransform: "uppercase" as const, letterSpacing: "0.05em", fontWeight: 600 }}>Abhijit Muhurtha</div>
-                                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--accent)" }}>
-                                  {panchangCurrentData.abhijit_muhurtha.start} – {panchangCurrentData.abhijit_muhurtha.end}
-                                </div>
-                                <div style={{ fontSize: 9, color: "var(--muted)", marginTop: 1 }}>Universally auspicious · Center of daylight</div>
-                              </div>
-                            </div>
-                          )}
-                          {/* Gulika Kalam warning card */}
-                          {panchangCurrentData.gulika_kalam && (
-                            <div style={{ padding: "8px 12px", background: "rgba(167,139,250,0.06)", border: "0.5px solid rgba(167,139,250,0.2)", borderRadius: 10, display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-                              <span style={{ fontSize: 14 }}>🔮</span>
-                              <div>
-                                <div style={{ fontSize: 9, color: "#a78bfa", textTransform: "uppercase" as const, letterSpacing: "0.05em", fontWeight: 600 }}>Gulika Kalam</div>
-                                <div style={{ fontSize: 12, fontWeight: 600, color: "#a78bfa" }}>{panchangCurrentData.gulika_kalam}</div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Current Hora */}
-                          {panchangCurrentData.current_hora && (
-                            <div style={{ marginBottom: 14, padding: "10px 14px", background: "rgba(201,169,110,0.08)", border: "0.5px solid rgba(201,169,110,0.25)", borderRadius: 10, display: "flex", alignItems: "center", gap: 12 }}>
-                              <div style={{ width: 36, height: 36, borderRadius: "50%", background: `${PLANET_COLORS[panchangCurrentData.current_hora.lord] ?? "#c9a96e"}20`, border: `1px solid ${PLANET_COLORS[panchangCurrentData.current_hora.lord] ?? "#c9a96e"}50`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: PLANET_COLORS[panchangCurrentData.current_hora.lord] ?? "var(--accent)", fontWeight: 700, flexShrink: 0 }}>
-                                ⚡
-                              </div>
-                              <div>
-                                <div style={{ fontSize: 9, color: "var(--muted)", textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Current Hora</div>
-                                <div style={{ fontSize: 13, fontWeight: 700, color: PLANET_COLORS[panchangCurrentData.current_hora.lord] ?? "var(--accent)" }}>
-                                  {panchangCurrentData.current_hora.lord}
-                                </div>
-                                <div style={{ fontSize: 10, color: "var(--muted)" }}>
-                                  {panchangCurrentData.current_hora.start} – {panchangCurrentData.current_hora.end}
-                                  {panchangCurrentData.current_hora.is_auspicious && <span style={{ color: "#34d399", marginLeft: 6 }}>✓ Auspicious</span>}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Choghadiya — Clock + List with Day/Night separator */}
-                          {panchangCurrentData.choghadiya && panchangCurrentData.choghadiya.length > 0 && (
-                            <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: 20, alignItems: "start" }}>
-                              <ChoghadiyaClock
-                                periods={panchangCurrentData.choghadiya}
-                                sunrise={panchangCurrentData.sunrise}
-                                sunset={panchangCurrentData.sunset}
-                                showDay={true}
-                                nowLocalTime={panchangCurrentData.now_local_time}
-                                dayDurationMin={panchangCurrentData.day_duration_min}
-                                nightDurationMin={panchangCurrentData.night_duration_min}
-                              />
-                              <div>
-                                {/* Day periods */}
-                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                                  <span style={{ fontSize: 11, color: "#fbbf24" }}>☀ Day Choghadiya</span>
-                                  <span style={{ fontSize: 9, color: "var(--muted)" }}>Sunrise {panchangCurrentData.sunrise}</span>
-                                </div>
-                                <div style={{ display: "flex", flexDirection: "column", gap: 3, marginBottom: 10 }}>
-                                  {panchangCurrentData.choghadiya.filter((c: any) => c.is_day).map((c: any, i: number) => {
-                                    const qColor = c.quality === "auspicious" ? "#34d399" : c.quality === "inauspicious" ? "#f87171" : "#a78bfa";
-                                    return (
-                                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 10px", borderRadius: 7, background: c.is_current ? `${qColor}12` : "transparent", border: `0.5px solid ${c.is_current ? qColor + "40" : "transparent"}` }}>
-                                        <span style={{ width: 7, height: 7, borderRadius: 2, flexShrink: 0, background: qColor }} />
-                                        <span style={{ fontSize: 11, fontWeight: c.is_current ? 700 : 400, color: c.is_current ? qColor : "var(--text)", minWidth: 58 }}>{c.name}</span>
-                                        <span style={{ fontSize: 10, color: "var(--muted)" }}>{c.start}–{c.end}</span>
-                                        {c.is_current && <span style={{ fontSize: 9, color: qColor, fontWeight: 700, marginLeft: "auto" }}>◀ NOW</span>}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                                {/* Night periods */}
-                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                                  <span style={{ fontSize: 11, color: "#93c5fd" }}>🌙 Night Choghadiya</span>
-                                  <span style={{ fontSize: 9, color: "var(--muted)" }}>Sunset {panchangCurrentData.sunset}</span>
-                                </div>
-                                <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                                  {panchangCurrentData.choghadiya.filter((c: any) => !c.is_day).map((c: any, i: number) => {
-                                    const qColor = c.quality === "auspicious" ? "#34d399" : c.quality === "inauspicious" ? "#f87171" : "#a78bfa";
-                                    return (
-                                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 10px", borderRadius: 7, background: c.is_current ? `${qColor}12` : "transparent", border: `0.5px solid ${c.is_current ? qColor + "40" : "transparent"}` }}>
-                                        <span style={{ width: 7, height: 7, borderRadius: 2, flexShrink: 0, background: qColor }} />
-                                        <span style={{ fontSize: 11, fontWeight: c.is_current ? 700 : 400, color: c.is_current ? qColor : "var(--text)", minWidth: 58 }}>{c.name}</span>
-                                        <span style={{ fontSize: 10, color: "var(--muted)" }}>{c.start}–{c.end}</span>
-                                        {c.is_current && <span style={{ fontSize: 9, color: qColor, fontWeight: 700, marginLeft: "auto" }}>◀ NOW</span>}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            </div>
-                          )}
                         </div>
                       )}
                     </>
                   )}
-
-                  {/* ── CALENDAR sub-tab ── */}
-                  {panchangSubTab === "calendar" && (
-                    <div>
-                      {/* Month navigation */}
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                        <button onClick={() => {
-                          const prev = calMonth.month === 1 ? { year: calMonth.year - 1, month: 12 } : { year: calMonth.year, month: calMonth.month - 1 };
-                          setCalMonth(prev); setCalData([]); setCalLoading(true);
-                          const tzOff = panchangLocation === "current" ? -(new Date().getTimezoneOffset()) / 60 : timezoneOffset;
-                          axios.post(`${API_URL}/panchangam/calendar`, { latitude: birthDetails.latitude ?? 17.385, longitude: birthDetails.longitude ?? 78.4867, timezone_offset: tzOff, year: prev.year, month: prev.month })
-                            .then(r => setCalData(r.data.days ?? [])).catch(() => setCalData([])).finally(() => setCalLoading(false));
-                        }} style={{ background: "transparent", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "5px 12px", color: "var(--muted)", cursor: "pointer", fontFamily: "inherit", fontSize: 13 }}>← Prev</button>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>
-                          {new Date(calMonth.year, calMonth.month - 1).toLocaleString("en-US", { month: "long", year: "numeric" })}
-                        </div>
-                        <button onClick={() => {
-                          const next = calMonth.month === 12 ? { year: calMonth.year + 1, month: 1 } : { year: calMonth.year, month: calMonth.month + 1 };
-                          setCalMonth(next); setCalData([]); setCalLoading(true);
-                          const tzOff = panchangLocation === "current" ? -(new Date().getTimezoneOffset()) / 60 : timezoneOffset;
-                          axios.post(`${API_URL}/panchangam/calendar`, { latitude: birthDetails.latitude ?? 17.385, longitude: birthDetails.longitude ?? 78.4867, timezone_offset: tzOff, year: next.year, month: next.month })
-                            .then(r => setCalData(r.data.days ?? [])).catch(() => setCalData([])).finally(() => setCalLoading(false));
-                        }} style={{ background: "transparent", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "5px 12px", color: "var(--muted)", cursor: "pointer", fontFamily: "inherit", fontSize: 13 }}>Next →</button>
-                      </div>
-
-                      {calLoading && (
-                        <div style={{ textAlign: "center", padding: "2rem", color: "var(--muted)", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                          <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />Loading calendar...
-                        </div>
-                      )}
-
-                      {!calLoading && calData.length > 0 && (() => {
-                        // Week row headers
-                        const weekdays = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-                        // Pad start with empty cells (weekday of first day: 0=Mon)
-                        const firstWeekday = calData[0]?.weekday ?? 0;
-                        const cells: (typeof calData[0] | null)[] = [...Array(firstWeekday).fill(null), ...calData];
-                        // Pad end to complete last row
-                        while (cells.length % 7 !== 0) cells.push(null);
-
-                        return (
-                          <div>
-                            {/* Weekday headers */}
-                            <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, marginBottom: 4 }}>
-                              {weekdays.map(d => (
-                                <div key={d} style={{ fontSize: 10, textAlign: "center", color: "var(--muted)", fontWeight: 600, letterSpacing: "0.05em", padding: "4px 0" }}>{d}</div>
-                              ))}
-                            </div>
-                            {/* Calendar grid */}
-                            <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4 }}>
-                              {cells.map((day, idx) => {
-                                if (!day) return <div key={idx} />;
-                                const isToday = day.is_today;
-                                const isSelected = calSelectedDay === day.date;
-                                const moonPhaseIcon = day.moon_phase === "full" ? "○" : day.moon_phase === "new" ? "●" : day.moon_phase === "waning" ? "◕" : "◑";
-                                return (
-                                  <div key={day.date} onClick={() => setCalSelectedDay(isSelected ? null : day.date)} style={{ background: isSelected ? "rgba(201,169,110,0.15)" : isToday ? "rgba(201,169,110,0.08)" : "var(--card)", border: isSelected ? "1px solid rgba(201,169,110,0.6)" : isToday ? "1px solid rgba(201,169,110,0.35)" : "0.5px solid rgba(255,255,255,0.06)", borderRadius: 8, padding: "6px 5px", cursor: "pointer", minHeight: 72, display: "flex", flexDirection: "column", gap: 2 }}>
-                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                      <span style={{ fontSize: 12, fontWeight: isToday ? 700 : 500, color: isToday ? "var(--accent)" : "var(--text)" }}>{day.day}</span>
-                                      <span style={{ fontSize: 9, color: "#888899" }}>{moonPhaseIcon}</span>
-                                    </div>
-                                    <div style={{ fontSize: 9, color: "#a0a0b0", lineHeight: 1.3 }}>{day.tithi_en?.split(" ").slice(-1)[0]}</div>
-                                    <div style={{ fontSize: 9, color: "#888899", lineHeight: 1.3 }}>{day.nakshatra_en?.slice(0, 8)}</div>
-                                    {isToday && <div style={{ fontSize: 8, color: "var(--accent)", fontWeight: 700, marginTop: "auto" }}>TODAY</div>}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                            {/* Selected day detail panel */}
-                            {calSelectedDay && (() => {
-                              const d = calData.find(x => x.date === calSelectedDay);
-                              if (!d) return null;
-                              return (
-                                <div style={{ marginTop: 14, padding: "12px 14px", background: "var(--elevated)", border: "0.5px solid rgba(201,169,110,0.2)", borderRadius: 12 }}>
-                                  <div style={{ fontSize: 11, color: "var(--accent)", fontWeight: 600, marginBottom: 10 }}>{new Date(d.date).toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</div>
-                                  <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 8 }}>
-                                    {[
-                                      { l: "Vara", v: d.vara_en },
-                                      { l: "Tithi", v: d.tithi_en },
-                                      { l: "Nakshatra", v: d.nakshatra_en },
-                                      { l: "Yoga", v: d.yoga_en },
-                                      { l: "Karana", v: d.karana },
-                                    ].map(item => (
-                                      <div key={item.l} style={{ textAlign: "center" }}>
-                                        <div style={{ fontSize: 9, color: "var(--muted)", textTransform: "uppercase" as const, marginBottom: 3 }}>{item.l}</div>
-                                        <div style={{ fontSize: 11, color: "var(--text)", fontWeight: 500 }}>{item.v}</div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                  <div style={{ display: "flex", gap: 12, marginTop: 8, fontSize: 10, color: "var(--muted)" }}>
-                                    <span>🌅 {d.sunrise}</span>
-                                    <span>🌇 {d.sunset}</span>
-                                  </div>
-                                </div>
-                              );
-                            })()}
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  )}
-
                 </div>
-              )}
+                );
+              })()}
 
               {/* MUHURTHA */}
               {activeTab === "muhurtha" && (
