@@ -763,6 +763,169 @@ def format_chart_for_llm(chart_data: dict) -> str:
 
 
 # ================================================================
+# MARRIAGE MATCH — AI ANALYSIS
+# ================================================================
+
+def format_match_for_llm(compat_result: dict) -> str:
+    """Format full compatibility data (both charts side-by-side) for LLM analysis."""
+    lines = []
+    p1 = compat_result["person1"]
+    p2 = compat_result["person2"]
+    kp = compat_result["kp_analysis"]
+
+    lines.append(f"=== MARRIAGE COMPATIBILITY WORKSHEET ===")
+    lines.append(f"Person 1: {p1['name']} | Moon: {p1['moon_sign']} ({p1['moon_nakshatra']}) | Lagna: {p1['lagna']}")
+    lines.append(f"Person 2: {p2['name']} | Moon: {p2['moon_sign']} ({p2['moon_nakshatra']}) | Lagna: {p2['lagna']}")
+    lines.append(f"Overall Verdict: {compat_result['overall_verdict']}")
+
+    # KP Promise
+    lines.append(f"\n--- H7 CSL PROMISE ---")
+    for label, pr in [("Person 1", kp["chart1_promise"]), ("Person 2", kp["chart2_promise"])]:
+        lines.append(f"{label}: H7 CSL = {pr['sub_lord']} → signifies {pr['signified_houses']} → {pr['verdict']}")
+        lines.append(f"  Marriage type: {pr['marriage_type']} | Spouse: {pr.get('spouse_nature', '')} | {pr.get('caution', '')}")
+
+    # Supporting Cusps
+    lines.append(f"\n--- SUPPORTING CUSPS (H2, H11) ---")
+    for label, sc in [("Person 1", kp["supporting_cusps_chart1"]), ("Person 2", kp["supporting_cusps_chart2"])]:
+        lines.append(f"{label}: H2 CSL={sc['h2_csl']} sigs={sc['h2_sigs']} {'✓' if sc['h2_supports'] else '✗'} | H11 CSL={sc['h11_csl']} sigs={sc['h11_sigs']} {'✓' if sc['h11_supports'] else '✗'}")
+
+    # Detailed Significators (4-level)
+    lines.append(f"\n--- MARRIAGE SIGNIFICATORS (4-level hierarchy) ---")
+    for label, key in [("Person 1", "significators_detailed_chart1"), ("Person 2", "significators_detailed_chart2")]:
+        sd = compat_result.get(key, {})
+        bl = sd.get("by_level", {})
+        lines.append(f"{label}:")
+        lines.append(f"  L1 Occupants H2/7/11: {bl.get('occupants_2_7_11', [])}")
+        lines.append(f"  L2 Lords H2/7/11: {bl.get('lords_2_7_11', [])}")
+        lines.append(f"  L3 Star of occupants: {bl.get('star_of_occupants', [])}")
+        lines.append(f"  L4 Star of lords: {bl.get('star_of_lords', [])}")
+        lines.append(f"  Fruitful (in RP): {sd.get('fruitful', [])}")
+
+    # Venus
+    lines.append(f"\n--- VENUS KARAKA ---")
+    for label, ve in [("Person 1", kp["venus_chart1"]), ("Person 2", kp["venus_chart2"])]:
+        lines.append(f"{label}: Venus in H{ve['house']} {ve['sign']} | Strength: {ve['strength']} | Sigs: {ve['significations']}")
+
+    # Ruling Planets + Resonance
+    lines.append(f"\n--- RULING PLANETS & CROSS-RESONANCE ---")
+    lines.append(f"Person 1 RPs: {kp['ruling_planets_chart1']}")
+    lines.append(f"Person 2 RPs: {kp['ruling_planets_chart2']}")
+    lines.append(f"Resonance 1→2: {kp['resonance_1_to_2']} | 2→1: {kp['resonance_2_to_1']} | Total: {kp['total_resonance_count']}")
+
+    # Current DBA
+    lines.append(f"\n--- CURRENT DASHA-BHUKTI-ANTARDASHA ---")
+    for label, key in [("Person 1", "dba_chart1"), ("Person 2", "dba_chart2")]:
+        dba = compat_result.get(key, {})
+        lines.append(f"{label}: MD={dba.get('md_lord','')}→{dba.get('md_end','')} | AD={dba.get('ad_lord','')}→{dba.get('ad_end','')} | PAD={dba.get('pad_lord','')}→{dba.get('pad_end','')}")
+        lines.append(f"  MD sigs: {dba.get('md_signifies',[])} {'✓ favorable' if dba.get('md_favorable') else '✗'} | AD sigs: {dba.get('ad_signifies',[])} {'✓' if dba.get('ad_favorable') else '✗'}")
+
+    # 5th CSL (Love)
+    lines.append(f"\n--- 5th CSL (LOVE/ROMANCE) ---")
+    for label, key in [("Person 1", "h5_analysis_chart1"), ("Person 2", "h5_analysis_chart2")]:
+        h5 = compat_result.get(key, {})
+        lines.append(f"{label}: H5 CSL={h5.get('sub_lord','')} sigs={h5.get('signified_houses',[])} | {h5.get('note','')}")
+
+    # Separation Risk
+    lines.append(f"\n--- SEPARATION/DIVORCE RISK ---")
+    for label, key in [("Person 1", "separation_risk_chart1"), ("Person 2", "separation_risk_chart2")]:
+        sr = compat_result.get(key, {})
+        lines.append(f"{label}: Risk={sr.get('risk_level','')} | Factors: {sr.get('factors',[])}")
+
+    # D9 Navamsa
+    lines.append(f"\n--- D9 NAVAMSA ---")
+    for label, key in [("Person 1", "d9_chart1"), ("Person 2", "d9_chart2")]:
+        d9 = compat_result.get(key, {})
+        lines.append(f"{label}: D9 Lagna={d9.get('d9_lagna_sign','')} | Venus D9={d9.get('venus_d9_sign','')} | Moon D9={d9.get('moon_d9_sign','')}")
+        lines.append(f"  7th Lord={d9.get('d9_7th_lord','')} in D9 {d9.get('d9_7th_lord_sign','')} | D9 7th sign={d9.get('d9_7th_sign','')}")
+
+    # Kuja Dosha
+    lines.append(f"\n--- KUJA DOSHA ---")
+    kuja = compat_result["kuja_dosha"]
+    for key in ["person1", "person2"]:
+        kd = kuja[key]
+        lines.append(f"{kd['name']}: {kd['note']}")
+    if kuja["mutual_cancellation"]:
+        lines.append("Mutual cancellation applied.")
+
+    # Ashtakoota
+    lines.append(f"\n--- ASHTAKOOTA (36 GUN) ---")
+    ast = compat_result["ashtakoota"]
+    lines.append(f"Total: {ast['total_score']}/{ast['max_score']} ({ast['percentage']}%) — {ast['verdict']}")
+    for k in ast["kutas"]:
+        lines.append(f"  {k['kuta']}: {k['score']}/{k['max']} — {k.get('note','')}")
+    if ast["critical_doshas"]:
+        lines.append(f"  Critical Doshas: {ast['critical_doshas']}")
+
+    # Timing
+    lines.append(f"\n--- TIMING ANALYSIS ---")
+    t = compat_result.get("timing_analysis", {})
+    lines.append(f"Verdict: {t.get('timing_verdict','')} | {t.get('timing_note','')}")
+
+    lines.append(f"\nKP Verdict: {kp['kp_verdict']} | Overall: {compat_result['overall_verdict']}")
+
+    return "\n".join(lines)
+
+
+def get_match_prediction(compat_result: dict, question: str, history: list = [], language: str = "telugu_english") -> str:
+    """AI analysis for marriage match — uses full compatibility data."""
+    knowledge = load_knowledge("marriage")
+    match_summary = format_match_for_llm(compat_result)
+
+    messages = []
+    for prev in history[-4:]:
+        messages.append({"role": "user", "content": prev.get("question", "")})
+        messages.append({"role": "assistant", "content": prev.get("answer", "")})
+
+    lang_instruction = ""
+    if language == "telugu_english":
+        lang_instruction = "\n\nIMPORTANT: Respond in Telugu script mixed with English KP terms. Use Telugu for explanations and English for technical terms (Sub Lord, CSL, house numbers H7, planet names). Example: 'ఏడవ భావ Sub Lord Venus, ఇది houses 2,7,11 ని signify చేస్తుంది — marriage promised.'"
+
+    messages.append({
+        "role": "user",
+        "content": f"""KP KNOWLEDGE BASE:
+{knowledge}
+
+---
+
+MARRIAGE MATCH DATA (BOTH CHARTS):
+{match_summary}
+
+---
+
+QUESTION: {question}
+{lang_instruction}
+
+Analyze this marriage compatibility question using the complete data for BOTH charts above.
+Be specific — reference actual CSL names, house significations, D9 placements, DBA periods from the data.
+Give practical, actionable analysis that a KP astrologer would find valuable."""
+    })
+
+    today = datetime.now().strftime("%B %d, %Y")
+    system = f"""You are an expert KP (Krishnamurti Paddhati) marriage compatibility analyst with 20+ years experience.
+You have BOTH charts' complete KP data. Analyze marriage compatibility with deep KP reasoning.
+
+TODAY'S DATE: {today}
+
+KEY RULES:
+1. Use ONLY the data provided — never invent or guess planet positions
+2. Reference specific CSLs, house numbers, planets from BOTH charts
+3. Compare both charts' promise, Venus, RPs, DBA, D9, separation risk
+4. For timing: use actual DBA data, check if current periods favor marriage
+5. Be balanced — mention both favorable and unfavorable factors
+6. Structure: Start with the key finding, then supporting evidence"""
+
+    message = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=6000,
+        temperature=0,
+        system=system,
+        messages=messages
+    )
+
+    return message.content[0].text
+
+
+# ================================================================
 # QUICK INSIGHTS — Focused 3-4 bullet points per topic
 # ================================================================
 

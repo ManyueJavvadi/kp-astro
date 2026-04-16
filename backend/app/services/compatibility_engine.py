@@ -1,11 +1,15 @@
 """
 KP Marriage Compatibility Engine.
 Computes KP-based compatibility + full 8-kuta Ashtakoota + Kuja/Manglik dosha.
+Includes D9 Navamsa, detailed significators, DBA, 5th CSL, and divorce risk.
 """
 import swisseph as swe
 from app.services.chart_engine import (
     get_sub_lord, get_nakshatra_and_starlord, get_sign,
-    get_planet_positions, date_time_to_julian
+    get_planet_positions, date_time_to_julian,
+    calculate_dashas, get_current_dasha,
+    calculate_antardashas, get_current_antardasha,
+    calculate_pratyantardashas, get_current_pratyantardasha,
 )
 
 # ── Planet sign lordships ─────────────────────────────────────
@@ -173,6 +177,65 @@ H7_SUBLORD_TRAITS = {
 }
 
 
+# ── D9 Navamsa ───────────────────────────────────────────────
+
+# Element-based navamsa starting signs
+# Fire (Aries/Leo/Sag) → starts from Aries (0)
+# Earth (Taurus/Virgo/Cap) → starts from Capricorn (9)
+# Air (Gemini/Libra/Aquarius) → starts from Libra (6)
+# Water (Cancer/Scorpio/Pisces) → starts from Cancer (3)
+_NAVAMSA_START = {
+    0: 0, 4: 0, 8: 0,    # Fire
+    1: 9, 5: 9, 9: 9,    # Earth
+    2: 6, 6: 6, 10: 6,   # Air
+    3: 3, 7: 3, 11: 3,   # Water
+}
+
+
+def _d9_sign(longitude: float) -> str:
+    """Compute D9 (Navamsa) sign for a given sidereal longitude."""
+    sign_idx = int((longitude % 360) / 30)
+    pos_in_sign = (longitude % 360) % 30
+    navamsa_div = int(pos_in_sign / (30 / 9))  # 0-8 within sign
+    if navamsa_div > 8:
+        navamsa_div = 8
+    start = _NAVAMSA_START[sign_idx]
+    d9_idx = (start + navamsa_div) % 12
+    return SIGNS_ORDER[d9_idx]
+
+
+def _compute_d9(chart: dict) -> dict:
+    """
+    Compute D9 Navamsa data for key marriage planets.
+    Returns D9 signs for Venus, Moon, Jupiter, Mars, 7th lord, and Lagna.
+    """
+    planets = chart["planets"]
+    cusp_lons = chart["cusp_lons"]
+
+    # D9 lagna from ascendant
+    d9_lagna = _d9_sign(chart["lagna_lon"])
+
+    # D9 for key planets
+    result = {"d9_lagna_sign": d9_lagna}
+
+    for p_name in ("Venus", "Moon", "Jupiter", "Mars", "Sun", "Saturn", "Mercury", "Rahu", "Ketu"):
+        if p_name in planets:
+            result[f"{p_name.lower()}_d9_sign"] = _d9_sign(planets[p_name]["longitude"])
+
+    # D9 7th lord: lord of the sign on 7th cusp, then compute that planet's D9
+    h7_lon = cusp_lons[6] % 360
+    h7_sign_lord = SIGN_LORDS.get(get_sign(h7_lon), "")
+    result["d9_7th_lord"] = h7_sign_lord
+    if h7_sign_lord in planets:
+        result["d9_7th_lord_sign"] = _d9_sign(planets[h7_sign_lord]["longitude"])
+
+    # D9 7th house sign (sign opposite D9 lagna)
+    d9_lagna_idx = SIGNS_ORDER.index(d9_lagna)
+    result["d9_7th_sign"] = SIGNS_ORDER[(d9_lagna_idx + 6) % 12]
+
+    return result
+
+
 # ── Chart builder ─────────────────────────────────────────────
 
 def _build_chart(person: dict) -> dict:
@@ -307,6 +370,177 @@ def _marriage_significators(chart: dict) -> set:
         if sigs & MARRIAGE_PROMISE_HOUSES:
             result.add(p)
     return result
+
+
+def _marriage_significators_detailed(chart: dict) -> dict:
+    """
+    4-level KP significator hierarchy for marriage houses (2, 7, 11).
+    Level 1: Occupants of H2/H7/H11
+    Level 2: Lords (sign lords) of H2/H7/H11
+    Level 3: Planets in the star of occupants of H2/H7/H11
+    Level 4: Planets in the star of lords of H2/H7/H11
+    Plus: 'fruitful' = those also in Ruling Planets.
+    """
+    planets = chart["planets"]
+    cusp_lons = chart["cusp_lons"]
+    target_houses = {2, 7, 11}
+
+    # Level 1: Occupants of H2/H7/H11
+    occupants = []
+    for p in planets:
+        h = _get_planet_house(planets[p]["longitude"], cusp_lons)
+        if h in target_houses:
+            occupants.append(p)
+
+    # Level 2: Lords of H2/H7/H11 cusps
+    lords = []
+    for h in target_houses:
+        sign = get_sign(cusp_lons[h - 1] % 360)
+        lord = SIGN_LORDS.get(sign, "")
+        if lord and lord not in lords:
+            lords.append(lord)
+
+    # Level 3: Planets in the star of occupants
+    star_of_occupants = []
+    for p in planets:
+        sl = get_nakshatra_and_starlord(planets[p]["longitude"]).get("star_lord", "")
+        if sl in occupants and p not in star_of_occupants:
+            star_of_occupants.append(p)
+
+    # Level 4: Planets in the star of lords
+    star_of_lords = []
+    for p in planets:
+        sl = get_nakshatra_and_starlord(planets[p]["longitude"]).get("star_lord", "")
+        if sl in lords and p not in star_of_lords:
+            star_of_lords.append(p)
+
+    # Fruitful: significators that are also Ruling Planets
+    rp = _ruling_planets(chart)
+    all_sigs = set(occupants) | set(lords) | set(star_of_occupants) | set(star_of_lords)
+    fruitful = sorted(all_sigs & rp)
+
+    return {
+        "planets": sorted(all_sigs),
+        "by_level": {
+            "occupants_2_7_11": occupants,
+            "lords_2_7_11": lords,
+            "star_of_occupants": star_of_occupants,
+            "star_of_lords": star_of_lords,
+        },
+        "fruitful": fruitful,
+    }
+
+
+def _current_dba(person: dict, chart: dict) -> dict:
+    """
+    Get current Mahadasha-Antardasha-Pratyantardasha for a person.
+    Also checks if MD/AD lords signify marriage houses (2, 7, 11).
+    """
+    try:
+        moon_lon = chart["moon_lon"]
+        dashas = calculate_dashas(person["date"], person["time"], moon_lon, person.get("timezone_offset", 5.5))
+        md = get_current_dasha(dashas)
+        ads = calculate_antardashas(md)
+        ad = get_current_antardasha(ads)
+        pads = calculate_pratyantardashas(ad)
+        pad = get_current_pratyantardasha(pads)
+
+        # Check if MD/AD lords signify marriage houses
+        md_sigs = _planet_significations(md["lord"], chart["planets"], chart["cusp_lons"])
+        ad_sigs = _planet_significations(ad["antardasha_lord"], chart["planets"], chart["cusp_lons"])
+
+        md_favorable = bool(md_sigs & MARRIAGE_PROMISE_HOUSES)
+        ad_favorable = bool(ad_sigs & MARRIAGE_PROMISE_HOUSES)
+
+        return {
+            "md_lord": md["lord"],
+            "md_end": md["end"],
+            "ad_lord": ad["antardasha_lord"],
+            "ad_end": ad["end"],
+            "pad_lord": pad["pratyantardasha_lord"],
+            "pad_end": pad["end"],
+            "md_signifies": sorted(md_sigs),
+            "ad_signifies": sorted(ad_sigs),
+            "md_favorable": md_favorable,
+            "ad_favorable": ad_favorable,
+            "favorable": md_favorable and ad_favorable,
+        }
+    except Exception:
+        return {
+            "md_lord": "Unknown", "md_end": "",
+            "ad_lord": "Unknown", "ad_end": "",
+            "pad_lord": "Unknown", "pad_end": "",
+            "md_signifies": [], "ad_signifies": [],
+            "md_favorable": False, "ad_favorable": False,
+            "favorable": False,
+        }
+
+
+def _h5_sublord_analysis(chart: dict) -> dict:
+    """
+    5th CSL analysis — love/romance quality.
+    5+8+12 without 2/7/11 = heartbreak formula.
+    """
+    csl, sigs = _get_cusp_sub_lord_sigs(5, chart)
+    has_5_8_12 = {5, 8, 12}.issubset(sigs)
+    has_love = bool(sigs & {5, 7, 11})
+    has_promise_houses = bool(sigs & {2, 7, 11})
+    heartbreak = has_5_8_12 and not has_promise_houses
+
+    return {
+        "sub_lord": csl,
+        "signified_houses": sorted(sigs),
+        "love_indicated": has_love,
+        "heartbreak_5_8_12": heartbreak,
+        "note": (
+            "Love affair may end badly (5-8-12 without 2/7/11)" if heartbreak
+            else "Love and romance indicated" if has_love
+            else "Romance not strongly indicated"
+        ),
+    }
+
+
+def _separation_risk(chart: dict) -> dict:
+    """
+    Divorce/separation risk analysis.
+    Checks H7 CSL for 6/8/12 signification + Mars in 7th/8th.
+    """
+    h7_promise = _h7_sublord_promise(chart)
+    sigs = set(h7_promise["signified_houses"])
+    risk_factors = []
+
+    if 6 in sigs:
+        risk_factors.append("H7 CSL signifies H6 (disputes/separation)")
+    if 12 in sigs:
+        risk_factors.append("H7 CSL signifies H12 (loss/separation)")
+    if 8 in sigs:
+        risk_factors.append("H7 CSL signifies H8 (obstacles/transformation)")
+
+    # Mars in 7th or 8th
+    if "Mars" in chart["planets"]:
+        mars_house = _get_planet_house(chart["planets"]["Mars"]["longitude"], chart["cusp_lons"])
+        if mars_house in (7, 8):
+            risk_factors.append(f"Mars in H{mars_house} (aggression in partnership)")
+
+    # Saturn in 7th
+    if "Saturn" in chart["planets"]:
+        sat_house = _get_planet_house(chart["planets"]["Saturn"]["longitude"], chart["cusp_lons"])
+        if sat_house == 7:
+            risk_factors.append("Saturn in H7 (delays/coldness in marriage)")
+
+    if len(risk_factors) >= 3:
+        risk_level = "High"
+    elif len(risk_factors) >= 2:
+        risk_level = "Moderate"
+    elif risk_factors:
+        risk_level = "Low"
+    else:
+        risk_level = "Minimal"
+
+    return {
+        "risk_level": risk_level,
+        "factors": risk_factors,
+    }
 
 
 def _ruling_planets(chart: dict) -> set:
@@ -815,6 +1049,26 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
     dosha_p1 = _check_kuja_dosha(chart1)
     dosha_p2 = _check_kuja_dosha(chart2)
 
+    # New: D9 Navamsa for both charts
+    d9_chart1 = _compute_d9(chart1)
+    d9_chart2 = _compute_d9(chart2)
+
+    # New: Detailed significator hierarchy (4-level)
+    sigs_detailed1 = _marriage_significators_detailed(chart1)
+    sigs_detailed2 = _marriage_significators_detailed(chart2)
+
+    # New: Current DBA for each person
+    dba_chart1 = _current_dba(person1, chart1)
+    dba_chart2 = _current_dba(person2, chart2)
+
+    # New: 5th CSL analysis (love/romance)
+    h5_chart1 = _h5_sublord_analysis(chart1)
+    h5_chart2 = _h5_sublord_analysis(chart2)
+
+    # New: Separation/divorce risk
+    sep_risk1 = _separation_risk(chart1)
+    sep_risk2 = _separation_risk(chart2)
+
     # Kuja dosha mutual cancellation
     kuja_both = dosha_p1["has_dosha_raw"] and dosha_p2["has_dosha_raw"]
     if kuja_both:
@@ -856,6 +1110,17 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
             "person2": {"name": person2["name"], **dosha_p2},
             "mutual_cancellation": kuja_both,
         },
+        # New fields
+        "d9_chart1": d9_chart1,
+        "d9_chart2": d9_chart2,
+        "significators_detailed_chart1": sigs_detailed1,
+        "significators_detailed_chart2": sigs_detailed2,
+        "dba_chart1": dba_chart1,
+        "dba_chart2": dba_chart2,
+        "h5_analysis_chart1": h5_chart1,
+        "h5_analysis_chart2": h5_chart2,
+        "separation_risk_chart1": sep_risk1,
+        "separation_risk_chart2": sep_risk2,
         "overall_verdict": overall,
         "summary": {
             "kp_verdict": kp["kp_verdict"],

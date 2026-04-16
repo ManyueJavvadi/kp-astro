@@ -75,6 +75,12 @@ export default function Home() {
   const [matchPerson2Inline, setMatchPerson2Inline] = useState(false);
   const [matchLoading, setMatchLoading] = useState(false);
   const [matchResults, setMatchResults] = useState<any>(null);
+  // Match AI analysis state
+  const [matchAnalysisMessages, setMatchAnalysisMessages] = useState<{q: string; a: string; isTopic?: boolean}[]>([]);
+  const [matchAnalysisLoading, setMatchAnalysisLoading] = useState(false);
+  const [matchChatQ, setMatchChatQ] = useState("");
+  const [matchShowAI, setMatchShowAI] = useState(false);
+  const [matchAnalysisLang, setMatchAnalysisLang] = useState<"english"|"telugu_english">("telugu_english");
   // Significators grid toggle
   const [showSigGrid, setShowSigGrid] = useState(false);
   // PDF export state
@@ -430,6 +436,47 @@ export default function Home() {
       const res = await axios.post(`${API_URL}/astrologer/analyze`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: timezoneOffset, topic: activeTopic || "general", question: q, history, language: analysisLang });
       setAnalysisMessages(prev => [...prev, { q, a: res.data.answer }]);
     } catch { } finally { setAnalysisLoading(false); }
+  };
+
+  // Match AI analysis handlers
+  const handleMatchTopicAnalysis = async (topic: string) => {
+    if (!matchResults || !matchResults.overall_verdict) return;
+    const matchPerson1 = workspaceData ? snapshotCurrentSession() : null;
+    const p2 = matchResults.__p2;
+    if (!matchPerson1 || !p2) return;
+    setMatchAnalysisLoading(true); setMatchShowAI(true);
+    const topicLabels: Record<string,string> = { promise: "వివాహ ప్రమాణం — Marriage Promise", harmony: "సామరస్యం — Harmony & Compatibility", divorce_risk: "విడాకులు ప్రమాదం — Divorce Risk", timing: "సమయం — Timing & DBA", remedies: "పరిహారాలు — Remedies" };
+    try {
+      const res = await axios.post(`${API_URL}/compatibility/analyze`, {
+        person1: sessionToApiPerson(matchPerson1),
+        person2: sessionToApiPerson(p2),
+        question: `Complete KP analysis for ${topic} between these two charts`,
+        history: [],
+        language: matchAnalysisLang,
+      });
+      setMatchAnalysisMessages(prev => [...prev, { q: topicLabels[topic] || topic, a: res.data.answer, isTopic: true }]);
+    } catch {
+      setMatchAnalysisMessages(prev => [...prev, { q: topicLabels[topic] || topic, a: "Analysis failed. Please try again.", isTopic: true }]);
+    } finally { setMatchAnalysisLoading(false); }
+  };
+
+  const handleMatchChat = async () => {
+    if (!matchChatQ.trim() || !matchResults?.overall_verdict) return;
+    const matchPerson1 = workspaceData ? snapshotCurrentSession() : null;
+    const p2 = matchResults.__p2;
+    if (!matchPerson1 || !p2) return;
+    const q = matchChatQ; setMatchChatQ(""); setMatchAnalysisLoading(true); setMatchShowAI(true);
+    try {
+      const history = matchAnalysisMessages.slice(-6).map(m => ({ question: m.q, answer: m.a }));
+      const res = await axios.post(`${API_URL}/compatibility/analyze`, {
+        person1: sessionToApiPerson(matchPerson1),
+        person2: sessionToApiPerson(p2),
+        question: q,
+        history,
+        language: matchAnalysisLang,
+      });
+      setMatchAnalysisMessages(prev => [...prev, { q, a: res.data.answer }]);
+    } catch { } finally { setMatchAnalysisLoading(false); }
   };
 
   const handleFeedback = async (messageId: string, feedback: "correct" | "incorrect") => {
@@ -2459,36 +2506,230 @@ export default function Home() {
                           </div>
                         </div>
 
-                        {/* KP Analysis */}
+                        {/* ═══ KP PROMISE — Side by Side ═══ */}
                         <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem" }}>
-                          <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.625rem" }}>KP విశ్లేషణ</div>
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-                            {[kp?.chart1_promise, kp?.chart2_promise].map((p: any, i: number) => p && (
-                              <div key={i} style={{ padding: "8px 10px", background: "var(--surface)", borderRadius: 6, border: `0.5px solid ${p.has_promise && !p.has_denial ? "rgba(74,222,128,0.3)" : p.has_denial ? "rgba(248,113,113,0.3)" : "var(--border)"}` }}>
-                                <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 3 }}>{i === 0 ? r.person1?.name : r.person2?.name}</div>
-                                <div style={{ fontSize: 11, fontWeight: 500, color: p.has_promise && !p.has_denial ? "#4ade80" : p.has_denial ? "#f87171" : "var(--muted)" }}>
-                                  H7 SL: {p.sub_lord} → {p.verdict}
+                          <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.625rem" }}>KP వివాహ ప్రమాణం — Marriage Promise</div>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                            {[{p: kp?.chart1_promise, name: r.person1?.name}, {p: kp?.chart2_promise, name: r.person2?.name}].map((item, i) => item.p && (
+                              <div key={i} style={{ padding: "10px 12px", background: "var(--surface)", borderRadius: 8, border: `0.5px solid ${item.p.has_promise && !item.p.has_denial ? "rgba(74,222,128,0.3)" : item.p.has_denial ? "rgba(248,113,113,0.3)" : "var(--border)"}` }}>
+                                <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 4 }}>{item.name}</div>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: item.p.has_promise && !item.p.has_denial ? "#4ade80" : item.p.has_denial ? "#f87171" : "var(--accent)", marginBottom: 4 }}>
+                                  H7 CSL: {item.p.sub_lord} — {item.p.verdict}
                                 </div>
-                                <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}>H{p.signified_houses?.join(", H")}</div>
+                                <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 2 }}>Signifies: H{item.p.signified_houses?.join(", H")}</div>
+                                {item.p.marriage_type && <div style={{ fontSize: 10, color: "var(--text)", marginBottom: 2 }}>Type: {item.p.marriage_type}</div>}
+                                {item.p.spouse_nature && <div style={{ fontSize: 10, color: "var(--muted)" }}>Spouse: {item.p.spouse_nature}</div>}
                               </div>
                             ))}
                           </div>
-                          <div style={{ fontSize: 11, color: "var(--muted)" }}>
-                            Resonance: <span style={{ color: "#4ade80" }}>
-                              {[...(kp?.resonance_1_to_2||[]), ...(kp?.resonance_2_to_1||[])].join(", ") || "None"}
-                            </span> ({kp?.total_resonance_count || 0} planets)
+                        </div>
+
+                        {/* ═══ SUPPORTING CUSPS — H2 & H11 ═══ */}
+                        <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem" }}>
+                          <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>Supporting Cusps (H2 & H11)</div>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                            {[{sc: kp?.supporting_cusps_chart1, name: r.person1?.name}, {sc: kp?.supporting_cusps_chart2, name: r.person2?.name}].map((item, i) => item.sc && (
+                              <div key={i} style={{ background: "var(--surface)", borderRadius: 8, padding: "10px 12px" }}>
+                                <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 6 }}>{item.name}</div>
+                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                                  <span style={{ fontSize: 11, color: "var(--muted)" }}>H2 CSL: {item.sc.h2_csl}</span>
+                                  <span style={{ fontSize: 11, color: item.sc.h2_supports ? "#4ade80" : "var(--muted)" }}>{item.sc.h2_supports ? "✓" : "✗"}</span>
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                  <span style={{ fontSize: 11, color: "var(--muted)" }}>H11 CSL: {item.sc.h11_csl}</span>
+                                  <span style={{ fontSize: 11, color: item.sc.h11_supports ? "#4ade80" : "var(--muted)" }}>{item.sc.h11_supports ? "✓" : "✗"}</span>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </div>
 
-                        {/* Ashtakoota — horizontal bars */}
+                        {/* ═══ DETAILED SIGNIFICATORS — 4-level ═══ */}
+                        {(r.significators_detailed_chart1 || r.significators_detailed_chart2) && (
+                          <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem" }}>
+                            <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>2,7,11 Significators (4-Level)</div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                              {[{sd: r.significators_detailed_chart1, name: r.person1?.name}, {sd: r.significators_detailed_chart2, name: r.person2?.name}].map((item, i) => item.sd && (
+                                <div key={i} style={{ background: "var(--surface)", borderRadius: 8, padding: "10px 12px" }}>
+                                  <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 6 }}>{item.name}</div>
+                                  {[
+                                    ["L1 Occupants", item.sd.by_level?.occupants_2_7_11],
+                                    ["L2 Lords", item.sd.by_level?.lords_2_7_11],
+                                    ["L3 Star/Occ", item.sd.by_level?.star_of_occupants],
+                                    ["L4 Star/Lord", item.sd.by_level?.star_of_lords],
+                                  ].map(([label, planets]: any) => (
+                                    <div key={label} style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+                                      <span style={{ fontSize: 10, color: "var(--muted)" }}>{label}:</span>
+                                      <span style={{ fontSize: 10, color: "var(--text)" }}>{planets?.length ? planets.join(", ") : "—"}</span>
+                                    </div>
+                                  ))}
+                                  {item.sd.fruitful?.length > 0 && (
+                                    <div style={{ marginTop: 4, fontSize: 10, color: "#4ade80" }}>Fruitful (RP): {item.sd.fruitful.join(", ")}</div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                            {/* Resonance */}
+                            <div style={{ marginTop: 8, fontSize: 11, color: "var(--muted)", textAlign: "center" as const }}>
+                              Cross-Resonance: <span style={{ color: "#4ade80" }}>
+                                {[...(kp?.resonance_1_to_2||[]), ...(kp?.resonance_2_to_1||[])].filter((v: string, i: number, a: string[]) => a.indexOf(v) === i).join(", ") || "None"}
+                              </span> ({kp?.total_resonance_count || 0} planets)
+                            </div>
+                          </div>
+                        )}
+
+                        {/* ═══ VENUS KARAKA ═══ */}
+                        <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem" }}>
+                          <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>Venus Karaka</div>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                            {[{v: kp?.venus_chart1, name: r.person1?.name}, {v: kp?.venus_chart2, name: r.person2?.name}].map((item, i) => item.v && (
+                              <div key={i} style={{ background: "var(--surface)", borderRadius: 8, padding: "10px 12px" }}>
+                                <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 4 }}>{item.name}</div>
+                                <div style={{ fontSize: 12, color: "var(--text)", marginBottom: 2 }}>H{item.v.house} · {item.v.sign}</div>
+                                <div style={{ fontSize: 11, color: item.v.strength === "Strong" ? "#4ade80" : item.v.strength === "Afflicted" ? "#f87171" : "var(--accent)", fontWeight: 500 }}>{item.v.strength}</div>
+                                <div style={{ fontSize: 10, color: item.v.signifies_h7 ? "#4ade80" : "var(--muted)", marginTop: 2 }}>{item.v.signifies_h7 ? "✓ Signifies H7" : "○ No H7"}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* ═══ RULING PLANETS + CROSS-RESONANCE ═══ */}
+                        <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem" }}>
+                          <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>Ruling Planets</div>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                            {[{rps: kp?.ruling_planets_chart1, name: r.person1?.name}, {rps: kp?.ruling_planets_chart2, name: r.person2?.name}].map((item, i) => (
+                              <div key={i} style={{ background: "var(--surface)", borderRadius: 8, padding: "10px 12px" }}>
+                                <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 4 }}>{item.name}</div>
+                                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" as const }}>
+                                  {(item.rps || []).map((p: string) => (
+                                    <span key={p} style={{ fontSize: 10, background: "rgba(201,169,110,0.1)", color: "var(--accent)", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "2px 6px" }}>{p}</span>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* ═══ CURRENT DBA ═══ */}
+                        {(r.dba_chart1 || r.dba_chart2) && (
+                          <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem" }}>
+                            <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>Current Dasha-Bhukti</div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                              {[{dba: r.dba_chart1, name: r.person1?.name}, {dba: r.dba_chart2, name: r.person2?.name}].map((item, i) => item.dba && (
+                                <div key={i} style={{ background: "var(--surface)", borderRadius: 8, padding: "10px 12px" }}>
+                                  <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 6 }}>{item.name}</div>
+                                  {[
+                                    ["MD", item.dba.md_lord, item.dba.md_end, item.dba.md_favorable],
+                                    ["AD", item.dba.ad_lord, item.dba.ad_end, item.dba.ad_favorable],
+                                    ["PAD", item.dba.pad_lord, item.dba.pad_end, null],
+                                  ].map(([label, lord, end, fav]: any) => (
+                                    <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
+                                      <span style={{ fontSize: 10, color: "var(--muted)" }}>{label}: <span style={{ color: "var(--text)" }}>{lord}</span></span>
+                                      <span style={{ fontSize: 9, color: fav === true ? "#4ade80" : fav === false ? "#f87171" : "var(--muted)" }}>
+                                        {end ? `→${end.slice(0,7)}` : ""} {fav === true ? "✓" : fav === false ? "✗" : ""}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ))}
+                            </div>
+                            {/* Timing overlap */}
+                            {r.timing_analysis && (
+                              <div style={{ marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                                <span style={{ fontSize: 11, fontWeight: 500, color: r.timing_analysis.timing_verdict === "Aligned" ? "#4ade80" : r.timing_analysis.timing_verdict === "Misaligned" ? "#f87171" : "var(--accent)" }}>Timing: {r.timing_analysis.timing_verdict}</span>
+                                {r.timing_analysis.strong_timing_planets?.length > 0 && (
+                                  <span style={{ fontSize: 10, color: "#4ade80" }}>({r.timing_analysis.strong_timing_planets.join(", ")})</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* ═══ KUJA DOSHA + MOON ═══ */}
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                          <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.75rem" }}>
+                            <div style={{ fontSize: 9, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.5rem" }}>Kuja Dosha</div>
+                            {[kuja?.person1, kuja?.person2].map((p: any, i: number) => p && (
+                              <div key={i} style={{ marginBottom: 6 }}>
+                                <div style={{ fontSize: 10, color: "var(--muted)" }}>{p.name}</div>
+                                <div style={{ fontSize: 11, fontWeight: 500, color: p.has_dosha ? "#f87171" : "#4ade80" }}>{p.has_dosha ? `Manglik H${p.mars_house} (${p.severity})` : "No Dosha"}</div>
+                                {p.cancellations?.[0] && <div style={{ fontSize: 9, color: "#4ade80" }}>{p.cancellations[0]}</div>}
+                              </div>
+                            ))}
+                            {kuja?.mutual_cancellation && <div style={{ fontSize: 10, color: "#4ade80" }}>Both have Kuja — cancelled</div>}
+                          </div>
+                          <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.75rem" }}>
+                            <div style={{ fontSize: 9, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.5rem" }}>Moon Details</div>
+                            {[r.person1, r.person2].map((p: any, i: number) => p && (
+                              <div key={i} style={{ marginBottom: 6 }}>
+                                <div style={{ fontSize: 10, color: "var(--muted)" }}>{p.name}</div>
+                                <div style={{ fontSize: 11, color: "var(--text)" }}>{p.moon_sign} · {p.moon_nakshatra}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* ═══ D9 NAVAMSA ═══ */}
+                        {(r.d9_chart1 || r.d9_chart2) && (
+                          <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem" }}>
+                            <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>D9 Navamsa</div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                              {[{d9: r.d9_chart1, name: r.person1?.name}, {d9: r.d9_chart2, name: r.person2?.name}].map((item, i) => item.d9 && (
+                                <div key={i} style={{ background: "var(--surface)", borderRadius: 8, padding: "10px 12px" }}>
+                                  <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 6 }}>{item.name}</div>
+                                  {[
+                                    ["D9 Lagna", item.d9.d9_lagna_sign],
+                                    ["Venus D9", item.d9.venus_d9_sign],
+                                    ["Moon D9", item.d9.moon_d9_sign],
+                                    ["7th Lord", `${item.d9.d9_7th_lord} in ${item.d9.d9_7th_lord_sign || "—"}`],
+                                    ["D9 7th", item.d9.d9_7th_sign],
+                                  ].map(([label, val]: any) => (
+                                    <div key={label} style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+                                      <span style={{ fontSize: 10, color: "var(--muted)" }}>{label}:</span>
+                                      <span style={{ fontSize: 10, color: "var(--text)" }}>{val || "—"}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* ═══ 5th CSL + SEPARATION RISK ═══ */}
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                          {/* 5th CSL Love */}
+                          <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.75rem" }}>
+                            <div style={{ fontSize: 9, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.5rem" }}>5th CSL (Love)</div>
+                            {[{h5: r.h5_analysis_chart1, name: r.person1?.name}, {h5: r.h5_analysis_chart2, name: r.person2?.name}].map((item, i) => item.h5 && (
+                              <div key={i} style={{ marginBottom: 6 }}>
+                                <div style={{ fontSize: 10, color: "var(--muted)" }}>{item.name}</div>
+                                <div style={{ fontSize: 11, color: item.h5.love_indicated ? "#4ade80" : item.h5.heartbreak_5_8_12 ? "#f87171" : "var(--muted)" }}>
+                                  {item.h5.sub_lord}: {item.h5.love_indicated ? "Love ✓" : item.h5.heartbreak_5_8_12 ? "5-8-12 Risk" : "Neutral"}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          {/* Separation Risk */}
+                          <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.75rem" }}>
+                            <div style={{ fontSize: 9, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.5rem" }}>Separation Risk</div>
+                            {[{sr: r.separation_risk_chart1, name: r.person1?.name}, {sr: r.separation_risk_chart2, name: r.person2?.name}].map((item, i) => item.sr && (
+                              <div key={i} style={{ marginBottom: 6 }}>
+                                <div style={{ fontSize: 10, color: "var(--muted)" }}>{item.name}</div>
+                                <div style={{ fontSize: 11, fontWeight: 500, color: item.sr.risk_level === "High" ? "#f87171" : item.sr.risk_level === "Moderate" ? "#fbbf24" : "#4ade80" }}>{item.sr.risk_level}</div>
+                                {item.sr.factors?.length > 0 && <div style={{ fontSize: 9, color: "var(--muted)" }}>{item.sr.factors[0]}</div>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* ═══ ASHTAKOOTA — 36 GUN ═══ */}
                         <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem" }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.875rem" }}>
-                            <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const }}>అష్టకూట — 36 Gun</div>
+                            <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const }}>Ashtakoota — 36 Gun</div>
                             <div style={{ fontSize: 13, fontWeight: 600, color: ast?.total_score >= 25 ? "var(--accent)" : ast?.total_score >= 18 ? "#4ade80" : "#f87171" }}>
                               {ast?.total_score}/{ast?.max_score}
                             </div>
                           </div>
-                          {/* Horizontal bar per koot */}
                           <div style={{ display: "flex", flexDirection: "column" as const, gap: 6 }}>
                             {(ast?.kutas || []).map((k: any, i: number) => {
                               const pct = k.max > 0 ? (k.score / k.max) * 100 : 0;
@@ -2504,123 +2745,90 @@ export default function Home() {
                               );
                             })}
                           </div>
-                          {/* Dosha badge row */}
                           <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 6, marginTop: 12 }}>
-                            {/* Nadi Dosha */}
                             {(() => {
                               const nadiKuta = (ast?.kutas || []).find((k: any) => k.kuta?.toLowerCase().includes("nadi"));
                               const hasNadiDosha = nadiKuta?.score === 0;
-                              return <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 6, background: hasNadiDosha ? "rgba(248,113,113,0.12)" : "rgba(74,222,128,0.08)", color: hasNadiDosha ? "#f87171" : "#4ade80", border: `0.5px solid ${hasNadiDosha ? "rgba(248,113,113,0.3)" : "rgba(74,222,128,0.25)"}` }}>{hasNadiDosha ? "🔴 Nadi Dosha" : "✅ Nadi OK"}</span>;
+                              return <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 6, background: hasNadiDosha ? "rgba(248,113,113,0.12)" : "rgba(74,222,128,0.08)", color: hasNadiDosha ? "#f87171" : "#4ade80", border: `0.5px solid ${hasNadiDosha ? "rgba(248,113,113,0.3)" : "rgba(74,222,128,0.25)"}` }}>{hasNadiDosha ? "Nadi Dosha" : "Nadi OK"}</span>;
                             })()}
-                            {/* Gana */}
                             {(() => {
                               const ganaKuta = (ast?.kutas || []).find((k: any) => k.kuta?.toLowerCase().includes("gana"));
                               const hasGanaDosha = ganaKuta?.score === 0;
-                              return <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 6, background: hasGanaDosha ? "rgba(248,113,113,0.12)" : "rgba(74,222,128,0.08)", color: hasGanaDosha ? "#f87171" : "#4ade80", border: `0.5px solid ${hasGanaDosha ? "rgba(248,113,113,0.3)" : "rgba(74,222,128,0.25)"}` }}>{hasGanaDosha ? "🔴 Gana Mismatch" : "✅ Gana OK"}</span>;
+                              return <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 6, background: hasGanaDosha ? "rgba(248,113,113,0.12)" : "rgba(74,222,128,0.08)", color: hasGanaDosha ? "#f87171" : "#4ade80", border: `0.5px solid ${hasGanaDosha ? "rgba(248,113,113,0.3)" : "rgba(74,222,128,0.25)"}` }}>{hasGanaDosha ? "Gana Mismatch" : "Gana OK"}</span>;
                             })()}
-                            {/* Manglik from kuja */}
-                            {kuja && <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 6, background: kuja?.person1?.has_dosha || kuja?.person2?.has_dosha ? "rgba(248,113,113,0.12)" : "rgba(74,222,128,0.08)", color: kuja?.person1?.has_dosha || kuja?.person2?.has_dosha ? "#f87171" : "#4ade80", border: `0.5px solid ${kuja?.person1?.has_dosha || kuja?.person2?.has_dosha ? "rgba(248,113,113,0.3)" : "rgba(74,222,128,0.25)"}` }}>{kuja?.person1?.has_dosha || kuja?.person2?.has_dosha ? "🔴 Manglik" : "✅ No Manglik"}</span>}
-                            {/* Critical doshas */}
-                            {(ast?.critical_doshas || []).filter((d: string) => !d.toLowerCase().includes("nadi") && !d.toLowerCase().includes("gana")).map((d: string, i: number) => (
-                              <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 6, background: "rgba(248,113,113,0.12)", color: "#f87171", border: "0.5px solid rgba(248,113,113,0.3)" }}>🔴 {d}</span>
-                            ))}
+                            {kuja && <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 6, background: kuja?.person1?.has_dosha || kuja?.person2?.has_dosha ? "rgba(248,113,113,0.12)" : "rgba(74,222,128,0.08)", color: kuja?.person1?.has_dosha || kuja?.person2?.has_dosha ? "#f87171" : "#4ade80", border: `0.5px solid ${kuja?.person1?.has_dosha || kuja?.person2?.has_dosha ? "rgba(248,113,113,0.3)" : "rgba(74,222,128,0.25)"}` }}>{kuja?.person1?.has_dosha || kuja?.person2?.has_dosha ? "Manglik" : "No Manglik"}</span>}
                           </div>
                         </div>
 
-                        {/* Venus Karaka Panel */}
-                        {(r.venus_chart1 || r.venus_chart2) && (
-                          <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem" }}>
-                            <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>♀ Venus Karaka Analysis</div>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                              {[{v: r.venus_chart1, name: r.person1?.name || "Person 1"}, {v: r.venus_chart2, name: r.person2?.name || "Person 2"}].map((item, i) => item.v && (
-                                <div key={i} style={{ background: "var(--surface)", borderRadius: 8, padding: "10px 12px" }}>
-                                  <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 4 }}>{item.name}</div>
-                                  <div style={{ fontSize: 12, color: "var(--text)", marginBottom: 2 }}>H{item.v.house} · <span style={{ color: item.v.strength === "Strong" ? "var(--green)" : item.v.strength === "Afflicted" ? "var(--red)" : "var(--accent)" }}>{item.v.strength}</span></div>
-                                  <div style={{ fontSize: 11, color: item.v.signifies_h7 ? "var(--green)" : "var(--muted)" }}>{item.v.signifies_h7 ? "✓ Signifies H7" : "○ Doesn't signify H7"}</div>
-                                  {item.v.enhances_promise && <div style={{ fontSize: 10, color: "var(--green)", marginTop: 2 }}>✓ Enhances marriage promise</div>}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Supporting Cusps */}
-                        {(r.supporting_cusps_chart1 || r.supporting_cusps_chart2) && (
-                          <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem" }}>
-                            <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>Supporting Cusps (H2 & H11)</div>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                              {[{sc: r.supporting_cusps_chart1, name: r.person1?.name || "Person 1"}, {sc: r.supporting_cusps_chart2, name: r.person2?.name || "Person 2"}].map((item, i) => item.sc && (
-                                <div key={i} style={{ background: "var(--surface)", borderRadius: 8, padding: "10px 12px" }}>
-                                  <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 6 }}>{item.name}</div>
-                                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                                    <span style={{ fontSize: 11, color: "var(--muted)" }}>H2 CSL: {item.sc.h2_csl}</span>
-                                    <span style={{ fontSize: 11, color: item.sc.h2_supports ? "var(--green)" : "var(--muted)" }}>{item.sc.h2_supports ? "✓" : "✗"}</span>
-                                  </div>
-                                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                                    <span style={{ fontSize: 11, color: "var(--muted)" }}>H11 CSL: {item.sc.h11_csl}</span>
-                                    <span style={{ fontSize: 11, color: item.sc.h11_supports ? "var(--green)" : "var(--muted)" }}>{item.sc.h11_supports ? "✓" : "✗"}</span>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Timing & Dasha Overlap */}
-                        {r.timing_verdict && (
-                          <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem" }}>
-                            <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>Dasha Timing Overlap</div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                              <span style={{ fontSize: 13, fontWeight: 500, color: r.timing_verdict === "Aligned" ? "var(--green)" : r.timing_verdict === "Misaligned" ? "var(--red)" : "var(--accent)" }}>● {r.timing_verdict}</span>
-                            </div>
-                            {r.shared_significators?.length > 0 && (
-                              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                                {r.shared_significators.map((p: string) => (
-                                  <span key={p} style={{ fontSize: 10, background: "rgba(201,169,110,0.1)", color: "var(--accent)", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "2px 6px" }}>{p}</span>
+                        {/* ═══ AI DEEP ANALYSIS SECTION ═══ */}
+                        <div style={{ background: "var(--surface2)", border: "0.5px solid rgba(201,169,110,0.3)", borderRadius: 10, padding: "0.875rem 1rem" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                            <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const }}>AI Deep Analysis</div>
+                            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                              {matchAnalysisMessages.length > 0 && (
+                                <button onClick={() => { setMatchAnalysisMessages([]); }} style={{ background: "transparent", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "3px 10px", fontSize: 11, color: "var(--muted)", cursor: "pointer" }}>Clear</button>
+                              )}
+                              <div style={{ display: "flex", background: "var(--surface)", borderRadius: 6, border: "0.5px solid var(--border2)", overflow: "hidden" }}>
+                                {([["english", "EN"], ["telugu_english", "తె+EN"]] as const).map(([val, label]) => (
+                                  <button key={val} onClick={() => setMatchAnalysisLang(val)} style={{ padding: "4px 10px", background: matchAnalysisLang === val ? "rgba(201,169,110,0.15)" : "transparent", color: matchAnalysisLang === val ? "var(--accent)" : "var(--muted)", border: "none", cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>{label}</button>
                                 ))}
+                              </div>
+                            </div>
+                          </div>
+                          {/* Topic pills */}
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const, marginBottom: 10 }}>
+                            {[
+                              { id: "promise", label: "Marriage Promise" },
+                              { id: "harmony", label: "Harmony" },
+                              { id: "divorce_risk", label: "Divorce Risk" },
+                              { id: "timing", label: "Timing" },
+                              { id: "remedies", label: "Remedies" },
+                            ].map(t => (
+                              <button key={t.id} onClick={() => handleMatchTopicAnalysis(t.id)} disabled={matchAnalysisLoading}
+                                style={{ padding: "6px 12px", borderRadius: 6, border: "0.5px solid var(--border2)", background: "var(--surface)", color: "var(--text)", fontSize: 11, cursor: matchAnalysisLoading ? "default" : "pointer", fontFamily: "inherit", transition: "all 0.2s" }}
+                                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(201,169,110,0.5)"; }}
+                                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border2)"; }}>
+                                {t.label}
+                              </button>
+                            ))}
+                          </div>
+                          {/* Chat messages */}
+                          <div style={{ maxHeight: 400, overflowY: "auto", marginBottom: matchAnalysisMessages.length > 0 || matchAnalysisLoading ? 10 : 0 }}>
+                            {matchAnalysisMessages.length === 0 && !matchAnalysisLoading && (
+                              <div style={{ textAlign: "center" as const, padding: "1rem", fontSize: 12, color: "var(--muted)" }}>
+                                Click a topic above or type a question below
+                              </div>
+                            )}
+                            {matchAnalysisMessages.map((msg, i) => (
+                              <div key={i} style={{ marginBottom: "1rem" }} className="fade-in">
+                                <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}>
+                                  <div className="chat-bubble-user" style={{ padding: "8px 14px", maxWidth: "72%", fontSize: 12, color: "#d0d0d8", lineHeight: 1.5 }}>
+                                    {msg.isTopic && <span style={{ fontSize: 9, color: "var(--accent)", display: "block", marginBottom: 2 }}>Topic Analysis</span>}
+                                    {msg.q}
+                                  </div>
+                                </div>
+                                <div className="chat-bubble-ai md-body" style={{ padding: "1rem 1.25rem", maxWidth: "94%" }}>
+                                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.a}</ReactMarkdown>
+                                </div>
+                              </div>
+                            ))}
+                            {matchAnalysisLoading && (
+                              <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--muted)", fontSize: 13, padding: "0.75rem 1rem" }}>
+                                <div style={{ width: 10, height: 10, borderRadius: "50%", border: "1.5px solid var(--accent)", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
+                                Analyzing compatibility...
                               </div>
                             )}
                           </div>
-                        )}
-
-                        {/* H7 Sub Lord Spouse Characteristics */}
-                        {r.h7_lord_both?.marriage_type && (
-                          <div style={{ border: "0.5px solid rgba(201,169,110,0.25)", borderRadius: 10, padding: "0.875rem 1rem" }}>
-                            <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>H7 Sub Lord Characteristics</div>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-                              {([["Marriage Type", r.h7_lord_both.marriage_type], ["Spouse Nature", r.h7_lord_both.spouse_nature], ["Age Gap", r.h7_lord_both.age_gap], ["Note", r.h7_lord_both.caution]] as [string,string][]).filter(([,v]) => v).map(([k, v]) => (
-                                <div key={k}>
-                                  <div style={{ fontSize: 9, color: "var(--muted)", marginBottom: 2 }}>{k}</div>
-                                  <div style={{ fontSize: 11, color: "var(--text)" }}>{v}</div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Kuja Dosha + Moon */}
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                          <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.75rem" }}>
-                            <div style={{ fontSize: 9, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.5rem" }}>కుజ దోష</div>
-                            {[kuja?.person1, kuja?.person2].map((p: any, i: number) => p && (
-                              <div key={i} style={{ marginBottom: 6 }}>
-                                <div style={{ fontSize: 10, color: "var(--muted)" }}>{p.name}</div>
-                                <div style={{ fontSize: 11, fontWeight: 500, color: p.has_dosha ? "#f87171" : "#4ade80" }}>{p.has_dosha ? "Manglik H" + p.mars_house : "No Dosha"}</div>
-                                {p.cancellations?.[0] && <div style={{ fontSize: 9, color: "#4ade80" }}>{p.cancellations[0]}</div>}
-                              </div>
-                            ))}
-                            {kuja?.mutual_cancellation && <div style={{ fontSize: 10, color: "#4ade80" }}>✓ ఇద్దరికీ — రద్దు</div>}
-                          </div>
-                          <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.75rem" }}>
-                            <div style={{ fontSize: 9, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.5rem" }}>చంద్ర వివరాలు</div>
-                            {[r.person1, r.person2].map((p: any, i: number) => p && (
-                              <div key={i} style={{ marginBottom: 6 }}>
-                                <div style={{ fontSize: 10, color: "var(--muted)" }}>{p.name}</div>
-                                <div style={{ fontSize: 11, color: "var(--text)" }}>{p.moon_sign} · {p.moon_nakshatra}</div>
-                              </div>
-                            ))}
+                          {/* Chat input */}
+                          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                            <input value={matchChatQ} onChange={e => setMatchChatQ(e.target.value)} onKeyDown={e => { if (e.key === "Enter") handleMatchChat(); }}
+                              placeholder="Follow-up question..."
+                              style={{ flex: 1, background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 8, padding: "9px 14px", fontSize: 13, color: "var(--text)", outline: "none", fontFamily: "inherit" }} />
+                            <button onClick={handleMatchChat} disabled={matchAnalysisLoading || !matchChatQ.trim()}
+                              style={{ background: matchChatQ.trim() ? "var(--accent)" : "var(--surface)", color: matchChatQ.trim() ? "#09090f" : "var(--muted)", border: "none", borderRadius: 8, padding: "9px 18px", fontSize: 13, cursor: matchChatQ.trim() ? "pointer" : "default", fontWeight: 500, fontFamily: "inherit" }}>Ask</button>
                           </div>
                         </div>
+
                       </div>
                     );
                   })()}
