@@ -140,13 +140,13 @@ def get_sunrise_sunset_jd(date_jd: float, lat: float, lon: float) -> tuple:
             swe.CALC_RISE,
             geopos, 1013.25, 10.0
         )
-        sunrise_jd = tret[1]
+        sunrise_jd = tret[0]
         _, tret2 = swe.rise_trans(
             sunrise_jd, swe.SUN, b"", 0,
             swe.CALC_SET,
             geopos, 1013.25, 10.0
         )
-        sunset_jd = tret2[1]
+        sunset_jd = tret2[0]
         return sunrise_jd, sunset_jd
     except Exception:
         return date_jd - 0.25, date_jd + 0.25  # approx 6 AM / 6 PM

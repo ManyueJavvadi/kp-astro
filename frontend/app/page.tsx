@@ -1391,12 +1391,14 @@ export default function Home() {
                       tz = -(new Date().getTimezoneOffset()) / 60;
                       setPcDetectedCoords({ lat, lon, tz });
                       try {
-                        const geo = await axios.get("https://api.bigdatacloud.net/data/reverse-geocode-client", {
-                          params: { latitude: lat, longitude: lon, localityLanguage: "en" }
+                        const geo = await axios.get("https://nominatim.openstreetmap.org/reverse", {
+                          params: { lat, lon, format: "json", addressdetails: 1, "accept-language": "en" },
+                          headers: { "User-Agent": "DevAstroAI/1.0" }
                         });
-                        const d = geo.data;
-                        const city = d?.city || d?.locality || d?.principalSubdivision || "";
-                        const country = d?.countryName || "";
+                        const addr = geo.data?.address || {};
+                        const city = addr.neighbourhood || addr.suburb || addr.city_district
+                          || addr.city || addr.town || addr.village || "";
+                        const country = addr.country || "";
                         setPcLocationName(city && country ? `${city}, ${country}` : city || country || `${lat.toFixed(3)}°, ${lon.toFixed(3)}°`);
                       } catch { setPcLocationName(`${lat.toFixed(3)}°, ${lon.toFixed(3)}°`); }
                     }
@@ -1442,7 +1444,7 @@ export default function Home() {
 
                 const weekdayHeaders = ["ఆ", "సో", "మం", "బు", "గు", "శు", "శ"];
                 const calDays = calData?.days ?? [];
-                const firstWeekday = calDays[0]?.weekday ?? 0;
+                const firstWeekday = ((calDays[0]?.weekday ?? 0) + 1) % 7; // Convert Mon=0 → Sun=0
                 const paddedDays: (any | null)[] = [...Array(firstWeekday).fill(null), ...calDays];
                 while (paddedDays.length % 7 !== 0) paddedDays.push(null);
 
@@ -1522,116 +1524,168 @@ export default function Home() {
                         ))}
                       </div>
 
-                      {/* 4. Five elements cards */}
-                      <div className="pc-elements-grid">
-                        {[
-                          { cls: "el-vara", icon: "📅", te: pcData.vara_te, en: pcData.vara_en, ends: null },
-                          { cls: "el-tithi", icon: "🌙", te: pcData.tithi_te, en: pcData.tithi_en, ends: pcData.tithi_ends_at },
-                          { cls: "el-nakshatra", icon: "⭐", te: pcData.nakshatra_te, en: pcData.nakshatra_en, ends: pcData.nakshatra_ends_at },
-                          { cls: "el-yoga", icon: "☯", te: pcData.yoga_te, en: pcData.yoga_en, ends: pcData.yoga_ends_at },
-                          { cls: "el-karana", icon: "🔱", te: pcData.karana_te, en: pcData.karana, ends: pcData.karana_ends_at },
-                        ].map(card => (
-                          <div key={card.cls} className={`pc-element-card ${card.cls}`}>
-                            <div className="pc-element-icon">{card.icon}</div>
-                            <div className="pc-element-te">{card.te}</div>
-                            <div className="pc-element-en">{card.en}</div>
-                            {card.ends && <div className="pc-element-until">until {card.ends}</div>}
+                      {/* 4. Choghadiya Clock + Element Cards (2-column) */}
+                      <div className="pc-two-col">
+                        {/* Left: Choghadiya Clock */}
+                        {pcData.choghadiya && pcData.choghadiya.length > 0 && (
+                          <ChoghadiyaClock
+                            periods={pcData.choghadiya}
+                            sunrise={pcData.sunrise}
+                            sunset={pcData.sunset}
+                            showDay={true}
+                            nowLocalTime={pcData.now_local_time}
+                            dayDurationMin={pcData.day_duration_min}
+                            nightDurationMin={pcData.night_duration_min}
+                          />
+                        )}
+                        {/* Right: 2x2 Element cards */}
+                        <div className="pc-elements-grid">
+                          {/* Tithi card with moon illumination */}
+                          <div className="pc-element-card el-tithi">
+                            <div className="pc-element-icon">🌙</div>
+                            <div className="pc-element-te">{pcData.tithi_te}</div>
+                            <div className="pc-element-en">{pcData.tithi_en}</div>
+                            {pcData.tithi_ends_at && <div className="pc-element-until">until {pcData.tithi_ends_at}</div>}
+                            {pcData.moon_illum_pct != null && (
+                              <div className="pc-moon-illum">
+                                <div className="pc-moon-illum-bar">
+                                  <div className="pc-moon-illum-fill" style={{ width: `${pcData.moon_illum_pct}%` }} />
+                                </div>
+                                <span className="pc-moon-illum-pct">{pcData.moon_illum_pct}%</span>
+                              </div>
+                            )}
                           </div>
-                        ))}
+                          {/* Nakshatra card with pada */}
+                          <div className="pc-element-card el-nakshatra">
+                            <div className="pc-element-icon">⭐</div>
+                            <div className="pc-element-te">{pcData.nakshatra_te}{pcData.nakshatra_pada ? ` - ${pcData.nakshatra_pada}` : ""}</div>
+                            <div className="pc-element-en">{pcData.nakshatra_en}{pcData.nakshatra_pada ? ` (Pada ${pcData.nakshatra_pada})` : ""}</div>
+                            {pcData.nakshatra_ends_at && <div className="pc-element-until">until {pcData.nakshatra_ends_at}</div>}
+                          </div>
+                          {/* Yoga card */}
+                          <div className="pc-element-card el-yoga">
+                            <div className="pc-element-icon">☯</div>
+                            <div className="pc-element-te">{pcData.yoga_te}</div>
+                            <div className="pc-element-en">{pcData.yoga_en}</div>
+                            {pcData.yoga_ends_at && <div className="pc-element-until">until {pcData.yoga_ends_at}</div>}
+                          </div>
+                          {/* Karana card — both karanas */}
+                          <div className="pc-element-card el-karana">
+                            <div className="pc-element-icon">🔱</div>
+                            <div className="pc-element-te">{pcData.karana_te}</div>
+                            <div className="pc-element-en">{pcData.karana}</div>
+                            {pcData.karana_ends_at && <div className="pc-element-until">until {pcData.karana_ends_at}</div>}
+                            {pcData.karana2 && (
+                              <div style={{ marginTop: 4, paddingTop: 4, borderTop: "0.5px solid rgba(255,255,255,0.08)" }}>
+                                <div className="pc-element-te" style={{ fontSize: 12 }}>{pcData.karana2_te}</div>
+                                <div className="pc-element-en" style={{ fontSize: 10 }}>{pcData.karana2}</div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
 
-                      {/* 5. Sun & Moon times */}
-                      <div className="pc-celestial-grid">
-                        {[
-                          { icon: "🌅", label: "Sunrise", time: pcData.sunrise, warm: true },
-                          { icon: "🌇", label: "Sunset", time: pcData.sunset, warm: true },
-                          { icon: "🌙", label: "Moonrise", time: pcData.moonrise || "—", warm: false },
-                          { icon: "🌒", label: "Moonset", time: pcData.moonset || "—", warm: false },
-                        ].map(c => (
-                          <div key={c.label} className={`pc-celestial-card ${c.warm ? "warm" : "cool"}`}>
-                            <div className="pc-celestial-icon">{c.icon}</div>
-                            <div className="pc-celestial-label">{c.label}</div>
-                            <div className="pc-celestial-time">{c.time}</div>
+                      {/* 5. Current Hora — planet symbol + large lord */}
+                      {pcData.current_hora && (() => {
+                        const HORA_SYMBOLS: Record<string, string> = {
+                          Sun: "\u2609", Moon: "\u263D", Mars: "\u2642", Mercury: "\u263F",
+                          Jupiter: "\u2643", Venus: "\u2640", Saturn: "\u2644"
+                        };
+                        const lordColor = PLANET_COLORS[pcData.current_hora.lord] ?? "var(--accent)";
+                        return (
+                          <div className="pc-hora-card">
+                            <div className="pc-hora-symbol" style={{ color: lordColor }}>{HORA_SYMBOLS[pcData.current_hora.lord] || "\u2609"}</div>
+                            <div>
+                              <div className="pc-hora-label">Current Hora</div>
+                              <div className="pc-hora-lord" style={{ color: lordColor }}>
+                                {pcData.current_hora.lord}
+                                {pcData.current_hora.is_auspicious && <span style={{ color: "#34d399", fontSize: 11, marginLeft: 8 }}>Auspicious</span>}
+                              </div>
+                            </div>
+                            <span className="pc-hora-time">{pcData.current_hora.start} – {pcData.current_hora.end}</span>
                           </div>
-                        ))}
-                      </div>
+                        );
+                      })()}
 
-                      {/* 6. Inauspicious times */}
-                      <div className="pc-section">
-                        <div className="pc-section-title">నివారించవలసిన సమయాలు</div>
-                        <div className="pc-avoid-grid">
-                          <div className="pc-avoid-card danger">
-                            <span className="pc-avoid-emoji">⚠️</span>
-                            <span className="pc-avoid-label">Rahu Kalam</span>
-                            <span className="pc-avoid-time">{pcData.rahu_kalam}</span>
+                      {/* 6. Celestial times (2x2) + Auspicious/Inauspicious (right) */}
+                      <div className="pc-half-grid">
+                        {/* Left: Sun & Moon times 2x2 */}
+                        <div className="pc-celestial-grid">
+                          {[
+                            { icon: "🌅", label: "Sunrise", time: pcData.sunrise, warm: true },
+                            { icon: "🌇", label: "Sunset", time: pcData.sunset, warm: true },
+                            { icon: "🌙", label: "Moonrise", time: pcData.moonrise || "—", warm: false },
+                            { icon: "🌒", label: "Moonset", time: pcData.moonset || "—", warm: false },
+                          ].map(c => (
+                            <div key={c.label} className={`pc-celestial-card ${c.warm ? "warm" : "cool"}`}>
+                              <div className="pc-celestial-icon">{c.icon}</div>
+                              <div className="pc-celestial-label">{c.label}</div>
+                              <div className="pc-celestial-time">{c.time}</div>
+                            </div>
+                          ))}
+                        </div>
+                        {/* Right: Auspicious & Inauspicious */}
+                        <div className="pc-times-list">
+                          {/* Brahma Muhurta */}
+                          {pcData.brahma_muhurta && (
+                            <div className="pc-times-item brahma">
+                              <span className="pc-times-icon">🧘</span>
+                              <div>
+                                <div className="pc-times-label">Brahma Muhurta</div>
+                                <div className="pc-times-sub">Best for meditation & study</div>
+                              </div>
+                              <span className="pc-times-value">{pcData.brahma_muhurta.start} – {pcData.brahma_muhurta.end}</span>
+                            </div>
+                          )}
+                          {/* Abhijit Muhurtha */}
+                          {pcData.abhijit_muhurtha?.valid && (
+                            <div className="pc-times-item auspicious">
+                              <span className="pc-times-icon">👑</span>
+                              <div>
+                                <div className="pc-times-label">Abhijit Muhurtha</div>
+                                <div className="pc-times-sub">Universally auspicious</div>
+                              </div>
+                              <span className="pc-times-value">{pcData.abhijit_muhurtha.start} – {pcData.abhijit_muhurtha.end}</span>
+                            </div>
+                          )}
+                          {/* Inauspicious */}
+                          <div className="pc-times-item danger">
+                            <span className="pc-times-icon">⚠️</span>
+                            <div><div className="pc-times-label">Rahu Kalam</div></div>
+                            <span className="pc-times-value">{pcData.rahu_kalam}</span>
                           </div>
-                          <div className="pc-avoid-card warning">
-                            <span className="pc-avoid-emoji">🛑</span>
-                            <span className="pc-avoid-label">Yamagandam</span>
-                            <span className="pc-avoid-time">{pcData.yamagandam}</span>
+                          <div className="pc-times-item warning">
+                            <span className="pc-times-icon">🛑</span>
+                            <div><div className="pc-times-label">Yamagandam</div></div>
+                            <span className="pc-times-value">{pcData.yamagandam}</span>
                           </div>
-                          <div className="pc-avoid-card purple">
-                            <span className="pc-avoid-emoji">🔮</span>
-                            <span className="pc-avoid-label">Gulika Kalam</span>
-                            <span className="pc-avoid-time">{pcData.gulika_kalam}</span>
+                          <div className="pc-times-item purple">
+                            <span className="pc-times-icon">🔮</span>
+                            <div><div className="pc-times-label">Gulika Kalam</div></div>
+                            <span className="pc-times-value">{pcData.gulika_kalam}</span>
                           </div>
                           {pcData.durmuhurtha?.map((dm: any, i: number) => (
-                            <div key={i} className="pc-avoid-card warning">
-                              <span className="pc-avoid-emoji">⏳</span>
-                              <span className="pc-avoid-label">Durmuhurtha {i + 1}</span>
-                              <span className="pc-avoid-time">{dm.start} – {dm.end}</span>
+                            <div key={i} className="pc-times-item warning">
+                              <span className="pc-times-icon">⏳</span>
+                              <div><div className="pc-times-label">Durmuhurtha {i + 1}</div></div>
+                              <span className="pc-times-value">{dm.start} – {dm.end}</span>
                             </div>
                           ))}
                         </div>
                       </div>
 
-                      {/* 7. Abhijit Muhurtha */}
-                      {pcData.abhijit_muhurtha?.valid && (
-                        <div className="pc-auspicious-card">
-                          <span className="pc-auspicious-icon">👑</span>
-                          <div>
-                            <div className="pc-auspicious-label">Abhijit Muhurtha</div>
-                            <div style={{ fontSize: 10, color: "var(--muted)" }}>Universally auspicious</div>
-                          </div>
-                          <span className="pc-auspicious-time">{pcData.abhijit_muhurtha.start} – {pcData.abhijit_muhurtha.end}</span>
-                        </div>
-                      )}
-
-                      {/* 8. Current Hora */}
-                      {pcData.current_hora && (
-                        <div className="pc-hora-card">
-                          <div className="pc-hora-icon" style={{ color: PLANET_COLORS[pcData.current_hora.lord] ?? "var(--accent)" }}>⚡</div>
-                          <div>
-                            <div className="pc-hora-label">Current Hora</div>
-                            <div className="pc-hora-lord" style={{ color: PLANET_COLORS[pcData.current_hora.lord] ?? "var(--accent)" }}>
-                              {pcData.current_hora.lord}
-                              {pcData.current_hora.is_auspicious && <span style={{ color: "#34d399", fontSize: 11, marginLeft: 8 }}>Auspicious</span>}
-                            </div>
-                          </div>
-                          <span className="pc-hora-time">{pcData.current_hora.start} – {pcData.current_hora.end}</span>
-                        </div>
-                      )}
-
-                      {/* 9. Choghadiya */}
+                      {/* 7. Day & Night Choghadiya — side by side */}
                       {pcData.choghadiya && pcData.choghadiya.length > 0 && (
                         <div className="pc-section">
                           <div className="pc-section-title">Choghadiya</div>
-                          <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: 20, alignItems: "start" }}>
-                            <ChoghadiyaClock
-                              periods={pcData.choghadiya}
-                              sunrise={pcData.sunrise}
-                              sunset={pcData.sunset}
-                              showDay={true}
-                              nowLocalTime={pcData.now_local_time}
-                              dayDurationMin={pcData.day_duration_min}
-                              nightDurationMin={pcData.night_duration_min}
-                            />
+                          <div className="pc-half-grid">
+                            {/* Day */}
                             <div>
                               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                                 <span style={{ fontSize: 11, color: "#fbbf24" }}>☀ Day</span>
                                 <span style={{ fontSize: 9, color: "var(--muted)" }}>Sunrise {pcData.sunrise}</span>
                               </div>
-                              <div style={{ display: "flex", flexDirection: "column", gap: 3, marginBottom: 10 }}>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
                                 {pcData.choghadiya.filter((c: any) => c.is_day).map((c: any, i: number) => {
                                   const qColor = c.quality === "auspicious" ? "#34d399" : c.quality === "inauspicious" ? "#f87171" : "#a78bfa";
                                   return (
@@ -1644,6 +1698,9 @@ export default function Home() {
                                   );
                                 })}
                               </div>
+                            </div>
+                            {/* Night */}
+                            <div>
                               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                                 <span style={{ fontSize: 11, color: "#93c5fd" }}>🌙 Night</span>
                                 <span style={{ fontSize: 9, color: "var(--muted)" }}>Sunset {pcData.sunset}</span>
