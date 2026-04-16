@@ -126,6 +126,12 @@ export default function Home() {
   // Timezone (auto-detected from place)
   const [timezoneOffset, setTimezoneOffset] = useState(5.5);
   const [timezoneLabel, setTimezoneLabel] = useState("IST");
+  // Muhurtha Step 3 expanded state + AI
+  const [mExpandedWindow, setMExpandedWindow] = useState<number | null>(null);
+  const [mSelectedDate, setMSelectedDate] = useState<string | null>(null);
+  const [mAiMessages, setMAiMessages] = useState<{q: string; a: string; isTopic?: boolean}[]>([]);
+  const [mAiLoading, setMAiLoading] = useState(false);
+  const [mAiQuestion, setMAiQuestion] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const placeSearchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -2165,117 +2171,366 @@ export default function Home() {
                         </div>
                       )}
 
-                      {!mLoading && mResults && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                          {/* Nearby better alert */}
+                      {!mLoading && mResults && (() => {
+                        const allWindows = mResults.windows || [];
+                        const uniqueDates = [...new Set(allWindows.map((w: any) => w.date))] as string[];
+                        const filteredWindows = mSelectedDate ? allWindows.filter((w: any) => w.date === mSelectedDate) : allWindows;
+                        const bestWindow = mResults.best_window;
+                        const eventEmoji: Record<string, string> = { marriage: "💍", business: "💼", house_warming: "🏠", travel: "✈️", education: "📚" };
+                        const qualityColor = (q: string) => q === "Excellent" ? "var(--accent)" : q === "Good" ? "#4ade80" : q === "Fair" ? "#a78bfa" : "var(--muted)";
+                        const qualityBg = (q: string) => q === "Excellent" ? "rgba(201,169,110,0.12)" : q === "Good" ? "rgba(74,222,128,0.08)" : q === "Fair" ? "rgba(167,139,250,0.08)" : "rgba(255,255,255,0.03)";
+                        const qualityBorder = (q: string) => q === "Excellent" ? "rgba(201,169,110,0.4)" : q === "Good" ? "rgba(74,222,128,0.3)" : q === "Fair" ? "rgba(167,139,250,0.3)" : "var(--border)";
+                        const qualityStars = (q: string) => q === "Excellent" ? "★★★" : q === "Good" ? "★★" : q === "Fair" ? "★" : "○";
+                        const qualityDot = (d: string) => { const dw = allWindows.filter((w: any) => w.date === d); const best = dw.reduce((a: any, b: any) => (a?.score || 0) > (b?.score || 0) ? a : b, dw[0]); return best?.quality === "Excellent" ? "#c9a96e" : best?.quality === "Good" ? "#4ade80" : "#a78bfa"; };
+
+                        const handleMuhurthaAiAsk = async (questionText: string, isTopic = false) => {
+                          if (!questionText.trim() || mAiLoading) return;
+                          setMAiLoading(true);
+                          setMAiQuestion("");
+                          try {
+                            const res = await axios.post(`${API_URL}/muhurtha/analyze`, {
+                              muhurtha_data: mResults,
+                              question: questionText,
+                              history: mAiMessages.map(m => ({ question: m.q, answer: m.a })),
+                            });
+                            setMAiMessages(prev => [...prev, { q: questionText, a: res.data.answer, isTopic }]);
+                          } catch {
+                            setMAiMessages(prev => [...prev, { q: questionText, a: "విశ్లేషణ లోడ్ చేయడంలో సమస్య. మళ్ళీ ప్రయత్నించండి.", isTopic }]);
+                          }
+                          setMAiLoading(false);
+                        };
+
+                        return (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+
+                          {/* ── A. SUMMARY BANNER ── */}
+                          <div className="muhurtha-summary-banner">
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                              <div>
+                                <div style={{ fontSize: 18, fontWeight: 600, color: "var(--accent)", fontFamily: "'DM Serif Display', serif", marginBottom: 4 }}>
+                                  {eventEmoji[mEventType] || "🕉"} {mEventType.replace("_", " ").toUpperCase()} ముహూర్తాలు
+                                </div>
+                                <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                                  {mDateStart} → {mDateEnd} {mResults.participants_loaded?.length > 0 && `· ${mResults.participants_loaded.length} participants`}
+                                </div>
+                              </div>
+                              <div style={{ fontSize: 11, color: "var(--muted)", background: "var(--surface2)", padding: "4px 10px", borderRadius: 6, border: "0.5px solid var(--border)" }}>
+                                {allWindows.length} windows found
+                              </div>
+                            </div>
+                            {bestWindow && (
+                              <div style={{ marginTop: "0.75rem", padding: "0.75rem 1rem", background: "rgba(201,169,110,0.06)", borderRadius: 8, border: "0.5px solid rgba(201,169,110,0.2)" }}>
+                                <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 4 }}>BEST WINDOW</div>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                  <div>
+                                    <span style={{ fontSize: 15, fontWeight: 600, color: "var(--accent)" }}>{bestWindow.date_display}</span>
+                                    <span style={{ fontSize: 14, color: "var(--text)", marginLeft: 10 }}>{bestWindow.start_time}–{bestWindow.end_time}</span>
+                                  </div>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                    <span style={{ fontSize: 12, color: "var(--muted)" }}>Lagna: <span style={{ color: "var(--text)" }}>{bestWindow.lagna}</span></span>
+                                    <span style={{ fontSize: 12, color: "var(--muted)" }}>SL: <span style={{ color: "var(--accent2)" }}>{bestWindow.lagna_sublord}</span></span>
+                                    <span style={{ fontSize: 13, fontWeight: 600, color: qualityColor(bestWindow.quality), padding: "2px 8px", borderRadius: 4, background: qualityBg(bestWindow.quality) }}>{bestWindow.score} {bestWindow.quality}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* ── Nearby Better Alert ── */}
                           {mResults.nearby_better && (
                             <div style={{ padding: "0.75rem 1rem", background: "rgba(251,191,36,0.08)", border: "0.5px solid rgba(251,191,36,0.3)", borderRadius: 8 }}>
                               <div style={{ fontSize: 11, color: "#fbbf24", fontWeight: 500, marginBottom: 4 }}>
-                                ⚠ మీరు ఎంచుకున్న తేదీల దగ్గర మంచి ముహూర్తం ఉంది
+                                మీరు ఎంచుకున్న తేదీల దగ్గర మంచి ముహూర్తం ఉంది
                               </div>
                               <div style={{ fontSize: 12, color: "var(--text)" }}>
                                 {mResults.nearby_better.date_display} — Score: {mResults.nearby_better.score} ({mResults.nearby_better.quality})
                               </div>
                               <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
-                                {mResults.nearby_better.start_time}–{mResults.nearby_better.end_time} · Lagna: {mResults.nearby_better.lagna} · Sub Lord: {mResults.nearby_better.lagna_sublord}
+                                {mResults.nearby_better.start_time}–{mResults.nearby_better.end_time} · Lagna: {mResults.nearby_better.lagna} · SL: {mResults.nearby_better.lagna_sublord}
                               </div>
                             </div>
                           )}
 
-                          {/* Window list */}
-                          {mResults.windows && mResults.windows.length === 0 && (
+                          {/* ── B. CALENDAR DATE STRIP ── */}
+                          {uniqueDates.length > 1 && (
+                            <div className="muhurtha-calendar-strip">
+                              <button onClick={() => setMSelectedDate(null)} className={`muhurtha-date-pill ${mSelectedDate === null ? "active" : ""}`}>
+                                All
+                              </button>
+                              {uniqueDates.map(d => {
+                                const dt = new Date(d + "T00:00:00");
+                                const dayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+                                return (
+                                  <button key={d} onClick={() => setMSelectedDate(d === mSelectedDate ? null : d)} className={`muhurtha-date-pill ${mSelectedDate === d ? "active" : ""}`}>
+                                    <span style={{ fontSize: 9, color: "var(--muted)", display: "block" }}>{dayNames[dt.getDay()]}</span>
+                                    <span>{dt.getDate()}</span>
+                                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: qualityDot(d), display: "inline-block" }} />
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {/* ── C. EXPANDABLE WINDOW CARDS ── */}
+                          {filteredWindows.length === 0 && (
                             <div style={{ textAlign: "center" as const, padding: "2rem", color: "var(--muted)", fontSize: 13 }}>
                               ఈ తేదీల్లో మంచి ముహూర్తాలు కనపడలేదు. వేరే తేదీలు చూడండి.
                             </div>
                           )}
 
-                          {(mResults.windows || []).map((w: any, i: number) => {
-                            const qColor = w.quality === "Excellent" ? "#c9a96e" : w.quality === "Good" ? "#4ade80" : w.quality === "Avoid" ? "#f87171" : "#888899";
-                            const qBg = w.quality === "Excellent" ? "rgba(201,169,110,0.10)" : w.quality === "Good" ? "rgba(74,222,128,0.08)" : w.quality === "Avoid" ? "rgba(248,113,113,0.08)" : "rgba(255,255,255,0.03)";
-                            const qBadge = w.quality === "Excellent" ? "🟢 EXCELLENT" : w.quality === "Good" ? "🟡 GOOD" : w.quality === "Avoid" ? "🔴 AVOID" : "⚪ FAIR";
-                            const hasWarnings = w.in_rahu_kalam || w.is_vishti || w.in_yamagandam || w.in_gulika || w.in_durmuhurtha;
+                          {filteredWindows.map((w: any, i: number) => {
+                            const isExpanded = mExpandedWindow === i;
+                            const bc = w.badhaka_check || {};
+                            const pang = w.panchang || {};
                             return (
-                            <div key={i} style={{ padding: "12px 14px", background: qBg, border: `0.5px solid ${qColor}30`, borderLeft: `3px solid ${qColor}`, borderRadius: 10 }}>
-                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-                                <div>
-                                  <div style={{ fontSize: 12, color: "var(--muted)" }}>{w.date_display}</div>
-                                  <div style={{ fontSize: 18, color: qColor, fontWeight: 700, marginTop: 1, letterSpacing: "0.02em" }}>
-                                    {w.start_time} – {w.end_time}
+                            <div key={i} className={`muhurtha-card muhurtha-card-${(w.quality || "fair").toLowerCase()}`}
+                              style={{ border: `0.5px solid ${qualityBorder(w.quality)}` }}>
+                              {/* Collapsed header — always visible */}
+                              <div onClick={() => setMExpandedWindow(isExpanded ? null : i)} style={{ cursor: "pointer", padding: "0.875rem 1rem" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                                  <div>
+                                    <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 2 }}>{w.date_display}</div>
+                                    <div style={{ fontSize: 18, fontWeight: 600, color: qualityColor(w.quality), fontFamily: "'DM Serif Display', serif" }}>
+                                      {w.start_time} – {w.end_time}
+                                    </div>
+                                    <div style={{ display: "flex", gap: 8, marginTop: 4, fontSize: 11, flexWrap: "wrap" as const }}>
+                                      <span style={{ color: "var(--muted)" }}>Lagna: <span style={{ color: "var(--text)" }}>{w.lagna}</span></span>
+                                      <span style={{ color: "var(--muted)" }}>SL: <span style={{ color: "var(--accent2)" }}>{w.lagna_sublord}</span></span>
+                                      <span style={{ color: "var(--muted)" }}>Moon: <span style={{ color: "var(--text)" }}>{w.moon_nakshatra || "—"}</span></span>
+                                    </div>
+                                  </div>
+                                  <div style={{ textAlign: "right" as const, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                                    <div style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, background: qualityBg(w.quality), color: qualityColor(w.quality), border: `0.5px solid ${qualityBorder(w.quality)}`, fontWeight: 500 }}>
+                                      {qualityStars(w.quality)} {w.score}
+                                    </div>
+                                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" as const, justifyContent: "flex-end" }}>
+                                      {bc.passed !== undefined && <span className={`muhurtha-badge ${bc.passed ? "pass" : "fail"}`}>{bc.passed ? "✓" : "✗"} Badhaka</span>}
+                                      {w.event_cusp_confirms !== undefined && <span className={`muhurtha-badge ${w.event_cusp_confirms ? "pass" : "neutral"}`}>{w.event_cusp_confirms ? "✓" : "–"} Event CSL</span>}
+                                      {w.moon_sl_favorable !== undefined && <span className={`muhurtha-badge ${w.moon_sl_favorable ? "pass" : "neutral"}`}>{w.moon_sl_favorable ? "✓" : "–"} Moon SL</span>}
+                                    </div>
+                                    {/* Participant badges */}
+                                    {w.resonating_with && w.resonating_with.length > 0 && (
+                                      <div style={{ display: "flex", gap: 3, flexWrap: "wrap" as const }}>
+                                        {w.resonating_with.map((name: string, j: number) => (
+                                          <span key={j} style={{ fontSize: 9, padding: "1px 6px", background: "rgba(74,222,128,0.1)", border: "0.5px solid rgba(74,222,128,0.25)", borderRadius: 10, color: "#4ade80" }}>{name}</span>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {(w.in_rahu_kalam || w.is_vishti) && (
+                                      <div style={{ fontSize: 9, color: "#f87171" }}>
+                                        {w.in_rahu_kalam && "Rahu Kalam  "}{w.is_vishti && "Vishti"}
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
-                                <div style={{ textAlign: "right" as const }}>
-                                  <div style={{ fontSize: 11, padding: "4px 10px", borderRadius: 20, background: `${qColor}18`, color: qColor, border: `0.5px solid ${qColor}40`, fontWeight: 700 }}>
-                                    {qBadge}
+                                <div style={{ textAlign: "center" as const, marginTop: 6, fontSize: 10, color: "var(--muted)", opacity: 0.6 }}>
+                                  {isExpanded ? "▲ Collapse details" : "▼ Click for KP details"}
+                                </div>
+                              </div>
+
+                              {/* Expanded KP details — 2x2 grid */}
+                              <div className={`muhurtha-expand ${isExpanded ? "open" : ""}`}>
+                                <div style={{ padding: "0 1rem 1rem" }}>
+                                  <div className="muhurtha-kp-grid">
+                                    {/* Panel 1: KP Analysis */}
+                                    <div className="muhurtha-detail-panel">
+                                      <div className="muhurtha-panel-title">KP Analysis</div>
+                                      <div className="muhurtha-detail-row">
+                                        <span>Lagna Sub Lord</span>
+                                        <span style={{ color: "var(--accent2)" }}>{w.lagna_sublord}</span>
+                                      </div>
+                                      <div className="muhurtha-detail-row">
+                                        <span>Lagna Star Lord</span>
+                                        <span>{w.lagna_star_lord}</span>
+                                      </div>
+                                      <div className="muhurtha-detail-row">
+                                        <span>Signified Houses</span>
+                                        <span style={{ color: "var(--accent)" }}>{(w.signified_houses || []).join(", ")}</span>
+                                      </div>
+                                      <div className="muhurtha-detail-row">
+                                        <span>Sign Type</span>
+                                        <span>{w.lagna_sign_type || "—"}</span>
+                                      </div>
+                                      <div className="muhurtha-detail-row">
+                                        <span>Badhaka (H{bc.badhaka_house})</span>
+                                        <span className={bc.passed ? "muhurtha-pass" : "muhurtha-fail"}>{bc.passed ? "PASS" : "FAIL"}{bc.badhaka_hit ? " (Badhaka hit)" : ""}{bc.maraka_hit ? " (Maraka hit)" : ""}</span>
+                                      </div>
+                                      <div className="muhurtha-detail-row">
+                                        <span>Event Cusp CSL</span>
+                                        <span>{w.event_cusp_csl || "—"} → H{(w.event_cusp_houses || []).join(",")}</span>
+                                      </div>
+                                      <div className="muhurtha-detail-row">
+                                        <span>Event Cusp Confirms</span>
+                                        <span className={w.event_cusp_confirms ? "muhurtha-pass" : "muhurtha-neutral"}>{w.event_cusp_confirms ? "YES" : "NO"}</span>
+                                      </div>
+                                      <div className="muhurtha-detail-row">
+                                        <span>H11 CSL</span>
+                                        <span>{w.h11_csl || "—"} → H{(w.h11_houses || []).join(",")}</span>
+                                      </div>
+                                      <div className="muhurtha-detail-row">
+                                        <span>H11 Confirms</span>
+                                        <span className={w.h11_confirms ? "muhurtha-pass" : "muhurtha-neutral"}>{w.h11_confirms ? "YES" : "NO"}</span>
+                                      </div>
+                                    </div>
+
+                                    {/* Panel 2: Panchang */}
+                                    <div className="muhurtha-detail-panel">
+                                      <div className="muhurtha-panel-title">Panchang</div>
+                                      <div className="muhurtha-detail-row">
+                                        <span>Tithi</span>
+                                        <span>{pang.tithi || "—"} ({pang.tithi_num || ""})</span>
+                                      </div>
+                                      <div className="muhurtha-detail-row">
+                                        <span>Paksha</span>
+                                        <span>{pang.paksha || "—"}</span>
+                                      </div>
+                                      <div className="muhurtha-detail-row">
+                                        <span>Nakshatra</span>
+                                        <span>{pang.nakshatra || "—"}</span>
+                                      </div>
+                                      <div className="muhurtha-detail-row">
+                                        <span>Yoga</span>
+                                        <span>{pang.yoga || "—"}</span>
+                                      </div>
+                                      <div className="muhurtha-detail-row">
+                                        <span>Vara (Day)</span>
+                                        <span>{pang.vara || "—"}</span>
+                                      </div>
+                                    </div>
+
+                                    {/* Panel 3: Moon & Timing */}
+                                    <div className="muhurtha-detail-panel">
+                                      <div className="muhurtha-panel-title">Moon & Timing</div>
+                                      <div className="muhurtha-detail-row">
+                                        <span>Moon Sign</span>
+                                        <span>{w.moon_sign || "—"}</span>
+                                      </div>
+                                      <div className="muhurtha-detail-row">
+                                        <span>Moon Nakshatra</span>
+                                        <span>{w.moon_nakshatra || "—"}</span>
+                                      </div>
+                                      <div className="muhurtha-detail-row">
+                                        <span>Moon Star Lord</span>
+                                        <span style={{ color: "var(--accent2)" }}>{w.moon_star_lord || "—"}</span>
+                                      </div>
+                                      <div className="muhurtha-detail-row">
+                                        <span>Moon Sub Lord</span>
+                                        <span>{w.moon_sub_lord || "—"}</span>
+                                      </div>
+                                      <div className="muhurtha-detail-row">
+                                        <span>Moon SL Favorable</span>
+                                        <span className={w.moon_sl_favorable ? "muhurtha-pass" : "muhurtha-neutral"}>{w.moon_sl_favorable ? "YES" : "NO"}</span>
+                                      </div>
+                                    </div>
+
+                                    {/* Panel 4: Status */}
+                                    <div className="muhurtha-detail-panel">
+                                      <div className="muhurtha-panel-title">Status</div>
+                                      <div className="muhurtha-detail-row">
+                                        <span>Score</span>
+                                        <span style={{ color: qualityColor(w.quality), fontWeight: 600 }}>{w.score} ({w.quality})</span>
+                                      </div>
+                                      <div className="muhurtha-detail-row">
+                                        <span>Base Score</span>
+                                        <span>{w.base_score}</span>
+                                      </div>
+                                      <div className="muhurtha-detail-row">
+                                        <span>Rahu Kalam</span>
+                                        <span className={w.in_rahu_kalam ? "muhurtha-fail" : "muhurtha-pass"}>{w.in_rahu_kalam ? "IN RAHU KALAM" : "Clear"}</span>
+                                      </div>
+                                      <div className="muhurtha-detail-row">
+                                        <span>Vishti Karana</span>
+                                        <span className={w.is_vishti ? "muhurtha-fail" : "muhurtha-pass"}>{w.is_vishti ? "VISHTI" : "Clear"}</span>
+                                      </div>
+                                      {mParticipants.length > 0 && (
+                                        <>
+                                          <div className="muhurtha-detail-row">
+                                            <span>Participant Resonance</span>
+                                            <span>{w.participant_resonance}/{mParticipants.length}</span>
+                                          </div>
+                                          {(w.resonating_with || []).map((name: string, j: number) => (
+                                            <div key={j} className="muhurtha-detail-row">
+                                              <span style={{ paddingLeft: 8 }}>{name}</span>
+                                              <span style={{ color: "#4ade80", fontSize: 10 }}>RP Match</span>
+                                            </div>
+                                          ))}
+                                        </>
+                                      )}
+                                    </div>
                                   </div>
-                                  <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 4 }}>Score: {w.score}</div>
                                 </div>
-                              </div>
-                              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const, fontSize: 10, color: "var(--muted)", marginBottom: 6 }}>
-                                <span>Lagna: <span style={{ color: "var(--text)" }}>{w.lagna}</span></span>
-                                <span>·</span>
-                                <span>Sub Lord: <span style={{ color: "var(--accent2)", fontWeight: 600 }}>{w.lagna_sublord}</span></span>
-                                <span>·</span>
-                                <span>Houses: <span style={{ color: "var(--text)" }}>{(w.signified_houses || []).join(", ")}</span></span>
-                              </div>
-                              {/* Participant resonance badges */}
-                              {w.resonating_with && w.resonating_with.length > 0 && (
-                                <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 4, marginBottom: 6 }}>
-                                  {w.resonating_with.map((name: string, j: number) => (
-                                    <span key={j} style={{ fontSize: 9, padding: "2px 7px", background: "rgba(74,222,128,0.1)", border: "0.5px solid rgba(74,222,128,0.3)", borderRadius: 12, color: "#4ade80" }}>
-                                      ✓ {name}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                              {/* Warning badges row */}
-                              {hasWarnings && (
-                                <div style={{ display: "flex", gap: 5, flexWrap: "wrap" as const, marginTop: 4 }}>
-                                  {w.in_rahu_kalam && <span style={{ fontSize: 9, padding: "2px 7px", background: "rgba(248,113,113,0.12)", border: "0.5px solid rgba(248,113,113,0.3)", borderRadius: 10, color: "#f87171" }}>⚠ Rahu Kalam</span>}
-                                  {w.in_yamagandam && <span style={{ fontSize: 9, padding: "2px 7px", background: "rgba(248,113,113,0.12)", border: "0.5px solid rgba(248,113,113,0.3)", borderRadius: 10, color: "#f87171" }}>⚠ Yamagandam</span>}
-                                  {w.in_gulika && <span style={{ fontSize: 9, padding: "2px 7px", background: "rgba(251,191,36,0.1)", border: "0.5px solid rgba(251,191,36,0.3)", borderRadius: 10, color: "#fbbf24" }}>⚠ Gulika</span>}
-                                  {w.in_durmuhurtha && <span style={{ fontSize: 9, padding: "2px 7px", background: "rgba(248,113,113,0.12)", border: "0.5px solid rgba(248,113,113,0.3)", borderRadius: 10, color: "#f87171" }}>⚠ Durmuhurtha</span>}
-                                  {w.is_vishti && <span style={{ fontSize: 9, padding: "2px 7px", background: "rgba(248,113,113,0.1)", border: "0.5px solid rgba(248,113,113,0.25)", borderRadius: 10, color: "#f87171" }}>⚠ Vishti</span>}
-                                </div>
-                              )}
-                              {/* KP factors row */}
-                              <div style={{ display: "flex", gap: 5, flexWrap: "wrap" as const, marginTop: 5 }}>
-                                {w.in_abhijit && (
-                                  <span style={{ fontSize: 9, padding: "2px 8px", background: "rgba(201,169,110,0.18)", border: "0.5px solid rgba(201,169,110,0.5)", borderRadius: 10, color: "var(--accent)", fontWeight: 700 }}>
-                                    👑 Abhijit
-                                  </span>
-                                )}
-                                {w.tara_bala_name && (
-                                  <span style={{ fontSize: 9, padding: "2px 7px", background: w.tara_bala_good ? "rgba(52,211,153,0.1)" : "rgba(248,113,113,0.1)", border: `0.5px solid ${w.tara_bala_good ? "rgba(52,211,153,0.3)" : "rgba(248,113,113,0.3)"}`, borderRadius: 10, color: w.tara_bala_good ? "#34d399" : "#f87171" }}>
-                                    ⭐ {w.tara_bala_name} Tara {w.tara_bala_good ? "✓" : "✗"}
-                                  </span>
-                                )}
-                                {w.tara_bala_name && (
-                                  <span style={{ fontSize: 9, padding: "2px 7px", background: w.chandrabala_good ? "rgba(52,211,153,0.1)" : "rgba(248,113,113,0.1)", border: `0.5px solid ${w.chandrabala_good ? "rgba(52,211,153,0.3)" : "rgba(248,113,113,0.3)"}`, borderRadius: 10, color: w.chandrabala_good ? "#34d399" : "#f87171" }}>
-                                    🌙 Chandrabala {w.chandrabala_good ? "✓" : "✗"}
-                                  </span>
-                                )}
-                                {w.hora_lord && (
-                                  <span style={{ fontSize: 9, padding: "2px 7px", background: w.hora_auspicious ? "rgba(52,211,153,0.08)" : "rgba(148,163,184,0.08)", border: `0.5px solid ${w.hora_auspicious ? "rgba(52,211,153,0.25)" : "rgba(148,163,184,0.2)"}`, borderRadius: 10, color: w.hora_auspicious ? "#34d399" : "#94a3b8" }}>
-                                    ⚡ {w.hora_lord} Hora
-                                  </span>
-                                )}
-                                {w.lagna_lord_retrograde && (
-                                  <span style={{ fontSize: 9, padding: "2px 7px", background: "rgba(251,191,36,0.1)", border: "0.5px solid rgba(251,191,36,0.3)", borderRadius: 10, color: "#fbbf24" }}>
-                                    ℞ Lagna Lord Retrograde
-                                  </span>
-                                )}
                               </div>
                             </div>
                             );
                           })}
 
-                          {/* Search different dates button */}
-                          <button onClick={() => { setMStep(2); setMResults(null); }}
+                          {/* ── D. AI ANALYSIS SECTION ── */}
+                          <div className="muhurtha-ai-section">
+                            <div style={{ fontSize: 11, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.75rem", fontWeight: 500 }}>
+                              AI Muhurtha Analysis
+                            </div>
+
+                            {/* Topic pills */}
+                            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const, marginBottom: "1rem" }}>
+                              {[
+                                { label: "Best Muhurtha", q: "Which is the single best muhurtha and why? Explain the KP reasoning in detail." },
+                                { label: "Why this time?", q: "Explain why the top-scored window is the best choice, covering all KP factors — Lagna SL, Badhaka, Event Cusp CSL, H11, Moon, and Panchang." },
+                                { label: "Compare top 3", q: "Compare the top 3 muhurtha windows side by side — pros and cons of each using KP analysis." },
+                                { label: "Alternatives", q: "What if the top windows don't work schedule-wise? What alternatives exist and what compromises would be made?" },
+                                { label: "Remedies", q: "What remedies or precautions should be taken if using a less-than-excellent muhurtha window?" },
+                              ].map((pill, idx) => (
+                                <button key={idx} onClick={() => handleMuhurthaAiAsk(pill.q, true)} disabled={mAiLoading}
+                                  className="muhurtha-ai-pill">
+                                  {pill.label}
+                                </button>
+                              ))}
+                            </div>
+
+                            {/* Chat messages */}
+                            {mAiMessages.length > 0 && (
+                              <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginBottom: "1rem", maxHeight: 500, overflowY: "auto" as const }}>
+                                {mAiMessages.map((msg, idx) => (
+                                  <div key={idx}>
+                                    <div style={{ fontSize: 11, color: "var(--accent)", marginBottom: 4, fontWeight: 500 }}>
+                                      {msg.isTopic ? `📌 ${msg.q}` : `Q: ${msg.q}`}
+                                    </div>
+                                    <div style={{ background: "var(--surface2)", borderRadius: 10, padding: "1rem", border: "0.5px solid var(--border)" }}>
+                                      <div className="markdown-body"><ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.a}</ReactMarkdown></div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Loading */}
+                            {mAiLoading && (
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--muted)", fontSize: 12, padding: "0.75rem 0" }}>
+                                <div style={{ width: 12, height: 12, borderRadius: "50%", border: "2px solid var(--accent)", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
+                                ముహూర్తం విశ్లేషిస్తున్నాం...
+                              </div>
+                            )}
+
+                            {/* Chat input */}
+                            <div style={{ display: "flex", gap: 8 }}>
+                              <input value={mAiQuestion} onChange={e => setMAiQuestion(e.target.value)}
+                                onKeyDown={e => e.key === "Enter" && handleMuhurthaAiAsk(mAiQuestion)}
+                                placeholder="ముహూర్తం గురించి ప్రశ్న అడగండి..."
+                                style={{ flex: 1, background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "var(--text)", outline: "none", fontFamily: "inherit" }} />
+                              <button onClick={() => handleMuhurthaAiAsk(mAiQuestion)} disabled={mAiLoading || !mAiQuestion.trim()}
+                                style={{ background: mAiQuestion.trim() ? "var(--accent)" : "var(--surface2)", color: mAiQuestion.trim() ? "#09090f" : "var(--muted)", border: "none", borderRadius: 8, padding: "10px 18px", fontSize: 13, fontWeight: 500, cursor: mAiQuestion.trim() ? "pointer" : "default", fontFamily: "inherit" }}>
+                                Ask
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Search different dates */}
+                          <button onClick={() => { setMStep(2); setMResults(null); setMExpandedWindow(null); setMSelectedDate(null); setMAiMessages([]); }}
                             style={{ padding: "10px", background: "transparent", border: "0.5px solid var(--border2)", borderRadius: 8, color: "var(--muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
                             వేరే తేదీలు వెతకండి →
                           </button>
                         </div>
-                      )}
+                        );
+                      })()}
 
                       {!mLoading && !mResults && (
                         <div style={{ textAlign: "center" as const, padding: "2rem", color: "#f87171", fontSize: 13 }}>

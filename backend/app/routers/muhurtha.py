@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 
 from app.services.muhurtha_engine import find_muhurtha_windows
+from app.services.llm_service import get_muhurtha_prediction
 
 router = APIRouter()
 
@@ -33,6 +34,12 @@ class MuhurthaRequest(BaseModel):
     event_tz:  Optional[float] = None
 
 
+class MuhurthaAnalyzeRequest(BaseModel):
+    muhurtha_data: dict
+    question: str
+    history: List[dict] = []
+
+
 @router.post("/find")
 def find_muhurtha(request: MuhurthaRequest):
     return find_muhurtha_windows(
@@ -48,3 +55,14 @@ def find_muhurtha(request: MuhurthaRequest):
         event_lon=request.event_lon,
         event_tz=request.event_tz,
     )
+
+
+@router.post("/analyze")
+def analyze_muhurtha(request: MuhurthaAnalyzeRequest):
+    """AI-powered deep analysis of muhurtha windows."""
+    answer = get_muhurtha_prediction(
+        request.muhurtha_data,
+        request.question,
+        request.history,
+    )
+    return {"answer": answer}

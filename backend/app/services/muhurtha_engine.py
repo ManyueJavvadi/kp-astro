@@ -41,31 +41,31 @@ EVENT_HOUSE_GROUPS = {
 def classify_event(event_text: str) -> str:
     """Map free-form event description to a known event key."""
     text = event_text.lower()
-    if any(w in text for w in ["marriage", "wedding", "vivah", "పెళ్ళి", "వివాహ", "kalyanam"]):
+    if any(w in text for w in ["marriage", "wedding", "vivah", "\u0c2a\u0c46\u0c33\u0c4d\u0c33\u0c3f", "\u0c35\u0c3f\u0c35\u0c3e\u0c39", "kalyanam"]):
         return "marriage"
     if any(w in text for w in ["vehicle", "car", "bike", "auto", "scooter", "vahana",
-                                "delivery", "వాహన", "కార్", "బైక్"]):
+                                "delivery", "\u0c35\u0c3e\u0c39\u0c28", "\u0c15\u0c3e\u0c30\u0c4d", "\u0c2c\u0c48\u0c15\u0c4d"]):
         return "vehicle"
     if any(w in text for w in ["business", "shop", "office", "opening", "start", "launch",
-                                "వ్యాపార", "దుకాణం"]):
+                                "\u0c35\u0c4d\u0c2f\u0c3e\u0c2a\u0c3e\u0c30", "\u0c26\u0c41\u0c15\u0c3e\u0c23\u0c02"]):
         return "business"
     if any(w in text for w in ["house", "home", "graha", "griha", "warming", "flat",
-                                "apartment", "గృహ", "ఇల్లు", "నివాసం"]):
+                                "apartment", "\u0c17\u0c43\u0c39", "\u0c07\u0c32\u0c4d\u0c32\u0c41", "\u0c28\u0c3f\u0c35\u0c3e\u0c38\u0c02"]):
         return "house_warming"
     if any(w in text for w in ["travel", "journey", "trip", "tour", "flight", "train",
-                                "prayanam", "ప్రయాణ"]):
+                                "prayanam", "\u0c2a\u0c4d\u0c30\u0c2f\u0c3e\u0c23"]):
         return "travel"
     if any(w in text for w in ["education", "school", "college", "exam", "study", "course",
-                                "admission", "విద్య", "పరీక్ష"]):
+                                "admission", "\u0c35\u0c3f\u0c26\u0c4d\u0c2f", "\u0c2a\u0c30\u0c40\u0c15\u0c4d\u0c37"]):
         return "education"
     if any(w in text for w in ["medical", "surgery", "operation", "hospital", "treatment",
-                                "doctor", "వైద్య", "ఆపరేషన్"]):
+                                "doctor", "\u0c35\u0c48\u0c26\u0c4d\u0c2f", "\u0c06\u0c2a\u0c30\u0c47\u0c37\u0c28\u0c4d"]):
         return "medical"
-    if any(w in text for w in ["legal", "court", "case", "lawsuit", "vyajyam", "వ్యాజ్య",
-                                "కోర్టు"]):
+    if any(w in text for w in ["legal", "court", "case", "lawsuit", "vyajyam", "\u0c35\u0c4d\u0c2f\u0c3e\u0c1c\u0c4d\u0c2f",
+                                "\u0c15\u0c4b\u0c30\u0c4d\u0c1f\u0c41"]):
         return "legal"
     if any(w in text for w in ["invest", "stock", "fund", "property buy", "land", "gold",
-                                "పెట్టుబడి"]):
+                                "\u0c2a\u0c46\u0c1f\u0c4d\u0c1f\u0c41\u0c2c\u0c21\u0c3f"]):
         return "investment"
     return "general"
 
@@ -79,7 +79,29 @@ SIGN_LORDS = {
     "Capricorn": "Saturn", "Aquarius": "Saturn", "Pisces": "Jupiter"
 }
 
-# Hora lords cycle: Sun→Venus→Mercury→Moon→Saturn→Jupiter→Mars
+SIGN_TYPES = {
+    "Aries": "Movable", "Taurus": "Fixed", "Gemini": "Dual",
+    "Cancer": "Movable", "Leo": "Fixed", "Virgo": "Dual",
+    "Libra": "Movable", "Scorpio": "Fixed", "Sagittarius": "Dual",
+    "Capricorn": "Movable", "Aquarius": "Fixed", "Pisces": "Dual"
+}
+BADHAKA_HOUSE = {"Movable": 11, "Fixed": 9, "Dual": 7}
+MARAKA_HOUSES = {2, 7}
+
+TITHI_NAMES = [
+    "Pratipada","Dwitiya","Tritiya","Chaturthi","Panchami","Shashthi",
+    "Saptami","Ashtami","Navami","Dashami","Ekadashi","Dwadashi",
+    "Trayodashi","Chaturdashi","Purnima/Amavasya"
+]
+YOGA_NAMES = [
+    "Vishkambha","Preeti","Ayushman","Saubhagya","Shobhana","Atiganda",
+    "Sukarma","Dhriti","Shula","Ganda","Vriddhi","Dhruva",
+    "Vyaghata","Harshana","Vajra","Siddhi","Vyatipata","Variyan",
+    "Parigha","Shiva","Siddha","Sadhya","Shubha","Shukla",
+    "Brahma","Indra","Vaidhriti"
+]
+
+# Hora lords cycle: Sun->Venus->Mercury->Moon->Saturn->Jupiter->Mars
 HORA_LORDS = ["Sun", "Venus", "Mercury", "Moon", "Saturn", "Jupiter", "Mars"]
 
 # Starting hora lord index per weekday (0=Mon, 6=Sun)
@@ -194,7 +216,6 @@ def _get_hora_lord(jd: float, sunrise_jd: float, sunset_jd: float, weekday: int)
     """Return hora lord for a given JD using proportional day/night horas."""
     try:
         # Get next sunrise for night hora lengths
-        geopos_dummy = (0.0, 0.0, 0.0)   # placeholder; hora lord index doesn't depend on geopos
         day_dur   = (sunset_jd - sunrise_jd) / 12.0
         # approximate next sunrise as sunset + same day duration (good enough for hora lord index)
         approx_next_sr = sunset_jd + (sunset_jd - sunrise_jd)
@@ -341,13 +362,13 @@ def _score_significations(signified: list, event_type: str) -> int:
 
 
 def _quality(score: int) -> str:
-    if score >= 80:
+    if score >= 95:
         return "Excellent"
-    if score >= 55:
+    if score >= 65:
         return "Good"
-    if score >= 30:
+    if score >= 35:
         return "Fair"
-    return "Avoid"
+    return "Weak"
 
 
 # ── Core scan function ────────────────────────────────────────────
@@ -489,7 +510,50 @@ def _scan_date_range(
         in_durm = any(d_s <= jd <= d_e for d_s, d_e in durm_windows)
         vishti  = _is_vishti(moon_lon, sun_lon)
 
-        effective_score = base_score + participant_bonus
+        # ── Moon details ──
+        moon_nk = get_nakshatra_and_starlord(moon_lon)
+        moon_sign = get_sign(moon_lon)
+        moon_nakshatra = moon_nk["nakshatra"]
+        moon_star_lord = moon_nk["star_lord"]
+        moon_sub_lord = get_sub_lord(moon_lon)
+
+        # ── Lagna sign type & Badhaka/Maraka check ──
+        sign_type = SIGN_TYPES.get(lagna_sign, "Movable")
+        badhaka_house = BADHAKA_HOUSE[sign_type]
+        badhaka_hit = badhaka_house in signified
+        maraka_hit = bool(MARAKA_HOUSES & set(signified))
+
+        # ── Event cusp CSL check ──
+        group = EVENT_HOUSE_GROUPS.get(event_type, EVENT_HOUSE_GROUPS["marriage"])
+        primary_cusp_idx = group["primary"] - 1  # 0-indexed
+        event_cusp_lon = cusp_lons[primary_cusp_idx] % 360
+        event_cusp_csl = get_sub_lord(event_cusp_lon)
+        event_cusp_houses = _sublord_significations(event_cusp_csl, planets, cusp_lons)
+        favorable_set = set([group["primary"]] + group["supporting"])
+        event_cusp_confirms = bool(favorable_set & set(event_cusp_houses))
+
+        # ── H11 CSL check ──
+        h11_lon = cusp_lons[10] % 360  # 11th cusp, 0-indexed
+        h11_csl = get_sub_lord(h11_lon)
+        h11_houses = _sublord_significations(h11_csl, planets, cusp_lons)
+        h11_confirms = bool(favorable_set & set(h11_houses))
+
+        # ── Moon Star Lord favorable ──
+        moon_sl_houses = _sublord_significations(moon_star_lord, planets, cusp_lons)
+        moon_sl_favorable = bool(favorable_set & set(moon_sl_houses))
+
+        # ── Panchang ──
+        tithi_name = TITHI_NAMES[(tithi_num - 1) % 15]
+        paksha = "Shukla" if tithi_num <= 15 else "Krishna"
+        yoga_name = YOGA_NAMES[yoga_idx % 27]
+
+        # ── Additional scoring ──
+        badhaka_penalty = -25 if (badhaka_hit or maraka_hit) else 0
+        event_cusp_bonus = 15 if event_cusp_confirms else 0
+        h11_bonus = 10 if h11_confirms else 0
+        moon_sl_bonus = 10 if moon_sl_favorable else 0
+
+        effective_score = base_score + participant_bonus + badhaka_penalty + event_cusp_bonus + h11_bonus + moon_sl_bonus
         if in_rk:   effective_score -= 50
         if in_yg:   effective_score -= 60
         if in_gl:   effective_score -= 50
@@ -526,6 +590,34 @@ def _scan_date_range(
                 "hora_auspicious":   hora_auspicious,
                 "lagna_lord_retrograde": lagna_lord_retro,
                 "quality":           _quality(max(0, effective_score)),
+                # New KP fields
+                "moon_sign":         moon_sign,
+                "moon_nakshatra":    moon_nakshatra,
+                "moon_star_lord":    moon_star_lord,
+                "moon_sub_lord":     moon_sub_lord,
+                "lagna_sign_type":   sign_type,
+                "badhaka_check": {
+                    "passed": not (badhaka_hit or maraka_hit),
+                    "badhaka_house": badhaka_house,
+                    "sign_type": sign_type,
+                    "badhaka_hit": badhaka_hit,
+                    "maraka_hit": maraka_hit,
+                },
+                "event_cusp_csl":    event_cusp_csl,
+                "event_cusp_houses": sorted(event_cusp_houses),
+                "event_cusp_confirms": event_cusp_confirms,
+                "h11_csl":           h11_csl,
+                "h11_houses":        sorted(h11_houses),
+                "h11_confirms":      h11_confirms,
+                "moon_sl_favorable": moon_sl_favorable,
+                "panchang": {
+                    "tithi": tithi_name,
+                    "tithi_num": tithi_num,
+                    "paksha": paksha,
+                    "nakshatra": moon_nakshatra,
+                    "yoga": yoga_name,
+                    "vara": current.strftime("%A"),
+                },
             })
 
         current += timedelta(minutes=4)
@@ -589,7 +681,7 @@ def find_muhurtha_windows(
     event_tz: Optional[float] = None,
 ) -> dict:
     """
-    Find muhurtha windows in [date_start, date_end], plus ±nearby_days.
+    Find muhurtha windows in [date_start, date_end], plus +/-nearby_days.
     event_type can be a free-form string — it is classified automatically.
 
     event_lat/lon/tz: location where the event will happen.

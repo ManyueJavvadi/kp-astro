@@ -981,3 +981,122 @@ CHART DATA:
         messages=[{"role": "user", "content": prompt}],
     )
     return message.content[0].text
+
+
+# ================================================================
+# MUHURTHA AI ANALYSIS
+# ================================================================
+
+def format_muhurtha_for_llm(muhurtha_data: dict) -> str:
+    """Format muhurtha results into structured text for LLM context."""
+    lines = []
+    lines.append(f"EVENT TYPE: {muhurtha_data.get('event_type', 'general').upper()}")
+    sr = muhurtha_data.get("searched_range", {})
+    lines.append(f"DATE RANGE: {sr.get('start', '?')} to {sr.get('end', '?')}")
+    participants = muhurtha_data.get("participants_loaded", [])
+    if participants:
+        lines.append(f"PARTICIPANTS: {', '.join(participants)}")
+
+    windows = muhurtha_data.get("windows", [])[:10]
+    if not windows:
+        lines.append("\nNO MUHURTHA WINDOWS FOUND in this date range.")
+        return "\n".join(lines)
+
+    lines.append(f"\nTOP {len(windows)} MUHURTHA WINDOWS:")
+    lines.append("=" * 60)
+
+    for i, w in enumerate(windows, 1):
+        lines.append(f"\n--- Window #{i} ---")
+        lines.append(f"Date: {w.get('date_display', w.get('date', '?'))}")
+        lines.append(f"Time: {w.get('start_time', '?')} – {w.get('end_time', '?')}")
+        lines.append(f"Score: {w.get('score', 0)} ({w.get('quality', '?')})")
+        lines.append(f"Lagna: {w.get('lagna', '?')} | SL: {w.get('lagna_sublord', '?')} | Star Lord: {w.get('lagna_star_lord', '?')}")
+        lines.append(f"Signified Houses: {w.get('signified_houses', [])}")
+
+        bc = w.get("badhaka_check", {})
+        if bc:
+            status = "PASS" if bc.get("passed") else "FAIL"
+            lines.append(f"Badhaka Check: {status} (Sign type: {bc.get('sign_type', '?')}, Badhaka H{bc.get('badhaka_house', '?')}, Hit: {bc.get('badhaka_hit', False)}, Maraka Hit: {bc.get('maraka_hit', False)})")
+
+        lines.append(f"Event Cusp CSL: {w.get('event_cusp_csl', '?')} → Houses: {w.get('event_cusp_houses', [])} | Confirms: {w.get('event_cusp_confirms', False)}")
+        lines.append(f"H11 CSL: {w.get('h11_csl', '?')} → Houses: {w.get('h11_houses', [])} | Confirms: {w.get('h11_confirms', False)}")
+
+        lines.append(f"Moon: {w.get('moon_sign', '?')} | Nakshatra: {w.get('moon_nakshatra', '?')} | Star Lord: {w.get('moon_star_lord', '?')} | Sub: {w.get('moon_sub_lord', '?')}")
+        lines.append(f"Moon SL Favorable: {w.get('moon_sl_favorable', False)}")
+
+        p = w.get("panchang", {})
+        if p:
+            lines.append(f"Panchang: Tithi={p.get('tithi', '?')} ({p.get('paksha', '?')}), Nakshatra={p.get('nakshatra', '?')}, Yoga={p.get('yoga', '?')}, Vara={p.get('vara', '?')}")
+
+        warnings = []
+        if w.get("in_rahu_kalam"):
+            warnings.append("Rahu Kalam")
+        if w.get("is_vishti"):
+            warnings.append("Vishti Karana")
+        if warnings:
+            lines.append(f"Warnings: {', '.join(warnings)}")
+
+        if w.get("resonating_with"):
+            lines.append(f"Resonating with: {', '.join(w['resonating_with'])} ({w.get('participant_resonance', 0)}/{len(participants)})")
+
+    return "\n".join(lines)
+
+
+def get_muhurtha_prediction(muhurtha_data: dict, question: str, history: list = []) -> str:
+    """AI analysis of muhurtha windows using KP principles."""
+    knowledge_path = os.path.join(KNOWLEDGE_DIR, "muhurtha.txt")
+    knowledge = ""
+    try:
+        with open(knowledge_path, "r", encoding="utf-8") as f:
+            knowledge = f.read()
+    except Exception:
+        pass
+
+    muhurtha_summary = format_muhurtha_for_llm(muhurtha_data)
+
+    system_prompt = f"""You are an expert KP (Krishnamurti Paddhati) Muhurtha specialist with 20+ years of experience in electional astrology.
+
+KP MUHURTHA KNOWLEDGE:
+{knowledge}
+
+ANALYSIS RULES:
+1. The Sub Lord of Lagna cusp at muhurtha time is THE deciding factor for success/failure.
+2. Lagna SL must signify favorable houses for the event AND must NOT signify Badhaka or Maraka houses.
+3. Event cusp CSL (e.g., H7 for marriage) should independently confirm favorable houses.
+4. H11 CSL confirming adds strength — H11 is fulfillment of desires.
+5. Moon's star lord should signify event-favorable houses (day-level filter).
+6. Avoid Rahu Kalam, Vishti Karana, and other inauspicious times.
+7. Panchang factors (tithi, nakshatra, yoga, vara) add secondary support.
+8. Multi-chart muhurtha: the lagna SL should ideally appear among natal RPs of all participants.
+
+OUTPUT STYLE:
+- Write in Telugu script mixed with English KP terms (Sub Lord, CSL, house numbers like H7, planet names).
+- Be specific — reference actual data from the windows provided.
+- Use structured markdown with headers and bullet points.
+- When comparing windows, create a table showing key factors side by side."""
+
+    messages = []
+    for prev in history[-4:]:
+        messages.append({"role": "user", "content": prev.get("question", "")})
+        messages.append({"role": "assistant", "content": prev.get("answer", "")})
+
+    messages.append({
+        "role": "user",
+        "content": f"""MUHURTHA DATA:
+{muhurtha_summary}
+
+---
+
+QUESTION: {question}
+
+Analyze the muhurtha windows above and answer the question. Reference specific window data, planet positions, and house significations."""
+    })
+
+    message = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=4000,
+        temperature=0,
+        system=system_prompt,
+        messages=messages,
+    )
+    return message.content[0].text
