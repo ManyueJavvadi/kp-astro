@@ -7,10 +7,12 @@ import swisseph as swe
 from app.services.chart_engine import (
     get_sub_lord, get_nakshatra_and_starlord, get_sign,
     get_planet_positions, date_time_to_julian,
+    generate_chart,
     calculate_dashas, get_current_dasha,
     calculate_antardashas, get_current_antardasha,
     calculate_pratyantardashas, get_current_pratyantardasha,
 )
+from app.services.chart_formatter import format_chart_for_frontend
 
 # ── Planet sign lordships ─────────────────────────────────────
 
@@ -1028,6 +1030,20 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
     chart1 = _build_chart(person1)
     chart2 = _build_chart(person2)
 
+    # Generate full charts for frontend kundali rendering
+    full_chart1 = generate_chart(
+        person1["date"], person1["time"],
+        person1["latitude"], person1["longitude"],
+        person1.get("timezone_offset", 5.5),
+    )
+    full_chart2 = generate_chart(
+        person2["date"], person2["time"],
+        person2["latitude"], person2["longitude"],
+        person2.get("timezone_offset", 5.5),
+    )
+    chart1_frontend = format_chart_for_frontend(full_chart1)
+    chart2_frontend = format_chart_for_frontend(full_chart2)
+
     # Determine boy/girl for gender-sensitive doshas
     gender1 = person1.get("gender", "")
     gender2 = person2.get("gender", "")
@@ -1121,6 +1137,8 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
         "h5_analysis_chart2": h5_chart2,
         "separation_risk_chart1": sep_risk1,
         "separation_risk_chart2": sep_risk2,
+        "chart1_data": chart1_frontend,
+        "chart2_data": chart2_frontend,
         "overall_verdict": overall,
         "summary": {
             "kp_verdict": kp["kp_verdict"],

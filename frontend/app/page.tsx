@@ -81,6 +81,8 @@ export default function Home() {
   const [matchChatQ, setMatchChatQ] = useState("");
   const [matchShowAI, setMatchShowAI] = useState(false);
   const [matchAnalysisLang, setMatchAnalysisLang] = useState<"english"|"telugu_english">("telugu_english");
+  const [matchHouse1, setMatchHouse1] = useState<number | null>(null);
+  const [matchHouse2, setMatchHouse2] = useState<number | null>(null);
   // Significators grid toggle
   const [showSigGrid, setShowSigGrid] = useState(false);
   // PDF export state
@@ -2292,29 +2294,39 @@ export default function Home() {
                 return (
                 <div className="tab-content" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
 
-                  {/* Selection step */}
+                  {/* Selection step — SPLIT LAYOUT */}
                   {!matchLoading && (!matchResults || !matchResults.overall_verdict) && !matchResults?.__error && (
                     <div style={{ display: "flex", flexDirection: "column" as const, gap: "1rem" }}>
                       <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>వివాహ సరిపోలన — Marriage Compatibility</div>
 
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+
                       {/* Person 1 — always current chart */}
-                      <div style={{ background: "var(--surface2)", border: "0.5px solid rgba(201,169,110,0.4)", borderRadius: 10, padding: "0.875rem 1rem" }}>
-                        <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.5rem" }}>వ్యక్తి 1 — Current Chart</div>
+                      <div style={{ background: "var(--surface2)", borderLeft: "3px solid var(--accent)", border: "0.5px solid rgba(201,169,110,0.35)", borderRadius: 10, padding: "1rem 1.125rem", position: "relative" as const, overflow: "hidden" }}>
+                        <div style={{ position: "absolute" as const, top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, var(--accent), transparent)" }} />
+                        <div style={{ fontSize: 9, color: "var(--accent)", letterSpacing: "0.12em", textTransform: "uppercase" as const, marginBottom: "0.625rem", fontWeight: 600 }}>వ్యక్తి 1 — Client</div>
                         {matchPerson1 ? (
-                          <div>
-                            <div style={{ fontSize: 14, color: "var(--accent)", fontWeight: 500 }}>{matchPerson1.name || matchPerson1.birthDetails.name}</div>
-                            <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
-                              {matchPerson1.birthDetails.date} · {matchPerson1.birthDetails.gender === "male" ? "♂ Male" : matchPerson1.birthDetails.gender === "female" ? "♀ Female" : "Gender not set"}
+                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(201,169,110,0.12)", border: "1.5px solid rgba(201,169,110,0.4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "var(--accent)", fontWeight: 700, flexShrink: 0 }}>
+                              {(matchPerson1.name || matchPerson1.birthDetails.name || "?")[0]?.toUpperCase()}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: 15, color: "var(--accent)", fontWeight: 600 }}>{matchPerson1.name || matchPerson1.birthDetails.name}</div>
+                              <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 3 }}>
+                                {matchPerson1.birthDetails.date} · {matchPerson1.birthDetails.gender === "male" ? "♂ Male" : matchPerson1.birthDetails.gender === "female" ? "♀ Female" : "⚠ Gender not set"}
+                              </div>
+                              {matchPerson1.birthDetails.place && <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 2, opacity: 0.7 }}>{matchPerson1.birthDetails.place}</div>}
                             </div>
                           </div>
                         ) : (
-                          <div style={{ fontSize: 12, color: "var(--muted)" }}>చార్ట్ లోడ్ చేయండి మొదట (Setup tab).</div>
+                          <div style={{ fontSize: 12, color: "var(--muted)", padding: "0.5rem 0" }}>చార్ట్ లోడ్ చేయండి మొదట (Setup tab).</div>
                         )}
                       </div>
 
                       {/* Person 2 — select from saved or add inline */}
-                      <div style={{ background: "var(--surface2)", border: `0.5px solid ${matchResults ? "rgba(201,169,110,0.4)" : "var(--border)"}`, borderRadius: 10, padding: "0.875rem 1rem" }}>
-                        <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.625rem" }}>వ్యక్తి 2 — Second Person</div>
+                      <div style={{ background: "var(--surface2)", borderLeft: matchResults?.__p2 ? "3px solid #93c5fd" : "3px solid var(--border2)", border: `0.5px solid ${matchResults?.__p2 ? "rgba(147,197,253,0.35)" : "var(--border)"}`, borderRadius: 10, padding: "1rem 1.125rem", position: "relative" as const, overflow: "hidden" }}>
+                        {matchResults?.__p2 && <div style={{ position: "absolute" as const, top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, #93c5fd, transparent)" }} />}
+                        <div style={{ fontSize: 9, color: matchResults?.__p2 ? "#93c5fd" : "var(--muted)", letterSpacing: "0.12em", textTransform: "uppercase" as const, marginBottom: "0.625rem", fontWeight: 600 }}>వ్యక్తి 2 — Partner</div>
                         {/* Show saved sessions (excluding current) */}
                         {!matchPerson2Inline && (
                           <div style={{ display: "flex", flexDirection: "column" as const, gap: 6 }}>
@@ -2410,24 +2422,28 @@ export default function Home() {
                         )}
                         {/* Show selected person 2 */}
                         {matchResults?.__p2 && !matchPerson2Inline && (
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
-                            <div>
-                              <div style={{ fontSize: 14, color: "var(--accent)", fontWeight: 500 }}>{matchResults.__p2.name || matchResults.__p2.birthDetails.name}</div>
-                              <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
-                                {matchResults.__p2.birthDetails.date} · {matchResults.__p2.birthDetails.gender === "male" ? "♂" : matchResults.__p2.birthDetails.gender === "female" ? "♀" : ""}
+                          <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 6 }}>
+                            <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(147,197,253,0.1)", border: "1.5px solid rgba(147,197,253,0.35)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#93c5fd", fontWeight: 700, flexShrink: 0 }}>
+                              {(matchResults.__p2.name || matchResults.__p2.birthDetails.name || "?")[0]?.toUpperCase()}
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 15, color: "#93c5fd", fontWeight: 600 }}>{matchResults.__p2.name || matchResults.__p2.birthDetails.name}</div>
+                              <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 3 }}>
+                                {matchResults.__p2.birthDetails.date} · {matchResults.__p2.birthDetails.gender === "male" ? "♂ Male" : matchResults.__p2.birthDetails.gender === "female" ? "♀ Female" : ""}
                               </div>
                             </div>
-                            <button onClick={() => { setMatchResults(null); }} style={{ background: "none", border: "0.5px solid var(--border2)", borderRadius: 6, color: "var(--muted)", cursor: "pointer", padding: "4px 10px", fontSize: 12, fontFamily: "inherit" }}>
+                            <button onClick={() => { setMatchResults(null); }} style={{ background: "none", border: "0.5px solid var(--border2)", borderRadius: 6, color: "var(--muted)", cursor: "pointer", padding: "5px 12px", fontSize: 11, fontFamily: "inherit" }}>
                               మార్చు
                             </button>
                           </div>
                         )}
                       </div>
+                      </div>{/* close 2-col grid */}
 
                       <button onClick={async () => {
                         const p2 = matchResults?.__p2;
                         if (!matchPerson1 || !p2) return;
-                        setMatchLoading(true);
+                        setMatchLoading(true); setMatchHouse1(null); setMatchHouse2(null);
                         const prevP2 = p2;
                         setMatchResults(null);
                         try {
@@ -2439,7 +2455,7 @@ export default function Home() {
                         } catch { setMatchResults({ __p2: prevP2, __error: true }); }
                         setMatchLoading(false);
                       }} disabled={!matchPerson1 || !matchResults?.__p2}
-                        style={{ width: "100%", padding: "12px", background: matchPerson1 && matchResults?.__p2 ? "var(--accent)" : "var(--surface2)", color: matchPerson1 && matchResults?.__p2 ? "#09090f" : "var(--muted)", border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: matchPerson1 && matchResults?.__p2 ? "pointer" : "default", fontFamily: "inherit", transition: "all 0.2s" }}>
+                        style={{ width: "100%", padding: "14px", background: matchPerson1 && matchResults?.__p2 ? "linear-gradient(135deg, #c9a96e, #e8c97a)" : "var(--surface2)", color: matchPerson1 && matchResults?.__p2 ? "#09090f" : "var(--muted)", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: matchPerson1 && matchResults?.__p2 ? "pointer" : "default", fontFamily: "inherit", transition: "all 0.3s", letterSpacing: "0.03em", boxShadow: matchPerson1 && matchResults?.__p2 ? "0 4px 20px rgba(201,169,110,0.25)" : "none" }}>
                         సరిపోలన చూడు →
                       </button>
                     </div>
@@ -2464,7 +2480,7 @@ export default function Home() {
                     return (
                       <div style={{ display: "flex", flexDirection: "column" as const, gap: "0.875rem" }}>
                         {/* Back button */}
-                        <button onClick={() => setMatchResults({ __p2: r.__p2 })} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 12, fontFamily: "inherit", padding: 0 }}>
+                        <button onClick={() => { setMatchResults({ __p2: r.__p2 }); setMatchHouse1(null); setMatchHouse2(null); setMatchAnalysisMessages([]); }} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 12, fontFamily: "inherit", padding: 0 }}>
                           ← వేరే వ్యక్తి ఎంచుకోండి
                         </button>
 
@@ -2505,6 +2521,66 @@ export default function Home() {
                             <div style={{ fontSize: 10, color: "var(--muted)", maxWidth: 60, textAlign: "center" as const, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{r.person2?.name}</div>
                           </div>
                         </div>
+
+                        {/* ═══ KUNDALI CHARTS — Side by Side ═══ */}
+                        {(r.chart1_data || r.chart2_data) && (
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                            {/* Person 1 Kundali */}
+                            <div style={{ background: "var(--surface2)", border: "0.5px solid rgba(201,169,110,0.3)", borderRadius: 10, padding: "0.875rem", display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 8 }}>
+                              <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, width: "100%", marginBottom: 4 }}>{r.person1?.name} — కుండలి</div>
+                              {r.chart1_data && (
+                                <>
+                                  <SouthIndianChart
+                                    planets={r.chart1_data.planets}
+                                    cusps={r.chart1_data.cusps}
+                                    onHouseClick={(h: number) => setMatchHouse1(matchHouse1 === h ? null : h)}
+                                    selectedHouse={matchHouse1}
+                                  />
+                                  {matchHouse1 && (
+                                    <div style={{ width: "100%", marginTop: 4 }}>
+                                      <HousePanel
+                                        house={matchHouse1}
+                                        cusps={r.chart1_data.cusps}
+                                        significators={null}
+                                        planets={r.chart1_data.planets}
+                                        rulingPlanets={kp?.ruling_planets_chart1 || []}
+                                        antardashas={[]}
+                                        onClose={() => setMatchHouse1(null)}
+                                      />
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                            {/* Person 2 Kundali */}
+                            <div style={{ background: "var(--surface2)", border: "0.5px solid rgba(201,169,110,0.3)", borderRadius: 10, padding: "0.875rem", display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 8 }}>
+                              <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, width: "100%", marginBottom: 4 }}>{r.person2?.name} — కుండలి</div>
+                              {r.chart2_data && (
+                                <>
+                                  <SouthIndianChart
+                                    planets={r.chart2_data.planets}
+                                    cusps={r.chart2_data.cusps}
+                                    onHouseClick={(h: number) => setMatchHouse2(matchHouse2 === h ? null : h)}
+                                    selectedHouse={matchHouse2}
+                                  />
+                                  {matchHouse2 && (
+                                    <div style={{ width: "100%", marginTop: 4 }}>
+                                      <HousePanel
+                                        house={matchHouse2}
+                                        cusps={r.chart2_data.cusps}
+                                        significators={null}
+                                        planets={r.chart2_data.planets}
+                                        rulingPlanets={kp?.ruling_planets_chart2 || []}
+                                        antardashas={[]}
+                                        onClose={() => setMatchHouse2(null)}
+                                      />
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )}
 
                         {/* ═══ KP PROMISE — Side by Side ═══ */}
                         <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem" }}>

@@ -19,6 +19,7 @@ from app.services.telugu_terms import (
 from app.services.llm_service import get_prediction, detect_topic, get_quick_insights
 from app.services.csl_chains import compute_csl_chains, format_csl_chains_for_llm
 from app.services.timezone_utils import resolve_timezone
+from app.services.chart_formatter import format_chart_for_frontend
 
 router = APIRouter()
 
@@ -296,44 +297,10 @@ def get_workspace(request: WorkspaceRequest):
 
     cusp_longitudes = [data.get("cusp_longitude", 0) for data in chart["cusps"].values()]
 
-    planets_formatted = []
-    for planet, data in chart["planets"].items():
-        planet_lon = data.get("longitude", 0)
-        house_num = get_planet_house(planet_lon, cusp_longitudes)
-        planets_formatted.append({
-            "planet_en": planet,
-            "planet_te": get_planet_telugu(planet),
-            "planet_short": get_planet_short(planet),
-            "sign_en": data.get("sign", ""),
-            "sign_te": get_sign_telugu(data.get("sign", "")),
-            "longitude": round(planet_lon, 4),
-            "degree_in_sign": round(planet_lon % 30, 2),
-            "nakshatra_en": data.get("nakshatra", ""),
-            "nakshatra_te": get_nakshatra_telugu(data.get("nakshatra", "")),
-            "star_lord_en": data.get("star_lord", ""),
-            "star_lord_te": get_planet_telugu(data.get("star_lord", "")),
-            "sub_lord_en": data.get("sub_lord", ""),
-            "sub_lord_te": get_planet_telugu(data.get("sub_lord", "")),
-            "house": str(house_num),
-            "retrograde": data.get("retrograde", False),
-        })
-
-    cusps_formatted = []
-    for i, (house, data) in enumerate(chart["cusps"].items(), 1):
-        cusps_formatted.append({
-            "house_num": i,
-            "house_te": get_house_telugu(i),
-            "sign_en": data.get("sign", ""),
-            "sign_te": get_sign_telugu(data.get("sign", "")),
-            "cusp_longitude": round(data.get("cusp_longitude", 0), 4),
-            "degree_in_sign": round(data.get("cusp_longitude", 0) % 30, 2),
-            "nakshatra_en": data.get("nakshatra", ""),
-            "nakshatra_te": get_nakshatra_telugu(data.get("nakshatra", "")),
-            "star_lord_en": data.get("star_lord", ""),
-            "star_lord_te": get_planet_telugu(data.get("star_lord", "")),
-            "sub_lord_en": data.get("sub_lord", ""),
-            "sub_lord_te": get_planet_telugu(data.get("sub_lord", "")),
-        })
+    # Use shared formatter for planets + cusps
+    _formatted = format_chart_for_frontend(chart)
+    planets_formatted = _formatted["planets"]
+    cusps_formatted = _formatted["cusps"]
 
     significators_formatted = {}
     for house, sig in all_significators.items():
