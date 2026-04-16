@@ -2,6 +2,8 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 import swisseph as swe
+from astral import LocationInfo
+from astral.sun import sun as astral_sun
 
 from app.services.chart_engine import (
     generate_chart, calculate_dashas, get_current_dasha,
@@ -132,24 +134,37 @@ def jd_to_local_time_str(jd: float, timezone_offset: float) -> str:
 
 
 def get_sunrise_sunset_jd(date_jd: float, lat: float, lon: float) -> tuple:
-    """Get sunrise and sunset as Julian Days (UT). Falls back to 6 AM/6 PM on error."""
-    geopos = (lon, lat, 0.0)
+    """Sunrise/sunset using astral (NOAA). Falls back to pyswisseph, then 6AM/6PM."""
     try:
-        _, tret = swe.rise_trans(
-            date_jd - 0.5, swe.SUN, b"", 0,
-            swe.CALC_RISE,
-            geopos, 1013.25, 10.0
-        )
-        sunrise_jd = tret[0]
-        _, tret2 = swe.rise_trans(
-            sunrise_jd, swe.SUN, b"", 0,
-            swe.CALC_SET,
-            geopos, 1013.25, 10.0
-        )
-        sunset_jd = tret2[0]
+        unix_seconds = (date_jd - 2440588.5) * 86400
+        dt_utc = datetime(1970, 1, 1) + timedelta(seconds=unix_seconds)
+        target_date = dt_utc.date()
+        loc = LocationInfo(latitude=lat, longitude=lon)
+        s = astral_sun(loc.observer, date=target_date)
+        sr = s["sunrise"]
+        ss = s["sunset"]
+        # Convert timezone-aware datetime to JD (UT)
+        from datetime import timezone
+        sr_utc = sr.astimezone(timezone.utc).replace(tzinfo=None)
+        ss_utc = ss.astimezone(timezone.utc).replace(tzinfo=None)
+        sr_h = sr_utc.hour + sr_utc.minute / 60.0 + sr_utc.second / 3600.0
+        ss_h = ss_utc.hour + ss_utc.minute / 60.0 + ss_utc.second / 3600.0
+        sunrise_jd = swe.julday(sr_utc.year, sr_utc.month, sr_utc.day, sr_h)
+        sunset_jd = swe.julday(ss_utc.year, ss_utc.month, ss_utc.day, ss_h)
         return sunrise_jd, sunset_jd
     except Exception:
-        return date_jd - 0.25, date_jd + 0.25  # approx 6 AM / 6 PM
+        # Fallback to pyswisseph
+        geopos = (lon, lat, 0.0)
+        try:
+            _, tret = swe.rise_trans(date_jd - 0.5, swe.SUN, b"", 0,
+                                     swe.CALC_RISE, geopos, 1013.25, 10.0)
+            sunrise_jd = tret[1]
+            _, tret2 = swe.rise_trans(sunrise_jd, swe.SUN, b"", 0,
+                                      swe.CALC_SET, geopos, 1013.25, 10.0)
+            sunset_jd = tret2[1]
+            return sunrise_jd, sunset_jd
+        except Exception:
+            return date_jd - 0.25, date_jd + 0.25
 
 
 def get_karana_name(moon_lon: float, sun_lon: float) -> tuple:

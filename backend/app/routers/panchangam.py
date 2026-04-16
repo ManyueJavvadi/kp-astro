@@ -21,6 +21,8 @@ import calendar as calendar_module
 from typing import Optional, List
 import math
 import swisseph as swe
+from astral import LocationInfo
+from astral.sun import sun as astral_sun
 
 from app.services.telugu_terms import (
     NAKSHATRAS_TELUGU, TITHIS_TELUGU, YOGAS_TELUGU,
@@ -122,42 +124,75 @@ def jd_to_local_time_short(jd: float, tz_offset: float) -> str:
     return dt_local.strftime("%H:%M")
 
 
+def _dt_to_jd(dt: datetime) -> float:
+    """Convert a datetime (UTC or timezone-aware) to Julian Day."""
+    # Strip timezone to get UTC components
+    if dt.tzinfo is not None:
+        from datetime import timezone
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+    hour_frac = dt.hour + dt.minute / 60.0 + dt.second / 3600.0
+    return swe.julday(dt.year, dt.month, dt.day, hour_frac)
+
+
 def get_sunrise_sunset_jd(date_jd: float, lat: float, lon: float) -> tuple:
     """
-    True observed sunrise/sunset: upper limb of Sun + atmospheric refraction.
-    (NOT disc center — that would be geometric sunrise, 2-3 min later than observed)
+    Sunrise/sunset using astral library (NOAA algorithm).
+    Returns (sunrise_jd, sunset_jd) in Julian Day (UT).
+    Falls back to pyswisseph if astral fails (polar regions).
     """
-    geopos = (lon, lat, 0.0)
     try:
-        _, tret = swe.rise_trans(
-            date_jd - 0.5, swe.SUN, b"", 0,
-            swe.CALC_RISE,  # upper limb + refraction (no BIT_DISC_CENTER)
-            geopos, 1013.25, 10.0
-        )
-        sunrise_jd = tret[0]
-        _, tret2 = swe.rise_trans(
-            sunrise_jd, swe.SUN, b"", 0,
-            swe.CALC_SET,   # upper limb + refraction
-            geopos, 1013.25, 10.0
-        )
-        sunset_jd = tret2[0]
+        # Convert JD to date for astral
+        unix_seconds = (date_jd - 2440588.5) * 86400
+        dt_utc = datetime(1970, 1, 1) + timedelta(seconds=unix_seconds)
+        target_date = dt_utc.date()
+
+        loc = LocationInfo(latitude=lat, longitude=lon)
+        s = astral_sun(loc.observer, date=target_date)
+        sunrise_jd = _dt_to_jd(s["sunrise"])
+        sunset_jd = _dt_to_jd(s["sunset"])
         return sunrise_jd, sunset_jd
     except Exception:
-        return date_jd - 0.25, date_jd + 0.25
+        # Fallback to pyswisseph for polar regions or edge cases
+        geopos = (lon, lat, 0.0)
+        try:
+            _, tret = swe.rise_trans(
+                date_jd - 0.5, swe.SUN, b"", 0,
+                swe.CALC_RISE, geopos, 1013.25, 10.0
+            )
+            sunrise_jd = tret[1]
+            _, tret2 = swe.rise_trans(
+                sunrise_jd, swe.SUN, b"", 0,
+                swe.CALC_SET, geopos, 1013.25, 10.0
+            )
+            sunset_jd = tret2[1]
+            return sunrise_jd, sunset_jd
+        except Exception:
+            return date_jd - 0.25, date_jd + 0.25
 
 
 def get_next_sunrise_jd(sunset_jd: float, lat: float, lon: float) -> float:
     """Get the next sunrise JD after a given sunset JD (for proportional hora)."""
-    geopos = (lon, lat, 0.0)
     try:
-        _, tret = swe.rise_trans(
-            sunset_jd, swe.SUN, b"", 0,
-            swe.CALC_RISE,
-            geopos, 1013.25, 10.0
-        )
-        return tret[0]
+        unix_seconds = (sunset_jd - 2440588.5) * 86400
+        dt_utc = datetime(1970, 1, 1) + timedelta(seconds=unix_seconds)
+        next_date = (dt_utc + timedelta(days=1)).date()
+        loc = LocationInfo(latitude=lat, longitude=lon)
+        s = astral_sun(loc.observer, date=next_date)
+        return _dt_to_jd(s["sunrise"])
     except Exception:
-        return sunset_jd + 0.5  # fallback: ~12 hours later
+        return sunset_jd + 0.5
+
+
+def _extract_rise_jd(tret, ref_jd: float) -> Optional[float]:
+    """Extract valid JD from rise_trans tret, trying tret[0] then tret[1]."""
+    for idx in (0, 1):
+        try:
+            jd = tret[idx]
+            if isinstance(jd, (int, float)) and abs(jd - ref_jd) < 2.0 and jd > 2400000:
+                return jd
+        except (IndexError, TypeError):
+            continue
+    return None
 
 
 def get_moonrise_moonset_jd(date_jd: float, lat: float, lon: float):
@@ -170,7 +205,7 @@ def get_moonrise_moonset_jd(date_jd: float, lat: float, lon: float):
             date_jd - 0.5, swe.MOON, b"", 0,
             swe.CALC_RISE, geopos, 1013.25, 10.0
         )
-        moonrise_jd = tret[0]
+        moonrise_jd = _extract_rise_jd(tret, date_jd)
     except Exception:
         pass
     try:
@@ -178,7 +213,7 @@ def get_moonrise_moonset_jd(date_jd: float, lat: float, lon: float):
             date_jd - 0.5, swe.MOON, b"", 0,
             swe.CALC_SET, geopos, 1013.25, 10.0
         )
-        moonset_jd = tret2[0]
+        moonset_jd = _extract_rise_jd(tret2, date_jd)
     except Exception:
         pass
     return moonrise_jd, moonset_jd
@@ -703,7 +738,6 @@ def get_monthly_calendar(req: CalendarRequest):
 
     days_in_month = calendar_module.monthrange(req.year, req.month)[1]
     result = []
-    geopos = (req.longitude, req.latitude, 0.0)
 
     for day in range(1, days_in_month + 1):
         dt = datetime(req.year, req.month, day)
@@ -712,21 +746,10 @@ def get_monthly_calendar(req: CalendarRequest):
         # Julian Day at noon local → UT (used as search window center)
         jd_noon = swe.julday(req.year, req.month, day, 12.0 - req.timezone_offset)
 
-        # True sunrise for this day
-        try:
-            _, tret_r = swe.rise_trans(jd_noon - 0.5, swe.SUN, b"", 0,
-                                       swe.CALC_RISE, geopos, 1013.25, 10.0)
-            sunrise_jd = tret_r[0]
-            _, tret_s = swe.rise_trans(sunrise_jd, swe.SUN, b"", 0,
-                                       swe.CALC_SET, geopos, 1013.25, 10.0)
-            sunset_jd = tret_s[0]
-            sunrise_str = jd_to_local_time_str(sunrise_jd, req.timezone_offset)
-            sunset_str  = jd_to_local_time_str(sunset_jd,  req.timezone_offset)
-        except Exception:
-            sunrise_jd  = jd_noon - 0.25
-            sunset_jd   = jd_noon + 0.25
-            sunrise_str = "—"
-            sunset_str  = "—"
+        # True sunrise for this day (astral-based, same as /location endpoint)
+        sunrise_jd, sunset_jd = get_sunrise_sunset_jd(jd_noon, req.latitude, req.longitude)
+        sunrise_str = jd_to_local_time_str(sunrise_jd, req.timezone_offset)
+        sunset_str  = jd_to_local_time_str(sunset_jd, req.timezone_offset)
 
         # Moon & Sun at SUNRISE (traditional rule)
         moon_lon = swe.calc_ut(sunrise_jd, swe.MOON, _CALC_FLAGS)[0][0]
