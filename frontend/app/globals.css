@@ -420,10 +420,23 @@ textarea:focus-visible {
   background: var(--surface); border-radius: var(--r-lg);
   border-bottom: 2px solid var(--accent);
   font-size: 14px; color: var(--text);
+  cursor: pointer; transition: border-color 0.15s;
 }
-.pc-location-icon { font-size: 18px; }
+.pc-location-bar:hover { border-bottom-color: var(--text); }
 .pc-location-city { font-weight: 700; color: var(--accent); }
 .pc-location-note { font-size: 11px; color: var(--muted); margin-left: auto; }
+
+/* ── City selector modal ─────────────────────────────────────── */
+.pc-city-modal-overlay { position: fixed; inset: 0; background: rgba(9,9,15,0.85); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+.pc-city-modal { background: var(--surface); border: 0.5px solid var(--border2); border-radius: 14px; padding: 1.5rem; max-width: 400px; width: 100%; max-height: 80vh; overflow-y: auto; }
+.pc-city-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.pc-city-title { font-size: 10px; color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase; }
+.pc-city-search { width: 100%; padding: 10px 12px; background: var(--surface2); border: 0.5px solid var(--border2); border-radius: 8px; color: var(--text); font-size: 14px; font-family: inherit; outline: none; margin-bottom: 0.75rem; }
+.pc-city-search:focus { border-color: var(--accent); }
+.pc-city-myloc { width: 100%; padding: 10px 12px; background: rgba(201,169,110,0.08); border: 0.5px solid var(--border2); border-radius: 8px; color: var(--accent); font-size: 13px; cursor: pointer; font-family: inherit; text-align: left; display: flex; align-items: center; gap: 8px; margin-bottom: 0.5rem; }
+.pc-city-myloc:hover { border-color: var(--accent); }
+.pc-city-result { width: 100%; padding: 10px 12px; background: var(--surface2); border: 0.5px solid var(--border); border-radius: 8px; color: var(--text); font-size: 13px; cursor: pointer; font-family: inherit; text-align: left; margin-bottom: 6px; display: block; }
+.pc-city-result:hover { border-color: var(--accent); }
 
 /* ── Calendar nav header ──────────────────────────────────────── */
 .pc-cal-nav {

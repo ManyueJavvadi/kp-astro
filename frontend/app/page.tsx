@@ -106,6 +106,13 @@ export default function Home() {
   const [calData, setCalData] = useState<any>(null);
   const [calLoading, setCalLoading] = useState(false);
   const [calSelectedDay, setCalSelectedDay] = useState<string | null>(null);
+  // Panchangam city selector
+  const [pcShowCityModal, setPcShowCityModal] = useState(false);
+  const [pcCityQuery, setPcCityQuery] = useState("");
+  const [pcCitySuggestions, setPcCitySuggestions] = useState<PlaceSuggestion[]>([]);
+  const [pcCitySearching, setPcCitySearching] = useState(false);
+  const [pcGeoError, setPcGeoError] = useState("");
+  const pcCitySearchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // CSL chain view selected house (for houses overview)
   const [cslSelectedHouse, setCslSelectedHouse] = useState<number | null>(null);
   // Timezone (auto-detected from place)
@@ -148,6 +155,24 @@ export default function Home() {
       });
       setSuggestions(results); setShowSuggestions(results.length > 0); setPlaceStatus(results.length > 0 ? "idle" : "error");
     } catch { setPlaceStatus("error"); }
+  }, []);
+
+  // Panchangam city search (reuses Nominatim pattern)
+  const searchPcCities = useCallback(async (query: string) => {
+    if (query.length < 2) { setPcCitySuggestions([]); return; }
+    setPcCitySearching(true);
+    try {
+      const res = await axios.get("https://nominatim.openstreetmap.org/search", {
+        params: { q: query, format: "json", limit: 5, addressdetails: 1, "accept-language": "en" },
+        headers: { "User-Agent": "DevAstroAI/1.0" }
+      });
+      setPcCitySuggestions(res.data.map((f: any) => {
+        const addr = f.address || {};
+        const parts = [addr.city || addr.town || addr.village || addr.county || f.display_name.split(",")[0], addr.state, addr.country].filter(Boolean);
+        return { name: parts[0] || query, display: parts.join(", "), lat: parseFloat(f.lat), lon: parseFloat(f.lon) };
+      }));
+    } catch { /* silent */ }
+    setPcCitySearching(false);
   }, []);
 
   const handlePlaceChange = (val: string) => {
@@ -1383,13 +1408,24 @@ export default function Home() {
                     if (pcDetectedCoords) {
                       lat = pcDetectedCoords.lat; lon = pcDetectedCoords.lon; tz = pcDetectedCoords.tz;
                     } else {
+                      // Try browser geolocation — do NOT fall back to birth coords
                       const pos = await new Promise<GeolocationPosition>((res, rej) =>
                         navigator.geolocation.getCurrentPosition(res, rej, { timeout: 5000 })
                       ).catch(() => null);
-                      lat = pos?.coords.latitude ?? birthDetails.latitude ?? 17.385;
-                      lon = pos?.coords.longitude ?? birthDetails.longitude ?? 78.4867;
+
+                      if (!pos) {
+                        // Geolocation failed — open city selector instead of silent fallback
+                        setPcGeoError("Could not detect location. Please select your city.");
+                        setPcShowCityModal(true);
+                        setPcLoading(false);
+                        return;
+                      }
+
+                      lat = pos.coords.latitude;
+                      lon = pos.coords.longitude;
                       tz = -(new Date().getTimezoneOffset()) / 60;
                       setPcDetectedCoords({ lat, lon, tz });
+                      // Reverse geocode for display name
                       try {
                         const geo = await axios.get("https://nominatim.openstreetmap.org/reverse", {
                           params: { lat, lon, format: "json", addressdetails: 1, "accept-language": "en" },
@@ -1416,19 +1452,32 @@ export default function Home() {
                   } catch { setPcData(null); }
                   setPcLoading(false);
                 };
+                const pcSelectCity = (s: PlaceSuggestion) => {
+                  const tz = -(new Date().getTimezoneOffset()) / 60;
+                  setPcDetectedCoords({ lat: s.lat, lon: s.lon, tz });
+                  setPcLocationName(s.display);
+                  setPcShowCityModal(false);
+                  setPcCityQuery(""); setPcCitySuggestions([]); setPcGeoError("");
+                  setPcData(null); setCalData(null); // Clear old data → auto-load triggers refetch
+                };
+                const pcTryMyLocation = () => {
+                  setPcGeoError("");
+                  setPcDetectedCoords(null); // Force re-detect
+                  setPcShowCityModal(false);
+                  setPcData(null); // Clear → auto-load triggers pcFetchLocation
+                };
                 const pcFetchCalendar = (yr: number, mo: number) => {
-                  const coords = pcDetectedCoords || { lat: birthDetails.latitude ?? 17.385, lon: birthDetails.longitude ?? 78.4867, tz: -(new Date().getTimezoneOffset()) / 60 };
+                  if (!pcDetectedCoords) return;
                   setCalLoading(true); setCalData(null);
-                  axios.post(`${API_URL}/panchangam/calendar`, { latitude: coords.lat, longitude: coords.lon, timezone_offset: coords.tz, year: yr, month: mo })
+                  axios.post(`${API_URL}/panchangam/calendar`, { latitude: pcDetectedCoords.lat, longitude: pcDetectedCoords.lon, timezone_offset: pcDetectedCoords.tz, year: yr, month: mo })
                     .then(r => setCalData(r.data)).catch(() => setCalData(null)).finally(() => setCalLoading(false));
                 };
                 const handleDayClick = (dateStr: string) => {
                   if (calSelectedDay === dateStr) { setCalSelectedDay(null); return; }
                   setCalSelectedDay(dateStr);
-                  // Fetch that day's full panchangam
-                  const coords = pcDetectedCoords || { lat: birthDetails.latitude ?? 17.385, lon: birthDetails.longitude ?? 78.4867, tz: -(new Date().getTimezoneOffset()) / 60 };
+                  if (!pcDetectedCoords) return;
                   setPcLoading(true);
-                  axios.post(`${API_URL}/panchangam/location`, { latitude: coords.lat, longitude: coords.lon, timezone_offset: coords.tz, date: dateStr })
+                  axios.post(`${API_URL}/panchangam/location`, { latitude: pcDetectedCoords.lat, longitude: pcDetectedCoords.lon, timezone_offset: pcDetectedCoords.tz, date: dateStr })
                     .then(r => setPcData(r.data)).catch(() => {}).finally(() => setPcLoading(false));
                 };
                 const prevMonth = () => {
@@ -1439,8 +1488,8 @@ export default function Home() {
                   const next = calMonth.month === 12 ? { year: calMonth.year + 1, month: 1 } : { year: calMonth.year, month: calMonth.month + 1 };
                   setCalMonth(next); setCalSelectedDay(null); pcFetchCalendar(next.year, next.month);
                 };
-                // Auto-load on first open
-                if (!pcData && !pcLoading) { pcFetchLocation(); }
+                // Auto-load on first open (or after city selection clears pcData)
+                if (!pcData && !pcLoading && !pcShowCityModal) { pcFetchLocation(); }
 
                 const weekdayHeaders = ["ఆ", "సో", "మం", "బు", "గు", "శు", "శ"];
                 const calDays = calData?.days ?? [];
@@ -1459,12 +1508,13 @@ export default function Home() {
 
                   {pcData && (
                     <>
-                      {/* 1. Location bar */}
-                      <div className="pc-location-bar">
-                        <span className="pc-location-icon">📍</span>
+                      {/* 1. Location bar — clickable to open city selector */}
+                      <div className="pc-location-bar" onClick={() => setPcShowCityModal(true)}
+                           style={{ cursor: "pointer" }}>
+                        <MapPin size={14} style={{ color: "var(--accent)" }} />
                         <span className="pc-location-city">{pcLocationName || "Detected Location"}</span>
                         <span style={{ fontSize: 12, color: "var(--muted)" }}>· {pcData.date}</span>
-                        <span className="pc-location-note">Calculated for {pcLocationName || "your location"}</span>
+                        <span className="pc-location-note" style={{ color: "var(--accent)" }}>Change ^</span>
                       </div>
 
                       {/* 2. Monthly calendar grid */}
@@ -1723,6 +1773,46 @@ export default function Home() {
                         </div>
                       )}
                     </>
+                  )}
+
+                  {/* City selector modal */}
+                  {pcShowCityModal && (
+                    <div className="pc-city-modal-overlay" onClick={() => setPcShowCityModal(false)}>
+                      <div className="pc-city-modal" onClick={e => e.stopPropagation()}>
+                        <div className="pc-city-header">
+                          <span className="pc-city-title">SELECT CITY</span>
+                          <button onClick={() => setPcShowCityModal(false)} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 18, fontFamily: "inherit" }}>&times;</button>
+                        </div>
+                        <input
+                          className="pc-city-search"
+                          type="text" value={pcCityQuery} autoFocus
+                          placeholder="Search any city..."
+                          onChange={e => {
+                            setPcCityQuery(e.target.value);
+                            if (pcCitySearchRef.current) clearTimeout(pcCitySearchRef.current);
+                            pcCitySearchRef.current = setTimeout(() => searchPcCities(e.target.value), 400);
+                          }}
+                        />
+                        <button className="pc-city-myloc" onClick={pcTryMyLocation}>
+                          <MapPin size={14} />
+                          <span>My Location</span>
+                          <span style={{ marginLeft: "auto", fontSize: 9, background: "rgba(52,211,153,0.15)", color: "#34d399", padding: "2px 6px", borderRadius: 4, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>CURRENT</span>
+                        </button>
+                        {pcGeoError && (
+                          <div style={{ fontSize: 11, color: "#f87171", marginBottom: "0.5rem", padding: "6px 10px", background: "rgba(248,113,113,0.08)", borderRadius: 6 }}>{pcGeoError}</div>
+                        )}
+                        {pcCitySearching && <div style={{ fontSize: 11, color: "var(--muted)", padding: "8px 0" }}>Searching...</div>}
+                        {pcCitySuggestions.length === 0 && !pcCitySearching && pcCityQuery.length < 2 && (
+                          <div style={{ fontSize: 11, color: "var(--muted)", padding: "8px 0" }}>Type at least 2 characters to search</div>
+                        )}
+                        {pcCitySuggestions.map((s, i) => (
+                          <button key={i} className="pc-city-result" onClick={() => pcSelectCity(s)}>
+                            <div style={{ fontWeight: 500 }}>{s.name}</div>
+                            <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}>{s.display}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
                 );

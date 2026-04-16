@@ -225,8 +225,8 @@ def get_karana_pair(moon_lon: float, sun_lon: float, sunrise_jd: float,
     try:
         lo, hi = sunrise_jd, sunrise_jd + 1.05
         def diff_at(jd: float) -> float:
-            m = swe.calc_ut(jd, swe.MOON, _MOON_FLAGS)[0][0]
-            s = swe.calc_ut(jd, swe.SUN,  swe.FLG_SIDEREAL)[0][0]
+            m = swe.calc_ut(jd, swe.MOON, _CALC_FLAGS)[0][0]
+            s = swe.calc_ut(jd, swe.SUN,  _CALC_FLAGS)[0][0]
             return (m - s) % 360
 
         d_lo = diff_at(lo)
@@ -253,20 +253,20 @@ def get_karana_pair(moon_lon: float, sun_lon: float, sunrise_jd: float,
 
 # ── Binary Search Transition Helpers ────────────────────────────────
 
-_MOON_FLAGS = swe.FLG_SIDEREAL | swe.FLG_TOPOCTR
+_CALC_FLAGS = swe.FLG_SIDEREAL | swe.FLG_TOPOCTR
 
 def _moon_tithi_num(jd: float) -> int:
-    moon = swe.calc_ut(jd, swe.MOON, _MOON_FLAGS)[0][0]
-    sun  = swe.calc_ut(jd, swe.SUN,  swe.FLG_SIDEREAL)[0][0]
+    moon = swe.calc_ut(jd, swe.MOON, _CALC_FLAGS)[0][0]
+    sun  = swe.calc_ut(jd, swe.SUN,  _CALC_FLAGS)[0][0]
     return int(((moon - sun) % 360) / 12)
 
 def _moon_nak_num(jd: float) -> int:
-    moon = swe.calc_ut(jd, swe.MOON, _MOON_FLAGS)[0][0]
+    moon = swe.calc_ut(jd, swe.MOON, _CALC_FLAGS)[0][0]
     return int((moon % 360) / (360 / 27))
 
 def _yoga_num(jd: float) -> int:
-    moon = swe.calc_ut(jd, swe.MOON, _MOON_FLAGS)[0][0]
-    sun  = swe.calc_ut(jd, swe.SUN,  swe.FLG_SIDEREAL)[0][0]
+    moon = swe.calc_ut(jd, swe.MOON, _CALC_FLAGS)[0][0]
+    sun  = swe.calc_ut(jd, swe.SUN,  _CALC_FLAGS)[0][0]
     return int(((moon + sun) % 360) / (360 / 27)) % 27
 
 
@@ -551,8 +551,8 @@ def get_location_panchangam(req: PanchangamLocationRequest):
     sunrise_jd, sunset_jd = get_sunrise_sunset_jd(jd_noon, req.latitude, req.longitude)
 
     # ── Planet positions AT SUNRISE (traditional rule) ─────────────
-    moon_lon = swe.calc_ut(sunrise_jd, swe.MOON, _MOON_FLAGS)[0][0]
-    sun_lon  = swe.calc_ut(sunrise_jd, swe.SUN,  swe.FLG_SIDEREAL)[0][0]
+    moon_lon = swe.calc_ut(sunrise_jd, swe.MOON, _CALC_FLAGS)[0][0]
+    sun_lon  = swe.calc_ut(sunrise_jd, swe.SUN,  _CALC_FLAGS)[0][0]
 
     diff      = (moon_lon - sun_lon) % 360
     tithi_num = int(diff / 12) + 1
@@ -729,8 +729,8 @@ def get_monthly_calendar(req: CalendarRequest):
             sunset_str  = "—"
 
         # Moon & Sun at SUNRISE (traditional rule)
-        moon_lon = swe.calc_ut(sunrise_jd, swe.MOON, _MOON_FLAGS)[0][0]
-        sun_lon  = swe.calc_ut(sunrise_jd, swe.SUN,  swe.FLG_SIDEREAL)[0][0]
+        moon_lon = swe.calc_ut(sunrise_jd, swe.MOON, _CALC_FLAGS)[0][0]
+        sun_lon  = swe.calc_ut(sunrise_jd, swe.SUN,  _CALC_FLAGS)[0][0]
 
         diff      = (moon_lon - sun_lon) % 360
         tithi_num = int(diff / 12) + 1
