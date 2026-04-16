@@ -18,6 +18,7 @@ from app.services.telugu_terms import (
 )
 from app.services.llm_service import get_prediction, detect_topic, get_quick_insights
 from app.services.csl_chains import compute_csl_chains, format_csl_chains_for_llm
+from app.services.timezone_utils import resolve_timezone
 
 router = APIRouter()
 
@@ -198,6 +199,10 @@ def get_hora_lord(dt_obj: datetime, sunrise_jd: float, timezone_offset: float, w
 def calc_panchangam_for_dt(dt_obj: datetime, timezone_offset: float = 5.5,
                             lat: float = 17.385, lon: float = 78.4867) -> dict:
     """Calculate panchangam for a datetime object with location-based Rahu Kalam."""
+    # Auto-resolve timezone from coordinates (overrides browser-supplied offset)
+    resolved_offset, _ = resolve_timezone(lat, lon, dt_obj)
+    timezone_offset = resolved_offset
+
     swe.set_sid_mode(swe.SIDM_KRISHNAMURTI_VP291)
     jd = swe.julday(
         dt_obj.year, dt_obj.month, dt_obj.day,

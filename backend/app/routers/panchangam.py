@@ -29,6 +29,7 @@ from app.services.telugu_terms import (
     KARANAS_TELUGU, DAYS_TELUGU, TELUGU_YEARS, TELUGU_MONTHS,
     SIGNS_TELUGU,
 )
+from app.services.timezone_utils import resolve_timezone
 
 router = APIRouter()
 
@@ -565,17 +566,20 @@ def get_location_panchangam(req: PanchangamLocationRequest):
     swe.set_sid_mode(swe.SIDM_KRISHNAMURTI_VP291)
     swe.set_topo(req.longitude, req.latitude, 0)
 
-    # Resolve target date
+    # Resolve ACTUAL timezone from coordinates (ignore browser offset)
+    tz_offset, tz_name = resolve_timezone(req.latitude, req.longitude)
+
+    # Resolve target date in location's local time
     if req.date:
         target = datetime.strptime(req.date, "%Y-%m-%d")
     else:
         utc_now = datetime.utcnow()
-        target  = utc_now + timedelta(hours=req.timezone_offset)
-        target  = target.replace(hour=12, minute=0, second=0, microsecond=0)
+        target = (utc_now + timedelta(hours=tz_offset)).replace(
+            hour=12, minute=0, second=0, microsecond=0)
 
     # Julian Day at noon on target date (UTC) — used only for sunrise search window
     jd_noon = swe.julday(target.year, target.month, target.day,
-                          12.0 - req.timezone_offset)
+                          12.0 - tz_offset)
 
     # Current moment as JD (UT)
     _now = datetime.utcnow()
@@ -611,8 +615,8 @@ def get_location_panchangam(req: PanchangamLocationRequest):
     durm_slots    = DURMUHURTHA_SLOTS[weekday]
     durm_windows  = [
         {
-            "start": jd_to_local_time_str(sunrise_jd + s * muhurta_dur, req.timezone_offset),
-            "end":   jd_to_local_time_str(sunrise_jd + (s + 1) * muhurta_dur, req.timezone_offset),
+            "start": jd_to_local_time_str(sunrise_jd + s * muhurta_dur, tz_offset),
+            "end":   jd_to_local_time_str(sunrise_jd + (s + 1) * muhurta_dur, tz_offset),
         }
         for s in durm_slots
     ]
@@ -633,12 +637,12 @@ def get_location_panchangam(req: PanchangamLocationRequest):
     yoga_ends_jd      = find_transition_jd(sunrise_jd, search_end, _yoga_num)
 
     # ── Karana pair ──────────────────────────────────────────────────
-    karana_pair = get_karana_pair(moon_lon, sun_lon, sunrise_jd, req.timezone_offset)
+    karana_pair = get_karana_pair(moon_lon, sun_lon, sunrise_jd, tz_offset)
 
     # ── Hora & Choghadiya ────────────────────────────────────────────
-    choghadiya    = build_choghadiya(sunrise_jd, sunset_jd, weekday, req.timezone_offset, now_jd)
+    choghadiya    = build_choghadiya(sunrise_jd, sunset_jd, weekday, tz_offset, now_jd)
     hora_sequence = build_hora_sequence(sunrise_jd, sunset_jd, weekday,
-                                         req.timezone_offset, now_jd,
+                                         tz_offset, now_jd,
                                          req.latitude, req.longitude)
     current_hora  = next((h for h in hora_sequence if h["is_current"]), hora_sequence[0])
 
@@ -656,16 +660,18 @@ def get_location_panchangam(req: PanchangamLocationRequest):
 
     return {
         "date":          target.strftime("%d/%m/%Y"),
+        "timezone_offset": tz_offset,
+        "timezone_name":   tz_name,
         # English names
         "vara_en":       DAY_EN[weekday],
         "tithi_en":      TITHIS_EN[min(tithi_num - 1, 29)],
         "tithi_num":     tithi_num,
-        "tithi_ends_at": jd_to_local_time_str(tithi_ends_jd, req.timezone_offset) if tithi_ends_jd else None,
+        "tithi_ends_at": jd_to_local_time_str(tithi_ends_jd, tz_offset) if tithi_ends_jd else None,
         "nakshatra_en":  NAKSHATRA_NAMES_EN[naks_num],
         "nakshatra_pada": nakshatra_pada,
-        "nakshatra_ends_at": jd_to_local_time_str(nakshatra_ends_jd, req.timezone_offset) if nakshatra_ends_jd else None,
+        "nakshatra_ends_at": jd_to_local_time_str(nakshatra_ends_jd, tz_offset) if nakshatra_ends_jd else None,
         "yoga_en":       YOGA_EN[yoga_num],
-        "yoga_ends_at":  jd_to_local_time_str(yoga_ends_jd, req.timezone_offset) if yoga_ends_jd else None,
+        "yoga_ends_at":  jd_to_local_time_str(yoga_ends_jd, tz_offset) if yoga_ends_jd else None,
         "karana":        karana_pair["karana1"],
         "karana2":       karana_pair["karana2"],
         "karana_ends_at": karana_pair["karana1_ends"],
@@ -688,26 +694,26 @@ def get_location_panchangam(req: PanchangamLocationRequest):
         "sun_sign":      sun_sign,
         "sun_sign_te":   SIGNS_TELUGU.get(sun_sign, sun_sign),
         # Celestial times
-        "sunrise":       jd_to_local_time_str(sunrise_jd,  req.timezone_offset),
-        "sunset":        jd_to_local_time_str(sunset_jd,   req.timezone_offset),
-        "moonrise":      jd_to_local_time_str(moonrise_jd, req.timezone_offset) if moonrise_jd else None,
-        "moonset":       jd_to_local_time_str(moonset_jd,  req.timezone_offset) if moonset_jd else None,
+        "sunrise":       jd_to_local_time_str(sunrise_jd,  tz_offset),
+        "sunset":        jd_to_local_time_str(sunset_jd,   tz_offset),
+        "moonrise":      jd_to_local_time_str(moonrise_jd, tz_offset) if moonrise_jd else None,
+        "moonset":       jd_to_local_time_str(moonset_jd,  tz_offset) if moonset_jd else None,
         # Inauspicious times
-        "rahu_kalam":    f"{jd_to_local_time_str(rk_start_jd, req.timezone_offset)}-{jd_to_local_time_str(rk_start_jd + slot_dur, req.timezone_offset)}",
-        "yamagandam":    f"{jd_to_local_time_str(yg_start_jd, req.timezone_offset)}-{jd_to_local_time_str(yg_start_jd + slot_dur, req.timezone_offset)}",
-        "gulika_kalam":  f"{jd_to_local_time_str(gl_start_jd, req.timezone_offset)}-{jd_to_local_time_str(gl_start_jd + slot_dur, req.timezone_offset)}",
+        "rahu_kalam":    f"{jd_to_local_time_str(rk_start_jd, tz_offset)}-{jd_to_local_time_str(rk_start_jd + slot_dur, tz_offset)}",
+        "yamagandam":    f"{jd_to_local_time_str(yg_start_jd, tz_offset)}-{jd_to_local_time_str(yg_start_jd + slot_dur, tz_offset)}",
+        "gulika_kalam":  f"{jd_to_local_time_str(gl_start_jd, tz_offset)}-{jd_to_local_time_str(gl_start_jd + slot_dur, tz_offset)}",
         "durmuhurtha":   durm_windows,
         "abhijit_muhurtha": {
-            "start": jd_to_local_time_str(abhijit_start_jd, req.timezone_offset),
-            "end":   jd_to_local_time_str(abhijit_end_jd,   req.timezone_offset),
+            "start": jd_to_local_time_str(abhijit_start_jd, tz_offset),
+            "end":   jd_to_local_time_str(abhijit_end_jd,   tz_offset),
             "valid": abhijit_valid,
         },
         # Moon illumination
         "moon_illum_pct": moon_illum_pct,
         # Brahma Muhurta
         "brahma_muhurta": {
-            "start": jd_to_local_time_str(brahma_start_jd, req.timezone_offset),
-            "end":   jd_to_local_time_str(brahma_end_jd,   req.timezone_offset),
+            "start": jd_to_local_time_str(brahma_start_jd, tz_offset),
+            "end":   jd_to_local_time_str(brahma_end_jd,   tz_offset),
         },
         # Hora & Choghadiya
         "hora_lord":     current_hora["lord"],
@@ -715,7 +721,7 @@ def get_location_panchangam(req: PanchangamLocationRequest):
         "choghadiya":    choghadiya,
         "hora_sequence": hora_sequence,
         # Timing helpers for frontend clock accuracy
-        "now_local_time":     jd_to_local_time_short(now_jd, req.timezone_offset),
+        "now_local_time":     jd_to_local_time_short(now_jd, tz_offset),
         "day_duration_min":   round((sunset_jd - sunrise_jd) * 24 * 60, 1),
         "night_duration_min": round((1.0 - (sunset_jd - sunrise_jd)) * 24 * 60, 1),
     }
@@ -733,7 +739,11 @@ def get_monthly_calendar(req: CalendarRequest):
     swe.set_sid_mode(swe.SIDM_KRISHNAMURTI_VP291)
     swe.set_topo(req.longitude, req.latitude, 0)
 
-    today_utc = datetime.utcnow() + timedelta(hours=req.timezone_offset)
+    # Resolve actual timezone from coordinates
+    tz_offset, tz_name = resolve_timezone(
+        req.latitude, req.longitude, datetime(req.year, req.month, 15))
+
+    today_utc = datetime.utcnow() + timedelta(hours=tz_offset)
     today_str = today_utc.strftime("%Y-%m-%d")
 
     days_in_month = calendar_module.monthrange(req.year, req.month)[1]
@@ -744,12 +754,12 @@ def get_monthly_calendar(req: CalendarRequest):
         date_str = dt.strftime("%Y-%m-%d")
 
         # Julian Day at noon local → UT (used as search window center)
-        jd_noon = swe.julday(req.year, req.month, day, 12.0 - req.timezone_offset)
+        jd_noon = swe.julday(req.year, req.month, day, 12.0 - tz_offset)
 
         # True sunrise for this day (astral-based, same as /location endpoint)
         sunrise_jd, sunset_jd = get_sunrise_sunset_jd(jd_noon, req.latitude, req.longitude)
-        sunrise_str = jd_to_local_time_str(sunrise_jd, req.timezone_offset)
-        sunset_str  = jd_to_local_time_str(sunset_jd, req.timezone_offset)
+        sunrise_str = jd_to_local_time_str(sunrise_jd, tz_offset)
+        sunset_str  = jd_to_local_time_str(sunset_jd, tz_offset)
 
         # Moon & Sun at SUNRISE (traditional rule)
         moon_lon = swe.calc_ut(sunrise_jd, swe.MOON, _CALC_FLAGS)[0][0]
@@ -783,12 +793,12 @@ def get_monthly_calendar(req: CalendarRequest):
             "tithi_num":     tithi_num,
             "tithi_te":      get_tithi_telugu(tithi_num),
             "tithi_short":   get_tithi_short(tithi_num),
-            "tithi_ends_at": jd_to_local_time_short(tithi_ends_jd, req.timezone_offset) if tithi_ends_jd else None,
+            "tithi_ends_at": jd_to_local_time_short(tithi_ends_jd, tz_offset) if tithi_ends_jd else None,
             "nakshatra_en":  NAKSHATRA_NAMES_EN[naks_num],
             "nakshatra_te":  get_nakshatra_telugu(naks_num),
             "nakshatra_short": get_nakshatra_short(naks_num),
             "nakshatra_pada": nakshatra_pada,
-            "nakshatra_ends_at": jd_to_local_time_short(nakshatra_ends_jd, req.timezone_offset) if nakshatra_ends_jd else None,
+            "nakshatra_ends_at": jd_to_local_time_short(nakshatra_ends_jd, tz_offset) if nakshatra_ends_jd else None,
             "yoga_en":       YOGA_EN[yoga_num],
             "yoga_te":       get_yoga_telugu(yoga_num),
             "karana":        get_karana_name(moon_lon, sun_lon),
@@ -802,7 +812,7 @@ def get_monthly_calendar(req: CalendarRequest):
 
     # Month-level identity from first day's sun position
     first_sun_lon = swe.calc_ut(
-        swe.julday(req.year, req.month, 15, 12.0 - req.timezone_offset),
+        swe.julday(req.year, req.month, 15, 12.0 - tz_offset),
         swe.SUN, swe.FLG_SIDEREAL
     )[0][0]
     month_sun_sign = SIGN_NAMES[int((first_sun_lon % 360) / 30)]
@@ -811,6 +821,8 @@ def get_monthly_calendar(req: CalendarRequest):
 
     return {
         "year": req.year, "month": req.month, "days": result,
+        "timezone_offset": tz_offset,
+        "timezone_name": tz_name,
         "samvatsara_te": samvatsara_te,
         "masa_te": masa_te,
         "masa_en": masa_en,

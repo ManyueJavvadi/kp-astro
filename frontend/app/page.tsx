@@ -1423,7 +1423,7 @@ export default function Home() {
 
                       lat = pos.coords.latitude;
                       lon = pos.coords.longitude;
-                      tz = -(new Date().getTimezoneOffset()) / 60;
+                      tz = 0; // Backend auto-resolves timezone from lat/lon
                       setPcDetectedCoords({ lat, lon, tz });
                       // Reverse geocode for display name
                       try {
@@ -1453,7 +1453,7 @@ export default function Home() {
                   setPcLoading(false);
                 };
                 const pcSelectCity = (s: PlaceSuggestion) => {
-                  const tz = -(new Date().getTimezoneOffset()) / 60;
+                  const tz = 0; // Backend auto-resolves timezone from lat/lon
                   setPcDetectedCoords({ lat: s.lat, lon: s.lon, tz });
                   setPcLocationName(s.display);
                   setPcShowCityModal(false);
@@ -1514,6 +1514,7 @@ export default function Home() {
                         <MapPin size={14} style={{ color: "var(--accent)" }} />
                         <span className="pc-location-city">{pcLocationName || "Detected Location"}</span>
                         <span style={{ fontSize: 12, color: "var(--muted)" }}>· {pcData.date}</span>
+                        {pcData.timezone_name && <span style={{ fontSize: 10, color: "var(--border2)", marginLeft: 4 }}>({pcData.timezone_name})</span>}
                         <span className="pc-location-note" style={{ color: "var(--accent)" }}>Change ^</span>
                       </div>
 
