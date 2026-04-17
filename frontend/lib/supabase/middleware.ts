@@ -55,9 +55,10 @@ export async function updateSession(request: NextRequest) {
 
   if (isAuthPage && user) {
     const url = request.nextUrl.clone();
-    // Role-based landing. We don't have profile role in middleware yet;
-    // consumer /app is a safe default. Role-aware routing happens in the page.
-    url.pathname = "/app";
+    // Role-aware landing: astrologer → /pro, consumer → /app
+    // Role is stashed in user_metadata during signup, available without DB roundtrip.
+    const role = (user.user_metadata?.role as string | undefined) ?? "consumer";
+    url.pathname = role === "astrologer" ? "/pro" : "/app";
     url.search = "";
     return NextResponse.redirect(url);
   }

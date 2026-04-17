@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirect") || "/app";
+  const redirectParam = searchParams.get("redirect");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,7 +24,7 @@ function LoginForm() {
     setLoading(true);
 
     const supabase = createClient();
-    const { error: loginError } = await supabase.auth.signInWithPassword({
+    const { data, error: loginError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -35,7 +35,12 @@ function LoginForm() {
       setError(loginError.message);
       return;
     }
-    router.push(redirectTo);
+
+    // Role-aware routing: astrologers go to /pro, consumers to /app
+    const role =
+      (data.user?.user_metadata?.role as string | undefined) ?? "consumer";
+    const home = role === "astrologer" ? "/pro" : "/app";
+    router.push(redirectParam || home);
     router.refresh();
   };
 
