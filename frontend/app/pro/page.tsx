@@ -7,7 +7,6 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
-  Target,
   ArrowRight,
   ChevronRight,
   Plus,
@@ -17,17 +16,23 @@ import {
   Plane,
   BookOpen,
   Calendar,
-  MessageCircle,
+  Users,
+  Target,
 } from "lucide-react";
 import { TopBar } from "@/components/pro/topbar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardLabel, CardTitle } from "@/components/ui/card";
+import { useClientsList } from "@/hooks/use-clients";
+import { useAccuracySummary } from "@/hooks/use-predictions";
+import { useFollowupsList, useUpdateFollowup } from "@/hooks/use-followups";
+import { useSessionsList } from "@/hooks/use-sessions";
+import { cn } from "@/lib/utils";
 
 export default function ProDashboardPage() {
   return (
     <>
-      <TopBar title="Good evening, Manyue" />
+      <TopBar title="Welcome back" />
       <main className="px-6 pb-12 pt-6 max-w-[1400px] mx-auto">
         <KPIRow />
 
@@ -38,9 +43,8 @@ export default function ProDashboardPage() {
             <PredictionScoreboard />
           </div>
           <div className="flex flex-col gap-6 min-w-0">
-            <AIBriefing />
             <FollowUps />
-            <UpcomingDashaTransits />
+            <WelcomeBriefing />
           </div>
         </div>
       </main>
@@ -48,45 +52,53 @@ export default function ProDashboardPage() {
   );
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   KPI ROW — 4 big numbers
-   ══════════════════════════════════════════════════════════════════ */
 function KPIRow() {
+  const { data: clients } = useClientsList();
+  const { data: accuracy } = useAccuracySummary();
+  const { data: followups } = useFollowupsList();
+  const { data: todaySessions } = useSessionsList();
+
+  const activeClients = clients?.total ?? 0;
+  const accPct = accuracy?.accuracy_pct ?? 0;
+  const overdue = followups?.overdue ?? 0;
+
+  const today = new Date();
+  const sameDay = (d: string) => new Date(d).toDateString() === today.toDateString();
+  const todayCount = (todaySessions?.items ?? []).filter((s) => sameDay(s.scheduled_at)).length;
+
   const kpis = [
     {
       label: "Today's consults",
-      value: "3",
-      sub: "2 completed · 1 upcoming",
+      value: String(todayCount),
+      sub: todayCount === 0 ? "Nothing scheduled" : `${todayCount} scheduled`,
       accent: "gold",
       icon: <Calendar className="size-4" />,
-      trend: null,
     },
     {
       label: "Active clients",
-      value: "87",
-      sub: "+4 this month",
+      value: String(activeClients),
+      sub: activeClients === 0 ? "Add your first" : "In your directory",
       accent: "default",
-      icon: <CheckCircle2 className="size-4" />,
-      trend: "up",
+      icon: <Users className="size-4" />,
     },
     {
       label: "Prediction accuracy",
-      value: "87",
-      unit: "%",
-      sub: "75/87 verified correct",
+      value: accuracy?.total ? `${accPct}%` : "—",
+      sub: accuracy?.total
+        ? `${accuracy.correct}/${accuracy.total} verified`
+        : "Log to start tracking",
       accent: "success",
       icon: <TrendingUp className="size-4" />,
-      trend: "up",
     },
     {
       label: "Pending follow-ups",
-      value: "6",
-      sub: "3 overdue",
-      accent: "warning",
+      value: String(followups?.total ?? 0),
+      sub: overdue > 0 ? `${overdue} overdue` : "All caught up",
+      accent: overdue > 0 ? "warning" : "default",
       icon: <AlertCircle className="size-4" />,
-      trend: null,
     },
   ];
+
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       {kpis.map((k) => (
@@ -112,11 +124,8 @@ function KPIRow() {
               {k.label}
             </div>
           </div>
-          <div className="flex items-baseline gap-1">
-            <div className="font-display text-[clamp(1.75rem,3vw,2.25rem)] leading-none font-bold text-text-primary">
-              {k.value}
-            </div>
-            {k.unit && <div className="text-h3 text-text-muted">{k.unit}</div>}
+          <div className="font-display text-[clamp(1.75rem,3vw,2.25rem)] leading-none font-bold text-text-primary">
+            {k.value}
           </div>
           <div className="text-tiny text-text-muted mt-2">{k.sub}</div>
         </div>
@@ -125,140 +134,110 @@ function KPIRow() {
   );
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   TODAY'S CONSULTATIONS — timeline
-   ══════════════════════════════════════════════════════════════════ */
 function TodaysConsultations() {
-  const consults = [
-    {
-      time: "9:30 AM",
-      client: "Ravi Kumar",
-      initial: "R",
-      topic: "Career transition — software to consulting",
-      status: "completed",
-      duration: "52m",
-    },
-    {
-      time: "11:00 AM",
-      client: "Priya Sharma",
-      initial: "P",
-      topic: "Marriage muhurtha for brother",
-      status: "completed",
-      duration: "38m",
-    },
-    {
-      time: "4:30 PM",
-      client: "Mohan Reddy",
-      initial: "M",
-      topic: "Horary: will visa arrive?",
-      status: "upcoming",
-      duration: null,
-    },
-  ];
+  const { data } = useSessionsList();
+  const today = new Date();
+  const sameDay = (d: string) => new Date(d).toDateString() === today.toDateString();
+  const items = (data?.items ?? []).filter((s) => sameDay(s.scheduled_at));
+
   return (
     <Card padding="none" className="overflow-hidden">
       <div className="px-5 py-4 border-b border-border flex items-center justify-between">
         <div>
-          <CardLabel>TODAY · 3 CONSULTATIONS</CardLabel>
-          <CardTitle className="text-h3 mt-1">Sessions for today</CardTitle>
+          <CardLabel>TODAY · {items.length} SESSIONS</CardLabel>
+          <CardTitle className="text-h3 mt-1">Today&apos;s consultations</CardTitle>
         </div>
-        <Button variant="secondary" size="sm" leftIcon={<Plus />}>
-          Schedule
-        </Button>
       </div>
-      <div className="divide-y divide-border">
-        {consults.map((c) => (
-          <div
-            key={c.time}
-            className="flex items-center gap-4 px-5 py-4 hover:bg-bg-hover transition-colors cursor-pointer group"
-          >
-            <div className="text-tiny text-text-muted font-mono w-16 shrink-0">
-              {c.time}
-            </div>
-            <div className="size-9 rounded-full bg-gold-glow border border-border-accent flex items-center justify-center text-small font-semibold text-gold shrink-0">
-              {c.initial}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-small font-medium text-text-primary truncate">
-                {c.client}
+      {items.length === 0 ? (
+        <div className="px-5 py-8 text-center text-small text-text-muted">
+          No sessions today. Open a client and start a walk-in when they
+          arrive.
+        </div>
+      ) : (
+        <div className="divide-y divide-border">
+          {items.map((s) => (
+            <Link
+              key={s.id}
+              href={`/pro/clients/${s.client_id}`}
+              className="flex items-center gap-4 px-5 py-4 hover:bg-bg-hover transition-colors cursor-pointer group"
+            >
+              <div className="text-tiny text-text-muted font-mono w-16 shrink-0">
+                {new Date(s.scheduled_at).toLocaleTimeString("en-US", {
+                  hour: "numeric",
+                  minute: "2-digit",
+                })}
               </div>
-              <div className="text-tiny text-text-muted truncate">{c.topic}</div>
-            </div>
-            <div className="flex items-center gap-3">
-              {c.status === "completed" ? (
-                <>
-                  <Badge variant="success" size="sm">
-                    <CheckCircle2 className="size-3" /> Done · {c.duration}
-                  </Badge>
-                </>
-              ) : (
-                <Badge variant="gold" size="sm">
-                  <Clock className="size-3" /> Upcoming
-                </Badge>
-              )}
+              <div className="flex-1 min-w-0">
+                <div className="text-small font-medium text-text-primary truncate">
+                  {s.query_text || s.session_type}
+                </div>
+              </div>
+              <Badge
+                size="sm"
+                variant={
+                  s.status === "completed"
+                    ? "success"
+                    : s.status === "in_progress"
+                    ? "gold"
+                    : "default"
+                }
+              >
+                {s.status === "completed" && (
+                  <>
+                    <CheckCircle2 className="size-3" /> Done
+                  </>
+                )}
+                {s.status === "in_progress" && (
+                  <>
+                    <Clock className="size-3" /> Live
+                  </>
+                )}
+                {s.status === "scheduled" && <>Upcoming</>}
+              </Badge>
               <ChevronRight className="size-4 text-text-muted group-hover:text-text-primary transition-colors" />
-            </div>
-          </div>
-        ))}
-      </div>
+            </Link>
+          ))}
+        </div>
+      )}
     </Card>
   );
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   RECENT CLIENTS — 6 cards
-   ══════════════════════════════════════════════════════════════════ */
 function RecentClients() {
-  const clients = [
-    {
-      name: "Ravi Kumar",
-      initial: "R",
-      lagna: "Scorpio",
-      dasha: "Saturn · Mercury",
-      lastSeen: "today",
-      pending: 3,
-    },
-    {
-      name: "Priya Sharma",
-      initial: "P",
-      lagna: "Libra",
-      dasha: "Jupiter · Saturn",
-      lastSeen: "today",
-      pending: 1,
-    },
-    {
-      name: "Mohan Reddy",
-      initial: "M",
-      lagna: "Gemini",
-      dasha: "Mars · Venus",
-      lastSeen: "today",
-      pending: 0,
-    },
-    {
-      name: "Lakshmi Devi",
-      initial: "L",
-      lagna: "Cancer",
-      dasha: "Venus · Moon",
-      lastSeen: "3 days ago",
-      pending: 2,
-    },
-    {
-      name: "Sunita Patel",
-      initial: "S",
-      lagna: "Virgo",
-      dasha: "Moon · Mars",
-      lastSeen: "1 week ago",
-      pending: 0,
-    },
-    {
-      name: "Vijay Bhaskar",
-      initial: "V",
-      lagna: "Aquarius",
-      dasha: "Mercury · Ketu",
-      lastSeen: "2 weeks ago",
-      pending: 4,
-    },
-  ];
+  const { data } = useClientsList({ include_archived: false });
+  const clients = (data?.items ?? []).slice(0, 6);
+
+  if (clients.length === 0) {
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <div className="text-tiny uppercase tracking-wider text-gold mb-1">
+              RECENT CLIENTS
+            </div>
+            <h2 className="text-h3 font-display font-semibold text-text-primary">
+              Quick jump
+            </h2>
+          </div>
+          <Button variant="primary" size="sm" leftIcon={<Plus />} asChild>
+            <Link href="/pro/clients">Add your first client</Link>
+          </Button>
+        </div>
+        <div className="p-10 rounded-xl border-2 border-dashed border-border-strong text-center">
+          <div className="size-12 mx-auto mb-3 rounded-full bg-gold-glow border border-border-accent flex items-center justify-center text-gold">
+            <Users className="size-5" />
+          </div>
+          <div className="text-body text-text-primary font-medium mb-1">
+            No clients yet
+          </div>
+          <div className="text-small text-text-muted">
+            Add clients to start tracking their charts, sessions, and predictions.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
@@ -271,41 +250,43 @@ function RecentClients() {
           </h2>
         </div>
         <Button variant="ghost" size="sm" rightIcon={<ArrowRight />} asChild>
-          <Link href="/pro/clients">All 87 clients</Link>
+          <Link href="/pro/clients">All {data?.total ?? 0} clients</Link>
         </Button>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {clients.map((c) => (
           <Link
-            key={c.name}
-            href={`/pro/clients/${c.name.toLowerCase().replace(/ /g, "-")}`}
+            key={c.id}
+            href={`/pro/clients/${c.id}`}
             className="p-4 rounded-xl bg-bg-surface border border-border hover:border-border-accent transition-all group"
           >
             <div className="flex items-start gap-3 mb-3">
               <div className="size-10 rounded-full bg-gold-glow border border-border-accent flex items-center justify-center text-body font-semibold text-gold shrink-0">
-                {c.initial}
+                {c.full_name[0].toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-small font-medium text-text-primary truncate">
-                  {c.name}
+                  {c.full_name}
                 </div>
                 <div className="text-tiny text-text-muted truncate">
-                  {c.lagna} Lagna
+                  {c.birth_place}
                 </div>
               </div>
-              {c.pending > 0 && (
-                <Badge variant="warning" size="sm">
-                  {c.pending}
-                </Badge>
-              )}
             </div>
-            <div className="text-tiny text-text-muted flex items-center gap-2 mb-1">
-              <TrendingUp className="size-3" />
-              <span className="font-mono">{c.dasha}</span>
-            </div>
-            <div className="text-tiny text-text-muted flex items-center gap-2">
-              <Clock className="size-3" />
-              Last seen {c.lastSeen}
+            <div className="flex items-center gap-1 flex-wrap">
+              {c.tags.slice(0, 3).map((t) => (
+                <span
+                  key={t}
+                  className={cn(
+                    "text-[10px] px-1.5 py-0.5 rounded-sm font-medium",
+                    t === "priority"
+                      ? "bg-warning/15 text-warning"
+                      : "bg-bg-surface-2 text-text-muted border border-border"
+                  )}
+                >
+                  {t}
+                </span>
+              ))}
             </div>
           </Link>
         ))}
@@ -314,70 +295,148 @@ function RecentClients() {
   );
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   PREDICTION SCOREBOARD
-   ══════════════════════════════════════════════════════════════════ */
 function PredictionScoreboard() {
-  const domains = [
-    { label: "Career", icon: <Briefcase className="size-4" />, total: 31, correct: 25 },
-    { label: "Marriage", icon: <Heart className="size-4" />, total: 24, correct: 21 },
-    { label: "Foreign", icon: <Plane className="size-4" />, total: 8, correct: 7 },
-    { label: "Property", icon: <Home className="size-4" />, total: 12, correct: 10 },
-    { label: "Education", icon: <BookOpen className="size-4" />, total: 7, correct: 6 },
-    { label: "Health", icon: <AlertCircle className="size-4" />, total: 5, correct: 4 },
-  ];
+  const { data } = useAccuracySummary();
+
+  const DOMAIN_ICONS: Record<string, React.ReactNode> = {
+    career: <Briefcase className="size-4" />,
+    marriage: <Heart className="size-4" />,
+    foreign: <Plane className="size-4" />,
+    property: <Home className="size-4" />,
+    education: <BookOpen className="size-4" />,
+    health: <AlertCircle className="size-4" />,
+    travel: <Plane className="size-4" />,
+    finance: <TrendingUp className="size-4" />,
+  };
+
+  if (!data || data.total === 0) {
+    return (
+      <Card padding="lg">
+        <CardLabel className="mb-2">PREDICTION SCOREBOARD</CardLabel>
+        <CardTitle className="mb-4">Your track record</CardTitle>
+        <div className="p-8 rounded-lg bg-bg-surface-2 border border-dashed border-border-strong text-center">
+          <Target className="size-10 mx-auto mb-3 text-gold opacity-50" />
+          <div className="text-body text-text-primary font-medium mb-1">
+            No predictions logged yet
+          </div>
+          <div className="text-small text-text-muted">
+            Open a client → Predictions tab → log your first prediction with a
+            target date window. Mark outcomes later to build accuracy.
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
   return (
     <Card padding="none" className="overflow-hidden">
       <div className="px-5 py-4 border-b border-border flex items-center justify-between">
         <div>
-          <CardLabel>PREDICTION ACCURACY · LAST 90 DAYS</CardLabel>
+          <CardLabel>PREDICTION ACCURACY · ALL TIME</CardLabel>
           <CardTitle className="text-h3 mt-1">Your track record</CardTitle>
         </div>
         <div className="text-right">
           <div className="font-display text-h2 leading-none font-bold text-gold">
-            87%
+            {data.accuracy_pct}%
           </div>
-          <div className="text-tiny text-text-muted mt-1">75 of 87</div>
+          <div className="text-tiny text-text-muted mt-1">
+            {data.correct} / {data.total}
+          </div>
         </div>
       </div>
       <div className="p-5 space-y-4">
-        {domains.map((d) => {
-          const pct = Math.round((d.correct / d.total) * 100);
-          return (
-            <div key={d.label} className="flex items-center gap-4">
-              <div className="w-28 flex items-center gap-2 text-small text-text-primary">
-                <span className="text-text-muted">{d.icon}</span>
-                {d.label}
-              </div>
-              <div className="flex-1">
-                <div className="h-2 rounded-full bg-bg-surface-2 overflow-hidden">
-                  <div
-                    className={
-                      pct >= 80
-                        ? "h-full bg-success"
-                        : pct >= 60
-                        ? "h-full bg-warning"
-                        : "h-full bg-error"
-                    }
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-              </div>
-              <div className="text-tiny font-mono text-text-muted w-20 text-right">
-                {d.correct}/{d.total} · <span className="text-text-primary">{pct}%</span>
+        {data.by_domain.map((d) => (
+          <div key={d.domain} className="flex items-center gap-4">
+            <div className="w-28 flex items-center gap-2 text-small text-text-primary capitalize">
+              <span className="text-text-muted">{DOMAIN_ICONS[d.domain] ?? <Target className="size-4" />}</span>
+              {d.domain}
+            </div>
+            <div className="flex-1">
+              <div className="h-2 rounded-full bg-bg-surface-2 overflow-hidden">
+                <div
+                  className={
+                    d.accuracy_pct >= 80
+                      ? "h-full bg-success"
+                      : d.accuracy_pct >= 60
+                      ? "h-full bg-warning"
+                      : "h-full bg-error"
+                  }
+                  style={{ width: `${d.accuracy_pct}%` }}
+                />
               </div>
             </div>
-          );
-        })}
+            <div className="text-tiny font-mono text-text-muted w-20 text-right">
+              {d.correct}/{d.total} · <span className="text-text-primary">{d.accuracy_pct}%</span>
+            </div>
+          </div>
+        ))}
       </div>
     </Card>
   );
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   AI BRIEFING — daily
-   ══════════════════════════════════════════════════════════════════ */
-function AIBriefing() {
+function FollowUps() {
+  const { data } = useFollowupsList();
+  const update = useUpdateFollowup();
+  const items = data?.items ?? [];
+  const now = new Date();
+
+  return (
+    <Card padding="none" className="overflow-hidden">
+      <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+        <div>
+          <CardLabel>FOLLOW-UPS</CardLabel>
+          <CardTitle className="text-h3 mt-1">Your to-dos</CardTitle>
+        </div>
+        {data?.overdue && data.overdue > 0 ? (
+          <Badge variant="warning" size="sm">
+            {data.overdue} overdue
+          </Badge>
+        ) : null}
+      </div>
+      {items.length === 0 ? (
+        <div className="p-8 text-center text-small text-text-muted">
+          No follow-ups pending. Add them from any client page.
+        </div>
+      ) : (
+        <div className="divide-y divide-border">
+          {items.slice(0, 5).map((f) => {
+            const due = new Date(f.due_at);
+            const overdue = due < now;
+            return (
+              <div key={f.id} className="flex items-start gap-3 px-5 py-3.5 group">
+                <button
+                  onClick={() => update.mutate({ id: f.id, body: { completed: true } })}
+                  className="mt-0.5 size-5 rounded-full border-2 border-border hover:border-gold transition-colors shrink-0"
+                  title="Mark complete"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="text-small text-text-primary leading-snug mb-0.5">
+                    {f.note}
+                  </div>
+                  <div className="text-tiny text-text-muted">
+                    {f.source} · {due.toLocaleDateString()}
+                  </div>
+                </div>
+                <Badge
+                  variant={overdue ? "error" : "default"}
+                  size="sm"
+                  className="shrink-0"
+                >
+                  {overdue ? "Overdue" : formatRelativeDue(due)}
+                </Badge>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function WelcomeBriefing() {
+  const { data: clients } = useClientsList();
+  const n = clients?.total ?? 0;
   return (
     <div className="rounded-xl p-5 bg-[color-mix(in_srgb,var(--color-ai)_6%,var(--color-bg-surface))] border border-[color-mix(in_srgb,var(--color-ai)_25%,transparent)]">
       <div className="flex items-start gap-3 mb-4">
@@ -386,167 +445,58 @@ function AIBriefing() {
         </div>
         <div>
           <div className="text-tiny uppercase tracking-wider text-ai font-medium mb-0.5">
-            DAILY BRIEFING
+            GETTING STARTED
           </div>
           <div className="text-small font-semibold text-text-primary">
-            3 things to notice today
+            {n === 0
+              ? "Let's get you set up"
+              : n < 5
+              ? "Build your practice"
+              : "Your practice is live"}
           </div>
         </div>
       </div>
       <div className="flex flex-col gap-3 text-small text-text-secondary leading-relaxed">
-        <p>
-          <strong className="text-text-primary">Ravi Kumar&apos;s</strong>{" "}
-          Saturn Mahadasha ends <span className="text-gold">Aug 2027</span>.
-          Last year you predicted &ldquo;job by June&rdquo; — worth following
-          up on outcome in today&apos;s session.
-        </p>
-        <p>
-          <strong className="text-text-primary">6 clients</strong> are entering
-          a new Antardasha this week. Consider proactive outreach for{" "}
-          <span className="text-warning font-medium">Kuja Dosha</span>{" "}
-          natives.
-        </p>
-        <p>
-          Your <strong className="text-success">Marriage accuracy is 88%</strong>{" "}
-          (21/24). Consider publishing a case study — you&apos;re in the top
-          decile.
-        </p>
+        {n === 0 && (
+          <>
+            <p>
+              <strong className="text-text-primary">Step 1:</strong> Add your
+              first client on the Clients page. Their KP chart is computed
+              instantly via Swiss Ephemeris.
+            </p>
+            <p>
+              <strong className="text-text-primary">Step 2:</strong> Start a
+              walk-in session when they arrive. Take notes, then let AI
+              summarize.
+            </p>
+            <p>
+              <strong className="text-text-primary">Step 3:</strong> Log every
+              prediction with a target window. Accuracy scoreboard builds over
+              time.
+            </p>
+          </>
+        )}
+        {n > 0 && (
+          <p>
+            You have <strong className="text-text-primary">{n}</strong> client
+            {n > 1 ? "s" : ""} in your directory. Open any of them to see their
+            real KP chart, start sessions, and log predictions.
+          </p>
+        )}
       </div>
-      <Button variant="ghost" size="sm" rightIcon={<ArrowRight />} className="mt-4">
-        Open full briefing
+      <Button variant="ghost" size="sm" rightIcon={<ArrowRight />} className="mt-4" asChild>
+        <Link href="/pro/clients">Go to clients</Link>
       </Button>
     </div>
   );
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   FOLLOW-UPS
-   ══════════════════════════════════════════════════════════════════ */
-function FollowUps() {
-  const items = [
-    {
-      client: "Ravi Kumar",
-      initial: "R",
-      note: "Check job outcome — predicted by June",
-      due: "Overdue",
-      urgent: true,
-    },
-    {
-      client: "Lakshmi Devi",
-      initial: "L",
-      note: "Verify marriage muhurtha outcome (Apr 22)",
-      due: "2 days",
-      urgent: false,
-    },
-    {
-      client: "Vijay Bhaskar",
-      initial: "V",
-      note: "Saturn Sade Sati — schedule checkup",
-      due: "1 week",
-      urgent: false,
-    },
-  ];
-  return (
-    <Card padding="none" className="overflow-hidden">
-      <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-        <div>
-          <CardLabel>FOLLOW-UPS</CardLabel>
-          <CardTitle className="text-h3 mt-1">Due this week</CardTitle>
-        </div>
-        <Badge variant="warning" size="sm">3 overdue</Badge>
-      </div>
-      <div className="divide-y divide-border">
-        {items.map((i) => (
-          <div
-            key={i.client}
-            className="flex items-start gap-3 px-5 py-3.5 hover:bg-bg-hover transition-colors cursor-pointer"
-          >
-            <div className="size-8 rounded-full bg-gold-glow border border-border-accent flex items-center justify-center text-small font-semibold text-gold shrink-0">
-              {i.initial}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-small text-text-primary font-medium mb-0.5">
-                {i.client}
-              </div>
-              <div className="text-tiny text-text-secondary leading-snug">
-                {i.note}
-              </div>
-            </div>
-            <Badge
-              variant={i.urgent ? "error" : "default"}
-              size="sm"
-              className="shrink-0"
-            >
-              {i.due}
-            </Badge>
-          </div>
-        ))}
-      </div>
-    </Card>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   UPCOMING DASHA TRANSITIONS
-   ══════════════════════════════════════════════════════════════════ */
-function UpcomingDashaTransits() {
-  const items = [
-    {
-      client: "Sunita Patel",
-      initial: "S",
-      from: "Moon MD",
-      to: "Mars MD",
-      when: "Oct 12",
-    },
-    {
-      client: "Ravi Kumar",
-      initial: "R",
-      from: "Sat/Me",
-      to: "Sat/Ke",
-      when: "Oct 28",
-    },
-    {
-      client: "Mohan Reddy",
-      initial: "M",
-      from: "Mars/Ra",
-      to: "Mars/Ju",
-      when: "Nov 4",
-    },
-  ];
-  return (
-    <Card padding="none" className="overflow-hidden">
-      <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-        <div>
-          <CardLabel>DASHA TRANSITIONS</CardLabel>
-          <CardTitle className="text-h3 mt-1">Next 30 days</CardTitle>
-        </div>
-        <Target className="size-4 text-gold" />
-      </div>
-      <div className="divide-y divide-border">
-        {items.map((i) => (
-          <div
-            key={i.client}
-            className="flex items-center gap-3 px-5 py-3.5 hover:bg-bg-hover transition-colors cursor-pointer"
-          >
-            <div className="size-8 rounded-full bg-gold-glow border border-border-accent flex items-center justify-center text-small font-semibold text-gold shrink-0">
-              {i.initial}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-small text-text-primary font-medium">{i.client}</div>
-              <div className="text-tiny text-text-muted font-mono">
-                {i.from} → {i.to}
-              </div>
-            </div>
-            <div className="text-tiny text-text-muted shrink-0">{i.when}</div>
-          </div>
-        ))}
-      </div>
-      <div className="px-5 py-3 border-t border-border bg-bg-surface-2/30">
-        <button className="text-tiny text-ai flex items-center gap-1.5 hover:text-ai-bright transition-colors">
-          <MessageCircle className="size-3" />
-          Draft follow-up message for all 3
-        </button>
-      </div>
-    </Card>
-  );
+function formatRelativeDue(d: Date): string {
+  const diffMs = d.getTime() - Date.now();
+  const days = Math.ceil(diffMs / 86400000);
+  if (days <= 0) return "Today";
+  if (days === 1) return "Tomorrow";
+  if (days < 7) return `${days}d`;
+  if (days < 30) return `${Math.ceil(days / 7)}w`;
+  return d.toLocaleDateString();
 }

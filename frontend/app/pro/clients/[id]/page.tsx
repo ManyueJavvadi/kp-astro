@@ -27,6 +27,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useClient, useClientWorkspace } from "@/hooks/use-clients";
+import { SessionsTab } from "@/components/pro/sessions-tab";
+import { PredictionsTab } from "@/components/pro/predictions-tab";
+import { AnalysisTab } from "@/components/pro/analysis-tab";
 import { cn } from "@/lib/utils";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -240,6 +243,7 @@ function MiniStat({
 }
 
 function ClientTabs({
+  client,
   ws,
   wsLoading,
 }: {
@@ -290,16 +294,26 @@ function ClientTabs({
             )}
           </TabsContent>
           <TabsContent value="analysis">
-            <PlaceholderTab
-              name="AI Analysis"
-              description="Topic pills + chat with Claude about this client's chart. Wiring in progress."
-            />
+            {ws ? (
+              <AnalysisTab
+                input={{
+                  name: client.full_name,
+                  date: client.birth_dt_local_str.split("T")[0],
+                  time: client.birth_dt_local_str.split("T")[1].slice(0, 5),
+                  latitude: client.birth_lat,
+                  longitude: client.birth_lon,
+                  timezone_offset: ws.timezone_offset ?? 5.5,
+                }}
+              />
+            ) : (
+              <LoadingChart />
+            )}
           </TabsContent>
           <TabsContent value="sessions">
-            <SessionsEmptyState />
+            <SessionsTab clientId={client.id} />
           </TabsContent>
           <TabsContent value="predictions">
-            <PredictionsEmptyState />
+            <PredictionsTab clientId={client.id} />
           </TabsContent>
           <TabsContent value="notes">
             <PlaceholderTab
@@ -652,43 +666,6 @@ function LoadingChart({ error = false }: { error?: boolean }) {
     <div className="flex flex-col items-center justify-center py-16 text-text-muted">
       <Loader2 className="size-6 animate-spin mb-2" />
       <div className="text-small">Computing chart (Swiss Ephemeris)…</div>
-    </div>
-  );
-}
-
-function SessionsEmptyState() {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="size-14 rounded-full bg-gold-glow border border-border-accent flex items-center justify-center text-gold mb-3">
-        <MessageCircle className="size-6" />
-      </div>
-      <div className="font-display text-h2 font-semibold text-text-primary mb-2">
-        No sessions yet
-      </div>
-      <p className="text-body text-text-secondary max-w-md mb-6">
-        When you have a consultation with this client, create a session here.
-        Each session stores notes, questions, and an AI-generated summary.
-      </p>
-      <Button variant="primary" leftIcon={<Plus />}>
-        Start first session
-      </Button>
-    </div>
-  );
-}
-
-function PredictionsEmptyState() {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="size-14 rounded-full bg-gold-glow border border-border-accent flex items-center justify-center text-gold mb-3">
-        <Target className="size-6" />
-      </div>
-      <div className="font-display text-h2 font-semibold text-text-primary mb-2">
-        No predictions yet
-      </div>
-      <p className="text-body text-text-secondary max-w-md">
-        Track what you predict for this client. Later, mark outcomes to build your
-        accuracy record.
-      </p>
     </div>
   );
 }
