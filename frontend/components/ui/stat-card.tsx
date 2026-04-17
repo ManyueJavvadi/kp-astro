@@ -1,91 +1,71 @@
 import * as React from "react";
-import { cn } from "@/lib/utils";
 
 /**
- * Canonical KPI / stat tile.
+ * Stat card — exact spec (no creative decisions).
  *
- * Layout:
- *   [Icon]  LABEL
- *   Big value
- *   Hint (optional)
+ * bg:             #111827
+ * border:         1px solid rgba(255,255,255,0.08)
+ * border-radius:  8px
+ * padding:        16px
+ * shadow:         0 1px 3px rgba(0,0,0,0.3)
+ *
+ * Label:  10px / weight 500 / color #64748B / letter-spacing 0.08em / uppercase
+ * Value:  28px / weight 600 / color #F1F5F9
+ * Sub:    12px / color #475569
+ *
+ * Label + Value + Sub are ALL inside the card container (siblings of each other,
+ * not siblings of the card).
  */
 export function StatCard({
   label,
   value,
-  hint,
-  icon,
-  accent = "default",
-  className,
-  trend,
+  sub,
 }: {
   label: string;
   value: React.ReactNode;
-  hint?: React.ReactNode;
-  icon?: React.ReactNode;
-  accent?: "default" | "gold" | "success" | "warning" | "error" | "ai";
-  className?: string;
-  trend?: "up" | "down" | null;
+  sub?: React.ReactNode;
 }) {
-  const valueColor =
-    accent === "gold"
-      ? "text-gold"
-      : accent === "success"
-      ? "text-success"
-      : accent === "warning"
-      ? "text-warning"
-      : accent === "error"
-      ? "text-error"
-      : accent === "ai"
-      ? "text-ai"
-      : "text-text-primary";
-
-  const iconBg =
-    accent === "gold"
-      ? "bg-gold/10 text-gold"
-      : accent === "success"
-      ? "bg-success/10 text-success"
-      : accent === "warning"
-      ? "bg-warning/10 text-warning"
-      : accent === "error"
-      ? "bg-error/10 text-error"
-      : accent === "ai"
-      ? "bg-ai/10 text-ai"
-      : "bg-bg-surface-2 text-text-muted";
-
   return (
     <div
-      className={cn(
-        "relative overflow-hidden rounded-xl bg-bg-surface border border-border-strong p-5",
-        "transition-all duration-200 hover:border-border-accent",
-        className
-      )}
+      style={{
+        backgroundColor: "#111827",
+        border: "1px solid rgba(255,255,255,0.08)",
+        borderRadius: "8px",
+        padding: "16px",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+      }}
     >
-      <div className="flex items-center gap-2 mb-3">
-        <div
-          className={cn(
-            "size-8 rounded-lg flex items-center justify-center [&>svg]:size-[16px]",
-            iconBg
-          )}
-        >
-          {icon}
-        </div>
-        <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted font-semibold">
-          {label}
-        </div>
+      <div
+        style={{
+          fontSize: "10px",
+          fontWeight: 500,
+          color: "#64748B",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          marginBottom: "8px",
+        }}
+      >
+        {label}
       </div>
       <div
-        className={cn(
-          "font-display text-[2rem] leading-none font-bold tracking-tight mt-1",
-          valueColor
-        )}
+        style={{
+          fontSize: "28px",
+          fontWeight: 600,
+          color: "#F1F5F9",
+          lineHeight: 1,
+        }}
       >
         {value}
       </div>
-      {hint && (
-        <div className="text-[11px] text-text-muted mt-2 flex items-center gap-1">
-          {trend === "up" && <span className="text-success">↑</span>}
-          {trend === "down" && <span className="text-error">↓</span>}
-          {hint}
+      {sub && (
+        <div
+          style={{
+            fontSize: "12px",
+            color: "#475569",
+            marginTop: "6px",
+          }}
+        >
+          {sub}
         </div>
       )}
     </div>
