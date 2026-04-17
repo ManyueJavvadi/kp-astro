@@ -4,9 +4,8 @@
 
 import { useState } from "react";
 import { HeartHandshake, Loader2, Users } from "lucide-react";
-import { TopBar } from "@/components/pro/topbar";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { theme, styles } from "@/lib/theme";
+import { ContentCard, SectionLabel, SectionHeading } from "@/components/ui/content-card";
 import { useClientsList } from "@/hooks/use-clients";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
@@ -29,7 +28,6 @@ export default function MatchPage() {
     }
     setLoading(true);
     try {
-      // Fetch both clients + compute match using legacy endpoint
       const c1 = (await api.get(`/clients/${id1}`)).data;
       const c2 = (await api.get(`/clients/${id2}`)).data;
       const person1 = {
@@ -58,115 +56,180 @@ export default function MatchPage() {
     setLoading(false);
   };
 
-  const clientOptions = clients?.items ?? [];
+  const opts = clients?.items ?? [];
+  const ashta = result?.ashtakoota;
 
   return (
-    <>
-      <TopBar title="Kundli Match" tabs={[]} />
-      <main className="px-6 pb-12 pt-6 max-w-[1200px] mx-auto">
-        <div className="mb-6">
-          <div className="text-tiny uppercase tracking-wider text-gold mb-1">
-            KP + ASHTAKOOTA COMPATIBILITY
-          </div>
-          <h1 className="font-display text-h1 font-semibold text-text-primary">
-            Kundli matching
-          </h1>
-        </div>
+    <main
+      style={{
+        padding: "24px 32px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 24,
+        minHeight: "100vh",
+      }}
+    >
+      <header>
+        <div style={styles.sectionLabel}>KP + Ashtakoota Compatibility</div>
+        <h1 style={styles.pageTitle}>Kundli match</h1>
+      </header>
 
-        <div className="rounded-xl bg-bg-surface border border-border p-5 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="text-tiny uppercase tracking-wider text-text-muted mb-1.5 block font-medium">
-                Person 1
-              </label>
-              <select
-                value={id1}
-                onChange={(e) => setId1(e.target.value)}
-                className="w-full h-10 px-3 rounded-md bg-bg-surface-2 border border-border text-text-primary focus:outline-none focus:border-border-accent focus:ring-1 focus:ring-gold"
-              >
-                <option value="">— pick client —</option>
-                {clientOptions.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.full_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-tiny uppercase tracking-wider text-text-muted mb-1.5 block font-medium">
-                Person 2
-              </label>
-              <select
-                value={id2}
-                onChange={(e) => setId2(e.target.value)}
-                className="w-full h-10 px-3 rounded-md bg-bg-surface-2 border border-border text-text-primary focus:outline-none focus:border-border-accent focus:ring-1 focus:ring-gold"
-              >
-                <option value="">— pick client —</option>
-                {clientOptions.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.full_name}
-                  </option>
-                ))}
-              </select>
-            </div>
+      <ContentCard>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div>
+            <div style={styles.sectionLabel}>Person 1</div>
+            <select
+              value={id1}
+              onChange={(e) => setId1(e.target.value)}
+              style={styles.input}
+            >
+              <option value="">— pick client —</option>
+              {opts.map((c) => (
+                <option key={c.id} value={c.id}>{c.full_name}</option>
+              ))}
+            </select>
           </div>
-          <Button
-            variant="primary"
-            leftIcon={<HeartHandshake />}
-            loading={loading}
-            onClick={run}
-            size="lg"
-          >
-            Compute match
-          </Button>
+          <div>
+            <div style={styles.sectionLabel}>Person 2</div>
+            <select
+              value={id2}
+              onChange={(e) => setId2(e.target.value)}
+              style={styles.input}
+            >
+              <option value="">— pick client —</option>
+              {opts.map((c) => (
+                <option key={c.id} value={c.id}>{c.full_name}</option>
+              ))}
+            </select>
+          </div>
         </div>
+        <button
+          onClick={run}
+          disabled={loading}
+          style={{
+            ...styles.primaryButton,
+            height: 40,
+            marginTop: 16,
+            opacity: loading ? 0.6 : 1,
+          }}
+        >
+          {loading ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <HeartHandshake size={14} />}
+          Compute compatibility
+        </button>
+      </ContentCard>
 
-        {clientOptions.length < 2 && !result && (
-          <div className="p-10 rounded-xl border-2 border-dashed border-border-strong text-center">
-            <div className="size-14 mx-auto mb-3 rounded-full bg-gold-glow border border-border-accent flex items-center justify-center text-gold">
-              <Users className="size-6" />
+      {opts.length < 2 && !result && (
+        <ContentCard>
+          <div style={{ textAlign: "center", padding: 24 }}>
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 8,
+                backgroundColor: "rgba(201,169,110,0.1)",
+                color: theme.gold,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 12,
+              }}
+            >
+              <Users size={20} />
             </div>
-            <div className="font-display text-h3 font-semibold text-text-primary mb-1">
+            <div style={{ fontSize: 14, fontWeight: 600, color: theme.text.primary, marginBottom: 6 }}>
               Need at least 2 clients
             </div>
-            <div className="text-body text-text-secondary max-w-md mx-auto">
-              Add both the bride and groom as clients on the Clients page,
-              then return here to compute match.
+            <div style={{ fontSize: 13, color: theme.text.muted, maxWidth: 380, margin: "0 auto" }}>
+              Add both partners as clients on the Clients page, then return here.
             </div>
           </div>
-        )}
+        </ContentCard>
+      )}
 
-        {result && (
-          <div className="flex flex-col gap-4">
-            <div className="rounded-xl bg-bg-surface border border-border p-6">
-              <div className="text-tiny uppercase tracking-wider text-gold mb-2">
-                OVERALL VERDICT
-              </div>
-              <div className="font-display text-h1 font-semibold text-text-primary mb-2">
-                {result.overall_verdict}
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                {result.ashtakoota && (
-                  <Badge variant="gold" size="md">
-                    {result.ashtakoota.total_score}/{result.ashtakoota.max_score} Gunas
-                  </Badge>
-                )}
-                {result.kuja_dosha?.mutual_cancellation && (
-                  <Badge variant="success" size="md">Mangal Dosha cancelled</Badge>
-                )}
-              </div>
+      {result && (
+        <>
+          <div
+            style={{
+              background: `linear-gradient(135deg, rgba(201,169,110,0.08), transparent)`,
+              border: `1px solid ${theme.gold}40`,
+              borderRadius: 10,
+              padding: 28,
+              textAlign: "center",
+            }}
+          >
+            <SectionLabel>Overall verdict</SectionLabel>
+            <div
+              style={{
+                fontSize: 32,
+                fontWeight: 700,
+                color: theme.text.primary,
+                marginTop: 8,
+                marginBottom: 16,
+                letterSpacing: "-0.01em",
+              }}
+            >
+              {result.overall_verdict}
             </div>
-            <div className="rounded-xl bg-bg-surface border border-border p-5">
-              <div className="text-tiny uppercase tracking-wider text-gold mb-3">
-                FULL ANALYSIS (JSON)
-              </div>
-              <pre className="text-tiny font-mono text-text-secondary whitespace-pre-wrap break-words overflow-auto max-h-[500px]">
-                {JSON.stringify(result, null, 2)}
-              </pre>
+            <div style={{ display: "inline-flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+              {ashta && (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 12,
+                    padding: "6px 14px",
+                    borderRadius: 999,
+                    backgroundColor: "rgba(201,169,110,0.15)",
+                    color: theme.gold,
+                    fontWeight: 500,
+                  }}
+                >
+                  {ashta.total_score}/{ashta.max_score} Gunas · {ashta.percentage}%
+                </span>
+              )}
+              {result.kuja_dosha?.mutual_cancellation && (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 12,
+                    padding: "6px 14px",
+                    borderRadius: 999,
+                    backgroundColor: "rgba(52,211,153,0.15)",
+                    color: theme.success,
+                    fontWeight: 500,
+                  }}
+                >
+                  Mangal Dosha cancelled
+                </span>
+              )}
             </div>
           </div>
-        )}
-      </main>
-    </>
+
+          <ContentCard>
+            <SectionHeading>Full analysis</SectionHeading>
+            <div
+              style={{
+                marginTop: 12,
+                padding: 12,
+                backgroundColor: theme.bg.page,
+                borderRadius: 6,
+                fontSize: 11,
+                fontFamily: "monospace",
+                color: theme.text.secondary,
+                whiteSpace: "pre-wrap",
+                maxHeight: 500,
+                overflow: "auto",
+                lineHeight: 1.5,
+              }}
+            >
+              {JSON.stringify(result, null, 2)}
+            </div>
+          </ContentCard>
+        </>
+      )}
+    </main>
   );
 }

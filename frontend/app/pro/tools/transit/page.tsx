@@ -4,10 +4,8 @@
 
 import { useState } from "react";
 import { TrendingUp, Loader2, Users } from "lucide-react";
-import { TopBar } from "@/components/pro/topbar";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { theme, styles } from "@/lib/theme";
+import { ContentCard, SectionLabel, SectionHeading } from "@/components/ui/content-card";
 import { useClientsList } from "@/hooks/use-clients";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
@@ -24,8 +22,6 @@ export default function TransitPage() {
       toast.error("Pick a client first");
       return;
     }
-    const client = clients?.items.find((c) => c.id === clientId);
-    if (!client) return;
     setLoading(true);
     try {
       const ws = await api.get(`/clients/${clientId}/workspace`);
@@ -40,95 +36,142 @@ export default function TransitPage() {
     setLoading(false);
   };
 
-  return (
-    <>
-      <TopBar title="Transit · Gochar" tabs={[]} />
-      <main className="px-6 pb-12 pt-6 max-w-[1100px] mx-auto">
-        <div className="mb-6">
-          <div className="text-tiny uppercase tracking-wider text-gold mb-1">
-            GOCHAR · CURRENT SKY
-          </div>
-          <h1 className="font-display text-h1 font-semibold text-text-primary">
-            Transit analysis
-          </h1>
-        </div>
+  const opts = clients?.items ?? [];
 
-        <div className="rounded-xl bg-bg-surface border border-border p-5 mb-6 flex gap-3 flex-wrap items-end">
-          <div className="flex-1 min-w-[250px]">
-            <label className="text-tiny uppercase tracking-wider text-text-muted mb-1.5 block font-medium">
-              Client
-            </label>
-            <select
-              value={clientId}
-              onChange={(e) => setClientId(e.target.value)}
-              className="w-full h-10 px-3 rounded-md bg-bg-surface-2 border border-border text-text-primary text-body focus:outline-none focus:border-border-accent focus:ring-1 focus:ring-gold"
-            >
-              <option value="">— pick a client —</option>
-              {(clients?.items ?? []).map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.full_name}
-                </option>
+  return (
+    <main
+      style={{
+        padding: "24px 32px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 24,
+        minHeight: "100vh",
+      }}
+    >
+      <header>
+        <div style={styles.sectionLabel}>Gochar · Current Sky</div>
+        <h1 style={styles.pageTitle}>Transit analysis</h1>
+        <p style={{ fontSize: 13, color: theme.text.muted, margin: "4px 0 0", maxWidth: 600 }}>
+          Ranks current-sky planet transits against a natal chart by dasha/bhukti
+          relevance. Flags Sade Sati phases.
+        </p>
+      </header>
+
+      <ContentCard>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 180px auto", gap: 12, alignItems: "end" }}>
+          <div>
+            <div style={styles.sectionLabel}>Client</div>
+            <select value={clientId} onChange={(e) => setClientId(e.target.value)} style={styles.input}>
+              <option value="">— pick client —</option>
+              {opts.map((c) => (
+                <option key={c.id} value={c.id}>{c.full_name}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="text-tiny uppercase tracking-wider text-text-muted mb-1.5 block font-medium">
-              Transit date
-            </label>
-            <Input
+            <div style={styles.sectionLabel}>Transit date</div>
+            <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
+              style={styles.input}
             />
           </div>
-          <Button
-            variant="primary"
-            leftIcon={<TrendingUp />}
-            loading={loading}
+          <button
             onClick={run}
-            size="md"
+            disabled={loading}
+            style={{
+              ...styles.primaryButton,
+              height: 36,
+              opacity: loading ? 0.6 : 1,
+            }}
           >
+            {loading ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <TrendingUp size={14} />}
             Analyze
-          </Button>
+          </button>
         </div>
+      </ContentCard>
 
-        {!clientId && !result && (
-          <div className="p-10 rounded-xl border-2 border-dashed border-border-strong text-center">
-            <div className="size-14 mx-auto mb-3 rounded-full bg-gold-glow border border-border-accent flex items-center justify-center text-gold">
-              <Users className="size-6" />
+      {!clientId && !result && opts.length > 0 && (
+        <ContentCard>
+          <div style={{ textAlign: "center", padding: 24 }}>
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 8,
+                backgroundColor: "rgba(201,169,110,0.1)",
+                color: theme.gold,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 12,
+              }}
+            >
+              <Users size={20} />
             </div>
-            <div className="font-display text-h3 font-semibold text-text-primary mb-1">
-              Pick a client
+            <div style={{ fontSize: 14, fontWeight: 600, color: theme.text.primary, marginBottom: 6 }}>
+              Pick a client to begin
             </div>
-            <div className="text-body text-text-secondary max-w-md mx-auto">
-              Transit analysis ranks current sky planets against a natal chart
-              — select a client to begin.
+            <div style={{ fontSize: 13, color: theme.text.muted, maxWidth: 440, margin: "0 auto" }}>
+              Transit analysis requires a natal chart. Select any client above.
             </div>
           </div>
-        )}
+        </ContentCard>
+      )}
 
-        {loading && (
-          <div className="flex items-center justify-center py-10 text-text-muted">
-            <Loader2 className="size-5 animate-spin mr-2" /> Analyzing…
-          </div>
-        )}
+      {loading && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "48px 0",
+            color: theme.text.muted,
+          }}
+        >
+          <Loader2 size={18} style={{ marginRight: 8, animation: "spin 1s linear infinite" }} />
+          Analyzing transits…
+        </div>
+      )}
 
-        {result && (
-          <div className="rounded-xl bg-bg-surface border border-border p-5">
-            <div className="text-tiny uppercase tracking-wider text-gold mb-3">
-              TRANSIT RESULT · {date}
-            </div>
+      {result && (
+        <ContentCard>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <SectionHeading>Transit result · {date}</SectionHeading>
             {result.sade_sati_active && (
-              <Badge variant="warning" size="md" className="mb-3">
+              <span
+                style={{
+                  fontSize: 11,
+                  padding: "4px 10px",
+                  borderRadius: 999,
+                  backgroundColor: "rgba(251,191,36,0.12)",
+                  color: theme.warning,
+                  fontWeight: 500,
+                }}
+              >
                 Sade Sati active
-              </Badge>
+              </span>
             )}
-            <pre className="text-tiny font-mono text-text-secondary whitespace-pre-wrap break-words overflow-auto max-h-[600px]">
-              {JSON.stringify(result, null, 2)}
-            </pre>
           </div>
-        )}
-      </main>
-    </>
+          <div
+            style={{
+              padding: 12,
+              backgroundColor: theme.bg.page,
+              borderRadius: 6,
+              fontSize: 11,
+              fontFamily: "monospace",
+              color: theme.text.secondary,
+              whiteSpace: "pre-wrap",
+              maxHeight: 600,
+              overflow: "auto",
+              lineHeight: 1.5,
+            }}
+          >
+            {JSON.stringify(result, null, 2)}
+          </div>
+        </ContentCard>
+      )}
+    </main>
   );
 }

@@ -3,17 +3,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useState } from "react";
-import { Target, Sparkles, Loader2, Calendar, MapPin, Users } from "lucide-react";
-import { TopBar } from "@/components/pro/topbar";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Target, Calendar, MapPin, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { theme, styles } from "@/lib/theme";
+import { ContentCard, SectionLabel, SectionHeading } from "@/components/ui/content-card";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 
-const EVENT_TYPES = [
+const EVENTS = [
   { key: "marriage", label: "Marriage" },
-  { key: "business", label: "Business start" },
+  { key: "business", label: "Business" },
   { key: "house_warming", label: "House warming" },
   { key: "travel", label: "Travel" },
   { key: "education", label: "Education" },
@@ -28,7 +26,7 @@ export default function MuhurthaPage() {
   const [place, setPlace] = useState("Hyderabad, India");
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [expandedWindow, setExpandedWindow] = useState<number | null>(null);
+  const [expanded, setExpanded] = useState<number | null>(null);
 
   const run = async () => {
     if (!dateStart || !dateEnd) {
@@ -56,231 +54,279 @@ export default function MuhurthaPage() {
   const windows: any[] = result?.windows ?? [];
 
   return (
-    <>
-      <TopBar title="Muhurtha" tabs={[]} />
-      <main className="px-6 pb-12 pt-6 max-w-[1200px] mx-auto">
-        <div className="mb-6">
-          <div className="text-tiny uppercase tracking-wider text-gold mb-1">
-            AUSPICIOUS TIMING
-          </div>
-          <h1 className="font-display text-h1 font-semibold text-text-primary">
-            Muhurtha finder
-          </h1>
-        </div>
+    <main
+      style={{
+        padding: "24px 32px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 24,
+        minHeight: "100vh",
+      }}
+    >
+      <header>
+        <div style={styles.sectionLabel}>Auspicious Timing</div>
+        <h1 style={styles.pageTitle}>Muhurtha finder</h1>
+        <p style={{ fontSize: 13, color: theme.text.muted, margin: "4px 0 0", maxWidth: 600 }}>
+          Scans every 4 minutes of your date range. Scores each Lagna Sub-Lord
+          against event-specific house requirements, plus Badhaka + Moon SL + Panchang.
+        </p>
+      </header>
 
-        {/* Setup */}
-        <div className="rounded-xl bg-bg-surface border border-border p-5 mb-6">
-          <div className="mb-4">
-            <div className="text-tiny uppercase tracking-wider text-text-muted mb-2">
-              EVENT TYPE
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {EVENT_TYPES.map((t) => (
-                <button
-                  key={t.key}
-                  onClick={() => setEventType(t.key)}
-                  className={
-                    eventType === t.key
-                      ? "px-4 py-2 rounded-full text-small font-medium bg-gold-glow text-gold border border-border-accent"
-                      : "px-4 py-2 rounded-full text-small font-medium bg-bg-surface-2 text-text-secondary border border-border hover:text-text-primary"
-                  }
-                >
-                  {t.label}
-                </button>
-              ))}
+      <ContentCard>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div>
+            <div style={styles.sectionLabel}>Event type</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {EVENTS.map((t) => {
+                const active = eventType === t.key;
+                return (
+                  <button
+                    key={t.key}
+                    onClick={() => setEventType(t.key)}
+                    style={{
+                      padding: "6px 14px",
+                      borderRadius: 999,
+                      fontSize: 12,
+                      fontWeight: 500,
+                      border: active ? theme.border.accent : theme.border.default,
+                      backgroundColor: active ? "rgba(201,169,110,0.1)" : theme.bg.content,
+                      color: active ? theme.gold : theme.text.secondary,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {t.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 2fr", gap: 12 }}>
             <div>
-              <label className="text-tiny uppercase tracking-wider text-text-muted mb-1.5 block font-medium">
-                Date from
-              </label>
-              <Input
+              <div style={styles.sectionLabel}>From</div>
+              <input
                 type="date"
                 value={dateStart}
                 onChange={(e) => setDateStart(e.target.value)}
-                leftIcon={<Calendar />}
+                style={styles.input}
               />
             </div>
             <div>
-              <label className="text-tiny uppercase tracking-wider text-text-muted mb-1.5 block font-medium">
-                Date to
-              </label>
-              <Input
+              <div style={styles.sectionLabel}>To</div>
+              <input
                 type="date"
                 value={dateEnd}
                 onChange={(e) => setDateEnd(e.target.value)}
-                leftIcon={<Calendar />}
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="text-tiny uppercase tracking-wider text-text-muted mb-1.5 block font-medium">
-                Event location
-              </label>
-              <Input
-                value={place}
-                onChange={(e) => setPlace(e.target.value)}
-                leftIcon={<MapPin />}
+                style={styles.input}
               />
             </div>
             <div>
-              <label className="text-tiny uppercase tracking-wider text-text-muted mb-1.5 block font-medium">
-                Latitude
-              </label>
-              <Input
+              <div style={styles.sectionLabel}>Event location</div>
+              <div style={{ position: "relative" }}>
+                <MapPin size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: theme.text.muted }} />
+                <input
+                  value={place}
+                  onChange={(e) => setPlace(e.target.value)}
+                  style={{ ...styles.input, paddingLeft: 32 }}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <div style={styles.sectionLabel}>Latitude</div>
+              <input
                 type="number"
                 step="0.0001"
                 value={lat}
                 onChange={(e) => setLat(parseFloat(e.target.value))}
+                style={styles.input}
               />
             </div>
             <div>
-              <label className="text-tiny uppercase tracking-wider text-text-muted mb-1.5 block font-medium">
-                Longitude
-              </label>
-              <Input
+              <div style={styles.sectionLabel}>Longitude</div>
+              <input
                 type="number"
                 step="0.0001"
                 value={lon}
                 onChange={(e) => setLon(parseFloat(e.target.value))}
+                style={styles.input}
               />
             </div>
           </div>
-          <div className="mt-4">
-            <Button
-              variant="primary"
-              leftIcon={<Target />}
-              loading={loading}
-              onClick={run}
-              size="lg"
-            >
-              Find auspicious windows
-            </Button>
+
+          <button
+            onClick={run}
+            disabled={loading}
+            style={{
+              ...styles.primaryButton,
+              height: 40,
+              alignSelf: "flex-start",
+              opacity: loading ? 0.6 : 1,
+            }}
+          >
+            {loading ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Target size={14} />}
+            Find auspicious windows
+          </button>
+        </div>
+      </ContentCard>
+
+      {/* Results */}
+      {result && windows.length === 0 && (
+        <ContentCard>
+          <div style={{ textAlign: "center", padding: 24, fontSize: 13, color: theme.text.muted }}>
+            No strong muhurtha windows in that range. Try a longer range or a
+            different event type.
+          </div>
+        </ContentCard>
+      )}
+
+      {result?.nearby_better && (
+        <div
+          style={{
+            padding: 16,
+            borderRadius: 8,
+            backgroundColor: "rgba(251,191,36,0.08)",
+            border: "1px solid rgba(251,191,36,0.3)",
+          }}
+        >
+          <div style={{ fontSize: 11, fontWeight: 600, color: theme.warning, marginBottom: 4, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            Better window nearby
+          </div>
+          <div style={{ fontSize: 13, color: theme.text.primary }}>
+            {result.nearby_better.date_display} · Score {result.nearby_better.score}{" "}
+            <span style={{ color: theme.warning }}>({result.nearby_better.quality})</span>
           </div>
         </div>
+      )}
 
-        {/* Results */}
-        {result && windows.length === 0 && (
-          <div className="p-10 rounded-xl border-2 border-dashed border-border-strong text-center">
-            <div className="text-body text-text-muted">
-              No strong muhurtha windows in that date range. Try extending the
-              range or a different event type.
-            </div>
-          </div>
-        )}
-
-        {result?.nearby_better && (
-          <div className="mb-4 p-4 rounded-lg bg-warning/10 border border-warning/30">
-            <div className="text-tiny uppercase tracking-wider text-warning mb-1 font-medium">
-              Better window nearby
-            </div>
-            <div className="text-body text-text-primary">
-              {result.nearby_better.date_display} — Score{" "}
-              {result.nearby_better.score} ({result.nearby_better.quality})
-            </div>
-          </div>
-        )}
-
-        {windows.length > 0 && (
-          <div className="flex flex-col gap-3">
-            <div className="text-tiny uppercase tracking-wider text-gold">
-              {windows.length} WINDOW{windows.length > 1 ? "S" : ""} FOUND ·
-              TOP BY SCORE
-            </div>
+      {windows.length > 0 && (
+        <div>
+          <SectionLabel>
+            {windows.length} WINDOW{windows.length !== 1 ? "S" : ""} · RANKED BY SCORE
+          </SectionLabel>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
             {windows.map((w: any, i: number) => {
-              const expanded = expandedWindow === i;
+              const isExp = expanded === i;
               const qColor =
-                w.quality === "Excellent"
-                  ? "text-gold"
-                  : w.quality === "Good"
-                  ? "text-success"
-                  : "text-text-muted";
+                w.quality === "Excellent" ? theme.gold : w.quality === "Good" ? theme.success : theme.text.muted;
               return (
-                <div
-                  key={i}
-                  className="rounded-xl bg-bg-surface border border-border overflow-hidden"
-                >
+                <ContentCard key={i} padding="none">
                   <button
-                    onClick={() => setExpandedWindow(expanded ? null : i)}
-                    className="w-full text-left px-5 py-4 hover:bg-bg-hover transition-colors"
+                    onClick={() => setExpanded(isExp ? null : i)}
+                    style={{
+                      width: "100%",
+                      padding: "16px 20px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 16,
+                      background: "transparent",
+                      border: "none",
+                      cursor: "pointer",
+                      color: theme.text.primary,
+                      textAlign: "left",
+                    }}
                   >
-                    <div className="flex items-center justify-between gap-4 flex-wrap">
-                      <div>
-                        <div className="text-tiny text-text-muted">
-                          {w.date_display}
-                        </div>
-                        <div className="font-display text-h3 font-semibold text-text-primary mt-0.5">
-                          {w.start_time} – {w.end_time}
-                        </div>
-                        <div className="text-tiny text-text-muted mt-1 flex items-center gap-2">
-                          Lagna: <span className="text-text-primary">{w.lagna}</span> · SL:{" "}
-                          <span className="text-gold font-medium">{w.lagna_sublord}</span>{" "}
-                          · Houses: {w.signified_houses?.join(", ")}
-                        </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 11, color: theme.text.muted, marginBottom: 2 }}>{w.date_display}</div>
+                      <div style={{ fontSize: 18, fontWeight: 600, color: qColor, lineHeight: 1.2 }}>
+                        {w.start_time} – {w.end_time}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className={`font-display text-h2 font-bold ${qColor}`}>
-                          {w.score}
-                        </div>
-                        <Badge variant={w.quality === "Excellent" ? "gold" : "default"} size="md">
-                          {w.quality}
-                        </Badge>
+                      <div style={{ fontSize: 11, color: theme.text.muted, marginTop: 4 }}>
+                        Lagna: <span style={{ color: theme.text.primary }}>{w.lagna}</span> ·
+                        SL: <span style={{ color: theme.gold }}> {w.lagna_sublord}</span> ·
+                        Houses: {w.signified_houses?.join(", ")}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontSize: 24, fontWeight: 700, color: qColor, lineHeight: 1 }}>
+                        {w.score}
+                      </div>
+                      <div style={{ fontSize: 10, color: theme.text.muted, marginTop: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        {w.quality}
                       </div>
                     </div>
                   </button>
-                  {expanded && (
-                    <div className="border-t border-border px-5 py-4 bg-bg-surface-2/50">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-small">
-                        <KV label="Moon sign" value={w.moon_sign} />
-                        <KV label="Moon nakshatra" value={w.moon_nakshatra} />
-                        <KV label="Event cusp CSL" value={w.event_cusp_csl} />
-                        <KV label="H11 CSL" value={w.h11_csl} />
-                        <KV
-                          label="Badhaka check"
-                          value={w.badhaka_check?.passed ? "PASS" : "FAIL"}
-                          good={w.badhaka_check?.passed}
-                        />
-                        <KV
-                          label="Moon SL favorable"
-                          value={w.moon_sl_favorable ? "Yes" : "No"}
-                          good={w.moon_sl_favorable}
-                        />
-                        <KV label="Tithi" value={w.panchang?.tithi} />
-                        <KV label="Yoga" value={w.panchang?.yoga} />
-                        {w.in_rahu_kalam && (
-                          <div className="col-span-2 text-error text-tiny">
-                            ⚠ In Rahu Kalam
-                          </div>
-                        )}
-                        {w.is_vishti && (
-                          <div className="col-span-2 text-error text-tiny">
-                            ⚠ Vishti Karana
-                          </div>
-                        )}
-                      </div>
+                  {isExp && (
+                    <div
+                      style={{
+                        padding: "16px 20px",
+                        borderTop: theme.border.default,
+                        backgroundColor: theme.bg.page,
+                        display: "grid",
+                        gridTemplateColumns: "repeat(2, 1fr)",
+                        gap: 10,
+                      }}
+                    >
+                      <KV label="Moon sign" value={w.moon_sign} />
+                      <KV label="Moon nakshatra" value={w.moon_nakshatra} />
+                      <KV label="Event cusp CSL" value={w.event_cusp_csl} />
+                      <KV label="H11 CSL" value={w.h11_csl} />
+                      <KV
+                        label="Badhaka"
+                        value={w.badhaka_check?.passed ? "PASS" : "FAIL"}
+                        icon={
+                          w.badhaka_check?.passed ? (
+                            <CheckCircle2 size={12} color={theme.success} />
+                          ) : (
+                            <XCircle size={12} color={theme.error} />
+                          )
+                        }
+                      />
+                      <KV
+                        label="Moon SL favorable"
+                        value={w.moon_sl_favorable ? "Yes" : "No"}
+                        icon={
+                          w.moon_sl_favorable ? (
+                            <CheckCircle2 size={12} color={theme.success} />
+                          ) : (
+                            <XCircle size={12} color={theme.error} />
+                          )
+                        }
+                      />
+                      <KV label="Tithi" value={w.panchang?.tithi} />
+                      <KV label="Yoga" value={w.panchang?.yoga} />
                     </div>
                   )}
-                </div>
+                </ContentCard>
               );
             })}
           </div>
-        )}
-      </main>
-    </>
+        </div>
+      )}
+    </main>
   );
 }
 
-function KV({ label, value, good }: { label: string; value?: string; good?: boolean }) {
+function KV({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value?: string;
+  icon?: React.ReactNode;
+}) {
   return (
-    <div className="flex items-center justify-between py-1">
-      <div className="text-text-muted text-tiny uppercase tracking-wider">{label}</div>
-      <div className={good ? "text-success font-medium" : "text-text-primary"}>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "6px 10px",
+        backgroundColor: theme.bg.content,
+        borderRadius: 6,
+        fontSize: 12,
+      }}
+    >
+      <span style={{ color: theme.text.muted, textTransform: "uppercase", letterSpacing: "0.06em", fontSize: 10 }}>
+        {label}
+      </span>
+      <span style={{ color: theme.text.primary, display: "flex", alignItems: "center", gap: 4 }}>
+        {icon}
         {value ?? "—"}
-      </div>
+      </span>
     </div>
   );
 }
-
-// keep
-export const _unused = Users;

@@ -1,20 +1,17 @@
 "use client";
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { useEffect, useState } from "react";
-import { Calendar, MapPin, Loader2, Sun, Moon } from "lucide-react";
-import { TopBar } from "@/components/pro/topbar";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Calendar, MapPin, Loader2, Sun, Moon, Sunrise, Sunset, Clock } from "lucide-react";
+import { theme, styles } from "@/lib/theme";
+import { ContentCard, SectionLabel, SectionHeading } from "@/components/ui/content-card";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 export default function PanchangPage() {
   const [coords, setCoords] = useState({ lat: 17.385, lon: 78.4867 });
   const [place, setPlace] = useState("Hyderabad, India");
-  const [tz, setTz] = useState(5.5);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
@@ -24,7 +21,7 @@ export default function PanchangPage() {
       const res = await api.post("/panchangam/location", {
         latitude: coords.lat,
         longitude: coords.lon,
-        timezone_offset: tz,
+        timezone_offset: 5.5,
         date: new Date().toISOString().slice(0, 10),
       });
       setData(res.data);
@@ -39,114 +36,212 @@ export default function PanchangPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const today = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+
   return (
-    <>
-      <TopBar title="Panchang" tabs={[]} />
-      <main className="px-6 pb-12 pt-6 max-w-[1200px] mx-auto">
-        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-          <div>
-            <div className="text-tiny uppercase tracking-wider text-gold mb-1">
-              TODAY · {new Date().toLocaleDateString()}
-            </div>
-            <h1 className="font-display text-h1 font-semibold text-text-primary">
-              Panchang
-            </h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <MapPin className="size-4 text-text-muted" />
-            <Input
+    <main
+      style={{
+        padding: "24px 32px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 24,
+        minHeight: "100vh",
+      }}
+    >
+      <header
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: 16,
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <div style={styles.sectionLabel}>Today · {today}</div>
+          <h1 style={styles.pageTitle}>Panchang</h1>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div
+            style={{
+              position: "relative",
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            <MapPin
+              size={14}
+              style={{ position: "absolute", left: 10, color: theme.text.muted }}
+            />
+            <input
               value={place}
               onChange={(e) => setPlace(e.target.value)}
-              size="sm"
-              className="max-w-xs"
+              style={{ ...styles.input, width: 220, paddingLeft: 30, height: 32 }}
             />
-            <Input
-              type="number"
-              step="0.01"
-              value={coords.lat}
-              onChange={(e) => setCoords({ ...coords, lat: parseFloat(e.target.value) })}
-              size="sm"
-              className="w-24"
-            />
-            <Input
-              type="number"
-              step="0.01"
-              value={coords.lon}
-              onChange={(e) => setCoords({ ...coords, lon: parseFloat(e.target.value) })}
-              size="sm"
-              className="w-24"
-            />
-            <Button variant="primary" size="sm" leftIcon={<Calendar />} onClick={load} loading={loading}>
-              Refresh
-            </Button>
           </div>
+          <input
+            type="number"
+            step="0.01"
+            value={coords.lat}
+            onChange={(e) => setCoords({ ...coords, lat: parseFloat(e.target.value) })}
+            style={{ ...styles.input, width: 90, height: 32 }}
+          />
+          <input
+            type="number"
+            step="0.01"
+            value={coords.lon}
+            onChange={(e) => setCoords({ ...coords, lon: parseFloat(e.target.value) })}
+            style={{ ...styles.input, width: 90, height: 32 }}
+          />
+          <button onClick={load} style={styles.primaryButton}>
+            {loading ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Calendar size={14} />}
+            Refresh
+          </button>
         </div>
+      </header>
 
-        {loading && !data && (
-          <div className="flex items-center justify-center py-20 text-text-muted">
-            <Loader2 className="size-6 animate-spin mr-2" /> Loading panchang…
+      {loading && !data && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "48px 0",
+            color: theme.text.muted,
+          }}
+        >
+          <Loader2 size={18} style={{ marginRight: 8, animation: "spin 1s linear infinite" }} />
+          Loading panchang…
+        </div>
+      )}
+
+      {data && (
+        <>
+          {/* 5 elements row */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+              gap: 12,
+            }}
+          >
+            <Element label="Tithi" main={data.tithi_en ?? data.tithi} sub={data.tithi} accent="#a78bfa" />
+            <Element label="Nakshatra" main={data.nakshatra_en ?? data.nakshatra} sub={data.nakshatra} accent="#60a5fa" />
+            <Element label="Yoga" main={data.yoga_en ?? data.yoga} sub={data.yoga} accent="#34d399" />
+            <Element label="Karana" main={data.karana} sub={data.karana_te} accent="#fb923c" />
+            <Element label="Vara" main={data.vara_en ?? data.vara} sub={data.vara} accent={theme.gold} />
           </div>
-        )}
 
-        {data && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-            <Tile label="Tithi" value={data.tithi_en ?? data.tithi} sub={data.tithi} color="purple" />
-            <Tile label="Nakshatra" value={data.nakshatra_en ?? data.nakshatra} sub={data.nakshatra} color="blue" />
-            <Tile label="Yoga" value={data.yoga_en ?? data.yoga} sub={data.yoga} color="teal" />
-            <Tile label="Karana" value={data.karana} sub={data.karana_te} color="orange" />
-          </div>
-        )}
-
-        {data && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="rounded-xl bg-bg-surface border border-border p-5">
-              <div className="text-tiny uppercase tracking-wider text-gold mb-3">CELESTIAL</div>
-              <div className="space-y-3">
-                <Row icon={<Sun className="size-4 text-warning" />} label="Sunrise" value={data.sunrise} />
-                <Row icon={<Moon className="size-4 text-text-secondary" />} label="Sunset" value={data.sunset} />
-                <Row icon={<span className="font-bold text-gold">R</span>} label="Rahu Kalam" value={data.rahu_kalam} />
-                <Row icon={<span className="text-text-muted">D</span>} label="Vara (Day)" value={data.vara_en ?? data.vara} />
-                <Row icon={<span className="text-gold">H</span>} label="Current Hora" value={data.hora_lord} />
+          {/* Celestial times */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <ContentCard>
+              <SectionLabel>Celestial Times</SectionLabel>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
+                <Row icon={<Sunrise size={14} color={theme.warning} />} label="Sunrise" value={data.sunrise} />
+                <Row icon={<Sunset size={14} color={theme.warning} />} label="Sunset" value={data.sunset} />
+                <Row
+                  icon={<span style={{ fontSize: 11, fontWeight: 700, color: theme.gold }}>R</span>}
+                  label="Rahu Kalam"
+                  value={data.rahu_kalam}
+                />
+                <Row icon={<Clock size={14} color={theme.gold} />} label="Current Hora" value={data.hora_lord} />
               </div>
-            </div>
+            </ContentCard>
 
-            <div className="rounded-xl bg-bg-surface border border-border p-5">
-              <div className="text-tiny uppercase tracking-wider text-gold mb-3">RAW RESPONSE</div>
-              <pre className="text-tiny font-mono text-text-secondary whitespace-pre-wrap break-words overflow-auto max-h-[500px]">
-                {JSON.stringify(data, null, 2)}
-              </pre>
-            </div>
+            <ContentCard>
+              <SectionLabel>Day Quality</SectionLabel>
+              <div style={{ marginTop: 8, fontSize: 13, color: theme.text.secondary, lineHeight: 1.5 }}>
+                <div style={{ marginBottom: 12 }}>
+                  <strong style={{ color: theme.text.primary }}>
+                    {data.vara_en ?? data.vara}
+                  </strong>{" "}
+                  · favorable activities and planetary influence according to
+                  Panchang.
+                </div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: theme.text.muted,
+                    padding: 10,
+                    backgroundColor: theme.bg.page,
+                    borderRadius: 6,
+                  }}
+                >
+                  Avoid initiating new work during Rahu Kalam ({data.rahu_kalam}).
+                  Current Hora lord ({data.hora_lord}) rules the hour.
+                </div>
+              </div>
+            </ContentCard>
           </div>
-        )}
-      </main>
-    </>
+        </>
+      )}
+    </main>
   );
 }
 
-function Tile({ label, value, sub, color }: { label: string; value: string; sub?: string; color: string }) {
-  const colors: Record<string, string> = {
-    purple: "border-[color-mix(in_srgb,#a78bfa_30%,transparent)] bg-[color-mix(in_srgb,#a78bfa_8%,transparent)]",
-    blue: "border-[color-mix(in_srgb,#60a5fa_30%,transparent)] bg-[color-mix(in_srgb,#60a5fa_8%,transparent)]",
-    teal: "border-[color-mix(in_srgb,#34d399_30%,transparent)] bg-[color-mix(in_srgb,#34d399_8%,transparent)]",
-    orange: "border-[color-mix(in_srgb,#fb923c_30%,transparent)] bg-[color-mix(in_srgb,#fb923c_8%,transparent)]",
-  };
+function Element({
+  label,
+  main,
+  sub,
+  accent,
+}: {
+  label: string;
+  main: string;
+  sub?: string;
+  accent: string;
+}) {
   return (
-    <div className={`p-5 rounded-xl border ${colors[color] ?? "bg-bg-surface border-border"}`}>
-      <div className="text-tiny uppercase tracking-wider text-text-muted mb-2">{label}</div>
-      <div className="font-display text-h3 font-semibold text-text-primary mb-1">{value}</div>
-      {sub && <div className="text-tiny text-text-muted font-sans">{sub}</div>}
+    <div
+      style={{
+        backgroundColor: theme.bg.content,
+        border: `1px solid ${accent}30`,
+        borderRadius: 8,
+        padding: 16,
+        borderLeftWidth: 3,
+        borderLeftColor: accent,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 10,
+          color: theme.text.dim,
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          fontWeight: 500,
+          marginBottom: 8,
+        }}
+      >
+        {label}
+      </div>
+      <div style={{ fontSize: 18, fontWeight: 600, color: theme.text.primary, lineHeight: 1.3 }}>
+        {main}
+      </div>
+      {sub && sub !== main && (
+        <div style={{ fontSize: 11, color: theme.text.muted, marginTop: 4 }}>{sub}</div>
+      )}
     </div>
   );
 }
 
 function Row({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="flex items-center gap-3">
-      <div className="w-6 flex items-center justify-center text-tiny">{icon}</div>
-      <div className="flex-1 text-small text-text-secondary">{label}</div>
-      <Badge size="sm" variant="outline" className="font-mono">
-        {value}
-      </Badge>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "6px 0",
+        borderBottom: theme.border.default,
+      }}
+    >
+      <div style={{ width: 16, display: "flex", justifyContent: "center" }}>{icon}</div>
+      <div style={{ flex: 1, fontSize: 13, color: theme.text.secondary }}>{label}</div>
+      <div style={{ fontSize: 13, fontFamily: "monospace", color: theme.text.primary }}>{value}</div>
     </div>
   );
 }

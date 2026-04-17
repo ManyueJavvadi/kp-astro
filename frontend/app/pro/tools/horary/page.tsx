@@ -1,15 +1,15 @@
 "use client";
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { useState } from "react";
-import { Wand2, Sparkles, Loader2 } from "lucide-react";
-import { TopBar } from "@/components/pro/topbar";
-import { Button } from "@/components/ui/button";
-import { Input, Textarea } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Wand2, Loader2, CheckCircle2, XCircle, HelpCircle } from "lucide-react";
+import { theme, styles } from "@/lib/theme";
+import { ContentCard, SectionLabel, SectionHeading } from "@/components/ui/content-card";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+const TOPICS = ["general", "marriage", "career", "health", "travel", "wealth", "litigation", "property"];
 
 export default function HoraryPage() {
   const [number, setNumber] = useState<number | "">("");
@@ -44,128 +44,179 @@ export default function HoraryPage() {
     setLoading(false);
   };
 
+  const pickRandom = () => setNumber(Math.floor(Math.random() * 249) + 1);
+
   const verdict = result?.verdict ?? result?.overall_verdict;
+  const verdictColor =
+    verdict === "YES" ? theme.success : verdict === "NO" ? theme.error : theme.warning;
+  const VerdictIcon = verdict === "YES" ? CheckCircle2 : verdict === "NO" ? XCircle : HelpCircle;
 
   return (
-    <>
-      <TopBar title="Horary · Prashna" tabs={[]} />
-      <main className="px-6 pb-12 pt-6 max-w-[1000px] mx-auto">
-        <div className="mb-6">
-          <div className="text-tiny uppercase tracking-wider text-gold mb-1">
-            KRISHNAMURTI PADDHATI · 1–249
-          </div>
-          <h1 className="font-display text-h1 font-semibold text-text-primary">
-            Ask a question
-          </h1>
-        </div>
+    <main
+      style={{
+        padding: "24px 32px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 24,
+        minHeight: "100vh",
+        maxWidth: 900,
+      }}
+    >
+      <header>
+        <div style={styles.sectionLabel}>Krishnamurti Paddhati · 1–249</div>
+        <h1 style={styles.pageTitle}>Horary · Prashna</h1>
+        <p style={{ fontSize: 13, color: theme.text.muted, margin: "4px 0 0", maxWidth: 600 }}>
+          Ask a question, pick a number between 1 and 249, get a YES/NO verdict based on
+          Lagna Sub-Lord + topic cusp CSL + Ruling Planets confirmation.
+        </p>
+      </header>
 
-        <div className="rounded-xl bg-bg-surface border border-border p-5 flex flex-col gap-4 mb-6">
+      <ContentCard>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div>
-            <label className="text-tiny uppercase tracking-wider text-text-muted mb-1.5 block font-medium">
-              Your question
-            </label>
-            <Textarea
+            <div style={styles.sectionLabel}>Your question</div>
+            <textarea
               rows={2}
               placeholder="Will my visa arrive this month?"
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
+              style={{
+                ...styles.input,
+                height: 72,
+                padding: "10px 12px",
+                lineHeight: 1.5,
+                resize: "vertical",
+                fontFamily: "inherit",
+              }}
             />
           </div>
-          <div className="grid grid-cols-[1fr_1fr] gap-3">
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div>
-              <label className="text-tiny uppercase tracking-wider text-text-muted mb-1.5 block font-medium">
-                Number (1–249)
-              </label>
-              <Input
-                type="number"
-                min={1}
-                max={249}
-                value={number}
-                onChange={(e) => setNumber(e.target.value === "" ? "" : parseInt(e.target.value))}
-                placeholder="Random between 1 and 249"
-              />
+              <div style={styles.sectionLabel}>Number (1–249)</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  type="number"
+                  min={1}
+                  max={249}
+                  value={number}
+                  onChange={(e) =>
+                    setNumber(e.target.value === "" ? "" : Math.min(249, Math.max(1, parseInt(e.target.value) || 1)))
+                  }
+                  placeholder="Pick or random"
+                  style={{ ...styles.input, flex: 1 }}
+                />
+                <button onClick={pickRandom} style={styles.secondaryButton}>
+                  Random
+                </button>
+              </div>
             </div>
             <div>
-              <label className="text-tiny uppercase tracking-wider text-text-muted mb-1.5 block font-medium">
-                Topic
-              </label>
+              <div style={styles.sectionLabel}>Topic</div>
               <select
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
-                className="w-full h-10 px-3 rounded-md bg-bg-surface-2 border border-border text-text-primary text-body focus:outline-none focus:border-border-accent focus:ring-1 focus:ring-gold"
+                style={{ ...styles.input, textTransform: "capitalize" }}
               >
-                {[
-                  "general",
-                  "marriage",
-                  "career",
-                  "health",
-                  "travel",
-                  "wealth",
-                  "litigation",
-                  "property",
-                ].map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
+                {TOPICS.map((t) => (
+                  <option key={t} value={t}>{t}</option>
                 ))}
               </select>
             </div>
           </div>
-          <Button
-            variant="primary"
-            leftIcon={<Wand2 />}
-            loading={loading}
+
+          <button
             onClick={run}
+            disabled={loading}
+            style={{
+              ...styles.primaryButton,
+              height: 40,
+              fontSize: 13,
+              alignSelf: "flex-start",
+              opacity: loading ? 0.6 : 1,
+            }}
           >
+            {loading ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Wand2 size={14} />}
             Compute verdict
-          </Button>
+          </button>
         </div>
+      </ContentCard>
 
-        {result && (
-          <div className="flex flex-col gap-4">
-            <div className="rounded-xl p-8 bg-gradient-to-br from-bg-surface to-bg-surface-2 border-2 border-gold text-center">
-              <div className="text-tiny uppercase tracking-wider text-gold mb-2">
-                VERDICT
-              </div>
-              <div className="font-display text-[clamp(3rem,6vw,5rem)] leading-none font-bold text-gold mb-2">
-                {verdict ?? "—"}
-              </div>
-              <div className="text-small text-text-secondary">
-                Number {number} · Lagna-CSL chain analysis
-              </div>
-            </div>
-
-            <div className="rounded-xl p-5 bg-[color-mix(in_srgb,var(--color-ai)_5%,var(--color-bg-surface))] border border-[color-mix(in_srgb,var(--color-ai)_25%,transparent)]">
-              <div className="text-tiny uppercase tracking-wider text-ai mb-2 flex items-center gap-1.5">
-                <Sparkles className="size-3" /> RAW KP ANALYSIS
-              </div>
-              <pre className="text-tiny font-mono text-text-secondary whitespace-pre-wrap break-words overflow-auto">
-                {JSON.stringify(result, null, 2)}
-              </pre>
-            </div>
-          </div>
-        )}
-
-        {loading && (
-          <div className="flex items-center justify-center py-10 text-text-muted">
-            <Loader2 className="size-5 animate-spin mr-2" /> Computing…
-          </div>
-        )}
-
-        {!result && !loading && (
-          <div className="mt-4 p-5 rounded-lg bg-bg-surface-2 border border-border">
-            <div className="text-small text-text-secondary leading-relaxed">
-              <strong className="text-text-primary">KP Horary</strong> uses the
-              Lagna sub-lord at query time (mapped from your chosen number
-              1–249) to deliver a YES/NO verdict. The result will show
-              Layer 1 (Lagna CSL), Layer 2 (topic cusp CSL), and Layer 3
-              (Ruling Planets confirmation).
+      {/* Verdict */}
+      {result && verdict && (
+        <div
+          style={{
+            background: `linear-gradient(135deg, rgba(255,255,255,0.02), transparent)`,
+            border: `1px solid ${verdictColor}40`,
+            borderRadius: 10,
+            padding: 32,
+            textAlign: "center",
+          }}
+        >
+          <SectionLabel>Verdict</SectionLabel>
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 14,
+              marginTop: 8,
+              marginBottom: 8,
+            }}
+          >
+            <VerdictIcon size={40} color={verdictColor} />
+            <div
+              style={{
+                fontSize: 48,
+                fontWeight: 700,
+                color: verdictColor,
+                lineHeight: 1,
+                letterSpacing: "-0.02em",
+              }}
+            >
+              {verdict}
             </div>
           </div>
-        )}
-      </main>
-    </>
+          <div style={{ fontSize: 13, color: theme.text.muted }}>
+            Number {number} · Lagna-CSL analysis · topic: {topic}
+          </div>
+        </div>
+      )}
+
+      {/* Details */}
+      {result && (
+        <ContentCard>
+          <SectionHeading>KP analysis</SectionHeading>
+          <div
+            style={{
+              marginTop: 12,
+              padding: 12,
+              backgroundColor: theme.bg.page,
+              borderRadius: 6,
+              fontSize: 11,
+              fontFamily: "monospace",
+              color: theme.text.secondary,
+              whiteSpace: "pre-wrap",
+              maxHeight: 500,
+              overflow: "auto",
+              lineHeight: 1.5,
+            }}
+          >
+            {JSON.stringify(result, null, 2)}
+          </div>
+        </ContentCard>
+      )}
+
+      {!result && !loading && (
+        <ContentCard>
+          <SectionLabel>How KP Horary works</SectionLabel>
+          <div style={{ fontSize: 13, color: theme.text.secondary, lineHeight: 1.6, marginTop: 8 }}>
+            The chosen number (1–249) maps to a Lagna Sub-Lord. Layer 1 checks whether the
+            Lagna CSL is fruitful. Layer 2 checks whether the topic cusp CSL (e.g. H7 for
+            marriage) signifies favorable houses. Layer 3 confirms with Ruling Planets at
+            query time. All three aligning = a strong YES.
+          </div>
+        </ContentCard>
+      )}
+    </main>
   );
 }
-
-export const Badge_unused = Badge; // keep import
