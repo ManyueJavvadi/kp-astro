@@ -9,85 +9,89 @@ import {
   HeartHandshake,
   ChevronRight,
 } from "lucide-react";
-import { TopBar } from "@/components/pro/topbar";
+import { theme, styles } from "@/lib/theme";
 
 const tools = [
-  {
-    href: "/pro/tools/horary",
-    icon: Wand2,
-    name: "Horary · Prashna",
-    description: "Pick 1–249 → get YES/NO verdict with 3-layer KP analysis",
-  },
-  {
-    href: "/pro/tools/muhurtha",
-    icon: Target,
-    name: "Muhurtha",
-    description: "Find auspicious windows for marriage, business, travel, etc.",
-  },
-  {
-    href: "/pro/tools/transit",
-    icon: TrendingUp,
-    name: "Transit · Gochar",
-    description: "Current planet transits mapped to natal chart",
-  },
-  {
-    href: "/pro/tools/panchang",
-    icon: Calendar,
-    name: "Panchang",
-    description: "Daily tithi, nakshatra, yoga, karana, choghadiya, hora",
-  },
-  {
-    href: "/pro/tools/match",
-    icon: HeartHandshake,
-    name: "Kundli Match",
-    description: "8-Kuta + KP compatibility between any two charts",
-  },
+  { href: "/pro/tools/horary", icon: Wand2, name: "Horary · Prashna", desc: "Pick 1–249 → KP YES/NO verdict" },
+  { href: "/pro/tools/muhurtha", icon: Target, name: "Muhurtha", desc: "Auspicious windows for any event" },
+  { href: "/pro/tools/transit", icon: TrendingUp, name: "Transit · Gochar", desc: "Current sky vs natal chart" },
+  { href: "/pro/tools/panchang", icon: Calendar, name: "Panchang", desc: "Daily tithi, nakshatra, yoga, hora" },
+  { href: "/pro/tools/match", icon: HeartHandshake, name: "Kundli Match", desc: "Pair compatibility (KP + 8-kuta)" },
 ];
 
 export default function ToolsHubPage() {
   return (
-    <>
-      <TopBar title="Tools" tabs={[]} />
-      <main className="px-6 pb-12 pt-6 max-w-[1200px] mx-auto">
-        <div className="mb-6">
-          <div className="text-tiny uppercase tracking-wider text-gold mb-1">
-            KP TOOLS
-          </div>
-          <h1 className="font-display text-h1 font-semibold text-text-primary mb-2">
-            Standalone tools
-          </h1>
-          <p className="text-body text-text-secondary max-w-2xl">
-            Tools that don&apos;t need a client context. For client-specific
-            analysis (Marriage, Career, Dasha), open a client.
-          </p>
-        </div>
+    <main
+      style={{
+        padding: "24px 32px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 24,
+        minHeight: "100vh",
+      }}
+    >
+      <header>
+        <div style={styles.sectionLabel}>KP Tools</div>
+        <h1 style={styles.pageTitle}>Standalone tools</h1>
+        <p style={{ fontSize: 13, color: theme.text.muted, margin: "4px 0 0", maxWidth: 600 }}>
+          Tools that don't need a client context. For client-specific analysis (Marriage, Career, Dasha), open a client.
+        </p>
+      </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {tools.map((t) => {
-            const Icon = t.icon;
-            return (
-              <Link
-                key={t.href}
-                href={t.href}
-                className="group p-5 rounded-xl bg-bg-surface border border-border hover:border-border-accent transition-all"
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+          gap: 12,
+        }}
+      >
+        {tools.map((t) => {
+          const Icon = t.icon;
+          return (
+            <Link
+              key={t.href}
+              href={t.href}
+              style={{
+                backgroundColor: theme.bg.content,
+                border: theme.border.default,
+                borderRadius: theme.radius.md,
+                padding: 20,
+                textDecoration: "none",
+                color: theme.text.primary,
+                display: "flex",
+                alignItems: "center",
+                gap: 16,
+                transition: "border-color 150ms",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)")}
+              onMouseLeave={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)")}
+            >
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 8,
+                  backgroundColor: "rgba(201,169,110,0.1)",
+                  color: theme.gold,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
               >
-                <div className="size-10 rounded-lg bg-gold-glow border border-border-accent flex items-center justify-center text-gold mb-3">
-                  <Icon className="size-5" />
-                </div>
-                <div className="font-display text-h3 font-semibold text-text-primary mb-1">
+                <Icon size={18} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: theme.text.primary, marginBottom: 2 }}>
                   {t.name}
                 </div>
-                <p className="text-small text-text-secondary leading-snug mb-4">
-                  {t.description}
-                </p>
-                <div className="flex items-center gap-1 text-tiny text-gold group-hover:gap-2 transition-all">
-                  Open <ChevronRight className="size-3" />
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      </main>
-    </>
+                <div style={{ fontSize: 12, color: theme.text.muted, lineHeight: 1.4 }}>{t.desc}</div>
+              </div>
+              <ChevronRight size={14} color={theme.text.dim} />
+            </Link>
+          );
+        })}
+      </div>
+    </main>
   );
 }
