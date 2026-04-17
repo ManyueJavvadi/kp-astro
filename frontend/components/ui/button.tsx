@@ -88,18 +88,48 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     },
     ref
   ) => {
-    const Comp = asChild ? Slot : "button";
+    const innerContent = (
+      <>
+        {loading ? <Loader2 className="animate-spin" /> : leftIcon}
+        {children}
+        {!loading && rightIcon}
+      </>
+    );
+
+    // asChild: Slot requires a single React element. Clone the child
+    // element and inject icons + label as its children.
+    if (asChild && React.isValidElement(children)) {
+      const childElement = children as React.ReactElement<{
+        children?: React.ReactNode;
+      }>;
+      return (
+        <Slot
+          ref={ref}
+          className={cn(buttonVariants({ variant, size, fullWidth, className }))}
+          {...props}
+        >
+          {React.cloneElement(
+            childElement,
+            {},
+            <>
+              {loading ? <Loader2 className="animate-spin" /> : leftIcon}
+              {childElement.props.children}
+              {!loading && rightIcon}
+            </>
+          )}
+        </Slot>
+      );
+    }
+
     return (
-      <Comp
+      <button
         ref={ref}
         className={cn(buttonVariants({ variant, size, fullWidth, className }))}
         disabled={disabled || loading}
         {...props}
       >
-        {loading ? <Loader2 className="animate-spin" /> : leftIcon}
-        {children}
-        {!loading && rightIcon}
-      </Comp>
+        {innerContent}
+      </button>
     );
   }
 );
