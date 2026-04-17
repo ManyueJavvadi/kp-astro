@@ -3,7 +3,7 @@
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { theme } from "@/lib/theme";
 
 const Dialog = DialogPrimitive.Root;
 const DialogTrigger = DialogPrimitive.Trigger;
@@ -13,15 +13,16 @@ const DialogClose = DialogPrimitive.Close;
 const DialogOverlay = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
->(({ className, ...props }, ref) => (
+>(({ ...props }, ref) => (
   <DialogPrimitive.Overlay
     ref={ref}
-    className={cn(
-      "fixed inset-0 z-50 bg-black/70 backdrop-blur-sm",
-      "data-[state=open]:animate-in data-[state=closed]:animate-out",
-      "data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0",
-      className
-    )}
+    style={{
+      position: "fixed",
+      inset: 0,
+      zIndex: 50,
+      backgroundColor: "rgba(0,0,0,0.7)",
+      backdropFilter: "blur(4px)",
+    }}
     {...props}
   />
 ));
@@ -30,73 +31,138 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+>(({ children, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
-      className={cn(
-        "fixed left-1/2 top-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2",
-        "bg-bg-elevated border border-border-strong rounded-xl shadow-xl",
-        "p-6 gap-4",
-        "data-[state=open]:animate-in data-[state=closed]:animate-out",
-        "data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0",
-        "data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95",
-        "data-[state=open]:slide-in-from-top-[2%] data-[state=closed]:slide-out-to-top-[2%]",
-        className
-      )}
+      style={{
+        position: "fixed",
+        left: "50%",
+        top: "50%",
+        zIndex: 50,
+        width: "100%",
+        maxWidth: 560,
+        transform: "translate(-50%, -50%)",
+        backgroundColor: theme.bg.elevated,
+        border: theme.border.strong,
+        borderRadius: 10,
+        boxShadow: theme.shadow.lg,
+        display: "flex",
+        flexDirection: "column",
+        maxHeight: "90vh",
+        overflow: "hidden",
+      }}
       {...props}
     >
       {children}
       <DialogPrimitive.Close
-        className={cn(
-          "absolute right-4 top-4 rounded-sm size-8 inline-flex items-center justify-center",
-          "text-text-muted hover:text-text-primary hover:bg-bg-hover",
-          "transition-colors",
-          "focus:outline-none focus-visible:ring-2 focus-visible:ring-gold",
-          "disabled:pointer-events-none"
-        )}
+        style={{
+          position: "absolute",
+          right: 16,
+          top: 16,
+          width: 28,
+          height: 28,
+          borderRadius: 6,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "transparent",
+          color: theme.text.muted,
+          border: "none",
+          cursor: "pointer",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)";
+          e.currentTarget.style.color = theme.text.primary;
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = "transparent";
+          e.currentTarget.style.color = theme.text.muted;
+        }}
       >
-        <X className="size-4" />
-        <span className="sr-only">Close</span>
+        <X size={14} />
+        <span style={{ position: "absolute", width: 1, height: 1, overflow: "hidden" }}>Close</span>
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </DialogPortal>
 ));
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
+/**
+ * DialogHeader — the title row at the top of a dialog.
+ * Has its own padding + bottom separator.
+ */
 const DialogHeader = ({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) => (
+  children,
+}: {
+  children: React.ReactNode;
+}) => (
   <div
-    className={cn("flex flex-col gap-1.5 text-left pr-8", className)}
-    {...props}
-  />
+    style={{
+      padding: "20px 24px 16px",
+      borderBottom: theme.border.default,
+      paddingRight: 56, // leave space for X button
+    }}
+  >
+    {children}
+  </div>
 );
 DialogHeader.displayName = "DialogHeader";
 
-const DialogFooter = ({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) => (
+/**
+ * DialogBody — scrollable middle content area.
+ * Use this to wrap form fields inside a dialog.
+ */
+const DialogBody = ({ children }: { children: React.ReactNode }) => (
   <div
-    className={cn(
-      "flex flex-col-reverse sm:flex-row sm:justify-end gap-2",
-      className
-    )}
-    {...props}
-  />
+    style={{
+      padding: "20px 24px",
+      overflowY: "auto",
+      flex: 1,
+    }}
+  >
+    {children}
+  </div>
+);
+
+/**
+ * DialogFooter — action row at bottom. Has top separator + padding.
+ * Buttons align right by default.
+ */
+const DialogFooter = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => (
+  <div
+    style={{
+      padding: "14px 24px",
+      borderTop: theme.border.default,
+      backgroundColor: theme.bg.page,
+      display: "flex",
+      justifyContent: "flex-end",
+      gap: 8,
+    }}
+  >
+    {children}
+  </div>
 );
 DialogFooter.displayName = "DialogFooter";
 
 const DialogTitle = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Title>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
->(({ className, ...props }, ref) => (
+>(({ ...props }, ref) => (
   <DialogPrimitive.Title
     ref={ref}
-    className={cn("text-h3 font-semibold text-text-primary", className)}
+    style={{
+      fontSize: 16,
+      fontWeight: 600,
+      color: theme.text.primary,
+      margin: 0,
+      lineHeight: 1.3,
+    }}
     {...props}
   />
 ));
@@ -105,10 +171,15 @@ DialogTitle.displayName = DialogPrimitive.Title.displayName;
 const DialogDescription = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Description>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description>
->(({ className, ...props }, ref) => (
+>(({ ...props }, ref) => (
   <DialogPrimitive.Description
     ref={ref}
-    className={cn("text-small text-text-muted", className)}
+    style={{
+      fontSize: 12,
+      color: theme.text.muted,
+      margin: "4px 0 0",
+      lineHeight: 1.5,
+    }}
     {...props}
   />
 ));
@@ -122,6 +193,7 @@ export {
   DialogClose,
   DialogContent,
   DialogHeader,
+  DialogBody,
   DialogFooter,
   DialogTitle,
   DialogDescription,

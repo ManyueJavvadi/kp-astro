@@ -3,11 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Mail, Lock, User, Sparkles, AlertCircle } from "lucide-react";
+import { ArrowRight, Loader2, AlertCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { theme, styles } from "@/lib/theme";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -25,7 +23,7 @@ export default function SignupPage() {
     setLoading(true);
 
     const supabase = createClient();
-    const { error: signupError } = await supabase.auth.signUp({
+    const { error: err } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -36,167 +34,263 @@ export default function SignupPage() {
 
     setLoading(false);
 
-    if (signupError) {
-      setError(signupError.message);
+    if (err) {
+      setError(err.message);
       return;
     }
-
     setSuccess(true);
-    // If email confirmation is disabled in Supabase, signup session is created
-    // immediately and we can redirect. If enabled, user needs to confirm via email first.
     setTimeout(() => {
       router.push(role === "astrologer" ? "/pro" : "/app");
-    }, 1200);
+    }, 900);
   };
 
   return (
-    <div className="min-h-screen bg-bg-primary text-text-primary font-sans flex items-center justify-center px-6 py-12">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full bg-gradient-radial from-gold-glow via-transparent to-transparent blur-3xl" />
-      </div>
-
-      <div className="relative w-full max-w-md">
-        <Link href="/v2" className="flex items-center gap-2.5 mb-8 justify-center">
-          <div className="size-9 rounded-md bg-gradient-to-br from-gold to-gold-dim flex items-center justify-center font-display text-bg-primary text-lg font-bold">
+    <main
+      style={{
+        minHeight: "100vh",
+        backgroundColor: theme.bg.page,
+        color: theme.text.primary,
+        fontFamily: "'Inter', 'DM Sans', system-ui, sans-serif",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "48px 24px",
+      }}
+    >
+      <div style={{ width: "100%", maxWidth: 420 }}>
+        <Link
+          href="/v2"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 10,
+            marginBottom: 32,
+            textDecoration: "none",
+            justifyContent: "center",
+            width: "100%",
+          }}
+        >
+          <div
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 7,
+              background: `linear-gradient(135deg, ${theme.gold}, ${theme.goldDim})`,
+              color: "#07070d",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 16,
+              fontWeight: 700,
+            }}
+          >
             ♎
           </div>
-          <div className="font-semibold text-h3">
-            <span className="text-text-primary">DevAstro</span>
-            <span className="text-gold">AI</span>
+          <div style={{ fontSize: 15, fontWeight: 600, color: theme.text.primary }}>
+            DevAstro<span style={{ color: theme.gold }}>AI</span>
           </div>
         </Link>
 
-        <div className="rounded-2xl bg-bg-surface border border-border p-6 md:p-8 shadow-xl">
-          <div className="text-center mb-6">
-            <Badge variant="gold" size="md" className="mb-3">
-              <Sparkles className="size-3" /> 14-day free trial
-            </Badge>
-            <h1 className="font-display text-h1 font-semibold text-text-primary mb-2">
+        <div
+          style={{
+            backgroundColor: theme.bg.content,
+            border: theme.border.strong,
+            borderRadius: 10,
+            padding: 32,
+            boxShadow: theme.shadow.lg,
+          }}
+        >
+          <div style={{ textAlign: "center", marginBottom: 24 }}>
+            <h1
+              style={{
+                fontSize: 22,
+                fontWeight: 600,
+                color: theme.text.primary,
+                margin: 0,
+                letterSpacing: "-0.01em",
+              }}
+            >
               Create your account
             </h1>
-            <p className="text-small text-text-muted">
-              No credit card required. Start exploring in 30 seconds.
+            <p style={{ fontSize: 13, color: theme.text.muted, margin: "6px 0 0" }}>
+              14-day free trial · no card required
             </p>
           </div>
 
-          {/* Role selector */}
-          <div className="mb-5">
-            <label className="text-tiny uppercase tracking-wider text-text-muted mb-2 block font-medium">
-              I am a
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
+          {/* Role toggle */}
+          <div style={{ marginBottom: 18 }}>
+            <div style={styles.sectionLabel}>I am a</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <RoleButton
+                active={role === "consumer"}
                 onClick={() => setRole("consumer")}
-                className={
-                  role === "consumer"
-                    ? "p-3 rounded-lg border-2 border-gold bg-gold-glow text-text-primary"
-                    : "p-3 rounded-lg border border-border bg-bg-surface-2 text-text-secondary hover:border-border-strong transition-colors"
-                }
-              >
-                <div className="text-small font-medium">Consumer</div>
-                <div className="text-tiny text-text-muted mt-1">Exploring my own chart</div>
-              </button>
-              <button
-                type="button"
+                title="Consumer"
+                desc="Exploring my own chart"
+              />
+              <RoleButton
+                active={role === "astrologer"}
                 onClick={() => setRole("astrologer")}
-                className={
-                  role === "astrologer"
-                    ? "p-3 rounded-lg border-2 border-gold bg-gold-glow text-text-primary"
-                    : "p-3 rounded-lg border border-border bg-bg-surface-2 text-text-secondary hover:border-border-strong transition-colors"
-                }
-              >
-                <div className="text-small font-medium">KP Astrologer</div>
-                <div className="text-tiny text-text-muted mt-1">Practicing with clients</div>
-              </button>
+                title="KP Astrologer"
+                desc="Practicing with clients"
+              />
             </div>
           </div>
 
           {error && (
-            <div className="mb-4 p-3 rounded-md bg-error/10 border border-error/30 text-error text-small flex items-start gap-2">
-              <AlertCircle className="size-4 shrink-0 mt-0.5" />
+            <div
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 8,
+                padding: "10px 12px",
+                borderRadius: 6,
+                backgroundColor: "rgba(248,113,113,0.1)",
+                border: "1px solid rgba(248,113,113,0.25)",
+                color: theme.error,
+                fontSize: 12,
+                marginBottom: 12,
+                lineHeight: 1.5,
+              }}
+            >
+              <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
               {error}
             </div>
           )}
 
           {success && (
-            <div className="mb-4 p-3 rounded-md bg-success/10 border border-success/30 text-success text-small">
-              Account created! Redirecting...
+            <div
+              style={{
+                padding: "10px 12px",
+                borderRadius: 6,
+                backgroundColor: "rgba(52,211,153,0.1)",
+                border: "1px solid rgba(52,211,153,0.25)",
+                color: theme.success,
+                fontSize: 12,
+                marginBottom: 12,
+              }}
+            >
+              Account created! Redirecting…
             </div>
           )}
 
-          <form onSubmit={handleSignup} className="flex flex-col gap-3">
-            <div>
-              <label className="text-tiny uppercase tracking-wider text-text-muted mb-1.5 block font-medium">
-                Full Name
-              </label>
-              <Input
-                type="text"
+          <form onSubmit={handleSignup} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <Field label="Full name">
+              <input
                 required
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Ravi Kumar"
-                leftIcon={<User />}
-                size="lg"
+                style={{ ...styles.input, height: 40 }}
               />
-            </div>
-            <div>
-              <label className="text-tiny uppercase tracking-wider text-text-muted mb-1.5 block font-medium">
-                Email
-              </label>
-              <Input
-                type="email"
+            </Field>
+            <Field label="Email">
+              <input
                 required
+                type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@email.com"
-                leftIcon={<Mail />}
-                size="lg"
+                style={{ ...styles.input, height: 40 }}
               />
-            </div>
-            <div>
-              <label className="text-tiny uppercase tracking-wider text-text-muted mb-1.5 block font-medium">
-                Password
-              </label>
-              <Input
-                type="password"
+            </Field>
+            <Field label="Password">
+              <input
                 required
                 minLength={8}
+                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Min 8 characters"
-                leftIcon={<Lock />}
-                size="lg"
+                style={{ ...styles.input, height: 40 }}
               />
-            </div>
+            </Field>
 
-            <Button
+            <button
               type="submit"
-              variant="primary"
-              size="lg"
-              fullWidth
-              rightIcon={<ArrowRight />}
-              loading={loading}
-              className="mt-3"
+              disabled={loading}
+              style={{
+                ...styles.primaryButton,
+                height: 40,
+                width: "100%",
+                marginTop: 8,
+                opacity: loading ? 0.6 : 1,
+                justifyContent: "center",
+              }}
             >
-              Create account
-            </Button>
+              {loading ? (
+                <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+              ) : (
+                <>Create account <ArrowRight size={14} /></>
+              )}
+            </button>
           </form>
 
-          <div className="text-center mt-6 text-small text-text-muted">
+          <div style={{ textAlign: "center", marginTop: 20, fontSize: 13, color: theme.text.muted }}>
             Already have an account?{" "}
-            <Link href="/login" className="text-gold hover:text-gold-bright font-medium">
+            <Link href="/login" style={{ color: theme.gold, fontWeight: 500, textDecoration: "none" }}>
               Sign in
             </Link>
           </div>
         </div>
 
-        <div className="text-center mt-6 text-tiny text-text-muted">
+        <div style={{ textAlign: "center", marginTop: 20, fontSize: 11, color: theme.text.muted }}>
           By signing up, you agree to our{" "}
-          <Link href="/terms" className="underline hover:text-text-primary">Terms</Link> and{" "}
-          <Link href="/privacy" className="underline hover:text-text-primary">Privacy Policy</Link>
+          <Link href="/terms" style={{ color: theme.text.secondary, textDecoration: "underline" }}>Terms</Link>
+          {" "}and{" "}
+          <Link href="/privacy" style={{ color: theme.text.secondary, textDecoration: "underline" }}>Privacy Policy</Link>
         </div>
       </div>
+    </main>
+  );
+}
+
+function RoleButton({
+  active,
+  onClick,
+  title,
+  desc,
+}: {
+  active: boolean;
+  onClick: () => void;
+  title: string;
+  desc: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        padding: 12,
+        borderRadius: 8,
+        border: active ? `2px solid ${theme.gold}` : theme.border.default,
+        backgroundColor: active ? "rgba(201,169,110,0.08)" : theme.bg.page,
+        textAlign: "left",
+        cursor: "pointer",
+        color: active ? theme.text.primary : theme.text.secondary,
+      }}
+    >
+      <div style={{ fontSize: 13, fontWeight: 600, color: theme.text.primary }}>{title}</div>
+      <div style={{ fontSize: 11, color: theme.text.muted, marginTop: 2 }}>{desc}</div>
+    </button>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div
+        style={{
+          fontSize: 10,
+          color: theme.text.dim,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          fontWeight: 500,
+          marginBottom: 4,
+        }}
+      >
+        {label}
+      </div>
+      {children}
     </div>
   );
 }

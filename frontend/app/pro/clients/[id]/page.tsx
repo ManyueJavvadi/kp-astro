@@ -27,6 +27,8 @@ import { AnalysisTab } from "@/components/pro/analysis-tab";
 import { SessionsTab } from "@/components/pro/sessions-tab";
 import { PredictionsTab } from "@/components/pro/predictions-tab";
 import { NotesTab } from "@/components/pro/notes-tab";
+import { EditClientDialog } from "@/components/pro/edit-client-dialog";
+import { FollowupsTab } from "@/components/pro/followups-tab";
 
 const TABS = [
   { key: "chart", label: "Chart" },
@@ -35,6 +37,7 @@ const TABS = [
   { key: "analysis", label: "Analysis" },
   { key: "sessions", label: "Sessions" },
   { key: "predictions", label: "Predictions" },
+  { key: "followups", label: "Follow-ups" },
   { key: "notes", label: "Notes" },
 ];
 
@@ -217,9 +220,7 @@ export default function ClientWorkspacePage({
             </div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button style={styles.ghostButton}>
-              <Edit size={14} /> Edit
-            </button>
+            <EditClientDialog client={client} />
             <ExportPDFButton ws={ws} clientName={client.full_name} />
           </div>
         </div>
@@ -296,6 +297,7 @@ export default function ClientWorkspacePage({
         )}
         {activeTab === "sessions" && <SessionsTab clientId={client.id} />}
         {activeTab === "predictions" && <PredictionsTab clientId={client.id} />}
+        {activeTab === "followups" && <FollowupsTab clientId={client.id} />}
         {activeTab === "notes" && (
           <NotesTab clientId={client.id} initial={client.notes_private ?? null} />
         )}

@@ -6,6 +6,7 @@ import { Plus, Loader2, Sparkles } from "lucide-react";
 import { theme, styles } from "@/lib/theme";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -91,7 +92,7 @@ export function NewClientDialog({ trigger }: { trigger?: React.ReactNode }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trig}</DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Add new client</DialogTitle>
           <DialogDescription>
@@ -99,7 +100,12 @@ export function NewClientDialog({ trigger }: { trigger?: React.ReactNode }) {
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <form
+          onSubmit={handleSubmit}
+          style={{ display: "contents" }}
+        >
+        <DialogBody>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <Field label="Full name *">
             <input
               required
@@ -215,20 +221,22 @@ export function NewClientDialog({ trigger }: { trigger?: React.ReactNode }) {
               style={styles.input}
             />
           </Field>
+          </div>
+        </DialogBody>
 
-          <DialogFooter style={{ marginTop: 8 }}>
-            <button type="button" onClick={() => setOpen(false)} style={styles.ghostButton}>
-              Cancel
-            </button>
-            <button type="submit" disabled={create.isPending} style={styles.primaryButton}>
-              {create.isPending ? (
-                <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
-              ) : (
-                <Sparkles size={14} />
-              )}
-              Create client
-            </button>
-          </DialogFooter>
+        <DialogFooter>
+          <button type="button" onClick={() => setOpen(false)} style={styles.ghostButton}>
+            Cancel
+          </button>
+          <button type="submit" disabled={create.isPending} style={styles.primaryButton}>
+            {create.isPending ? (
+              <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+            ) : (
+              <Sparkles size={14} />
+            )}
+            Create client
+          </button>
+        </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

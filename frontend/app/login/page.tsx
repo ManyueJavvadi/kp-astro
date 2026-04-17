@@ -3,10 +3,9 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, Mail, Lock, AlertCircle } from "lucide-react";
+import { ArrowRight, Loader2, AlertCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { theme, styles } from "@/lib/theme";
 
 function LoginForm() {
   const router = useRouter();
@@ -24,19 +23,14 @@ function LoginForm() {
     setLoading(true);
 
     const supabase = createClient();
-    const { data, error: loginError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { data, error: err } = await supabase.auth.signInWithPassword({ email, password });
 
     setLoading(false);
-
-    if (loginError) {
-      setError(loginError.message);
+    if (err) {
+      setError(err.message);
       return;
     }
 
-    // Role-aware routing: astrologers go to /pro, consumers to /app
     const role =
       (data.user?.user_metadata?.role as string | undefined) ?? "consumer";
     const home = role === "astrologer" ? "/pro" : "/app";
@@ -45,105 +39,197 @@ function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen bg-bg-primary text-text-primary font-sans flex items-center justify-center px-6 py-12">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full bg-gradient-radial from-gold-glow via-transparent to-transparent blur-3xl" />
-      </div>
-
-      <div className="relative w-full max-w-md">
-        <Link href="/v2" className="flex items-center gap-2.5 mb-8 justify-center">
-          <div className="size-9 rounded-md bg-gradient-to-br from-gold to-gold-dim flex items-center justify-center font-display text-bg-primary text-lg font-bold">
+    <main
+      style={{
+        minHeight: "100vh",
+        backgroundColor: theme.bg.page,
+        color: theme.text.primary,
+        fontFamily: "'Inter', 'DM Sans', system-ui, sans-serif",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "48px 24px",
+      }}
+    >
+      <div style={{ width: "100%", maxWidth: 420 }}>
+        <Link
+          href="/v2"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 10,
+            marginBottom: 32,
+            textDecoration: "none",
+            justifyContent: "center",
+            width: "100%",
+          }}
+        >
+          <div
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 7,
+              background: `linear-gradient(135deg, ${theme.gold}, ${theme.goldDim})`,
+              color: "#07070d",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 16,
+              fontWeight: 700,
+            }}
+          >
             ♎
           </div>
-          <div className="font-semibold text-h3">
-            <span className="text-text-primary">DevAstro</span>
-            <span className="text-gold">AI</span>
+          <div style={{ fontSize: 15, fontWeight: 600, color: theme.text.primary }}>
+            DevAstro<span style={{ color: theme.gold }}>AI</span>
           </div>
         </Link>
 
-        <div className="rounded-2xl bg-bg-surface border border-border p-6 md:p-8 shadow-xl">
-          <div className="text-center mb-6">
-            <h1 className="font-display text-h1 font-semibold text-text-primary mb-2">
+        <div
+          style={{
+            backgroundColor: theme.bg.content,
+            border: theme.border.strong,
+            borderRadius: 10,
+            padding: 32,
+            boxShadow: theme.shadow.lg,
+          }}
+        >
+          <div style={{ textAlign: "center", marginBottom: 24 }}>
+            <h1
+              style={{
+                fontSize: 22,
+                fontWeight: 600,
+                color: theme.text.primary,
+                margin: 0,
+                letterSpacing: "-0.01em",
+              }}
+            >
               Welcome back
             </h1>
-            <p className="text-small text-text-muted">
+            <p style={{ fontSize: 13, color: theme.text.muted, margin: "6px 0 0" }}>
               Sign in to continue your practice
             </p>
           </div>
 
           {error && (
-            <div className="mb-4 p-3 rounded-md bg-error/10 border border-error/30 text-error text-small flex items-start gap-2">
-              <AlertCircle className="size-4 shrink-0 mt-0.5" />
+            <div
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 8,
+                padding: "10px 12px",
+                borderRadius: 6,
+                backgroundColor: "rgba(248,113,113,0.1)",
+                border: "1px solid rgba(248,113,113,0.25)",
+                color: theme.error,
+                fontSize: 12,
+                marginBottom: 12,
+                lineHeight: 1.5,
+              }}
+            >
+              <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
               {error}
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="flex flex-col gap-3">
-            <div>
-              <label className="text-tiny uppercase tracking-wider text-text-muted mb-1.5 block font-medium">
-                Email
-              </label>
-              <Input
-                type="email"
+          <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <Field label="Email">
+              <input
                 required
+                type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@email.com"
-                leftIcon={<Mail />}
-                size="lg"
+                style={{ ...styles.input, height: 40 }}
               />
-            </div>
+            </Field>
             <div>
-              <div className="flex items-baseline justify-between mb-1.5">
-                <label className="text-tiny uppercase tracking-wider text-text-muted font-medium">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+                <span
+                  style={{
+                    fontSize: 10,
+                    color: theme.text.dim,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    fontWeight: 500,
+                  }}
+                >
                   Password
-                </label>
+                </span>
                 <Link
                   href="/forgot"
-                  className="text-tiny text-gold hover:text-gold-bright"
+                  style={{ fontSize: 11, color: theme.gold, textDecoration: "none" }}
                 >
                   Forgot?
                 </Link>
               </div>
-              <Input
-                type="password"
+              <input
                 required
+                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Your password"
-                leftIcon={<Lock />}
-                size="lg"
+                style={{ ...styles.input, height: 40 }}
               />
             </div>
 
-            <Button
+            <button
               type="submit"
-              variant="primary"
-              size="lg"
-              fullWidth
-              rightIcon={<ArrowRight />}
-              loading={loading}
-              className="mt-3"
+              disabled={loading}
+              style={{
+                ...styles.primaryButton,
+                height: 40,
+                width: "100%",
+                marginTop: 8,
+                opacity: loading ? 0.6 : 1,
+                justifyContent: "center",
+              }}
             >
-              Sign in
-            </Button>
+              {loading ? (
+                <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+              ) : (
+                <>Sign in <ArrowRight size={14} /></>
+              )}
+            </button>
           </form>
 
-          <div className="text-center mt-6 text-small text-text-muted">
+          <div style={{ textAlign: "center", marginTop: 20, fontSize: 13, color: theme.text.muted }}>
             New to DevAstroAI?{" "}
-            <Link href="/signup" className="text-gold hover:text-gold-bright font-medium">
+            <Link href="/signup" style={{ color: theme.gold, fontWeight: 500, textDecoration: "none" }}>
               Create an account
             </Link>
           </div>
         </div>
       </div>
+    </main>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div
+        style={{
+          fontSize: 10,
+          color: theme.text.dim,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          fontWeight: 500,
+          marginBottom: 4,
+        }}
+      >
+        {label}
+      </div>
+      {children}
     </div>
   );
 }
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-bg-primary" />}>
+    <Suspense
+      fallback={<div style={{ minHeight: "100vh", backgroundColor: theme.bg.page }} />}
+    >
       <LoginForm />
     </Suspense>
   );
