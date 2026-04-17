@@ -188,21 +188,14 @@
    Utility extensions — commonly used patterns
    ═══════════════════════════════════════════════════════════════ */
 @layer utilities {
-  /* Hide scrollbar but keep scroll */
   .scrollbar-hidden {
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
-  .scrollbar-hidden::-webkit-scrollbar {
-    display: none;
-  }
+  .scrollbar-hidden::-webkit-scrollbar { display: none; }
 
-  /* Text balance for headings */
-  .text-balance {
-    text-wrap: balance;
-  }
+  .text-balance { text-wrap: balance; }
 
-  /* Subtle gradient border (for hero cards) */
   .border-gradient-gold {
     border: 1px solid transparent;
     background-image:
@@ -211,4 +204,70 @@
     background-origin: border-box;
     background-clip: padding-box, border-box;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Atmosphere — subtle depth behind the whole app
+   ═══════════════════════════════════════════════════════════════ */
+
+.app-bg {
+  background-color: var(--color-bg-primary);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(201,169,110,0.08), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 90% 10%, rgba(167,139,250,0.04), transparent 70%);
+  background-attachment: fixed;
+}
+
+/* Grain overlay — add class to a positioned parent then &::after gives grain */
+.grain::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/></svg>");
+}
+
+/* Soft gold glow under hero elements */
+.glow-gold-soft {
+  position: relative;
+}
+.glow-gold-soft::before {
+  content: "";
+  position: absolute;
+  inset: -20px;
+  background: radial-gradient(ellipse at center, rgba(201,169,110,0.15), transparent 70%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Frosted glass — for stick-to-top panels */
+.glass {
+  background: rgba(18, 19, 26, 0.7);
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
+}
+
+/* Subtle card lift on hover */
+.lift-on-hover {
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 200ms;
+}
+.lift-on-hover:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+
+/* Fade-up for first-paint entrance */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-up {
+  animation: fade-up 400ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.fade-up-delayed {
+  animation: fade-up 400ms cubic-bezier(0.16, 1, 0.3, 1) 120ms backwards;
 }

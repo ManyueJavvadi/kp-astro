@@ -54,7 +54,7 @@ export function Sidebar() {
   const nav = buildNav(clients?.total ?? 0);
 
   return (
-    <aside className="w-60 shrink-0 h-screen sticky top-0 border-r border-border bg-bg-surface flex flex-col">
+    <aside className="w-60 shrink-0 h-screen sticky top-0 border-r border-border bg-bg-surface/70 backdrop-blur-lg flex flex-col z-20">
       {/* Brand */}
       <div className="h-14 border-b border-border flex items-center gap-2.5 px-4">
         <div className="size-7 rounded-md bg-gradient-to-br from-gold to-gold-dim flex items-center justify-center font-display text-bg-primary text-base font-bold">
