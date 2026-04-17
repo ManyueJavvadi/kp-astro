@@ -1,18 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Plus,
-  Target,
-  CheckCircle2,
-  Circle,
-  XCircle,
-  HelpCircle,
-  Loader2,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input, Textarea } from "@/components/ui/input";
+import { Plus, Target, CheckCircle2, Circle, XCircle, HelpCircle, Loader2 } from "lucide-react";
+import { theme, styles } from "@/lib/theme";
+import { ContentCard, SectionLabel, SectionHeading } from "@/components/ui/content-card";
+import { StatCard } from "@/components/ui/stat-card";
 import {
   Dialog,
   DialogContent,
@@ -27,28 +19,17 @@ import {
   useUpdatePrediction,
   type PredictionRow,
 } from "@/hooks/use-predictions";
-import { cn } from "@/lib/utils";
 
 const DOMAINS = [
-  "career",
-  "marriage",
-  "health",
-  "finance",
-  "education",
-  "travel",
-  "foreign",
-  "property",
-  "children",
-  "litigation",
-  "spiritual",
-  "other",
+  "career", "marriage", "health", "finance", "education",
+  "travel", "foreign", "property", "children", "litigation", "spiritual", "other",
 ];
 
 const OUTCOMES = [
-  { value: "pending", label: "Pending", icon: Circle, color: "text-text-muted" },
-  { value: "correct", label: "Correct", icon: CheckCircle2, color: "text-success" },
-  { value: "partial", label: "Partial", icon: HelpCircle, color: "text-warning" },
-  { value: "wrong", label: "Wrong", icon: XCircle, color: "text-error" },
+  { value: "pending", label: "Pending", icon: Circle, color: "#64748B" },
+  { value: "correct", label: "Correct", icon: CheckCircle2, color: "#34d399" },
+  { value: "partial", label: "Partial", icon: HelpCircle, color: "#fbbf24" },
+  { value: "wrong", label: "Wrong", icon: XCircle, color: "#f87171" },
 ] as const;
 
 export function PredictionsTab({ clientId }: { clientId: string }) {
@@ -68,10 +49,9 @@ export function PredictionsTab({ clientId }: { clientId: string }) {
   const correct = items.filter((p) => p.outcome === "correct").length;
   const partial = items.filter((p) => p.outcome === "partial").length;
   const pending = items.filter((p) => p.outcome === "pending").length;
-  const accuracy =
-    verified.length > 0 ? Math.round(((correct + 0.5 * partial) / verified.length) * 100) : 0;
+  const accuracy = verified.length > 0 ? Math.round(((correct + 0.5 * partial) / verified.length) * 100) : 0;
 
-  const handleCreate = async () => {
+  const submit = async () => {
     if (!form.prediction_text.trim()) return;
     await create.mutateAsync({
       client_id: clientId,
@@ -85,77 +65,90 @@ export function PredictionsTab({ clientId }: { clientId: string }) {
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Stats row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <MiniStat label="Total" value={String(items.length)} />
-        <MiniStat label="Correct" value={String(correct)} color="success" />
-        <MiniStat label="Pending" value={String(pending)} />
-        <MiniStat label="Accuracy" value={`${accuracy}%`} color="gold" />
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Stats */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+        <StatCard label="Total" value={String(items.length)} />
+        <StatCard label="Correct" value={String(correct)} sub={items.length ? `${Math.round((correct / items.length) * 100)}% of all` : ""} />
+        <StatCard label="Pending" value={String(pending)} sub="Awaiting outcome" />
+        <StatCard label="Accuracy" value={`${accuracy}%`} sub={`${verified.length} verified`} />
       </div>
 
-      <div className="flex items-center justify-between mt-2 mb-1">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginTop: 8 }}>
         <div>
-          <div className="text-tiny uppercase tracking-wider text-gold mb-1">
-            PREDICTION LEDGER
-          </div>
-          <h2 className="font-display text-h2 font-semibold text-text-primary">
-            What you&apos;ve predicted
-          </h2>
+          <SectionLabel>Prediction Ledger</SectionLabel>
+          <SectionHeading>What you&apos;ve predicted</SectionHeading>
         </div>
-        <Button variant="primary" leftIcon={<Plus />} onClick={() => setShowCreate(true)}>
-          Log prediction
-        </Button>
+        <button onClick={() => setShowCreate(true)} style={styles.primaryButton}>
+          <Plus size={14} /> Log prediction
+        </button>
       </div>
 
       {isLoading && (
-        <div className="flex items-center justify-center py-10 text-text-muted">
-          <Loader2 className="size-5 animate-spin mr-2" /> Loading…
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 24, color: theme.text.muted }}>
+          <Loader2 size={16} style={{ marginRight: 8, animation: "spin 1s linear infinite" }} /> Loading…
         </div>
       )}
 
       {!isLoading && items.length === 0 && (
-        <div className="p-10 rounded-xl border-2 border-dashed border-border-strong text-center">
-          <div className="size-14 mx-auto mb-3 rounded-full bg-gold-glow border border-border-accent flex items-center justify-center text-gold">
-            <Target className="size-6" />
+        <ContentCard>
+          <div style={{ textAlign: "center", padding: 24 }}>
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 8,
+                backgroundColor: "rgba(201,169,110,0.1)",
+                color: theme.gold,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 12,
+              }}
+            >
+              <Target size={20} />
+            </div>
+            <SectionHeading>No predictions logged</SectionHeading>
+            <div style={{ fontSize: 13, color: theme.text.muted, maxWidth: 420, margin: "8px auto 16px", lineHeight: 1.5 }}>
+              Log every prediction with a target window. Mark outcomes later to
+              build a reliable accuracy record.
+            </div>
+            <button onClick={() => setShowCreate(true)} style={styles.primaryButton}>
+              <Plus size={14} /> Log first prediction
+            </button>
           </div>
-          <div className="font-display text-h3 font-semibold text-text-primary mb-1">
-            No predictions logged
-          </div>
-          <div className="text-body text-text-secondary max-w-md mx-auto mb-5">
-            Log every prediction you make with a target window. Mark outcomes
-            later — this builds your accuracy scoreboard over time.
-          </div>
-          <Button variant="primary" leftIcon={<Plus />} onClick={() => setShowCreate(true)}>
-            Log first prediction
-          </Button>
-        </div>
+        </ContentCard>
       )}
 
       {items.length > 0 && (
-        <div className="rounded-xl bg-bg-surface border border-border overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-bg-surface-2 border-b border-border">
-                <th className="text-left text-tiny uppercase tracking-wider text-text-muted px-4 py-3 font-medium">Prediction</th>
-                <th className="text-left text-tiny uppercase tracking-wider text-text-muted px-4 py-3 font-medium">Domain</th>
-                <th className="text-left text-tiny uppercase tracking-wider text-text-muted px-4 py-3 font-medium">Window</th>
-                <th className="text-center text-tiny uppercase tracking-wider text-text-muted px-4 py-3 font-medium">Outcome</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {items.map((p) => (
-                <PredictionRowDisplay
-                  key={p.id}
-                  prediction={p}
-                  onOutcome={(outcome) =>
-                    update.mutate({ id: p.id, body: { outcome } })
-                  }
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ContentCard padding="none">
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "2fr 1fr 1fr auto",
+              gap: 12,
+              padding: "10px 20px",
+              borderBottom: theme.border.default,
+              fontSize: 10,
+              color: theme.text.dim,
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              fontWeight: 500,
+            }}
+          >
+            <span>Prediction</span>
+            <span>Domain</span>
+            <span>Window</span>
+            <span style={{ textAlign: "center" }}>Outcome</span>
+          </div>
+          {items.map((p) => (
+            <PredictionRowDisplay
+              key={p.id}
+              prediction={p}
+              onOutcome={(outcome) => update.mutate({ id: p.id, body: { outcome } })}
+            />
+          ))}
+        </ContentCard>
       )}
 
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
@@ -163,66 +156,59 @@ export function PredictionsTab({ clientId }: { clientId: string }) {
           <DialogHeader>
             <DialogTitle>Log a prediction</DialogTitle>
             <DialogDescription>
-              Specific predictions with target windows are easiest to verify
-              later. Mark the outcome when the window passes.
+              Be specific. Set a target window — easiest to verify later.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col gap-3">
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div>
-              <label className="text-tiny uppercase tracking-wider text-text-muted mb-1.5 block font-medium">
-                Prediction
-              </label>
-              <Textarea
+              <div style={styles.sectionLabel}>Prediction</div>
+              <textarea
                 rows={3}
                 placeholder="Job offer by June 2026"
                 value={form.prediction_text}
                 onChange={(e) => setForm({ ...form, prediction_text: e.target.value })}
+                style={{ ...styles.input, height: 80, padding: "10px 12px", resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 }}
               />
             </div>
             <div>
-              <label className="text-tiny uppercase tracking-wider text-text-muted mb-1.5 block font-medium">
-                Domain
-              </label>
+              <div style={styles.sectionLabel}>Domain</div>
               <select
                 value={form.domain}
                 onChange={(e) => setForm({ ...form, domain: e.target.value })}
-                className="w-full h-10 px-3 rounded-md bg-bg-surface-2 border border-border text-text-primary text-body focus:outline-none focus:border-border-accent focus:ring-1 focus:ring-gold"
+                style={{ ...styles.input, textTransform: "capitalize" }}
               >
                 {DOMAINS.map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
+                  <option key={d} value={d}>{d}</option>
                 ))}
               </select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
-                <label className="text-tiny uppercase tracking-wider text-text-muted mb-1.5 block font-medium">
-                  Window start
-                </label>
-                <Input
+                <div style={styles.sectionLabel}>Window start</div>
+                <input
                   type="date"
                   value={form.target_window_start}
                   onChange={(e) => setForm({ ...form, target_window_start: e.target.value })}
+                  style={styles.input}
                 />
               </div>
               <div>
-                <label className="text-tiny uppercase tracking-wider text-text-muted mb-1.5 block font-medium">
-                  Window end
-                </label>
-                <Input
+                <div style={styles.sectionLabel}>Window end</div>
+                <input
                   type="date"
                   value={form.target_window_end}
                   onChange={(e) => setForm({ ...form, target_window_end: e.target.value })}
+                  style={styles.input}
                 />
               </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setShowCreate(false)}>Cancel</Button>
-            <Button variant="primary" loading={create.isPending} onClick={handleCreate}>
-              Log prediction
-            </Button>
+            <button onClick={() => setShowCreate(false)} style={styles.ghostButton}>Cancel</button>
+            <button onClick={submit} disabled={create.isPending} style={styles.primaryButton}>
+              {create.isPending ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Plus size={14} />}
+              Log
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -237,71 +223,49 @@ function PredictionRowDisplay({
   prediction: PredictionRow;
   onOutcome: (outcome: string) => void;
 }) {
-  const outcomeInfo = OUTCOMES.find((o) => o.value === prediction.outcome) ?? OUTCOMES[0];
-  const OutIcon = outcomeInfo.icon;
   return (
-    <tr className="hover:bg-bg-hover transition-colors">
-      <td className="px-4 py-3 text-small text-text-primary max-w-md">
-        {prediction.prediction_text}
-      </td>
-      <td className="px-4 py-3 text-small text-text-secondary capitalize">
-        {prediction.domain}
-      </td>
-      <td className="px-4 py-3 text-tiny text-text-muted font-mono">
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "2fr 1fr 1fr auto",
+        gap: 12,
+        padding: "12px 20px",
+        borderTop: theme.border.default,
+        fontSize: 13,
+        alignItems: "center",
+      }}
+    >
+      <div style={{ color: theme.text.primary }}>{prediction.prediction_text}</div>
+      <div style={{ color: theme.text.secondary, textTransform: "capitalize" }}>{prediction.domain}</div>
+      <div style={{ color: theme.text.muted, fontSize: 11, fontFamily: "monospace" }}>
         {prediction.target_window_start || "—"} → {prediction.target_window_end || "—"}
-      </td>
-      <td className="px-4 py-3 text-center">
-        <div className="inline-flex items-center gap-1">
-          {OUTCOMES.map((o) => {
-            const Icon = o.icon;
-            const active = o.value === prediction.outcome;
-            return (
-              <button
-                key={o.value}
-                onClick={() => onOutcome(o.value)}
-                className={cn(
-                  "size-7 rounded flex items-center justify-center transition-all",
-                  active
-                    ? `${o.color} bg-bg-hover`
-                    : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
-                )}
-                title={o.label}
-              >
-                <Icon className="size-4" />
-              </button>
-            );
-          })}
-        </div>
-      </td>
-    </tr>
-  );
-}
-
-function MiniStat({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: string;
-  color?: "gold" | "success";
-}) {
-  return (
-    <div className="p-4 rounded-lg bg-bg-surface border border-border">
-      <div className="text-tiny uppercase tracking-wider text-text-muted mb-1">
-        {label}
       </div>
-      <div
-        className={cn(
-          "font-display text-h2 leading-none font-semibold",
-          color === "success"
-            ? "text-success"
-            : color === "gold"
-              ? "text-gold"
-              : "text-text-primary"
-        )}
-      >
-        {value}
+      <div style={{ display: "inline-flex", gap: 2 }}>
+        {OUTCOMES.map((o) => {
+          const Icon = o.icon;
+          const active = o.value === prediction.outcome;
+          return (
+            <button
+              key={o.value}
+              onClick={() => onOutcome(o.value)}
+              title={o.label}
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 6,
+                backgroundColor: active ? "rgba(255,255,255,0.06)" : "transparent",
+                color: active ? o.color : theme.text.dim,
+                border: "none",
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Icon size={15} />
+            </button>
+          );
+        })}
       </div>
     </div>
   );

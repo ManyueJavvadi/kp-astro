@@ -3,152 +3,144 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { theme } from "@/lib/theme";
+import { ContentCard, SectionLabel } from "@/components/ui/content-card";
 
 export function HousesTab({ ws }: { ws: any }) {
   const cusps: any[] = Array.isArray(ws?.cusps) ? ws.cusps : [];
   const sigs = ws?.significators ?? {};
   const planets: any[] = Array.isArray(ws?.planets) ? ws.planets : [];
-  const [selectedHouse, setSelectedHouse] = useState(1);
-
-  const cuspData = cusps.find((c) => c.house_num === selectedHouse) ?? cusps[0];
-  const houseSigs = sigs[`House_${selectedHouse}`];
-
-  const occupants = planets
-    .filter((p) => p.house === selectedHouse)
-    .map((p) => p.planet_en);
+  const [selected, setSelected] = useState(1);
+  const cuspData = cusps.find((c) => c.house_num === selected) ?? cusps[0];
+  const houseSigs = sigs[`House_${selected}`];
+  const occupants = planets.filter((p) => p.house === selected).map((p) => p.planet_en);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-5">
-      {/* House selector column */}
-      <div className="rounded-xl bg-bg-surface border border-border p-3 h-fit sticky top-[7.5rem]">
-        <div className="text-tiny uppercase tracking-wider text-gold mb-3 px-2">
-          12 HOUSES
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "260px 1fr",
+        gap: 20,
+        alignItems: "start",
+      }}
+    >
+      {/* Sidebar with all 12 houses */}
+      <ContentCard padding="none" style={{ position: "sticky", top: 64 }}>
+        <div style={{ padding: "12px 16px", borderBottom: theme.border.default }}>
+          <SectionLabel>12 Houses</SectionLabel>
         </div>
-        <div className="flex flex-col gap-1">
+        <div>
           {cusps.map((c) => {
-            const active = c.house_num === selectedHouse;
-            const occupantCount = planets.filter(
-              (p) => p.house === c.house_num
-            ).length;
+            const active = c.house_num === selected;
+            const occ = planets.filter((p) => p.house === c.house_num).length;
             return (
               <button
                 key={c.house_num}
-                onClick={() => setSelectedHouse(c.house_num)}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-md text-left transition-colors",
-                  active
-                    ? "bg-gold-glow border border-border-accent"
-                    : "hover:bg-bg-hover border border-transparent"
-                )}
+                onClick={() => setSelected(c.house_num)}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "10px 16px",
+                  background: active ? "rgba(201,169,110,0.08)" : "transparent",
+                  border: "none",
+                  borderLeft: active
+                    ? `2px solid ${theme.gold}`
+                    : "2px solid transparent",
+                  cursor: "pointer",
+                  color: active ? theme.text.primary : theme.text.secondary,
+                  textAlign: "left",
+                  fontSize: 13,
+                }}
               >
-                <div
-                  className={cn(
-                    "size-8 rounded-md flex items-center justify-center text-small font-bold font-mono",
-                    active
-                      ? "bg-gold text-bg-primary"
-                      : "bg-bg-surface-2 text-text-muted"
-                  )}
+                <span
+                  style={{
+                    width: 24,
+                    fontSize: 11,
+                    fontFamily: "monospace",
+                    color: active ? theme.gold : theme.text.dim,
+                    fontWeight: 600,
+                  }}
                 >
-                  {c.house_num}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div
-                    className={cn(
-                      "text-small font-medium truncate",
-                      active ? "text-text-primary" : "text-text-secondary"
-                    )}
+                  H{c.house_num}
+                </span>
+                <span style={{ flex: 1 }}>{c.sign_en}</span>
+                {occ > 0 && (
+                  <span
+                    style={{
+                      fontSize: 10,
+                      backgroundColor: "rgba(201,169,110,0.1)",
+                      color: theme.gold,
+                      padding: "1px 6px",
+                      borderRadius: 3,
+                    }}
                   >
-                    {c.sign_en}
-                  </div>
-                  <div className="text-tiny text-text-muted truncate">
-                    SL: {c.sub_lord_en ?? "—"}
-                  </div>
-                </div>
-                {occupantCount > 0 && (
-                  <Badge variant="gold" size="sm">
-                    {occupantCount}
-                  </Badge>
+                    {occ}
+                  </span>
                 )}
               </button>
             );
           })}
         </div>
-      </div>
+      </ContentCard>
 
-      {/* House detail */}
-      <div className="flex flex-col gap-4 min-w-0">
-        {cuspData && (
-          <>
-            {/* Header */}
-            <div className="rounded-xl bg-bg-surface border border-border p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <div className="text-tiny uppercase tracking-wider text-gold mb-1">
-                    HOUSE {selectedHouse}
-                  </div>
-                  <h2 className="font-display text-h1 font-semibold text-text-primary mb-1">
-                    {cuspData.sign_en}
-                  </h2>
-                  <div className="text-small text-text-muted font-mono">
-                    Cusp: {typeof cuspData.cusp_longitude === "number"
-                      ? `${cuspData.cusp_longitude.toFixed(2)}°`
-                      : "—"}{" "}
-                    · Nakshatra: {cuspData.nakshatra_en ?? cuspData.nakshatra ?? "—"}
-                  </div>
+      {cuspData && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
+          {/* House header */}
+          <ContentCard>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <SectionLabel>House {selected}</SectionLabel>
+                <div style={{ fontSize: 28, fontWeight: 600, color: theme.text.primary, marginTop: 4 }}>
+                  {cuspData.sign_en}
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <Stat label="Sub Lord" value={cuspData.sub_lord_en ?? "—"} emphasize />
-                <Stat label="Star Lord" value={cuspData.star_lord_en ?? "—"} />
-                <Stat label="Sign Lord" value={cuspData.sign_lord_en ?? "—"} />
-                <Stat label="Occupants" value={occupants.join(", ") || "None"} />
+                <div style={{ fontSize: 12, color: theme.text.muted, marginTop: 4, fontFamily: "monospace" }}>
+                  Cusp: {typeof cuspData.cusp_longitude === "number" ? `${cuspData.cusp_longitude.toFixed(2)}°` : "—"}
+                  {" · "}Nakshatra: {cuspData.nakshatra_en ?? cuspData.nakshatra ?? "—"}
+                </div>
               </div>
             </div>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(4, 1fr)",
+                gap: 10,
+                marginTop: 16,
+              }}
+            >
+              <Stat label="Sub Lord" value={cuspData.sub_lord_en ?? "—"} emphasize />
+              <Stat label="Star Lord" value={cuspData.star_lord_en ?? "—"} />
+              <Stat label="Sign Lord" value={cuspData.sign_lord_en ?? "—"} />
+              <Stat label="Occupants" value={occupants.join(", ") || "None"} />
+            </div>
+          </ContentCard>
 
-            {/* Significators */}
-            {houseSigs && (
-              <div className="rounded-xl bg-bg-surface border border-border p-5">
-                <div className="text-tiny uppercase tracking-wider text-gold mb-3">
-                  SIGNIFICATORS (4-LEVEL)
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <SigRow
-                    label="Occupants (L1)"
-                    planets={houseSigs.occupants_en ?? []}
-                    sub="Planets sitting in this house"
-                  />
-                  <SigRow
-                    label="House Lord (L2)"
-                    planets={[houseSigs.house_lord_en].filter(Boolean)}
-                    sub={`Sign lord = ${houseSigs.house_lord_en ?? "—"}`}
-                  />
-                  <SigRow
-                    label="All significators"
-                    planets={houseSigs.all_significators_en ?? []}
-                    sub="L1 + L2 + star-of-L1 + star-of-L2"
-                    highlight
-                  />
-                </div>
+          {/* Significators */}
+          {houseSigs && (
+            <ContentCard>
+              <SectionLabel>Significators · 4-level</SectionLabel>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 12,
+                  marginTop: 12,
+                }}
+              >
+                <SigBlock label="Occupants (L1)" planets={houseSigs.occupants_en ?? []} sub="Planets in this house" />
+                <SigBlock label="House lord (L2)" planets={[houseSigs.house_lord_en].filter(Boolean)} sub={`Sign lord = ${houseSigs.house_lord_en ?? "—"}`} />
+                <SigBlock
+                  label="All significators"
+                  planets={houseSigs.all_significators_en ?? []}
+                  sub="L1 + L2 + star-of-L1 + star-of-L2"
+                  highlight
+                />
               </div>
-            )}
-
-            {/* CSL chain */}
-            {ws?.csl_chains?.[selectedHouse - 1] && (
-              <div className="rounded-xl bg-bg-surface border border-border p-5">
-                <div className="text-tiny uppercase tracking-wider text-gold mb-3">
-                  CSL SIGNIFICATION CHAIN
-                </div>
-                <pre className="text-tiny font-mono text-text-secondary whitespace-pre-wrap">
-                  {JSON.stringify(ws.csl_chains[selectedHouse - 1], null, 2)}
-                </pre>
-              </div>
-            )}
-          </>
-        )}
-      </div>
+            </ContentCard>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -163,15 +155,27 @@ function Stat({
   emphasize?: boolean;
 }) {
   return (
-    <div className="p-3 rounded-lg bg-bg-surface-2 border border-border">
-      <div className="text-tiny uppercase tracking-wider text-text-muted mb-1">
+    <div
+      style={{
+        padding: 10,
+        backgroundColor: theme.bg.page,
+        borderRadius: 6,
+        border: theme.border.default,
+      }}
+    >
+      <div style={{ fontSize: 10, color: theme.text.dim, textTransform: "uppercase", letterSpacing: "0.08em" }}>
         {label}
       </div>
       <div
-        className={cn(
-          "text-body font-medium truncate",
-          emphasize ? "text-gold font-semibold" : "text-text-primary"
-        )}
+        style={{
+          fontSize: 13,
+          fontWeight: 500,
+          color: emphasize ? theme.gold : theme.text.primary,
+          marginTop: 3,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
       >
         {value}
       </div>
@@ -179,7 +183,7 @@ function Stat({
   );
 }
 
-function SigRow({
+function SigBlock({
   label,
   planets,
   sub,
@@ -192,28 +196,37 @@ function SigRow({
 }) {
   return (
     <div
-      className={cn(
-        "p-3 rounded-lg border",
-        highlight
-          ? "bg-gold-glow border-border-accent"
-          : "bg-bg-surface-2 border-border"
-      )}
+      style={{
+        padding: 12,
+        backgroundColor: highlight ? "rgba(201,169,110,0.06)" : theme.bg.page,
+        border: highlight ? theme.border.accent : theme.border.default,
+        borderRadius: 6,
+      }}
     >
-      <div className="text-tiny uppercase tracking-wider text-text-muted mb-1.5">
+      <div style={{ fontSize: 10, color: theme.text.dim, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
         {label}
       </div>
-      <div className="flex flex-wrap gap-1.5 mb-1">
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
         {planets.length === 0 ? (
-          <span className="text-tiny text-text-muted">None</span>
+          <span style={{ fontSize: 11, color: theme.text.muted }}>None</span>
         ) : (
           planets.map((p) => (
-            <Badge key={p} variant={highlight ? "gold" : "default"} size="sm">
+            <span
+              key={p}
+              style={{
+                fontSize: 11,
+                padding: "2px 8px",
+                borderRadius: 4,
+                backgroundColor: highlight ? "rgba(201,169,110,0.15)" : "rgba(255,255,255,0.05)",
+                color: highlight ? theme.gold : theme.text.primary,
+              }}
+            >
               {p}
-            </Badge>
+            </span>
           ))
         )}
       </div>
-      {sub && <div className="text-tiny text-text-muted">{sub}</div>}
+      {sub && <div style={{ fontSize: 11, color: theme.text.muted }}>{sub}</div>}
     </div>
   );
 }

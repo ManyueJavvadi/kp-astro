@@ -1,16 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles, Loader2, Send, MessageCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Sparkles, Loader2, Send } from "lucide-react";
+import { theme, styles } from "@/lib/theme";
+import { ContentCard, SectionLabel, SectionHeading } from "@/components/ui/content-card";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 
 const TOPICS = [
   { key: "marriage", label: "Marriage" },
-  { key: "job", label: "Career / Job" },
+  { key: "job", label: "Career" },
   { key: "health", label: "Health" },
   { key: "foreign_travel", label: "Foreign Travel" },
   { key: "children", label: "Children" },
@@ -44,19 +43,16 @@ export function AnalysisTab({ input }: { input: AnalysisInput }) {
     setLoading(true);
     setTopic(t);
     try {
-      const res = await api.post<{ topic: string; answer: string }>(
-        "/astrologer/analyze",
-        {
-          ...input,
-          topic: t,
-          question: "",
-          history: turns.map((x) => ({ question: x.q, answer: x.a })),
-          language: "english",
-        }
-      );
+      const res = await api.post("/astrologer/analyze", {
+        ...input,
+        topic: t,
+        question: "",
+        history: turns.map((x) => ({ question: x.q, answer: x.a })),
+        language: "english",
+      });
       setTurns((prev) => [...prev, { q: `Analyze ${t}`, a: res.data.answer, topic: t }]);
     } catch {
-      toast.error("Analysis failed — check backend");
+      toast.error("Analysis failed");
     }
     setLoading(false);
   };
@@ -70,17 +66,14 @@ export function AnalysisTab({ input }: { input: AnalysisInput }) {
     setQuestion("");
     setLoading(true);
     try {
-      const res = await api.post<{ topic: string; answer: string }>(
-        "/astrologer/analyze",
-        {
-          ...input,
-          topic,
-          question: q,
-          history: turns.map((x) => ({ question: x.q, answer: x.a })),
-          language: "english",
-        }
-      );
-      setTurns((prev) => [...prev, { q, a: res.data.answer, topic }]);
+      const res = await api.post("/astrologer/analyze", {
+        ...input,
+        topic,
+        question: q,
+        history: turns.map((x) => ({ question: x.q, answer: x.a })),
+        language: "english",
+      });
+      setTurns((prev) => [...prev, { q, a: res.data.answer, topic: topic ?? undefined }]);
     } catch {
       toast.error("Analysis failed");
     }
@@ -88,55 +81,122 @@ export function AnalysisTab({ input }: { input: AnalysisInput }) {
   };
 
   return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <div className="text-tiny uppercase tracking-wider text-gold mb-2">
-          TOPIC ANALYSIS — pick any, Claude will reason from this chart
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <ContentCard>
+        <SectionLabel>Pick a topic — Claude reasons from this chart</SectionLabel>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
+          {TOPICS.map((t) => {
+            const active = topic === t.key;
+            return (
+              <button
+                key={t.key}
+                onClick={() => askTopic(t.key)}
+                disabled={loading}
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: 999,
+                  fontSize: 12,
+                  fontWeight: 500,
+                  border: active ? theme.border.accent : theme.border.default,
+                  backgroundColor: active ? "rgba(201,169,110,0.1)" : theme.bg.page,
+                  color: active ? theme.gold : theme.text.secondary,
+                  cursor: loading ? "not-allowed" : "pointer",
+                  opacity: loading ? 0.6 : 1,
+                }}
+              >
+                {t.label}
+              </button>
+            );
+          })}
         </div>
-        <div className="flex flex-wrap gap-2">
-          {TOPICS.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => askTopic(t.key)}
-              disabled={loading}
-              className={
-                topic === t.key
-                  ? "px-4 py-2 rounded-full text-small font-medium bg-gold-glow text-gold border border-border-accent"
-                  : "px-4 py-2 rounded-full text-small font-medium bg-bg-surface-2 text-text-secondary border border-border hover:text-text-primary hover:border-border-strong transition-colors"
-              }
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      </ContentCard>
 
       {turns.length === 0 && !loading && (
-        <div className="p-10 rounded-xl border-2 border-dashed border-border-strong text-center">
-          <div className="size-14 mx-auto mb-3 rounded-full bg-[color-mix(in_srgb,var(--color-ai)_15%,transparent)] border border-[color-mix(in_srgb,var(--color-ai)_30%,transparent)] flex items-center justify-center text-ai">
-            <Sparkles className="size-6" />
+        <ContentCard>
+          <div style={{ textAlign: "center", padding: 24 }}>
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 8,
+                backgroundColor: "rgba(167,139,250,0.12)",
+                color: theme.ai,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 12,
+              }}
+            >
+              <Sparkles size={20} />
+            </div>
+            <SectionHeading>Pick a topic to begin</SectionHeading>
+            <div style={{ fontSize: 13, color: theme.text.muted, maxWidth: 440, margin: "8px auto 0", lineHeight: 1.5 }}>
+              Claude reads the computed KP chart (CSLs, dashas, significators, RPs)
+              and returns a rigorous analysis in plain language.
+            </div>
           </div>
-          <div className="font-display text-h3 font-semibold text-text-primary mb-1">
-            Pick a topic to begin
-          </div>
-          <div className="text-body text-text-secondary max-w-md mx-auto">
-            Claude reads the computed KP chart (CSLs, dashas, significators)
-            and returns a rigorous analysis in plain language.
-          </div>
-        </div>
+        </ContentCard>
       )}
 
       {turns.map((t, i) => (
-        <div key={i} className="flex flex-col gap-2">
-          <div className="text-tiny text-gold flex items-center gap-2">
-            <MessageCircle className="size-3" /> {t.topic && <Badge size="sm">{t.topic}</Badge>}
+        <div key={i} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 11,
+              color: theme.gold,
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              fontWeight: 600,
+            }}
+          >
+            {t.topic && (
+              <span
+                style={{
+                  padding: "2px 8px",
+                  backgroundColor: "rgba(201,169,110,0.12)",
+                  borderRadius: 4,
+                  fontSize: 10,
+                }}
+              >
+                {t.topic}
+              </span>
+            )}
             {t.q}
           </div>
-          <div className="rounded-xl p-5 bg-[color-mix(in_srgb,var(--color-ai)_5%,var(--color-bg-surface))] border border-[color-mix(in_srgb,var(--color-ai)_25%,transparent)]">
-            <div className="text-tiny uppercase tracking-wider text-ai mb-2 flex items-center gap-1.5">
-              <Sparkles className="size-3" /> CLAUDE · KP ANALYSIS
+          <div
+            style={{
+              padding: 20,
+              borderRadius: 8,
+              backgroundColor: "rgba(167,139,250,0.04)",
+              border: "1px solid rgba(167,139,250,0.2)",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 10,
+                color: theme.ai,
+                textTransform: "uppercase",
+                letterSpacing: "0.1em",
+                fontWeight: 600,
+                marginBottom: 10,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              <Sparkles size={11} /> Claude · KP analysis
             </div>
-            <div className="text-small text-text-primary leading-relaxed whitespace-pre-wrap">
+            <div
+              style={{
+                fontSize: 13,
+                color: theme.text.primary,
+                lineHeight: 1.6,
+                whiteSpace: "pre-wrap",
+              }}
+            >
               {t.a}
             </div>
           </div>
@@ -144,38 +204,66 @@ export function AnalysisTab({ input }: { input: AnalysisInput }) {
       ))}
 
       {loading && (
-        <div className="flex items-center justify-center py-10 text-text-muted">
-          <Loader2 className="size-5 animate-spin mr-2" />
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 24,
+            color: theme.text.muted,
+            fontSize: 13,
+          }}
+        >
+          <Loader2 size={16} style={{ marginRight: 8, animation: "spin 1s linear infinite" }} />
           Claude is reading the chart…
         </div>
       )}
 
       {topic && (
-        <div className="sticky bottom-6 z-20">
-          <div className="rounded-xl bg-bg-elevated border border-border-strong shadow-xl p-3 flex items-end gap-2">
-            <Textarea
-              rows={2}
-              placeholder={`Follow-up about ${topic}…`}
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  askQuestion();
-                }
-              }}
-              className="resize-none"
-            />
-            <Button
-              variant="primary"
-              leftIcon={<Send />}
-              loading={loading}
-              onClick={askQuestion}
-              disabled={!question.trim()}
-            >
-              Ask
-            </Button>
-          </div>
+        <div
+          style={{
+            position: "sticky",
+            bottom: 16,
+            padding: 12,
+            backgroundColor: theme.bg.elevated,
+            border: theme.border.strong,
+            borderRadius: 10,
+            boxShadow: theme.shadow.md,
+            display: "flex",
+            alignItems: "flex-end",
+            gap: 8,
+          }}
+        >
+          <textarea
+            rows={2}
+            placeholder={`Follow-up about ${topic}…`}
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                askQuestion();
+              }
+            }}
+            style={{
+              flex: 1,
+              backgroundColor: "transparent",
+              border: "none",
+              outline: "none",
+              resize: "none",
+              color: theme.text.primary,
+              fontSize: 13,
+              lineHeight: 1.5,
+              fontFamily: "inherit",
+            }}
+          />
+          <button
+            onClick={askQuestion}
+            disabled={loading || !question.trim()}
+            style={{ ...styles.primaryButton, opacity: loading || !question.trim() ? 0.5 : 1 }}
+          >
+            <Send size={14} /> Ask
+          </button>
         </div>
       )}
     </div>

@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { FileText, Check, Loader2 } from "lucide-react";
-import { Textarea } from "@/components/ui/input";
+import { theme, styles } from "@/lib/theme";
+import { ContentCard, SectionLabel, SectionHeading } from "@/components/ui/content-card";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -28,7 +29,7 @@ export function NotesTab({
       setStatus("saved");
       setTimeout(() => setStatus("idle"), 2000);
     } catch {
-      toast.error("Failed to save notes");
+      toast.error("Failed to save");
       setStatus("idle");
     }
   };
@@ -40,50 +41,60 @@ export function NotesTab({
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
         <div>
-          <div className="text-tiny uppercase tracking-wider text-gold mb-1">
-            PRIVATE NOTES
+          <SectionLabel>Private notes</SectionLabel>
+          <SectionHeading>Astrologer-only jottings</SectionHeading>
+          <div style={{ fontSize: 12, color: theme.text.muted, marginTop: 4, maxWidth: 600, lineHeight: 1.5 }}>
+            Notes are never shown to the client. Auto-save kicks in 1 second after you stop typing.
           </div>
-          <h2 className="font-display text-h2 font-semibold text-text-primary">
-            Astrologer-only jottings
-          </h2>
-          <p className="text-small text-text-secondary mt-1 max-w-2xl">
-            Notes are never shown to the client. Auto-save kicks in 1 second
-            after you stop typing.
-          </p>
         </div>
-        <div className="text-tiny text-text-muted flex items-center gap-1.5">
+        <div
+          style={{
+            fontSize: 11,
+            color: theme.text.muted,
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
           {status === "saving" && (
             <>
-              <Loader2 className="size-3 animate-spin" /> Saving…
+              <Loader2 size={11} style={{ animation: "spin 1s linear infinite" }} /> Saving…
             </>
           )}
           {status === "saved" && (
             <>
-              <Check className="size-3 text-success" /> Saved
+              <Check size={11} color={theme.success} /> Saved
             </>
           )}
         </div>
       </div>
 
-      <div className="rounded-xl bg-bg-surface border border-border p-5">
-        <Textarea
-          rows={16}
+      <ContentCard>
+        <textarea
+          rows={18}
           value={notes}
           onChange={handleChange}
           placeholder="Observations, theories, unresolved questions, things to research, chart anomalies, client's unique circumstances…"
-          className="resize-y font-mono text-small leading-relaxed"
+          style={{
+            ...styles.input,
+            height: 400,
+            padding: 16,
+            resize: "vertical",
+            fontFamily: "'JetBrains Mono', 'SF Mono', Consolas, monospace",
+            fontSize: 13,
+            lineHeight: 1.6,
+            backgroundColor: theme.bg.page,
+          }}
         />
-      </div>
+      </ContentCard>
 
-      <div className="flex items-start gap-2 text-tiny text-text-muted">
-        <FileText className="size-3 shrink-0 mt-0.5" />
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: 11, color: theme.text.muted }}>
+        <FileText size={11} style={{ flexShrink: 0, marginTop: 2 }} />
         <div>
-          Notes are stored encrypted at rest via Supabase. Only you (the
-          astrologer who created this client) can read them — enforced by
-          row-level security.
+          Stored encrypted at rest via Supabase. Only you can read them — enforced by row-level security.
         </div>
       </div>
     </div>

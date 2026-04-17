@@ -1,19 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Plus,
-  Sparkles,
-  Clock,
-  CheckCircle2,
-  MessageCircle,
-  Play,
-  Loader2,
-  Zap,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/input";
+import { Zap, Sparkles, Clock, CheckCircle2, Loader2, MessageCircle } from "lucide-react";
+import { theme, styles } from "@/lib/theme";
+import { ContentCard, SectionLabel, SectionHeading } from "@/components/ui/content-card";
 import {
   Dialog,
   DialogContent,
@@ -34,9 +24,11 @@ import {
 export function SessionsTab({ clientId }: { clientId: string }) {
   const { data, isLoading } = useSessionsList({ client_id: clientId });
   const createSession = useCreateSession();
-  const [typeToCreate, setTypeToCreate] = useState<"walkin" | "scheduled">("walkin");
   const [queryText, setQueryText] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+
+  const sessions = data?.items ?? [];
+  const inProgress = sessions.find((s) => s.status === "in_progress");
 
   const handleStart = async () => {
     await createSession.mutateAsync({
@@ -48,92 +40,99 @@ export function SessionsTab({ clientId }: { clientId: string }) {
     setShowCreate(false);
   };
 
-  const sessions = data?.items ?? [];
-  const inProgress = sessions.find((s) => s.status === "in_progress");
-
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between mb-2">
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
-          <div className="text-tiny uppercase tracking-wider text-gold mb-1">
-            {sessions.length} {sessions.length === 1 ? "SESSION" : "SESSIONS"}
-          </div>
-          <h2 className="font-display text-h2 font-semibold text-text-primary">
-            Consultation history
-          </h2>
+          <SectionLabel>
+            {sessions.length} {sessions.length === 1 ? "session" : "sessions"}
+          </SectionLabel>
+          <SectionHeading>Consultation history</SectionHeading>
         </div>
         {!inProgress && (
-          <Button variant="primary" leftIcon={<Zap />} onClick={() => setShowCreate(true)}>
-            Start walk-in session
-          </Button>
+          <button
+            onClick={() => setShowCreate(true)}
+            style={styles.primaryButton}
+          >
+            <Zap size={14} /> Start walk-in
+          </button>
         )}
       </div>
 
       {inProgress && <LiveSessionCard session={inProgress} />}
 
       {isLoading && (
-        <div className="flex items-center justify-center py-10 text-text-muted">
-          <Loader2 className="size-5 animate-spin mr-2" /> Loading…
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 24, color: theme.text.muted }}>
+          <Loader2 size={16} style={{ marginRight: 8, animation: "spin 1s linear infinite" }} /> Loading…
         </div>
       )}
 
       {!isLoading && sessions.length === 0 && (
-        <div className="p-10 rounded-xl border-2 border-dashed border-border-strong text-center">
-          <div className="size-14 mx-auto mb-3 rounded-full bg-gold-glow border border-border-accent flex items-center justify-center text-gold">
-            <MessageCircle className="size-6" />
+        <ContentCard>
+          <div style={{ textAlign: "center", padding: 24 }}>
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 8,
+                backgroundColor: "rgba(201,169,110,0.1)",
+                color: theme.gold,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 12,
+              }}
+            >
+              <MessageCircle size={20} />
+            </div>
+            <SectionHeading>No sessions yet</SectionHeading>
+            <div style={{ fontSize: 13, color: theme.text.muted, maxWidth: 420, margin: "8px auto 16px", lineHeight: 1.5 }}>
+              When a client calls or walks in, start a session here. Timer +
+              notes → AI summary at end.
+            </div>
+            <button onClick={() => setShowCreate(true)} style={styles.primaryButton}>
+              <Zap size={14} /> Start first session
+            </button>
           </div>
-          <div className="font-display text-h3 font-semibold text-text-primary mb-1">
-            No sessions yet
-          </div>
-          <div className="text-body text-text-secondary max-w-md mx-auto mb-5">
-            Start a walk-in when a client arrives. The session records time, notes,
-            and an AI-generated summary you can reference later.
-          </div>
-          <Button variant="primary" leftIcon={<Zap />} onClick={() => setShowCreate(true)}>
-            Start first session
-          </Button>
-        </div>
+        </ContentCard>
       )}
 
       {sessions
         .filter((s) => s.status !== "in_progress")
         .map((s) => (
-          <SessionCard key={s.id} session={s} />
+          <PastSessionCard key={s.id} session={s} />
         ))}
 
-      {/* Walk-in start dialog */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Start a walk-in session</DialogTitle>
             <DialogDescription>
-              Timer starts now. Add notes during the consult, then end it when
-              done — AI will summarize.
+              Timer starts now. Take notes during the consult, then end it — AI summarizes.
             </DialogDescription>
           </DialogHeader>
           <div>
-            <label className="text-tiny uppercase tracking-wider text-text-muted mb-1.5 block font-medium">
-              What did the client ask? (optional)
-            </label>
-            <Textarea
+            <div style={styles.sectionLabel}>What did the client ask? (optional)</div>
+            <textarea
               rows={3}
-              placeholder="e.g. Career change decision — should I take the new job?"
+              placeholder="e.g. Career change — should I take the new job?"
               value={queryText}
               onChange={(e) => setQueryText(e.target.value)}
+              style={{ ...styles.input, height: 80, padding: "10px 12px", resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 }}
             />
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setShowCreate(false)}>
+            <button onClick={() => setShowCreate(false)} style={styles.ghostButton}>
               Cancel
-            </Button>
-            <Button
-              variant="primary"
-              leftIcon={<Zap />}
-              loading={createSession.isPending}
-              onClick={handleStart}
-            >
-              Start session now
-            </Button>
+            </button>
+            <button onClick={handleStart} disabled={createSession.isPending} style={styles.primaryButton}>
+              {createSession.isPending ? (
+                <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+              ) : (
+                <Zap size={14} />
+              )}
+              Start now
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -147,138 +146,207 @@ function LiveSessionCard({ session }: { session: SessionRow }) {
   const summarize = useSummarizeSession();
   const updateSession = useUpdateSession();
 
-  const saveTranscript = async () => {
+  const save = async () => {
     await updateSession.mutateAsync({
       id: session.id,
       body: { transcript } as Partial<SessionRow>,
     });
   };
 
-  const handleEndAndSummarize = async () => {
+  const handleEnd = async () => {
     if (transcript.trim().length > 10) {
       await summarize.mutateAsync({ id: session.id, transcript });
     }
     await endSession.mutateAsync(session.id);
   };
 
-  const startedAt = session.started_at
-    ? new Date(session.started_at)
-    : new Date();
-  const elapsedMin = Math.floor(
-    (Date.now() - startedAt.getTime()) / 60000
-  );
+  const started = session.started_at ? new Date(session.started_at) : new Date();
+  const elapsed = Math.floor((Date.now() - started.getTime()) / 60000);
 
   return (
-    <div className="rounded-xl p-[1px] bg-gradient-to-b from-gold to-transparent">
-      <div className="rounded-xl bg-bg-surface p-5 border border-border-accent">
-        <div className="flex items-center gap-2 mb-3">
-          <Badge variant="gold" size="md">
-            <Play className="size-3" /> LIVE SESSION
-          </Badge>
-          <Badge size="md">
-            <Clock className="size-3" /> {elapsedMin}m elapsed
-          </Badge>
-          {session.query_text && (
-            <div className="text-tiny text-text-muted">“{session.query_text}”</div>
-          )}
-        </div>
-        <label className="text-tiny uppercase tracking-wider text-text-muted mb-1.5 block font-medium">
-          Live notes / transcript
-        </label>
-        <Textarea
-          rows={6}
-          placeholder="Key points, client's questions, your analysis, predictions…"
-          value={transcript}
-          onChange={(e) => setTranscript(e.target.value)}
-          onBlur={saveTranscript}
-          className="mb-3"
-        />
-        <div className="flex items-center justify-between gap-3">
-          <div className="text-tiny text-text-muted">
-            Notes auto-save on blur. AI will summarize when you end.
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={saveTranscript}>
-              Save draft
-            </Button>
-            <Button
-              variant="primary"
-              leftIcon={<Sparkles />}
-              loading={endSession.isPending || summarize.isPending}
-              onClick={handleEndAndSummarize}
-            >
-              End & summarize
-            </Button>
-          </div>
-        </div>
+    <div
+      style={{
+        borderRadius: 10,
+        border: `1px solid ${theme.gold}50`,
+        background: `linear-gradient(135deg, rgba(201,169,110,0.06), transparent)`,
+        padding: 20,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            fontSize: 11,
+            padding: "3px 10px",
+            borderRadius: 999,
+            backgroundColor: "rgba(201,169,110,0.15)",
+            color: theme.gold,
+            fontWeight: 600,
+          }}
+        >
+          ● LIVE
+        </span>
+        <span style={{ fontSize: 11, color: theme.text.muted }}>
+          <Clock size={10} style={{ display: "inline", marginRight: 3 }} />
+          {elapsed}m elapsed
+        </span>
+        {session.query_text && (
+          <span style={{ fontSize: 12, color: theme.text.muted, fontStyle: "italic" }}>
+            “{session.query_text}”
+          </span>
+        )}
       </div>
-    </div>
-  );
-}
 
-function SessionCard({ session }: { session: SessionRow }) {
-  const d = new Date(session.started_at ?? session.scheduled_at);
-  return (
-    <div className="p-5 rounded-xl bg-bg-surface border border-border hover:border-border-strong transition-colors">
-      <div className="flex items-start justify-between gap-4 mb-3">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="text-tiny uppercase tracking-wider text-gold">
-              {d.toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })}{" "}
-              · {d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
-            </div>
-            {session.duration_minutes !== null && (
-              <Badge size="sm">
-                <Clock className="size-3" /> {session.duration_minutes}m
-              </Badge>
+      <div style={styles.sectionLabel}>Live notes / transcript</div>
+      <textarea
+        rows={6}
+        placeholder="Key points, client's questions, your analysis, predictions…"
+        value={transcript}
+        onChange={(e) => setTranscript(e.target.value)}
+        onBlur={save}
+        style={{
+          ...styles.input,
+          height: 150,
+          padding: 12,
+          resize: "vertical",
+          fontFamily: "inherit",
+          lineHeight: 1.5,
+          marginBottom: 12,
+        }}
+      />
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+        <span style={{ fontSize: 11, color: theme.text.muted }}>
+          Notes auto-save on blur. AI summarizes when you end.
+        </span>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={save} style={styles.ghostButton}>
+            Save draft
+          </button>
+          <button
+            onClick={handleEnd}
+            disabled={endSession.isPending || summarize.isPending}
+            style={{
+              ...styles.primaryButton,
+              opacity: endSession.isPending || summarize.isPending ? 0.6 : 1,
+            }}
+          >
+            {endSession.isPending || summarize.isPending ? (
+              <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+            ) : (
+              <Sparkles size={14} />
             )}
-            <Badge
-              variant={
-                session.status === "completed" ? "success" : "default"
-              }
-              size="sm"
-            >
-              {session.status === "completed" ? (
-                <>
-                  <CheckCircle2 className="size-3" /> Completed
-                </>
-              ) : (
-                session.status
-              )}
-            </Badge>
-            <Badge size="sm">{session.session_type}</Badge>
-          </div>
-          {session.query_text && (
-            <div className="font-display text-h3 font-semibold text-text-primary">
-              {session.query_text}
-            </div>
-          )}
+            End & summarize
+          </button>
         </div>
       </div>
-      {session.ai_summary && (
-        <div className="rounded-lg bg-[color-mix(in_srgb,var(--color-ai)_5%,transparent)] border border-[color-mix(in_srgb,var(--color-ai)_20%,transparent)] p-3">
-          <div className="text-tiny uppercase tracking-wider text-ai mb-1 flex items-center gap-1">
-            <Sparkles className="size-3" /> AI SUMMARY
-          </div>
-          <div className="text-small text-text-secondary leading-relaxed whitespace-pre-line">
-            {session.ai_summary}
-          </div>
-        </div>
-      )}
-      {!session.ai_summary && session.transcript && (
-        <div className="text-small text-text-secondary italic">
-          {session.transcript.slice(0, 200)}
-          {session.transcript.length > 200 ? "…" : ""}
-        </div>
-      )}
     </div>
   );
 }
 
-/* unused import placeholder */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const _unused = Plus;
+function PastSessionCard({ session: s }: { session: SessionRow }) {
+  const d = new Date(s.started_at ?? s.scheduled_at);
+  return (
+    <ContentCard>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+        <div>
+          <div style={{ fontSize: 11, color: theme.gold, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600 }}>
+            {d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} ·{" "}
+            {d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+          </div>
+          {s.query_text && (
+            <div style={{ fontSize: 15, fontWeight: 600, color: theme.text.primary, marginTop: 4 }}>
+              {s.query_text}
+            </div>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          {s.duration_minutes !== null && (
+            <span
+              style={{
+                fontSize: 11,
+                padding: "2px 8px",
+                borderRadius: 4,
+                backgroundColor: "rgba(255,255,255,0.05)",
+                color: theme.text.muted,
+              }}
+            >
+              <Clock size={10} style={{ display: "inline", marginRight: 3 }} />
+              {s.duration_minutes}m
+            </span>
+          )}
+          <span
+            style={{
+              fontSize: 11,
+              padding: "2px 8px",
+              borderRadius: 4,
+              backgroundColor:
+                s.status === "completed" ? "rgba(52,211,153,0.12)" : "rgba(255,255,255,0.05)",
+              color: s.status === "completed" ? theme.success : theme.text.muted,
+            }}
+          >
+            {s.status === "completed" ? (
+              <>
+                <CheckCircle2 size={10} style={{ display: "inline", marginRight: 3 }} />
+                Done
+              </>
+            ) : (
+              s.status
+            )}
+          </span>
+          <span
+            style={{
+              fontSize: 11,
+              padding: "2px 8px",
+              borderRadius: 4,
+              backgroundColor: "rgba(255,255,255,0.05)",
+              color: theme.text.muted,
+              textTransform: "capitalize",
+            }}
+          >
+            {s.session_type}
+          </span>
+        </div>
+      </div>
+
+      {s.ai_summary && (
+        <div
+          style={{
+            borderRadius: 6,
+            backgroundColor: "rgba(167,139,250,0.05)",
+            border: "1px solid rgba(167,139,250,0.2)",
+            padding: 12,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 10,
+              color: theme.ai,
+              textTransform: "uppercase",
+              letterSpacing: "0.1em",
+              fontWeight: 600,
+              marginBottom: 6,
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            <Sparkles size={11} /> AI summary
+          </div>
+          <div style={{ fontSize: 13, color: theme.text.secondary, lineHeight: 1.5, whiteSpace: "pre-line" }}>
+            {s.ai_summary}
+          </div>
+        </div>
+      )}
+
+      {!s.ai_summary && s.transcript && (
+        <div style={{ fontSize: 12, color: theme.text.muted, fontStyle: "italic" }}>
+          {s.transcript.slice(0, 200)}
+          {s.transcript.length > 200 ? "…" : ""}
+        </div>
+      )}
+    </ContentCard>
+  );
+}
