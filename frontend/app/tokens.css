@@ -1,0 +1,214 @@
+/**
+ * DevAstroAI v2 — Design System Tokens
+ *
+ * Built on Tailwind v4 CSS-first config via @theme directive.
+ * Tokens referenced as Tailwind utility classes: bg-bg-surface, text-gold, etc.
+ *
+ * Import order (in layout.tsx):
+ *   1. globals.css   (v1 legacy styles — leave untouched)
+ *   2. tokens.css    (this file — v2 design system)
+ */
+
+@import "tailwindcss";
+
+@theme {
+  /* ═══════════════════════════════════════════════════════════
+     Surface Hierarchy — 5 layers for depth
+     ═══════════════════════════════════════════════════════════ */
+  --color-bg-primary:   #0a0a0f;  /* Page background */
+  --color-bg-surface:   #12131a;  /* First elevation (cards) */
+  --color-bg-surface-2: #1a1c26;  /* Second elevation (inputs, nested) */
+  --color-bg-elevated:  #1f2230;  /* Modals, popovers, dropdowns */
+  --color-bg-hover:     #272a36;  /* Hover state */
+
+  /* ═══════════════════════════════════════════════════════════
+     Borders — 3 levels
+     ═══════════════════════════════════════════════════════════ */
+  --color-border:        rgba(255, 255, 255, 0.06);
+  --color-border-strong: rgba(255, 255, 255, 0.12);
+  --color-border-accent: rgba(201, 169, 110, 0.3);
+
+  /* ═══════════════════════════════════════════════════════════
+     Text — 4 levels (WCAG AA compliant on bg-primary)
+     ═══════════════════════════════════════════════════════════ */
+  --color-text-primary:   #f5f5f7;  /* 15:1 contrast */
+  --color-text-secondary: #b5b7c0;  /* 8:1 */
+  --color-text-muted:     #8b8e99;  /* 5:1 */
+  --color-text-disabled:  #5c5e68;  /* 3:1 */
+
+  /* ═══════════════════════════════════════════════════════════
+     Brand — gold spectrum
+     ═══════════════════════════════════════════════════════════ */
+  --color-gold:        #c9a96e;
+  --color-gold-bright: #e8c98a;
+  --color-gold-dim:    #8b7a50;
+  --color-gold-glow:   rgba(201, 169, 110, 0.15);
+
+  /* ═══════════════════════════════════════════════════════════
+     AI — purple spectrum (AI-generated content, Claude features)
+     ═══════════════════════════════════════════════════════════ */
+  --color-ai:        #a78bfa;
+  --color-ai-bright: #c4b5fd;
+  --color-ai-dim:    #6b5eb1;
+  --color-ai-glow:   rgba(167, 139, 250, 0.15);
+
+  /* ═══════════════════════════════════════════════════════════
+     Semantic
+     ═══════════════════════════════════════════════════════════ */
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-error:   #f87171;
+  --color-info:    #60a5fa;
+
+  /* KP-specific semantic (wraps above) */
+  --color-kp-favorable:   #34d399;
+  --color-kp-conditional: #fbbf24;
+  --color-kp-unfavorable: #f87171;
+
+  /* ═══════════════════════════════════════════════════════════
+     Planet colors (align with components/constants.ts PLANET_COLORS)
+     ═══════════════════════════════════════════════════════════ */
+  --color-sun:     #f59e0b;
+  --color-moon:    #93c5fd;
+  --color-mars:    #ef4444;
+  --color-mercury: #10b981;
+  --color-jupiter: #f9a8d4;
+  --color-venus:   #a78bfa;
+  --color-saturn:  #64748b;
+  --color-rahu:    #9ca3af;
+  --color-ketu:    #fb923c;
+
+  /* ═══════════════════════════════════════════════════════════
+     Typography
+     ═══════════════════════════════════════════════════════════ */
+  --font-display: "DM Serif Display", "Cal Sans", Georgia, serif;
+  --font-sans:    "Inter", "DM Sans", system-ui, -apple-system, sans-serif;
+  --font-mono:    "JetBrains Mono", "SF Mono", Consolas, monospace;
+  --font-telugu:  "Noto Sans Telugu", "DM Sans", sans-serif;
+
+  /* Type scale — tight line-heights for UI density */
+  --text-hero:       3.5rem;     /* 56px */
+  --text-hero--line-height:       4rem;       /* 64px */
+  --text-hero--font-weight:       700;
+
+  --text-h1:         2.25rem;    /* 36px */
+  --text-h1--line-height:         2.75rem;    /* 44px */
+  --text-h1--font-weight:         600;
+
+  --text-h2:         1.5rem;     /* 24px */
+  --text-h2--line-height:         2rem;       /* 32px */
+  --text-h2--font-weight:         600;
+
+  --text-h3:         1.125rem;   /* 18px */
+  --text-h3--line-height:         1.625rem;   /* 26px */
+  --text-h3--font-weight:         600;
+
+  --text-body-lg:    1rem;       /* 16px */
+  --text-body-lg--line-height:    1.5rem;     /* 24px */
+
+  --text-body:       0.875rem;   /* 14px — GitHub-size body */
+  --text-body--line-height:       1.25rem;    /* 20px */
+
+  --text-small:      0.75rem;    /* 12px */
+  --text-small--line-height:      1rem;       /* 16px */
+
+  --text-tiny:       0.6875rem;  /* 11px — labels, pills */
+  --text-tiny--line-height:       0.875rem;   /* 14px */
+  --text-tiny--letter-spacing:    0.06em;
+
+  /* ═══════════════════════════════════════════════════════════
+     Spacing (4px grid) — Tailwind default, listed for reference
+     ═══════════════════════════════════════════════════════════ */
+  --spacing: 0.25rem;  /* 4px base */
+
+  /* ═══════════════════════════════════════════════════════════
+     Radius
+     ═══════════════════════════════════════════════════════════ */
+  --radius-sm:   0.375rem;  /* 6px  — chips, small buttons */
+  --radius-md:   0.625rem;  /* 10px — default cards, inputs */
+  --radius-lg:   0.875rem;  /* 14px — prominent cards */
+  --radius-xl:   1.25rem;   /* 20px — hero cards */
+  --radius-2xl:  1.75rem;   /* 28px — large panels */
+
+  /* ═══════════════════════════════════════════════════════════
+     Shadows (subtle, dark-theme friendly)
+     ═══════════════════════════════════════════════════════════ */
+  --shadow-sm:    0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md:    0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-lg:    0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-xl:    0 8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-glow:  0 0 24px rgba(201, 169, 110, 0.18);
+  --shadow-ai:    0 0 24px rgba(167, 139, 250, 0.18);
+
+  /* ═══════════════════════════════════════════════════════════
+     Motion — easing curves
+     ═══════════════════════════════════════════════════════════ */
+  --ease-out-expo:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-quart:    cubic-bezier(0.32, 0, 0.67, 0);
+  --ease-in-out:      cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* Motion durations */
+  --duration-micro:   150ms;
+  --duration-default: 250ms;
+  --duration-page:    400ms;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Base layer — applies to all v2 components
+   ═══════════════════════════════════════════════════════════════ */
+@layer base {
+  /* Smoother scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Font features for UI */
+  body {
+    font-feature-settings: "cv11", "ss01", "ss03"; /* Inter opticals */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Focus ring — consistent across all interactive elements */
+  :focus-visible {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  /* Selection color */
+  ::selection {
+    background: var(--color-gold-glow);
+    color: var(--color-text-primary);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Utility extensions — commonly used patterns
+   ═══════════════════════════════════════════════════════════════ */
+@layer utilities {
+  /* Hide scrollbar but keep scroll */
+  .scrollbar-hidden {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Text balance for headings */
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Subtle gradient border (for hero cards) */
+  .border-gradient-gold {
+    border: 1px solid transparent;
+    background-image:
+      linear-gradient(var(--color-bg-surface), var(--color-bg-surface)),
+      linear-gradient(135deg, var(--color-gold), transparent 60%);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+  }
+}
