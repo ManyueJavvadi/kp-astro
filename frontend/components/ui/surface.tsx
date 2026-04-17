@@ -24,10 +24,10 @@ export function Surface({
     <div
       className={cn(
         "rounded-xl bg-bg-surface border transition-colors",
-        glow && "border-gold/30 shadow-[0_0_24px_rgba(201,169,110,0.08)]",
-        ai && "border-ai/25 bg-ai/5",
-        !glow && !ai && "border-border",
-        hover && "hover:border-border-strong",
+        glow && "border-gold/40 shadow-[0_0_24px_rgba(201,169,110,0.12)]",
+        ai && "border-ai/35 bg-ai/5",
+        !glow && !ai && "border-border-strong",
+        hover && "hover:border-border-accent",
         padding === "sm" && "p-3",
         padding === "md" && "p-5",
         padding === "lg" && "p-6",

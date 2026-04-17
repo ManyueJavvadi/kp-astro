@@ -2,7 +2,12 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Canonical KPI / stat tile. One composable element with strict spacing.
+ * Canonical KPI / stat tile.
+ *
+ * Layout:
+ *   [Icon]  LABEL
+ *   Big value
+ *   Hint (optional)
  */
 export function StatCard({
   label,
@@ -21,7 +26,7 @@ export function StatCard({
   className?: string;
   trend?: "up" | "down" | null;
 }) {
-  const accentColor =
+  const valueColor =
     accent === "gold"
       ? "text-gold"
       : accent === "success"
@@ -32,38 +37,46 @@ export function StatCard({
       ? "text-error"
       : accent === "ai"
       ? "text-ai"
-      : "text-text-muted";
+      : "text-text-primary";
+
+  const iconBg =
+    accent === "gold"
+      ? "bg-gold/10 text-gold"
+      : accent === "success"
+      ? "bg-success/10 text-success"
+      : accent === "warning"
+      ? "bg-warning/10 text-warning"
+      : accent === "error"
+      ? "bg-error/10 text-error"
+      : accent === "ai"
+      ? "bg-ai/10 text-ai"
+      : "bg-bg-surface-2 text-text-muted";
 
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-xl bg-bg-surface border border-border p-5",
-        "transition-all duration-200 hover:border-border-strong",
+        "relative overflow-hidden rounded-xl bg-bg-surface border border-border-strong p-5",
+        "transition-all duration-200 hover:border-border-accent",
         className
       )}
     >
-      <div className="flex items-start justify-between mb-3">
+      <div className="flex items-center gap-2 mb-3">
         <div
           className={cn(
-            "size-9 rounded-lg flex items-center justify-center [&>svg]:size-[18px]",
-            accent === "gold" && "bg-gold/10 text-gold",
-            accent === "success" && "bg-success/10 text-success",
-            accent === "warning" && "bg-warning/10 text-warning",
-            accent === "error" && "bg-error/10 text-error",
-            accent === "ai" && "bg-ai/10 text-ai",
-            accent === "default" && "bg-bg-surface-2 text-text-muted"
+            "size-8 rounded-lg flex items-center justify-center [&>svg]:size-[16px]",
+            iconBg
           )}
         >
           {icon}
         </div>
-        <div className="text-[10px] uppercase tracking-[0.1em] text-text-muted font-medium">
+        <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted font-semibold">
           {label}
         </div>
       </div>
       <div
         className={cn(
-          "font-display text-[2rem] leading-none font-bold tracking-tight",
-          accentColor === "text-text-muted" ? "text-text-primary" : accentColor
+          "font-display text-[2rem] leading-none font-bold tracking-tight mt-1",
+          valueColor
         )}
       >
         {value}

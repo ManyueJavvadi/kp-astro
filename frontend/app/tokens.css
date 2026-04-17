@@ -13,20 +13,20 @@
 
 @theme {
   /* ═══════════════════════════════════════════════════════════
-     Surface Hierarchy — 5 layers for depth
+     Surface Hierarchy — 5 layers, bumped contrast so cards pop
      ═══════════════════════════════════════════════════════════ */
-  --color-bg-primary:   #0a0a0f;  /* Page background */
-  --color-bg-surface:   #12131a;  /* First elevation (cards) */
-  --color-bg-surface-2: #1a1c26;  /* Second elevation (inputs, nested) */
-  --color-bg-elevated:  #1f2230;  /* Modals, popovers, dropdowns */
-  --color-bg-hover:     #272a36;  /* Hover state */
+  --color-bg-primary:   #07070d;  /* Page background — slightly darker */
+  --color-bg-surface:   #14151e;  /* Cards — ~7% lighter than page */
+  --color-bg-surface-2: #1e2030;  /* Nested (inputs, panels inside cards) */
+  --color-bg-elevated:  #252838;  /* Modals, popovers, dropdowns */
+  --color-bg-hover:     #2c2f40;  /* Hover state */
 
   /* ═══════════════════════════════════════════════════════════
-     Borders — 3 levels
+     Borders — bumped opacity so edges are actually visible
      ═══════════════════════════════════════════════════════════ */
-  --color-border:        rgba(255, 255, 255, 0.06);
-  --color-border-strong: rgba(255, 255, 255, 0.12);
-  --color-border-accent: rgba(201, 169, 110, 0.3);
+  --color-border:        rgba(255, 255, 255, 0.1);
+  --color-border-strong: rgba(255, 255, 255, 0.18);
+  --color-border-accent: rgba(201, 169, 110, 0.45);
 
   /* ═══════════════════════════════════════════════════════════
      Text — 4 levels (WCAG AA compliant on bg-primary)
