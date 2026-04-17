@@ -240,3 +240,65 @@ async def summary(
     )
     row = (await db.execute(stmt)).one()
     return {"active": row.active or 0, "archived": row.archived or 0}
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# GET /clients/:id/workspace — full KP workspace (chart + dasha + significators)
+# Reuses the existing chart engine; tenant-scoped via client lookup.
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@router.get("/{client_id}/workspace")
+async def get_client_workspace(
+    client_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_astrologer),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    stmt = select(Client).where(
+        and_(Client.id == client_id, Client.astrologer_id == user.id)
+    )
+    client = (await db.execute(stmt)).scalar_one_or_none()
+    if client is None:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    # Lazy imports — avoid loading swisseph at module import time
+    from app.routers.astrologer import get_workspace, WorkspaceRequest  # noqa
+
+    # Derive date/time (local string) from stored birth_dt_local_str ("YYYY-MM-DDTHH:MM:SS")
+    iso = client.birth_dt_local_str
+    date_str = iso.split("T")[0]
+    time_str = iso.split("T")[1][:5]  # HH:MM
+
+    # chart_engine expects numeric UTC offset in hours at the birth moment
+    try:
+        zone = ZoneInfo(client.birth_timezone)
+        offset_sec = zone.utcoffset(client.birth_dt_utc).total_seconds()
+        tz_offset_hours = offset_sec / 3600.0
+    except Exception:
+        tz_offset_hours = 5.5  # default IST
+
+    workspace = get_workspace(
+        WorkspaceRequest(
+            name=client.full_name,
+            date=date_str,
+            time=time_str,
+            latitude=client.birth_lat,
+            longitude=client.birth_lon,
+            timezone_offset=tz_offset_hours,
+        )
+    )
+
+    # Echo the client metadata so the frontend has everything in one response
+    workspace["client"] = {
+        "id": str(client.id),
+        "full_name": client.full_name,
+        "preferred_name": client.preferred_name,
+        "gender": client.gender,
+        "phone": client.phone,
+        "email": client.email,
+        "birth_place": client.birth_place,
+        "tags": list(client.tags or []),
+        "created_at": client.created_at.isoformat(),
+        "last_seen_at": client.last_seen_at.isoformat() if client.last_seen_at else None,
+    }
+    return workspace

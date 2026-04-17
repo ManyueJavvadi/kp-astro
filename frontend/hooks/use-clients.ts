@@ -124,3 +124,18 @@ export function useArchiveClient() {
     },
   });
 }
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type WorkspaceData = any; // Existing chart_engine output shape — unionize later
+
+export function useClientWorkspace(id: string | undefined) {
+  return useQuery({
+    queryKey: ["workspace", id],
+    enabled: !!id,
+    staleTime: 5 * 60 * 1000, // chart is deterministic, cache 5 min
+    queryFn: async () => {
+      const res = await api.get<WorkspaceData>(`/clients/${id}/workspace`);
+      return res.data;
+    },
+  });
+}

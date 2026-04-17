@@ -7,7 +7,6 @@ import {
   Download,
   Plus,
   Sparkles,
-  Clock,
   Edit,
   MoreHorizontal,
   ChevronRight,
@@ -20,12 +19,17 @@ import {
   Star,
   FileText,
   MessageCircle,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 import { TopBar } from "@/components/pro/topbar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useClient, useClientWorkspace } from "@/hooks/use-clients";
 import { cn } from "@/lib/utils";
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 export default function ClientWorkspacePage({
   params,
@@ -33,41 +37,82 @@ export default function ClientWorkspacePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const client = {
-    name: id.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-    initial: id[0].toUpperCase(),
-    gender: "Male",
-    birth: "Sep 9, 2000",
-    birthTime: "12:31 PM",
-    place: "Tenali, Andhra Pradesh",
-    lagna: "Scorpio",
-    moon: "Capricorn",
-    phone: "+91 98765 43210",
-    email: "ravi.kumar@email.com",
-    tags: ["career", "priority"],
-    sessions: 12,
-    pending: 3,
-    lastSeen: "today",
+  const { data: client, isLoading: clientLoading, isError: clientError } = useClient(id);
+  const { data: ws, isLoading: wsLoading } = useClientWorkspace(id);
+
+  if (clientLoading) {
+    return (
+      <>
+        <TopBar title="Loading client…" tabs={[]} />
+        <div className="flex items-center justify-center py-24 text-text-muted">
+          <Loader2 className="size-6 animate-spin mr-2" />
+          Loading client…
+        </div>
+      </>
+    );
+  }
+
+  if (clientError || !client) {
+    return (
+      <>
+        <TopBar title="Client not found" tabs={[]} />
+        <div className="max-w-md mx-auto mt-24 p-6 rounded-xl bg-error/10 border border-error/30 text-center">
+          <AlertCircle className="size-6 text-error mx-auto mb-2" />
+          <div className="text-body text-text-primary font-medium mb-1">
+            Client not found
+          </div>
+          <div className="text-small text-text-muted mb-4">
+            It may have been archived or does not exist.
+          </div>
+          <Button variant="secondary" size="sm" asChild>
+            <Link href="/pro/clients">← Back to clients</Link>
+          </Button>
+        </div>
+      </>
+    );
+  }
+
+  // Derive birth date/time for display
+  const birthDate = new Date(client.birth_dt_utc);
+  const birthDisplay = {
+    date: client.birth_dt_local_str.split("T")[0],
+    time: client.birth_dt_local_str.split("T")[1]?.slice(0, 5) ?? "",
   };
 
   return (
     <>
-      <TopBar title={client.name} activeTab="ravi" />
+      <TopBar title={client.full_name} activeTab={client.id} />
       <main className="max-w-[1400px] mx-auto">
-        <ClientHeader client={client} />
-        <ClientTabs client={client} />
+        <ClientHeader
+          client={client}
+          ws={ws}
+          birthDisplay={birthDisplay}
+          birthIsoDate={birthDate}
+        />
+        <ClientTabs client={client} ws={ws} wsLoading={wsLoading} />
       </main>
     </>
   );
 }
 
-function ClientHeader({ client }: { client: Record<string, unknown> }) {
+function ClientHeader({
+  client,
+  ws,
+  birthDisplay,
+}: {
+  client: any;
+  ws: any;
+  birthDisplay: { date: string; time: string };
+  birthIsoDate: Date;
+}) {
+  const lagna = ws?.cusps?.[0]?.sign_en ?? ws?.planets?.Ascendant?.sign_en ?? "…";
+  const moonSign = ws?.planets?.find?.((p: any) => p.planet_en === "Moon")?.sign_en ?? "…";
   return (
     <div className="px-6 py-5 border-b border-border">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="flex items-start gap-4">
           <div className="size-16 rounded-full bg-gradient-to-br from-gold to-gold-dim border-2 border-border-accent flex items-center justify-center text-h2 font-bold text-bg-primary shrink-0">
-            {client.initial as string}
+            {client.full_name[0].toUpperCase()}
           </div>
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -79,36 +124,44 @@ function ClientHeader({ client }: { client: Record<string, unknown> }) {
               </Link>
               <span className="text-tiny text-text-muted">/</span>
               <span className="text-tiny text-text-primary font-medium">
-                {client.name as string}
+                {client.full_name}
               </span>
             </div>
             <h1 className="font-display text-h1 font-semibold text-text-primary mb-2">
-              {client.name as string}
+              {client.full_name}
             </h1>
             <div className="flex items-center gap-4 flex-wrap text-small text-text-secondary">
               <div className="flex items-center gap-1.5">
                 <Calendar className="size-3.5 text-text-muted" />
-                {client.birth as string} · {client.birthTime as string}
+                {birthDisplay.date} · {birthDisplay.time}
               </div>
               <div className="flex items-center gap-1.5">
                 <MapPin className="size-3.5 text-text-muted" />
-                {client.place as string}
+                {client.birth_place}
               </div>
-              <div className="flex items-center gap-1.5">
-                <Phone className="size-3.5 text-text-muted" />
-                {client.phone as string}
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Mail className="size-3.5 text-text-muted" />
-                <span className="truncate">{client.email as string}</span>
-              </div>
+              {client.phone && (
+                <div className="flex items-center gap-1.5">
+                  <Phone className="size-3.5 text-text-muted" />
+                  {client.phone}
+                </div>
+              )}
+              {client.email && (
+                <div className="flex items-center gap-1.5">
+                  <Mail className="size-3.5 text-text-muted" />
+                  <span className="truncate">{client.email}</span>
+                </div>
+              )}
             </div>
-            <div className="flex items-center gap-2 mt-3">
-              <Badge variant="gold" size="md">
-                <Star className="size-3 fill-gold" /> {client.lagna as string} Lagna
-              </Badge>
-              <Badge size="md">Moon in {client.moon as string}</Badge>
-              {(client.tags as string[]).map((t) => (
+            <div className="flex items-center gap-2 mt-3 flex-wrap">
+              {lagna && lagna !== "…" && (
+                <Badge variant="gold" size="md">
+                  <Star className="size-3 fill-gold" /> {lagna} Lagna
+                </Badge>
+              )}
+              {moonSign && moonSign !== "…" && (
+                <Badge size="md">Moon in {moonSign}</Badge>
+              )}
+              {(client.tags ?? []).map((t: string) => (
                 <span
                   key={t}
                   className={cn(
@@ -141,10 +194,15 @@ function ClientHeader({ client }: { client: Record<string, unknown> }) {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
-        <MiniStat label="Sessions" value={String(client.sessions)} sub="5 this year" />
-        <MiniStat label="Last seen" value={client.lastSeen as string} sub="Consultation completed" />
-        <MiniStat label="Pending predictions" value={String(client.pending)} sub="2 overdue" warning />
-        <MiniStat label="Accuracy (Ravi)" value="92%" sub="11 of 12 verified" success />
+        <MiniStat label="Sessions" value="0" sub="None yet" />
+        <MiniStat label="Created" value={formatDate(client.created_at)} sub="Added to directory" />
+        <MiniStat label="Pending predictions" value="0" sub="Log predictions in sessions" />
+        <MiniStat
+          label="Current dasha"
+          value={ws?.current_dasha?.lord_en ?? "…"}
+          sub={ws?.current_antardasha ? `AD: ${ws.current_antardasha.lord_en}` : " "}
+          success
+        />
       </div>
     </div>
   );
@@ -181,7 +239,14 @@ function MiniStat({
   );
 }
 
-function ClientTabs({ client }: { client: Record<string, unknown> }) {
+function ClientTabs({
+  ws,
+  wsLoading,
+}: {
+  client: any;
+  ws: any;
+  wsLoading: boolean;
+}) {
   const [tab, setTab] = useState("chart");
   return (
     <div>
@@ -201,25 +266,46 @@ function ClientTabs({ client }: { client: Record<string, unknown> }) {
         </div>
         <div className="px-6 py-6">
           <TabsContent value="chart">
-            <ChartTab />
+            {wsLoading ? (
+              <LoadingChart />
+            ) : ws ? (
+              <ChartTab ws={ws} />
+            ) : (
+              <LoadingChart error />
+            )}
           </TabsContent>
           <TabsContent value="houses">
-            <PlaceholderTab name="Houses" description="Full 12-house deep dive with KP significators." />
+            <PlaceholderTab
+              name="Houses"
+              description="12-house deep dive with KP significators. Real data is computed — UI coming in next pass."
+            />
           </TabsContent>
           <TabsContent value="dasha">
-            <PlaceholderTab name="Dasha Timeline" description="Scrubbable Gantt showing MD → AD → PAD with planet colors." />
+            {wsLoading ? (
+              <LoadingChart />
+            ) : ws ? (
+              <DashaTab ws={ws} />
+            ) : (
+              <LoadingChart error />
+            )}
           </TabsContent>
           <TabsContent value="analysis">
-            <PlaceholderTab name="AI Analysis" description="Topic pills + chat with Claude." />
+            <PlaceholderTab
+              name="AI Analysis"
+              description="Topic pills + chat with Claude about this client's chart. Wiring in progress."
+            />
           </TabsContent>
           <TabsContent value="sessions">
-            <SessionsTab />
+            <SessionsEmptyState />
           </TabsContent>
           <TabsContent value="predictions">
-            <PredictionsTab />
+            <PredictionsEmptyState />
           </TabsContent>
           <TabsContent value="notes">
-            <PlaceholderTab name="Notes" description="Freeform astrologer notes, searchable." />
+            <PlaceholderTab
+              name="Notes"
+              description="Freeform astrologer notes, searchable."
+            />
           </TabsContent>
         </div>
       </Tabs>
@@ -228,66 +314,68 @@ function ClientTabs({ client }: { client: Record<string, unknown> }) {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   CHART TAB — the default view
+   CHART TAB — real planets + cusps + significators + KP inspector
    ══════════════════════════════════════════════════════════════════ */
-function ChartTab() {
+function ChartTab({ ws }: { ws: any }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5">
       <div className="flex flex-col gap-5 min-w-0">
-        {/* Chart + planet list */}
         <div className="rounded-xl bg-bg-surface border border-border p-5">
           <div className="flex items-center justify-between mb-4">
-            <div className="text-tiny uppercase tracking-wider text-gold">NATAL CHART · SOUTH INDIAN</div>
-            <div className="flex items-center gap-0 p-0.5 rounded-md bg-bg-surface-2 border border-border">
-              {["North", "South", "East"].map((s, i) => (
-                <button
-                  key={s}
-                  className={cn(
-                    "px-3 py-1 rounded text-tiny font-medium transition-colors",
-                    i === 1
-                      ? "bg-bg-elevated text-text-primary shadow-sm"
-                      : "text-text-muted hover:text-text-primary"
-                  )}
-                >
-                  {s}
-                </button>
-              ))}
+            <div className="text-tiny uppercase tracking-wider text-gold">
+              NATAL CHART
             </div>
+            <div className="text-tiny text-text-muted">Lagna → 12 houses →</div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-6">
-            <MockChart />
-            <PlanetsList />
+            <RealChartSVG ws={ws} />
+            <PlanetsTable ws={ws} />
           </div>
         </div>
 
-        {/* House overview grid */}
         <div className="rounded-xl bg-bg-surface border border-border p-5">
           <div className="flex items-center justify-between mb-4">
-            <div className="text-tiny uppercase tracking-wider text-gold">HOUSE OVERVIEW</div>
-            <Button variant="ghost" size="sm" rightIcon={<ChevronRight />}>
-              Full breakdown
-            </Button>
+            <div className="text-tiny uppercase tracking-wider text-gold">
+              HOUSE OVERVIEW
+            </div>
           </div>
-          <HouseGrid />
+          <HouseGrid ws={ws} />
         </div>
       </div>
 
-      {/* Right inspector */}
       <div className="flex flex-col gap-4 min-w-0">
-        <PromiseCard />
-        <DashaCard />
-        <AIInsightCard />
-        <RulingPlanetsCard />
+        <PromiseCard ws={ws} />
+        <DashaCard ws={ws} />
+        <RulingPlanetsCard ws={ws} />
       </div>
     </div>
   );
 }
 
-function MockChart() {
+function RealChartSVG({ ws }: { ws: any }) {
+  // Use existing planets + cusps from workspace response
+  const planets: any[] = Array.isArray(ws?.planets) ? ws.planets : [];
+  // Bucket planets by house (1-12)
+  const byHouse: Record<number, string[]> = {};
+  for (let i = 1; i <= 12; i++) byHouse[i] = [];
+  for (const p of planets) {
+    const h = p.house ?? 1;
+    const short = p.planet_en?.slice(0, 2) ?? "?";
+    byHouse[h].push(short);
+  }
   return (
-    <div className="relative aspect-square">
+    <div className="aspect-square">
       <svg viewBox="0 0 300 300" className="w-full h-full">
-        <rect x="10" y="10" width="280" height="280" fill="none" stroke="var(--color-border-accent)" strokeWidth="1" />
+        <rect
+          x="10"
+          y="10"
+          width="280"
+          height="280"
+          fill="none"
+          stroke="var(--color-border-accent)"
+          strokeWidth="1"
+        />
+        {/* Diagonals for South Indian style */}
         <line x1="10" y1="10" x2="290" y2="290" stroke="var(--color-gold)" strokeWidth="0.5" opacity="0.4" />
         <line x1="290" y1="10" x2="10" y2="290" stroke="var(--color-gold)" strokeWidth="0.5" opacity="0.4" />
         <line x1="150" y1="10" x2="10" y2="150" stroke="var(--color-gold)" strokeWidth="0.5" opacity="0.4" />
@@ -295,130 +383,109 @@ function MockChart() {
         <line x1="150" y1="290" x2="10" y2="150" stroke="var(--color-gold)" strokeWidth="0.5" opacity="0.4" />
         <line x1="150" y1="290" x2="290" y2="150" stroke="var(--color-gold)" strokeWidth="0.5" opacity="0.4" />
 
-        {/* house numbers */}
-        {[
-          { n: 1, x: 150, y: 30 },
-          { n: 2, x: 260, y: 40 },
-          { n: 3, x: 280, y: 150 },
-          { n: 4, x: 260, y: 260 },
-          { n: 5, x: 150, y: 270 },
-          { n: 6, x: 40, y: 260 },
-          { n: 7, x: 20, y: 150 },
-          { n: 8, x: 40, y: 40 },
-          { n: 9, x: 100, y: 20 },
-          { n: 10, x: 200, y: 20 },
-          { n: 11, x: 200, y: 280 },
-          { n: 12, x: 100, y: 280 },
-        ].map((h) => (
-          <text key={h.n} x={h.x} y={h.y} fill="var(--color-text-muted)" fontSize="10" textAnchor="middle">
-            {h.n}
-          </text>
-        ))}
-
-        {/* planet positions */}
-        <text x="150" y="100" fill="var(--color-sun)" fontSize="13" fontFamily="serif" textAnchor="middle" fontWeight="600">☉ Su</text>
-        <text x="150" y="118" fill="var(--color-mars)" fontSize="13" fontFamily="serif" textAnchor="middle" fontWeight="600">♂ Ma</text>
-        <text x="225" y="100" fill="var(--color-moon)" fontSize="13" fontFamily="serif" textAnchor="middle" fontWeight="600">☽ Mo</text>
-        <text x="70" y="100" fill="var(--color-mercury)" fontSize="13" fontFamily="serif" textAnchor="middle" fontWeight="600">☿ Me</text>
-        <text x="80" y="120" fill="var(--color-venus)" fontSize="13" fontFamily="serif" textAnchor="middle" fontWeight="600">♀ Ve</text>
-        <text x="150" y="200" fill="var(--color-jupiter)" fontSize="13" fontFamily="serif" textAnchor="middle" fontWeight="600">♃ Ju Sa</text>
-        <text x="230" y="200" fill="var(--color-rahu)" fontSize="13" fontFamily="serif" textAnchor="middle" fontWeight="600">☊ Ra</text>
-        <text x="70" y="200" fill="var(--color-ketu)" fontSize="13" fontFamily="serif" textAnchor="middle" fontWeight="600">☋ Ke</text>
-        <text x="150" y="150" fill="var(--color-gold)" fontSize="13" fontFamily="serif" textAnchor="middle" fontWeight="700">Asc</text>
+        {/* House positions (approximate South Indian layout) */}
+        {(
+          [
+            { n: 1, x: 150, y: 60 },
+            { n: 2, x: 225, y: 60 },
+            { n: 3, x: 250, y: 150 },
+            { n: 4, x: 225, y: 240 },
+            { n: 5, x: 150, y: 240 },
+            { n: 6, x: 75, y: 240 },
+            { n: 7, x: 50, y: 150 },
+            { n: 8, x: 75, y: 60 },
+            { n: 9, x: 100, y: 30 },
+            { n: 10, x: 200, y: 30 },
+            { n: 11, x: 200, y: 270 },
+            { n: 12, x: 100, y: 270 },
+          ] as const
+        ).map((h) => {
+          const occupants = byHouse[h.n];
+          return (
+            <g key={h.n}>
+              <text x={h.x} y={h.y - 10} fill="var(--color-text-muted)" fontSize="9" textAnchor="middle">
+                {h.n}
+              </text>
+              {occupants.map((p, i) => (
+                <text
+                  key={p + i}
+                  x={h.x}
+                  y={h.y + i * 14}
+                  fill="var(--color-gold)"
+                  fontSize="12"
+                  fontFamily="serif"
+                  textAnchor="middle"
+                  fontWeight="600"
+                >
+                  {p}
+                </text>
+              ))}
+            </g>
+          );
+        })}
       </svg>
     </div>
   );
 }
 
-function PlanetsList() {
-  const planets = [
-    { name: "Sun", glyph: "☉", sign: "Leo", deg: "23.0°", house: 10, color: "sun" },
-    { name: "Moon", glyph: "☽", sign: "Capricorn", deg: "2.3°", house: 3, color: "moon" },
-    { name: "Mars", glyph: "♂", sign: "Leo", deg: "1.2°", house: 10, color: "mars" },
-    { name: "Mercury", glyph: "☿", sign: "Virgo", deg: "8.4°", house: 11, color: "mercury" },
-    { name: "Jupiter", glyph: "♃", sign: "Taurus", deg: "16.7°", house: 7, color: "jupiter" },
-    { name: "Venus", glyph: "♀", sign: "Virgo", deg: "17.3°", house: 11, color: "venus" },
-    { name: "Saturn", glyph: "♄", sign: "Taurus", deg: "7.1°", house: 7, color: "saturn" },
-    { name: "Rahu", glyph: "☊", sign: "Gemini", deg: "27.8°", house: 8, color: "rahu", retro: true },
-    { name: "Ketu", glyph: "☋", sign: "Sagittarius", deg: "27.8°", house: 2, color: "ketu", retro: true },
-  ];
+function PlanetsTable({ ws }: { ws: any }) {
+  const planets: any[] = Array.isArray(ws?.planets) ? ws.planets : [];
   return (
     <div className="flex flex-col gap-1 text-small overflow-x-auto">
-      <div className="grid grid-cols-[1.5rem_1fr_auto_auto_auto] gap-3 pb-2 border-b border-border text-tiny uppercase tracking-wider text-text-muted">
-        <div></div>
+      <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 pb-2 border-b border-border text-tiny uppercase tracking-wider text-text-muted">
         <div>Planet</div>
         <div>Sign</div>
-        <div className="font-mono">Deg</div>
+        <div className="font-mono">Sub Lord</div>
         <div>Ho</div>
       </div>
       {planets.map((p) => (
         <div
-          key={p.name}
-          className="grid grid-cols-[1.5rem_1fr_auto_auto_auto] gap-3 py-1.5 items-center text-small hover:bg-bg-hover rounded-sm px-1 -mx-1 transition-colors"
+          key={p.planet_en}
+          className="grid grid-cols-[1fr_auto_auto_auto] gap-3 py-1.5 items-center text-small hover:bg-bg-hover rounded-sm px-1 -mx-1 transition-colors"
         >
-          <div
-            className="font-serif text-body"
-            style={{ color: `var(--color-${p.color})` }}
-          >
-            {p.glyph}
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-text-primary">{p.name}</span>
-            {p.retro && (
+          <div className="flex items-center gap-2">
+            <span className="text-text-primary font-medium">
+              {p.planet_en}
+            </span>
+            {p.retrograde && (
               <span className="text-tiny text-warning font-mono">R</span>
             )}
           </div>
-          <div className="text-text-secondary">{p.sign}</div>
-          <div className="font-mono text-tiny text-text-muted">{p.deg}</div>
-          <div className="font-mono text-tiny bg-gold-glow text-gold px-1.5 rounded">{p.house}</div>
+          <div className="text-text-secondary">{p.sign_en}</div>
+          <div className="font-mono text-tiny text-gold">{p.sub_lord_en ?? "—"}</div>
+          <div className="font-mono text-tiny bg-gold-glow text-gold px-1.5 rounded">
+            {p.house ?? "—"}
+          </div>
         </div>
       ))}
     </div>
   );
 }
 
-function HouseGrid() {
-  const houses = [
-    { n: 1, sign: "Scorpio", theme: "Self & Personality", planets: [] },
-    { n: 2, sign: "Sagittarius", theme: "Wealth & Family", planets: ["Ketu"] },
-    { n: 3, sign: "Capricorn", theme: "Courage & Siblings", planets: ["Moon"] },
-    { n: 4, sign: "Aquarius", theme: "Home & Mother", planets: [] },
-    { n: 5, sign: "Pisces", theme: "Creativity & Children", planets: [] },
-    { n: 6, sign: "Aries", theme: "Health & Service", planets: [] },
-    { n: 7, sign: "Taurus", theme: "Marriage & Partnership", planets: ["Jupiter", "Saturn"] },
-    { n: 8, sign: "Gemini", theme: "Change & Mystery", planets: ["Rahu"] },
-    { n: 9, sign: "Cancer", theme: "Luck & Dharma", planets: [] },
-    { n: 10, sign: "Leo", theme: "Career & Reputation", planets: ["Sun", "Mars"] },
-    { n: 11, sign: "Virgo", theme: "Gains & Network", planets: ["Mercury", "Venus"] },
-    { n: 12, sign: "Libra", theme: "Spirituality & Loss", planets: [] },
-  ];
+function HouseGrid({ ws }: { ws: any }) {
+  const cusps: any[] = Array.isArray(ws?.cusps) ? ws.cusps : [];
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-      {houses.map((h) => (
+      {cusps.map((c) => (
         <div
-          key={h.n}
+          key={c.house_num}
           className="p-3 rounded-md bg-bg-surface-2 border border-border hover:border-border-strong transition-colors cursor-pointer"
         >
           <div className="flex items-center justify-between mb-1">
-            <div className="text-tiny text-text-muted font-mono">H{h.n}</div>
-            {h.planets.length > 0 && (
-              <div className="flex gap-0.5">
-                {h.planets.map((p) => (
-                  <span
-                    key={p}
-                    className="text-[10px] px-1 rounded-sm bg-gold-glow text-gold font-mono"
-                  >
-                    {p.slice(0, 2)}
-                  </span>
-                ))}
+            <div className="text-tiny text-text-muted font-mono">H{c.house_num}</div>
+            {c.sub_lord_en && (
+              <div className="text-[10px] px-1 rounded-sm bg-gold-glow text-gold font-mono">
+                {c.sub_lord_en.slice(0, 2)}
               </div>
             )}
           </div>
           <div className="text-small font-medium text-text-primary mb-0.5">
-            {h.sign}
+            {c.sign_en}
           </div>
-          <div className="text-tiny text-text-muted leading-tight">
-            {h.theme}
+          <div className="text-tiny text-text-muted leading-tight font-mono">
+            {typeof c.cusp_longitude === "number"
+              ? `${(c.cusp_longitude % 30).toFixed(1)}°`
+              : ""}
           </div>
         </div>
       ))}
@@ -426,88 +493,76 @@ function HouseGrid() {
   );
 }
 
-function PromiseCard() {
+function PromiseCard({ ws }: { ws: any }) {
+  const h7 = ws?.cusps?.[6];
+  if (!h7) return null;
+  const subLord = h7.sub_lord_en ?? "—";
   return (
     <div className="p-4 rounded-xl bg-bg-surface border-2 border-gold shadow-[var(--shadow-glow)]">
       <div className="text-tiny uppercase tracking-wider text-gold mb-2 flex items-center gap-1.5">
-        <Target className="size-3" /> KP VERDICT · MARRIAGE
+        <Target className="size-3" /> H7 CUSP · MARRIAGE
       </div>
       <div className="font-display text-h3 font-semibold text-text-primary mb-1">
-        Promised
+        Sub Lord: {subLord}
       </div>
       <div className="text-small text-text-secondary mb-3">
-        H7 CSL <span className="text-gold font-mono">Jupiter</span> signifies
-        H2, H7, H11 — all favorable.
+        Full CSL signification chain is computed server-side. Analyze in the
+        Analysis tab.
       </div>
       <div className="flex items-center gap-2 text-tiny">
-        <Badge variant="success" size="sm">
-          <CheckCircle2 className="size-3" /> 3 sigs
-        </Badge>
-        <Badge variant="gold" size="sm">
-          Venus · strong
-        </Badge>
+        <Badge variant="gold" size="sm">{h7.sign_en}</Badge>
       </div>
     </div>
   );
 }
 
-function DashaCard() {
+function DashaCard({ ws }: { ws: any }) {
+  if (!ws) return null;
   return (
     <div className="p-4 rounded-xl bg-bg-surface border border-border">
       <div className="text-tiny uppercase tracking-wider text-text-muted mb-2">
         CURRENT DASHA
       </div>
       <div className="space-y-2.5">
-        <DashaRow label="MD" planet="Saturn" until="Aug 2027" color="saturn" />
-        <DashaRow label="AD" planet="Mercury" until="Jan 2026" color="mercury" />
-        <DashaRow label="PAD" planet="Venus" until="Nov 2025" color="venus" />
+        <DashaRow label="MD" planet={ws.current_dasha?.lord_en} end={ws.current_dasha?.end} />
+        <DashaRow label="AD" planet={ws.current_antardasha?.lord_en} end={ws.current_antardasha?.end} />
+        <DashaRow label="PAD" planet={ws.current_pratyantardasha?.lord_en} end={ws.current_pratyantardasha?.end} />
       </div>
-      <button className="text-tiny text-gold mt-3 hover:text-gold-bright flex items-center gap-1">
-        Open timeline <ChevronRight className="size-3" />
-      </button>
     </div>
   );
 }
 
-function DashaRow({ label, planet, until, color }: { label: string; planet: string; until: string; color: string }) {
+function DashaRow({
+  label,
+  planet,
+  end,
+}: {
+  label: string;
+  planet?: string;
+  end?: string;
+}) {
   return (
     <div className="flex items-center gap-2 text-small">
-      <div className="text-tiny uppercase tracking-wider text-text-muted w-8 font-mono">{label}</div>
-      <div
-        className="size-2 rounded-full"
-        style={{ background: `var(--color-${color})` }}
-      />
-      <div className="text-text-primary font-medium flex-1">{planet}</div>
-      <div className="text-tiny text-text-muted font-mono">until {until}</div>
+      <div className="text-tiny uppercase tracking-wider text-text-muted w-8 font-mono">
+        {label}
+      </div>
+      <div className="text-text-primary font-medium flex-1">{planet ?? "—"}</div>
+      <div className="text-tiny text-text-muted font-mono">
+        {end ? `until ${end.slice(0, 10)}` : ""}
+      </div>
     </div>
   );
 }
 
-function AIInsightCard() {
-  return (
-    <div className="p-4 rounded-xl bg-[color-mix(in_srgb,var(--color-ai)_6%,var(--color-bg-surface))] border border-[color-mix(in_srgb,var(--color-ai)_25%,transparent)]">
-      <div className="text-tiny uppercase tracking-wider text-ai mb-2 flex items-center gap-1.5">
-        <Sparkles className="size-3" /> AI INSIGHT
-      </div>
-      <div className="text-small text-text-primary leading-relaxed mb-3">
-        Last consultation: you predicted &ldquo;job by June.&rdquo; Saturn MD
-        ends <span className="text-gold font-medium">Aug 2027</span>. Consider
-        asking Ravi about outcome in today&apos;s session.
-      </div>
-      <Button variant="ai" size="sm" leftIcon={<MessageCircle />} fullWidth>
-        Ask Claude about this chart
-      </Button>
-    </div>
-  );
-}
-
-function RulingPlanetsCard() {
+function RulingPlanetsCard({ ws }: { ws: any }) {
+  const rp = ws?.ruling_planets;
+  if (!rp) return null;
   const rps = [
-    { role: "Day Lord", planet: "Thursday · Jupiter", color: "jupiter" },
-    { role: "Lagna Sign", planet: "Mars", color: "mars" },
-    { role: "Lagna Star", planet: "Saturn", color: "saturn" },
-    { role: "Moon Sign", planet: "Saturn", color: "saturn" },
-    { role: "Moon Star", planet: "Mars", color: "mars" },
+    { role: "Day Lord", planet: rp.day_lord_en },
+    { role: "Lagna Sign", planet: rp.lagna_sign_lord_en },
+    { role: "Lagna Star", planet: rp.lagna_star_lord_en },
+    { role: "Moon Sign", planet: rp.moon_sign_lord_en },
+    { role: "Moon Star", planet: rp.moon_star_lord_en },
   ];
   return (
     <div className="p-4 rounded-xl bg-bg-surface border border-border">
@@ -518,11 +573,9 @@ function RulingPlanetsCard() {
         {rps.map((r) => (
           <div key={r.role} className="flex items-center gap-2.5 text-tiny">
             <div className="text-text-muted w-16">{r.role}</div>
-            <div
-              className="size-2 rounded-full"
-              style={{ background: `var(--color-${r.color})` }}
-            />
-            <div className="text-text-primary font-medium flex-1">{r.planet}</div>
+            <div className="text-text-primary font-medium flex-1">
+              {r.planet ?? "—"}
+            </div>
           </div>
         ))}
       </div>
@@ -531,113 +584,122 @@ function RulingPlanetsCard() {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   SESSIONS TAB
+   DASHA TAB — list antardashas with current marker
    ══════════════════════════════════════════════════════════════════ */
-function SessionsTab() {
-  const sessions = [
-    { date: "Apr 16, 2026", time: "9:30 AM", topic: "Career transition", summary: "Discussed job change. I said Saturn MD (ends Aug 2027) supports steady progress. Advised patience until Mercury AD begins.", duration: "52m" },
-    { date: "Mar 8, 2026", time: "5:00 PM", topic: "Job by June", summary: "Prediction: job offer between Apr–Jun 2026. H10 CSL Sun in Leo + Mercury AD activation. Advised actively interviewing.", duration: "45m" },
-    { date: "Jan 12, 2026", time: "11:00 AM", topic: "New year outlook", summary: "Overall year-review. Strong H11 activation. Marriage possible late 2026 if approached.", duration: "60m" },
-  ];
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-tiny uppercase tracking-wider text-gold">12 SESSIONS · ALL-TIME</div>
-        <Button variant="primary" size="sm" leftIcon={<Plus />}>New session</Button>
-      </div>
-      {sessions.map((s) => (
-        <div key={s.date} className="p-5 rounded-xl bg-bg-surface border border-border hover:border-border-strong transition-colors">
-          <div className="flex items-start justify-between gap-4 mb-3">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <div className="text-tiny uppercase tracking-wider text-gold">{s.date} · {s.time}</div>
-                <Badge size="sm">
-                  <Clock className="size-3" /> {s.duration}
-                </Badge>
-              </div>
-              <div className="font-display text-h3 font-semibold text-text-primary">
-                {s.topic}
-              </div>
-            </div>
-            <Button variant="ghost" size="sm" rightIcon={<ChevronRight />}>
-              Open
-            </Button>
-          </div>
-          <div className="rounded-lg bg-[color-mix(in_srgb,var(--color-ai)_5%,transparent)] border border-[color-mix(in_srgb,var(--color-ai)_20%,transparent)] p-3">
-            <div className="text-tiny uppercase tracking-wider text-ai mb-1 flex items-center gap-1">
-              <Sparkles className="size-3" /> AI SUMMARY
-            </div>
-            <div className="text-small text-text-secondary leading-relaxed">
-              {s.summary}
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   PREDICTIONS TAB
-   ══════════════════════════════════════════════════════════════════ */
-function PredictionsTab() {
-  const preds = [
-    { text: "Job offer by June 2026", domain: "career", window: "Apr–Jun 2026", outcome: "correct", basis: "H10 CSL Sun + Mercury AD" },
-    { text: "House construction resumes", domain: "property", window: "Apr 2026", outcome: "correct", basis: "H4 CSL Saturn + Mars RP" },
-    { text: "Marriage discussions begin", domain: "marriage", window: "Oct 2026", outcome: "pending", basis: "H7 CSL Jupiter · Venus Mdasha" },
-    { text: "Foreign opportunity emerges", domain: "foreign", window: "Jul 2027", outcome: "pending", basis: "H9 CSL Mercury + Rahu transit" },
-    { text: "Health flare-up (avoid heat)", domain: "health", window: "May–Jul 2026", outcome: "partial", basis: "Sun + Mars in H10 stress" },
-  ];
-  const badges = {
-    correct: { variant: "success" as const, label: "Correct" },
-    partial: { variant: "warning" as const, label: "Partial" },
-    wrong: { variant: "error" as const, label: "Wrong" },
-    pending: { variant: "default" as const, label: "Pending" },
-  };
+function DashaTab({ ws }: { ws: any }) {
+  const antardashas: any[] = ws?.antardashas ?? [];
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-2">
-        <MiniStat label="Total predictions" value="12" sub="For this client" />
-        <MiniStat label="Correct" value="11" sub="92%" success />
-        <MiniStat label="Partial" value="1" sub="Health related" warning />
-        <MiniStat label="Pending" value="2" sub="Verification open" />
-      </div>
-      <div className="rounded-xl bg-bg-surface border border-border overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="bg-bg-surface-2 border-b border-border">
-              <th className="text-left text-tiny uppercase tracking-wider text-text-muted px-4 py-3 font-medium">Prediction</th>
-              <th className="text-left text-tiny uppercase tracking-wider text-text-muted px-4 py-3 font-medium">Domain</th>
-              <th className="text-left text-tiny uppercase tracking-wider text-text-muted px-4 py-3 font-medium">Window</th>
-              <th className="text-left text-tiny uppercase tracking-wider text-text-muted px-4 py-3 font-medium">KP Basis</th>
-              <th className="text-center text-tiny uppercase tracking-wider text-text-muted px-4 py-3 font-medium">Outcome</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {preds.map((p) => (
-              <tr key={p.text} className="hover:bg-bg-hover transition-colors">
-                <td className="px-4 py-3 text-small text-text-primary">{p.text}</td>
-                <td className="px-4 py-3 text-small text-text-secondary capitalize">{p.domain}</td>
-                <td className="px-4 py-3 text-small text-text-muted font-mono">{p.window}</td>
-                <td className="px-4 py-3 text-tiny text-text-muted font-mono">{p.basis}</td>
-                <td className="px-4 py-3 text-center">
-                  <Badge variant={badges[p.outcome as keyof typeof badges].variant} size="sm">
-                    {badges[p.outcome as keyof typeof badges].label}
-                  </Badge>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="rounded-xl bg-bg-surface border border-border p-5">
+        <div className="text-tiny uppercase tracking-wider text-gold mb-4">
+          CURRENT · {ws.current_dasha?.lord_en} MAHADASHA
+        </div>
+        <div className="text-body text-text-secondary mb-6">
+          Started {ws.current_dasha?.start?.slice(0, 10)} · ends {ws.current_dasha?.end?.slice(0, 10)}
+        </div>
+        <div className="text-tiny uppercase tracking-wider text-text-muted mb-3">
+          ANTARDASHAS ({antardashas.length})
+        </div>
+        <div className="flex flex-col gap-1.5">
+          {antardashas.map((ad, i) => (
+            <div
+              key={i}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
+                ad.is_current
+                  ? "bg-gold-glow border border-border-accent"
+                  : "bg-bg-surface-2 border border-border hover:border-border-strong"
+              )}
+            >
+              <div
+                className={cn(
+                  "size-7 rounded-full flex items-center justify-center text-tiny font-bold",
+                  ad.is_current ? "bg-gold text-bg-primary" : "bg-bg-elevated text-text-muted"
+                )}
+              >
+                {i + 1}
+              </div>
+              <div className="flex-1 text-small text-text-primary font-medium">
+                {ad.lord_en}
+              </div>
+              <div className="text-tiny text-text-muted font-mono">
+                {ad.start?.slice(0, 10)} → {ad.end?.slice(0, 10)}
+              </div>
+              {ad.is_current && (
+                <Badge variant="gold" size="sm">Now</Badge>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   PLACEHOLDER TAB
+   STATES
    ══════════════════════════════════════════════════════════════════ */
-function PlaceholderTab({ name, description }: { name: string; description: string }) {
+function LoadingChart({ error = false }: { error?: boolean }) {
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-text-muted">
+        <AlertCircle className="size-6 text-error mb-2" />
+        <div className="text-small">Could not compute chart — backend error.</div>
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col items-center justify-center py-16 text-text-muted">
+      <Loader2 className="size-6 animate-spin mb-2" />
+      <div className="text-small">Computing chart (Swiss Ephemeris)…</div>
+    </div>
+  );
+}
+
+function SessionsEmptyState() {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+      <div className="size-14 rounded-full bg-gold-glow border border-border-accent flex items-center justify-center text-gold mb-3">
+        <MessageCircle className="size-6" />
+      </div>
+      <div className="font-display text-h2 font-semibold text-text-primary mb-2">
+        No sessions yet
+      </div>
+      <p className="text-body text-text-secondary max-w-md mb-6">
+        When you have a consultation with this client, create a session here.
+        Each session stores notes, questions, and an AI-generated summary.
+      </p>
+      <Button variant="primary" leftIcon={<Plus />}>
+        Start first session
+      </Button>
+    </div>
+  );
+}
+
+function PredictionsEmptyState() {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+      <div className="size-14 rounded-full bg-gold-glow border border-border-accent flex items-center justify-center text-gold mb-3">
+        <Target className="size-6" />
+      </div>
+      <div className="font-display text-h2 font-semibold text-text-primary mb-2">
+        No predictions yet
+      </div>
+      <p className="text-body text-text-secondary max-w-md">
+        Track what you predict for this client. Later, mark outcomes to build your
+        accuracy record.
+      </p>
+    </div>
+  );
+}
+
+function PlaceholderTab({
+  name,
+  description,
+}: {
+  name: string;
+  description: string;
+}) {
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center">
       <div className="size-14 rounded-full bg-gold-glow border border-border-accent flex items-center justify-center text-gold mb-4">
@@ -650,8 +712,17 @@ function PlaceholderTab({ name, description }: { name: string; description: stri
         {description}
       </div>
       <Badge variant="ai" size="md">
-        <Sparkles className="size-3.5" /> Coming in Phase 3
+        <Sparkles className="size-3.5" /> Coming in next phase
       </Badge>
     </div>
   );
+}
+
+function formatDate(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  } catch {
+    return "—";
+  }
 }
