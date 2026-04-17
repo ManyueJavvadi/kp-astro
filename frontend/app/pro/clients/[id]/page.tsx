@@ -8,7 +8,6 @@ import {
   Plus,
   Sparkles,
   Edit,
-  MoreHorizontal,
   ChevronRight,
   Calendar,
   MapPin,
@@ -18,7 +17,6 @@ import {
   CheckCircle2,
   Star,
   FileText,
-  MessageCircle,
   Loader2,
   AlertCircle,
 } from "lucide-react";
@@ -30,6 +28,10 @@ import { useClient, useClientWorkspace } from "@/hooks/use-clients";
 import { SessionsTab } from "@/components/pro/sessions-tab";
 import { PredictionsTab } from "@/components/pro/predictions-tab";
 import { AnalysisTab } from "@/components/pro/analysis-tab";
+import { HousesTab } from "@/components/pro/houses-tab";
+import { NotesTab } from "@/components/pro/notes-tab";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -184,14 +186,9 @@ function ClientHeader({
           <Button variant="ghost" size="md" leftIcon={<Edit />}>
             Edit
           </Button>
-          <Button variant="secondary" size="md" leftIcon={<Download />}>
-            Export PDF
-          </Button>
+          <ExportPDFButton ws={ws} clientName={client.full_name} />
           <Button variant="primary" size="md" leftIcon={<Plus />}>
             New session
-          </Button>
-          <Button variant="ghost" size="icon">
-            <MoreHorizontal />
           </Button>
         </div>
       </div>
@@ -279,10 +276,7 @@ function ClientTabs({
             )}
           </TabsContent>
           <TabsContent value="houses">
-            <PlaceholderTab
-              name="Houses"
-              description="12-house deep dive with KP significators. Real data is computed — UI coming in next pass."
-            />
+            {wsLoading ? <LoadingChart /> : ws ? <HousesTab ws={ws} /> : <LoadingChart error />}
           </TabsContent>
           <TabsContent value="dasha">
             {wsLoading ? (
@@ -316,10 +310,7 @@ function ClientTabs({
             <PredictionsTab clientId={client.id} />
           </TabsContent>
           <TabsContent value="notes">
-            <PlaceholderTab
-              name="Notes"
-              description="Freeform astrologer notes, searchable."
-            />
+            <NotesTab clientId={client.id} initial={client.notes_private ?? null} />
           </TabsContent>
         </div>
       </Tabs>
@@ -702,4 +693,40 @@ function formatDate(iso: string): string {
   } catch {
     return "—";
   }
+}
+
+function ExportPDFButton({ ws, clientName }: { ws: any; clientName: string }) {
+  const [loading, setLoading] = useState(false);
+  const handle = async () => {
+    if (!ws) {
+      toast.error("Wait for chart to compute first");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await api.post("/pdf/export", ws, { responseType: "blob" });
+      const blob = new Blob([res.data], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${clientName.replace(/\s+/g, "_")}_KP_Report.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("PDF downloaded");
+    } catch {
+      toast.error("PDF export failed");
+    }
+    setLoading(false);
+  };
+  return (
+    <Button
+      variant="secondary"
+      size="md"
+      leftIcon={<Download />}
+      loading={loading}
+      onClick={handle}
+    >
+      Export PDF
+    </Button>
+  );
 }

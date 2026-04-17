@@ -15,34 +15,43 @@ import {
   Wand2,
   Target,
   Calendar,
-  CalendarRange,
   HeartHandshake,
   TrendingUp,
+  LogOut,
+  User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Kbd } from "@/components/ui/kbd";
+import { useMe, useLogout } from "@/hooks/use-me";
+import { useClientsList } from "@/hooks/use-clients";
 
-const nav = [
-  { label: "Dashboard", href: "/pro", icon: LayoutDashboard },
-  { label: "Clients", href: "/pro/clients", icon: Users, count: 87 },
-  {
-    label: "Tools",
-    icon: Wrench,
-    children: [
-      { label: "Horary · Prashna", href: "/pro/tools/horary", icon: Wand2 },
-      { label: "Muhurtha", href: "/pro/tools/muhurtha", icon: Target },
-      { label: "Transit · Gochar", href: "/pro/tools/transit", icon: TrendingUp },
-      { label: "Panchang", href: "/pro/tools/panchang", icon: Calendar },
-      { label: "Kundli Match", href: "/pro/tools/match", icon: HeartHandshake },
-    ],
-  },
-  { label: "Reports", href: "/pro/reports", icon: FileText, count: 12 },
-  { label: "Settings", href: "/pro/settings", icon: Settings },
-];
+function buildNav(clientCount: number) {
+  return [
+    { label: "Dashboard", href: "/pro", icon: LayoutDashboard },
+    { label: "Clients", href: "/pro/clients", icon: Users, count: clientCount },
+    {
+      label: "Tools",
+      icon: Wrench,
+      children: [
+        { label: "Horary · Prashna", href: "/pro/tools/horary", icon: Wand2 },
+        { label: "Muhurtha", href: "/pro/tools/muhurtha", icon: Target },
+        { label: "Transit · Gochar", href: "/pro/tools/transit", icon: TrendingUp },
+        { label: "Panchang", href: "/pro/tools/panchang", icon: Calendar },
+        { label: "Kundli Match", href: "/pro/tools/match", icon: HeartHandshake },
+      ],
+    },
+    { label: "Settings", href: "/pro/settings", icon: Settings },
+  ];
+}
 
 export function Sidebar() {
   const pathname = usePathname();
   const [toolsOpen, setToolsOpen] = React.useState(true);
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  const { data: me } = useMe();
+  const { data: clients } = useClientsList();
+  const logout = useLogout();
+  const nav = buildNav(clients?.total ?? 0);
 
   return (
     <aside className="w-60 shrink-0 h-screen sticky top-0 border-r border-border bg-bg-surface flex flex-col">
@@ -169,18 +178,49 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* User */}
-      <div className="p-3 border-t border-border flex items-center gap-2.5">
-        <div className="size-8 rounded-full bg-gold-glow border border-border-accent flex items-center justify-center text-small font-semibold text-gold shrink-0">
-          M
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-small font-medium text-text-primary truncate">
-            Manyue Javvadi
+      {/* User menu */}
+      <div className="p-3 border-t border-border relative">
+        {menuOpen && (
+          <div className="absolute left-3 right-3 bottom-full mb-2 rounded-lg bg-bg-elevated border border-border-strong shadow-xl overflow-hidden">
+            <Link
+              href="/pro/settings"
+              onClick={() => setMenuOpen(false)}
+              className="flex items-center gap-2 px-3 py-2 text-small text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+            >
+              <User className="size-3.5" /> Account settings
+            </Link>
+            <button
+              onClick={() => {
+                setMenuOpen(false);
+                logout.mutate();
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-small text-error hover:bg-bg-hover transition-colors"
+            >
+              <LogOut className="size-3.5" /> Sign out
+            </button>
           </div>
-          <div className="text-tiny text-text-muted">Astrologer Pro</div>
-        </div>
-        <ChevronDown className="size-3.5 text-text-muted" />
+        )}
+        <button
+          onClick={() => setMenuOpen((v) => !v)}
+          className="w-full flex items-center gap-2.5 text-left hover:bg-bg-hover -m-1 p-1 rounded-md transition-colors"
+        >
+          <div className="size-8 rounded-full bg-gold-glow border border-border-accent flex items-center justify-center text-small font-semibold text-gold shrink-0">
+            {(me?.full_name ?? me?.email ?? "U")[0].toUpperCase()}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-small font-medium text-text-primary truncate">
+              {me?.full_name ?? "Loading…"}
+            </div>
+            <div className="text-tiny text-text-muted capitalize">
+              {me?.tier === "astrologer_pro" || me?.tier === "team"
+                ? "Astrologer Pro"
+                : me?.tier === "consumer_pro"
+                ? "Consumer Pro"
+                : "Free tier"}
+            </div>
+          </div>
+          <ChevronDown className="size-3.5 text-text-muted" />
+        </button>
       </div>
     </aside>
   );
