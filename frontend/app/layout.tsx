@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "./tokens.css";
+import { Providers } from "@/components/providers";
 
 export const metadata: Metadata = {
   title: "DevAstroAI — KP Astrology Intelligence",
@@ -20,7 +21,9 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }
