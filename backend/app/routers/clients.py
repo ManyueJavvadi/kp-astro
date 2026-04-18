@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import and_, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import CurrentUser, get_current_astrologer, get_current_user
+from app.auth import CurrentUser, get_current_user
 from app.db.base import get_db
 from app.db.models.client import Client
 from app.schemas.client import (
@@ -70,7 +70,7 @@ def _combine_to_utc(
 @router.post("", response_model=ClientOut, status_code=status.HTTP_201_CREATED)
 async def create_client(
     data: ClientCreate,
-    user: CurrentUser = Depends(get_current_astrologer),
+    user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> ClientOut:
     utc_dt, local_str = _combine_to_utc(
@@ -112,7 +112,7 @@ async def list_clients(
     include_archived: bool = Query(default=False),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
-    user: CurrentUser = Depends(get_current_astrologer),
+    user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> ClientListResponse:
     base = select(Client).where(Client.astrologer_id == user.id)
@@ -154,7 +154,7 @@ async def list_clients(
 @router.get("/{client_id}", response_model=ClientOut)
 async def get_client(
     client_id: uuid.UUID,
-    user: CurrentUser = Depends(get_current_astrologer),
+    user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> ClientOut:
     stmt = select(Client).where(
@@ -175,7 +175,7 @@ async def get_client(
 async def update_client(
     client_id: uuid.UUID,
     data: ClientUpdate,
-    user: CurrentUser = Depends(get_current_astrologer),
+    user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> ClientOut:
     stmt = select(Client).where(
@@ -204,7 +204,7 @@ async def update_client(
 @router.delete("/{client_id}")
 async def archive_client(
     client_id: uuid.UUID,
-    user: CurrentUser = Depends(get_current_astrologer),
+    user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     stmt = select(Client).where(
@@ -251,7 +251,7 @@ async def summary(
 @router.get("/{client_id}/workspace")
 async def get_client_workspace(
     client_id: uuid.UUID,
-    user: CurrentUser = Depends(get_current_astrologer),
+    user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     stmt = select(Client).where(
