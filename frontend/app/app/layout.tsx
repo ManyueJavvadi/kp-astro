@@ -5,11 +5,6 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
-  MessageCircle,
-  Calendar,
-  HeartHandshake,
-  Users,
-  FileText,
   Bell,
   Menu,
   X,
@@ -18,13 +13,10 @@ import { theme } from "@/lib/theme";
 import { Logo } from "@/components/ui/logo";
 import { useMe } from "@/hooks/use-me";
 
-const nav = [
+// Consumer nav. Keep in sync with actual built routes — prefetching
+// links to non-existent pages spams 404s in the console on hover.
+const nav: { label: string; href: string; icon: typeof LayoutDashboard }[] = [
   { label: "Dashboard", href: "/app", icon: LayoutDashboard },
-  { label: "My Chart", href: "/app/chart", icon: FileText },
-  { label: "Ask AI", href: "/app/chat", icon: MessageCircle },
-  { label: "Family", href: "/app/family", icon: Users },
-  { label: "Panchang", href: "/app/panchang", icon: Calendar },
-  { label: "Match", href: "/app/match", icon: HeartHandshake },
 ];
 
 const MOBILE_BREAKPOINT = 860;
