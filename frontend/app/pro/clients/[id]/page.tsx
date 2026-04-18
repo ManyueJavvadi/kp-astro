@@ -2,7 +2,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useState, use } from "react";
+import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -41,6 +41,18 @@ const TABS = [
   { key: "notes", label: "Notes" },
 ];
 
+function useIsNarrow() {
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 860px)");
+    const update = () => setNarrow(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  return narrow;
+}
+
 export default function ClientWorkspacePage({
   params,
 }: {
@@ -50,6 +62,7 @@ export default function ClientWorkspacePage({
   const [activeTab, setActiveTab] = useState("chart");
   const { data: client, isLoading: clientLoading, isError } = useClient(id);
   const { data: ws, isLoading: wsLoading } = useClientWorkspace(id);
+  const isNarrow = useIsNarrow();
 
   if (clientLoading) {
     return (
@@ -101,7 +114,7 @@ export default function ClientWorkspacePage({
       {/* Client header — compact, dense */}
       <header
         style={{
-          padding: "20px 32px",
+          padding: isNarrow ? "16px 16px" : "20px 32px",
           borderBottom: theme.border.default,
           backgroundColor: theme.bg.page,
         }}
@@ -229,15 +242,17 @@ export default function ClientWorkspacePage({
       {/* Tab bar */}
       <div
         style={{
-          padding: "0 32px",
+          padding: isNarrow ? "0 8px" : "0 32px",
           borderBottom: theme.border.default,
           backgroundColor: theme.bg.page,
           position: "sticky",
           top: 0,
           zIndex: 10,
+          overflowX: "auto",
+          WebkitOverflowScrolling: "touch",
         }}
       >
-        <div style={{ display: "flex", gap: 4 }}>
+        <div style={{ display: "flex", gap: 4, minWidth: "max-content" }}>
           {TABS.map((t) => {
             const active = activeTab === t.key;
             return (
@@ -276,7 +291,7 @@ export default function ClientWorkspacePage({
       </div>
 
       {/* Tab content */}
-      <div style={{ padding: "24px 32px", flex: 1 }}>
+      <div style={{ padding: isNarrow ? "16px" : "24px 32px", flex: 1 }}>
         {activeTab === "chart" &&
           (wsLoading ? <TabLoading /> : ws ? <ChartTab ws={ws} /> : <TabError />)}
         {activeTab === "houses" &&

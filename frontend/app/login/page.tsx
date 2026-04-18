@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Loader2, AlertCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { theme, styles } from "@/lib/theme";
+import { Logo } from "@/components/ui/logo";
 
 function LoginForm() {
   const router = useRouter();
@@ -55,34 +56,13 @@ function LoginForm() {
         <Link
           href="/v2"
           style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 10,
+            display: "flex",
+            justifyContent: "center",
             marginBottom: 32,
             textDecoration: "none",
-            justifyContent: "center",
-            width: "100%",
           }}
         >
-          <div
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: 7,
-              background: `linear-gradient(135deg, ${theme.gold}, ${theme.goldDim})`,
-              color: "#07070d",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 16,
-              fontWeight: 700,
-            }}
-          >
-            ♎
-          </div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: theme.text.primary }}>
-            DevAstro<span style={{ color: theme.gold }}>AI</span>
-          </div>
+          <Logo size={34} wordmark wordmarkSize={16} />
         </Link>
 
         <div

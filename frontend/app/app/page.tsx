@@ -3,7 +3,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   ArrowRight,
   Sparkles,
@@ -37,6 +38,18 @@ import {
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 
+function useIsNarrow() {
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 860px)");
+    const update = () => setNarrow(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  return narrow;
+}
+
 export default function ConsumerDashboardPage() {
   const { data: me } = useMe();
   const { data: clients } = useClientsList();
@@ -50,16 +63,17 @@ export default function ConsumerDashboardPage() {
     null;
 
   const firstName = (me?.full_name ?? "").split(" ")[0] || "there";
+  const isNarrow = useIsNarrow();
 
   return (
     <main
       style={{
         maxWidth: 1200,
         margin: "0 auto",
-        padding: "32px 24px",
+        padding: isNarrow ? "20px 16px" : "32px 24px",
         display: "flex",
         flexDirection: "column",
-        gap: 24,
+        gap: isNarrow ? 16 : 24,
       }}
     >
       <header
@@ -108,17 +122,17 @@ export default function ConsumerDashboardPage() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 320px",
-            gap: 20,
+            gridTemplateColumns: isNarrow ? "1fr" : "1fr 320px",
+            gap: isNarrow ? 16 : 20,
             alignItems: "start",
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column", gap: 20, minWidth: 0 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: isNarrow ? 16 : 20, minWidth: 0 }}>
             <HeroAI client={selfClient} />
             <TodaysEnergy clientId={selfClient.id} />
             <FamilyProfiles />
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 20, minWidth: 0 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: isNarrow ? 16 : 20, minWidth: 0 }}>
             <YourChart clientId={selfClient.id} />
             <UpgradeCard tier={me?.tier ?? "free"} />
           </div>
@@ -129,7 +143,9 @@ export default function ConsumerDashboardPage() {
 }
 
 function OnboardingCard() {
+  const router = useRouter();
   const create = useCreateClient();
+  const [err, setErr] = useState<string | null>(null);
   const [form, setForm] = useState({
     full_name: "",
     birth_date: "",
@@ -142,20 +158,34 @@ function OnboardingCard() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErr(null);
     if (!form.full_name || !form.birth_date || !form.birth_time || !form.birth_place) {
-      toast.error("Fill all fields");
+      setErr("Please fill name, date, time and place.");
       return;
     }
-    await create.mutateAsync({
-      full_name: form.full_name,
-      birth_date: form.birth_date,
-      birth_time: form.birth_time,
-      birth_timezone: form.birth_timezone,
-      birth_lat: parseFloat(form.birth_lat || "17.385"),
-      birth_lon: parseFloat(form.birth_lon || "78.4867"),
-      birth_place: form.birth_place,
-      tags: ["self"],
-    } as ClientCreateBody);
+    try {
+      await create.mutateAsync({
+        full_name: form.full_name,
+        birth_date: form.birth_date,
+        birth_time: form.birth_time,
+        birth_timezone: form.birth_timezone,
+        birth_lat: parseFloat(form.birth_lat || "17.385"),
+        birth_lon: parseFloat(form.birth_lon || "78.4867"),
+        birth_place: form.birth_place,
+        tags: ["self"],
+      } as ClientCreateBody);
+      // Force a fresh fetch and bounce to dashboard so the view flips
+      // from onboarding -> full consumer dashboard.
+      router.replace("/app");
+      router.refresh();
+    } catch (e: unknown) {
+      const msg =
+        e && typeof e === "object" && "response" in e
+          ? ((e as { response?: { data?: { detail?: string } } }).response?.data?.detail ??
+            "Could not create your kundli. Check you're signed in and try again.")
+          : "Could not create your kundli. Check you're signed in and try again.";
+      setErr(msg);
+    }
   };
 
   return (
@@ -262,6 +292,23 @@ function OnboardingCard() {
               />
             </Field>
           </div>
+          {err && (
+            <div
+              role="alert"
+              style={{
+                marginTop: 4,
+                padding: "10px 12px",
+                borderRadius: 6,
+                backgroundColor: "rgba(248,113,113,0.08)",
+                border: "1px solid rgba(248,113,113,0.3)",
+                color: theme.error,
+                fontSize: 12,
+                lineHeight: 1.5,
+              }}
+            >
+              {err}
+            </div>
+          )}
           <button
             type="submit"
             disabled={create.isPending}

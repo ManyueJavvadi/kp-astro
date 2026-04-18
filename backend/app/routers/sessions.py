@@ -191,6 +191,25 @@ async def summarize_session(
     sess.ai_summary = summary
     await db.commit()
     await db.refresh(sess)
+
+    # Fire-and-forget email with the summary. Env-gated, so no-op in dev.
+    try:
+        client_row = (
+            await db.execute(select(Client).where(Client.id == sess.client_id))
+        ).scalar_one_or_none()
+        if client_row and user.email:
+            from app.services.email_service import send_session_summary
+            await send_session_summary(
+                to=user.email,
+                astrologer_name=user.full_name or "",
+                client_name=client_row.full_name,
+                summary_md=summary,
+                session_id=str(sess.id),
+            )
+    except Exception:  # noqa: BLE001
+        # Email failures should never break the API response.
+        pass
+
     return SessionOut.model_validate(sess)
 
 

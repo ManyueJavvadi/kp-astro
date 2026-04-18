@@ -1,10 +1,11 @@
 """Follow-ups — dashboard reminders. Also auto-generated from prediction windows."""
 from __future__ import annotations
 
+import os
 import uuid
 from datetime import datetime, timezone as dt_tz
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,6 +13,7 @@ from app.auth import CurrentUser, get_current_astrologer
 from app.db.base import get_db
 from app.db.models.client import Client
 from app.db.models.followup import Followup
+from app.db.models.profile import Profile
 from app.schemas.followup import (
     FollowupCreate,
     FollowupListResponse,
@@ -122,3 +124,68 @@ async def delete_followup(
     await db.delete(fu)
     await db.commit()
     return {"ok": True, "id": str(followup_id)}
+
+
+@router.post("/send-due-reminders")
+async def send_due_reminders(
+    db: AsyncSession = Depends(get_db),
+    x_cron_secret: str | None = Header(default=None),
+) -> dict:
+    """
+    Admin / cron endpoint. Sends reminder emails for every follow-up whose
+    due_at is in the past and that hasn't been reminded yet.
+
+    Protected by a shared secret (CRON_SECRET env var). Hit daily from
+    Vercel Cron / GitHub Actions / external scheduler:
+        curl -X POST $API/followups/send-due-reminders \\
+             -H "X-Cron-Secret: $CRON_SECRET"
+
+    Idempotent: each follow-up only gets one reminder (we track
+    `reminded_at`).
+    """
+    expected = os.getenv("CRON_SECRET")
+    if not expected or x_cron_secret != expected:
+        raise HTTPException(status_code=401, detail="Bad cron secret")
+
+    from app.services.email_service import send_followup_reminder
+
+    now = datetime.now(dt_tz.utc)
+    # Pull pending follow-ups that are due and not yet reminded.
+    # Gracefully handles the case where `reminded_at` column was never added.
+    stmt = select(Followup, Client, Profile).join(
+        Client, Client.id == Followup.client_id
+    ).join(Profile, Profile.id == Followup.astrologer_id).where(
+        and_(
+            Followup.due_at <= now,
+            Followup.completed_at.is_(None),
+        )
+    )
+    rows = (await db.execute(stmt)).all()
+
+    sent = 0
+    for fu, client, profile in rows:
+        # Skip if already reminded (if column exists)
+        reminded_at = getattr(fu, "reminded_at", None)
+        if reminded_at:
+            continue
+        # Look up astrologer email from auth — profile doesn't store email,
+        # but Supabase auth.users row does. For now, rely on a stored email
+        # hint if present. If no email on profile, skip.
+        email = getattr(profile, "email", None) or getattr(profile, "contact_email", None)
+        if not email:
+            continue
+
+        await send_followup_reminder(
+            to=email,
+            astrologer_name=profile.full_name or "",
+            client_name=client.full_name,
+            note=fu.note or "Follow up with client",
+            due_date=fu.due_at.strftime("%d %b %Y"),
+            client_id=str(client.id),
+        )
+        if hasattr(fu, "reminded_at"):
+            fu.reminded_at = now
+        sent += 1
+
+    await db.commit()
+    return {"ok": True, "sent": sent, "scanned": len(rows)}

@@ -3,9 +3,12 @@
 import * as React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
+import { Suspense } from "react";
+import { PostHogProvider } from "@/components/providers/posthog-provider";
 
 /**
- * Wrap the whole app in TanStack Query + toast notifications.
+ * Wrap the whole app in TanStack Query + toast notifications + PostHog.
+ * PostHog is env-gated (no-op without NEXT_PUBLIC_POSTHOG_KEY).
  */
 export function Providers({ children }: { children: React.ReactNode }) {
   const [qc] = React.useState(
@@ -22,7 +25,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
   );
   return (
     <QueryClientProvider client={qc}>
-      {children}
+      {/* PostHogProvider uses useSearchParams → must be in Suspense */}
+      <Suspense fallback={null}>
+        <PostHogProvider>{children}</PostHogProvider>
+      </Suspense>
       <Toaster
         theme="dark"
         position="top-right"

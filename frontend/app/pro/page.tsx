@@ -45,6 +45,7 @@ export default function ProDashboardPage() {
 
   return (
     <main
+      data-mobile-pad
       style={{
         padding: "24px 32px",
         display: "flex",
@@ -124,6 +125,7 @@ export default function ProDashboardPage() {
 
       {/* 2-column layout: stretches to fill remaining height */}
       <div
+        data-mobile-stack
         style={{
           display: "grid",
           gridTemplateColumns: "1fr 320px",
@@ -172,6 +174,7 @@ function KPIRow() {
 
   return (
     <div
+      data-mobile-2col
       style={{
         display: "grid",
         gridTemplateColumns: "repeat(4, minmax(0, 1fr))",

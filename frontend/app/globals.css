@@ -818,3 +818,35 @@ textarea:focus-visible {
   opacity: 0.5;
   cursor: default;
 }
+
+/* ============================================================
+   Mobile responsive helpers (data attribute driven).
+   Set data-mobile-stack on any grid to collapse to 1 col on
+   ≤860px; data-mobile-2col to force a 2 col layout; data-mobile-pad
+   to tighten padding to 16px. Works because inline style has
+   higher specificity by default, but !important wins here.
+   ============================================================ */
+@media (max-width: 860px) {
+  [data-mobile-stack] {
+    grid-template-columns: 1fr !important;
+  }
+  [data-mobile-2col] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  [data-mobile-pad] {
+    padding: 16px !important;
+  }
+  [data-mobile-pad-x] {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+  [data-mobile-gap-sm] {
+    gap: 12px !important;
+  }
+  [data-mobile-hide] {
+    display: none !important;
+  }
+  [data-mobile-wrap] {
+    flex-wrap: wrap !important;
+  }
+}

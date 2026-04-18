@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Kbd } from "@/components/ui/kbd";
 import { Reveal, RevealStagger, RevealChild } from "@/components/landing/reveal";
+import { LogoMark } from "@/components/ui/logo";
 
 /**
  * DevAstroAI v2 Landing Page.
@@ -77,9 +78,7 @@ function Nav() {
     <nav className="sticky top-0 z-50 backdrop-blur-lg bg-bg-primary/80 border-b border-border">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link href="/v2" className="flex items-center gap-2.5 shrink-0">
-          <div className="size-8 rounded-md bg-gradient-to-br from-gold to-gold-dim flex items-center justify-center font-display text-bg-primary text-lg font-bold">
-            ♎
-          </div>
+          <LogoMark size={32} />
           <div className="font-semibold tracking-tight">
             <span className="text-text-primary">DevAstro</span>
             <span className="text-gold">AI</span>
@@ -1292,9 +1291,7 @@ function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
           <div className="col-span-2">
             <div className="flex items-center gap-2.5 mb-4">
-              <div className="size-8 rounded-md bg-gradient-to-br from-gold to-gold-dim flex items-center justify-center font-display text-bg-primary text-lg font-bold">
-                ♎
-              </div>
+              <LogoMark size={32} />
               <div className="font-semibold tracking-tight">
                 <span className="text-text-primary">DevAstro</span>
                 <span className="text-gold">AI</span>
@@ -1322,6 +1319,13 @@ function Footer() {
 }
 
 function FooterCol({ title, items }: { title: string; items: string[] }) {
+  // Known routes — anything else falls back to "#"
+  const routes: Record<string, string> = {
+    Privacy: "/privacy",
+    Terms: "/terms",
+    Pricing: "#pricing",
+    Features: "#features",
+  };
   return (
     <div>
       <div className="text-tiny uppercase tracking-wider text-text-muted font-medium mb-4">
@@ -1330,7 +1334,10 @@ function FooterCol({ title, items }: { title: string; items: string[] }) {
       <ul className="flex flex-col gap-2.5">
         {items.map((item) => (
           <li key={item}>
-            <a href="#" className="text-small text-text-secondary hover:text-text-primary transition-colors">
+            <a
+              href={routes[item] ?? "#"}
+              className="text-small text-text-secondary hover:text-text-primary transition-colors"
+            >
               {item}
             </a>
           </li>
