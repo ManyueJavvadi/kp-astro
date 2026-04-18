@@ -1,3 +1,4 @@
+import logging
 import os
 
 from fastapi import FastAPI
@@ -16,22 +17,45 @@ from app.routers import sessions as sessions_router
 from app.routers import predictions as predictions_router
 from app.routers import followups as followups_router
 
+log = logging.getLogger("uvicorn.error")
+
 app = FastAPI(title="KP Astro API", version="0.1.0")
 
-# CORS — env-driven. Set ALLOWED_ORIGINS as a comma-separated list in prod,
-# e.g. "https://devastro.ai,https://www.devastro.ai,https://v2.devastro.ai".
-# Defaults to "*" when unset so local dev keeps working.
+# CORS — env-driven. ALLOWED_ORIGINS takes a comma-separated list (exact
+# origins) and/or we also honor ALLOWED_ORIGIN_REGEX for a fallback pattern.
+# If neither is set we default to "*".
 _origins_raw = os.getenv("ALLOWED_ORIGINS", "*").strip()
-if _origins_raw == "*":
-    _allowed_origins = ["*"]
+_origin_regex = os.getenv("ALLOWED_ORIGIN_REGEX", "").strip()
+
+if _origins_raw == "*" and not _origin_regex:
+    _allowed_origins: list[str] = ["*"]
 else:
-    _allowed_origins = [o.strip() for o in _origins_raw.split(",") if o.strip()]
+    _allowed_origins = [o.strip() for o in _origins_raw.split(",") if o.strip() and o.strip() != "*"]
+
+# Sensible default: if the user only set ALLOWED_ORIGINS to a single production
+# origin, also match every vercel.app preview deploy + localhost automatically
+# so preview deploys don't get CORS errors.
+if not _origin_regex and _allowed_origins and _allowed_origins != ["*"]:
+    _origin_regex = r"https://([a-z0-9-]+\.)*vercel\.app$|http://localhost(:\d+)?$|http://127\.0\.0\.1(:\d+)?$"
+
+log.info(
+    "CORS config — allow_origins=%s allow_origin_regex=%r",
+    _allowed_origins,
+    _origin_regex,
+)
+
+# allow_credentials=True is incompatible with allow_origins=["*"] per spec;
+# flip it on only when origins are whitelisted explicitly.
+_use_credentials = _allowed_origins != ["*"]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
+    allow_origin_regex=_origin_regex or None,
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_credentials=_use_credentials,
+    expose_headers=["*"],
 )
 
 # Register routes
@@ -54,3 +78,17 @@ app.include_router(followups_router.router, prefix="/followups", tags=["Followup
 @app.get("/")
 def health_check():
     return {"status": "KP Astro API is running"}
+
+
+@app.get("/_debug/cors")
+def debug_cors():
+    """Diagnostics — shows exactly which CORS config the running container
+    parsed from its environment. Safe to expose (no secrets).
+    Hit it in the browser tab of the site having CORS trouble.
+    """
+    return {
+        "allow_origins": _allowed_origins,
+        "allow_origin_regex": _origin_regex or None,
+        "allow_credentials": _use_credentials,
+        "raw_ALLOWED_ORIGINS": _origins_raw,
+    }
