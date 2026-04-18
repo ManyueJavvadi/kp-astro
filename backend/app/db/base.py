@@ -46,9 +46,14 @@ SessionLocal = async_sessionmaker(
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """FastAPI dependency: yields an AsyncSession and closes it at request end.
 
-    On close we reset the Supabase JWT claim (set by get_current_user) so
-    the next request that borrows this pooled connection starts clean
-    instead of inheriting a previous user's identity.
+    We connect as the `postgres` role (service-role-ish) which in Supabase
+    BYPASSES RLS policies by default — Supabase RLS only applies to the
+    `anon` / `authenticated` roles used by PostgREST. Our backend does its
+    own tenancy check via WHERE astrologer_id = current_user.id in every
+    query, so RLS is defense-in-depth only.
+
+    Setting request.jwt.claim.sub here is a belt-and-suspenders for any
+    future query that does use the regular Supabase roles.
     """
     async with SessionLocal() as session:
         try:

@@ -190,24 +190,24 @@ function OnboardingCard() {
       router.replace("/app");
       router.refresh();
     } catch (e: unknown) {
-      // Surface actual status + detail so we can diagnose production issues.
-      let msg = "Could not create your kundli. Check you're signed in and try again.";
+      // Surface the full error so production issues are visible.
+      let msg = "Could not create your kundli.";
       if (e && typeof e === "object") {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const ax = e as any;
         const status = ax.response?.status;
+        const data = ax.response?.data;
         const detail =
-          ax.response?.data?.detail ||
-          (typeof ax.response?.data === "string" ? ax.response.data : null) ||
-          ax.message;
+          (data && typeof data === "object" && (data.detail || data.error || data.error_type))
+            ? [data.error_type, data.detail ?? data.error].filter(Boolean).join(": ")
+            : (typeof data === "string" ? data : null) || ax.message;
         if (status || detail) {
           msg = `${status ? `[${status}] ` : ""}${detail ?? "Network error"}`;
         }
-        // Log to browser console for further debugging
         // eslint-disable-next-line no-console
         console.error("Create kundli failed:", {
           status,
-          data: ax.response?.data,
+          data,
           message: ax.message,
           code: ax.code,
         });

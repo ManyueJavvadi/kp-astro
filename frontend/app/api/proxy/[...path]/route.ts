@@ -54,6 +54,18 @@ async function forward(req: NextRequest, path: string[]) {
   }
 
   const buf = await upstream.arrayBuffer();
+
+  // Log 4xx/5xx bodies server-side so they show up in Vercel function logs
+  if (upstream.status >= 400) {
+    try {
+      const text = new TextDecoder().decode(buf);
+      // eslint-disable-next-line no-console
+      console.error("[proxy]", req.method, url, "→", upstream.status, text.slice(0, 1000));
+    } catch {
+      /* ignore */
+    }
+  }
+
   const res = new NextResponse(buf, { status: upstream.status });
   upstream.headers.forEach((v, k) => {
     // Don't leak upstream CORS headers — this response is same-origin
