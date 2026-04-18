@@ -27,20 +27,36 @@ export function createApiClient(): AxiosInstance {
   });
 
   instance.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
-    try {
-      const supabase = createClient();
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
-      if (token) {
-        config.headers = config.headers ?? {};
-        config.headers.Authorization = `Bearer ${token}`;
-      } else if (typeof window !== "undefined") {
+    // supabase.auth.getSession() has been observed to hang indefinitely on
+    // some browsers/extensions, which silently stalls every axios request
+    // and surfaces as ERR_NETWORK. Guard it with a 3s timeout — if we
+    // can't get the session fast, send the request unauthenticated and
+    // let the 401 come back cleanly instead of looking like a network
+    // failure.
+    const getToken = async (): Promise<string | null> => {
+      try {
+        const supabase = createClient();
+        const sessionPromise = supabase.auth.getSession();
+        const timeout = new Promise<null>((resolve) =>
+          setTimeout(() => resolve(null), 3_000)
+        );
+        const result = await Promise.race([sessionPromise, timeout]);
+        if (!result || !("data" in result)) return null;
+        return result.data.session?.access_token ?? null;
+      } catch (e) {
         // eslint-disable-next-line no-console
-        console.warn("[api] No Supabase session — request will be unauthenticated:", config.url);
+        console.error("[api] Session lookup failed:", e);
+        return null;
       }
-    } catch (e) {
+    };
+
+    const token = await getToken();
+    if (token) {
+      config.headers = config.headers ?? {};
+      config.headers.Authorization = `Bearer ${token}`;
+    } else if (typeof window !== "undefined") {
       // eslint-disable-next-line no-console
-      console.error("[api] Session lookup failed:", e);
+      console.warn("[api] No Supabase session — request will be unauthenticated:", config.url);
     }
     return config;
   });
