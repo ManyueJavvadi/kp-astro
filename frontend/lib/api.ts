@@ -42,12 +42,56 @@ type ApiError = {
   config: { url: string; method: string };
 };
 
+/**
+ * Pull the access_token from the Supabase auth cookie directly.
+ *
+ * Background: @supabase/ssr stores the session in a cookie whose value is
+ * either plain JSON or `base64-<b64>`. The browser client's getSession()
+ * is supposed to read it, but we've seen cases where it returns null even
+ * though the cookie is present (cookie format mismatch between the
+ * server-side writer and the client-side reader, common during version
+ * upgrades). Reading the cookie directly is an order of magnitude more
+ * reliable.
+ */
+function tokenFromCookie(): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie
+    .split(";")
+    .map((c) => c.trim())
+    .find((c) => /^sb-[a-z0-9]+-auth-token=/.test(c));
+  if (!match) return null;
+  const rawValue = decodeURIComponent(match.split("=").slice(1).join("="));
+  try {
+    // Format 1: plain JSON — { access_token, refresh_token, ... }
+    const parsed = JSON.parse(rawValue);
+    if (parsed?.access_token) return parsed.access_token as string;
+  } catch {
+    // Format 2: "base64-<base64 string>"
+    if (rawValue.startsWith("base64-")) {
+      try {
+        const decoded = atob(rawValue.slice(7));
+        const parsed = JSON.parse(decoded);
+        if (parsed?.access_token) return parsed.access_token as string;
+      } catch {
+        /* fall through */
+      }
+    }
+  }
+  return null;
+}
+
 async function getToken(): Promise<string | null> {
+  // Fast path: read directly from the cookie. Always wins if present.
+  const cookieToken = tokenFromCookie();
+  if (cookieToken) return cookieToken;
+
+  // Fallback: try the supabase-js session API with a hard timeout so we
+  // never stall the request.
   try {
     const supabase = createClient();
     const sessionPromise = supabase.auth.getSession();
     const timeout = new Promise<null>((resolve) =>
-      setTimeout(() => resolve(null), 3_000)
+      setTimeout(() => resolve(null), 1_500)
     );
     const result = await Promise.race([sessionPromise, timeout]);
     if (!result || !("data" in result)) return null;

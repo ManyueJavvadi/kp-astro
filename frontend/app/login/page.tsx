@@ -32,11 +32,23 @@ function LoginForm() {
       return;
     }
 
+    // Verify the session landed in the browser storage. signInWithPassword
+    // returns a session, but the cookie-storage handoff can be flaky — if
+    // getSession() can't see it right after, we're cooked. Force-resolve
+    // to surface the error early rather than on the next page.
+    const sessionCheck = await supabase.auth.getSession();
+    if (!sessionCheck.data.session) {
+      setError("Signed in but session didn't persist. Please try again or clear your browser cookies for this site.");
+      return;
+    }
+
     const role =
       (data.user?.user_metadata?.role as string | undefined) ?? "consumer";
     const home = role === "astrologer" ? "/pro" : "/app";
-    router.push(redirectParam || home);
-    router.refresh();
+    // Use a full reload so both server cookie + client storage are fresh.
+    // router.push + refresh was racy (middleware sometimes redirected
+    // before the cookie was visible to middleware).
+    window.location.href = redirectParam || home;
   };
 
   return (
