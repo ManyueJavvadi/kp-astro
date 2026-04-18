@@ -49,32 +49,122 @@ class CurrentUser:
     raw_auth: dict | None = None  # full Supabase user payload for advanced use
 
 
-def _verify_token_locally(token: str) -> dict:
-    """Decode + verify a Supabase JWT using the shared HS256 secret.
+# JWKS cache. We fetch {SUPABASE_URL}/auth/v1/.well-known/jwks.json via
+# httpx (same client we proved works from Railway) and parse into PyJWK
+# objects. Keeps the JSON in memory for 1 hour; refetched on miss.
+_JWKS_KEYS: dict[str, "pyjwt.PyJWK"] = {}
+_JWKS_FETCHED_AT: float = 0.0
+_JWKS_TTL_SECONDS = 3600
 
-    Much faster + more reliable than calling Supabase /auth/v1/user — no
-    outbound network hop at all. Railway's egress IPv6 to Supabase has
-    been unreliable (OSError: Network is unreachable), so local decode
-    is the production-safe path.
 
-    Supabase signs access tokens with HS256 using SUPABASE_JWT_SECRET.
-    Claims we care about: sub (user id), email, role, aud, exp.
-    """
-    if not SUPABASE_JWT_SECRET:
-        # Misconfigured server — no way to verify, refuse.
+async def _fetch_jwks(force: bool = False) -> None:
+    """Populate _JWKS_KEYS from Supabase. Safe to call on every verify."""
+    global _JWKS_FETCHED_AT
+    now = time.time()
+    if not force and _JWKS_KEYS and (now - _JWKS_FETCHED_AT) < _JWKS_TTL_SECONDS:
+        return
+
+    jwks_url = f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json"
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(jwks_url)
+            resp.raise_for_status()
+            data = resp.json()
+    except Exception as e:  # noqa: BLE001
+        # Don't wipe an existing cache if refresh fails; fall back to old keys.
+        if _JWKS_KEYS:
+            return
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Server misconfigured: SUPABASE_JWT_SECRET missing",
+            detail=f"Could not fetch Supabase JWKS: {e}",
         )
 
+    new_keys: dict[str, "pyjwt.PyJWK"] = {}
+    for jwk_dict in data.get("keys", []):
+        kid = jwk_dict.get("kid")
+        if not kid:
+            continue
+        try:
+            new_keys[kid] = pyjwt.PyJWK(jwk_dict)
+        except Exception:  # noqa: BLE001
+            continue
+    if new_keys:
+        _JWKS_KEYS.clear()
+        _JWKS_KEYS.update(new_keys)
+        _JWKS_FETCHED_AT = now
+
+
+async def _verify_token_locally(token: str) -> dict:
+    """Decode + verify a Supabase JWT without a /auth/v1/user network hop.
+
+    Supabase signs access tokens with either:
+      - HS256 using SUPABASE_JWT_SECRET (legacy / default for old projects)
+      - ES256 or RS256 using keys served at /auth/v1/.well-known/jwks.json
+        (newer projects, including any created after ~late 2025)
+
+    We detect which algorithm the token uses from its unverified header
+    and use the right verification path. Both are fully local once the
+    JWKS is cached — no per-request Supabase roundtrip.
+    """
     try:
-        claims = pyjwt.decode(
-            token,
-            SUPABASE_JWT_SECRET,
-            algorithms=["HS256"],
-            audience="authenticated",
-            options={"require": ["sub", "exp"]},
+        unverified_header = pyjwt.get_unverified_header(token)
+    except pyjwt.InvalidTokenError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Invalid token header: {e}",
+            headers={"WWW-Authenticate": "Bearer"},
         )
+
+    alg = unverified_header.get("alg", "").upper()
+
+    try:
+        if alg == "HS256":
+            if not SUPABASE_JWT_SECRET:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Server misconfigured: SUPABASE_JWT_SECRET missing",
+                )
+            claims = pyjwt.decode(
+                token,
+                SUPABASE_JWT_SECRET,
+                algorithms=["HS256"],
+                audience="authenticated",
+                options={"require": ["sub", "exp"]},
+            )
+        elif alg in ("ES256", "RS256"):
+            # Fetch the public key for this token's kid from Supabase JWKS.
+            kid = unverified_header.get("kid")
+            if not kid:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Token missing kid header",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            await _fetch_jwks()
+            jwk = _JWKS_KEYS.get(kid)
+            if jwk is None:
+                # Key rotated? force refresh once.
+                await _fetch_jwks(force=True)
+                jwk = _JWKS_KEYS.get(kid)
+            if jwk is None:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail=f"Unknown signing key (kid={kid})",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            claims = pyjwt.decode(
+                token,
+                jwk.key,
+                algorithms=[alg],
+                audience="authenticated",
+                options={"require": ["sub", "exp"]},
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Unsupported JWT algorithm: {alg}",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
     except pyjwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -107,7 +197,7 @@ async def _verify_token_with_supabase(token: str) -> dict:
     if cached and cached[1] > now:
         return cached[0]
 
-    payload = _verify_token_locally(token)
+    payload = await _verify_token_locally(token)
     _TOKEN_CACHE[token] = (payload, now + _CACHE_TTL_SECONDS)
     return payload
 
