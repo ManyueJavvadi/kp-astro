@@ -3,9 +3,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useState } from "react";
-import { Calendar, MapPin, Loader2, Sun, Moon, Sunrise, Sunset, Clock } from "lucide-react";
+import { Calendar, Loader2, Sunrise, Sunset, Clock } from "lucide-react";
 import { theme, styles } from "@/lib/theme";
-import { ContentCard, SectionLabel, SectionHeading } from "@/components/ui/content-card";
+import { ContentCard, SectionLabel } from "@/components/ui/content-card";
+import { PlacePicker } from "@/components/ui/place-picker";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -66,40 +67,28 @@ export default function PanchangPage() {
           <div style={styles.sectionLabel}>Today · {today}</div>
           <h1 style={styles.pageTitle}>Panchang</h1>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div
-            style={{
-              position: "relative",
-              display: "flex",
-              alignItems: "center",
-            }}
-          >
-            <MapPin
-              size={14}
-              style={{ position: "absolute", left: 10, color: theme.text.muted }}
-            />
-            <input
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 340 }}>
+          <div style={{ width: 320 }}>
+            <PlacePicker
               value={place}
-              onChange={(e) => setPlace(e.target.value)}
-              style={{ ...styles.input, width: 220, paddingLeft: 30, height: 32 }}
+              onChange={(placeName, pick) => {
+                setPlace(placeName);
+                if (pick) {
+                  setCoords({ lat: pick.lat, lon: pick.lon });
+                  // auto-refresh once a real place is picked
+                  setTimeout(() => load(), 100);
+                }
+              }}
+              inputStyle={{ height: 32 }}
+              placeholder="Search city…"
             />
           </div>
-          <input
-            type="number"
-            step="0.01"
-            value={coords.lat}
-            onChange={(e) => setCoords({ ...coords, lat: parseFloat(e.target.value) })}
-            style={{ ...styles.input, width: 90, height: 32 }}
-          />
-          <input
-            type="number"
-            step="0.01"
-            value={coords.lon}
-            onChange={(e) => setCoords({ ...coords, lon: parseFloat(e.target.value) })}
-            style={{ ...styles.input, width: 90, height: 32 }}
-          />
           <button onClick={load} style={styles.primaryButton}>
-            {loading ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Calendar size={14} />}
+            {loading ? (
+              <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+            ) : (
+              <Calendar size={14} />
+            )}
             Refresh
           </button>
         </div>

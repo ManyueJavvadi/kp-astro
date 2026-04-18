@@ -16,7 +16,7 @@ from typing import Optional
 import httpx
 from dotenv import load_dotenv
 from fastapi import Depends, Header, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.base import get_db
@@ -89,6 +89,19 @@ async def get_current_user(
 
     user_id = uuid.UUID(supabase_user["id"])
     email = supabase_user.get("email", "")
+
+    # Teach Postgres RLS who the current user is. Supabase RLS policies
+    # reference auth.uid() which reads request.jwt.claim.sub. Our backend
+    # connects directly to Postgres (not via PostgREST), so we need to
+    # inject the claim manually — otherwise every RLS check returns NULL
+    # = NULL = false, producing "permission denied" → 500s / empty rows.
+    #
+    # is_local=false sets it for the whole database session (connection),
+    # so subsequent queries in this request all see it.
+    await db.execute(
+        text("SELECT set_config('request.jwt.claim.sub', :sub, false)"),
+        {"sub": str(user_id)},
+    )
 
     # Load profile (the trigger created it on signup)
     result = await db.execute(select(Profile).where(Profile.id == user_id))

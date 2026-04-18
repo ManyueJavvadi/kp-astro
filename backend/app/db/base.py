@@ -9,6 +9,7 @@ import os
 from typing import AsyncGenerator
 
 from dotenv import load_dotenv
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -43,10 +44,23 @@ SessionLocal = async_sessionmaker(
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """FastAPI dependency: yields an AsyncSession and closes it at request end."""
+    """FastAPI dependency: yields an AsyncSession and closes it at request end.
+
+    On close we reset the Supabase JWT claim (set by get_current_user) so
+    the next request that borrows this pooled connection starts clean
+    instead of inheriting a previous user's identity.
+    """
     async with SessionLocal() as session:
         try:
             yield session
         except Exception:
             await session.rollback()
             raise
+        finally:
+            try:
+                await session.execute(
+                    text("SELECT set_config('request.jwt.claim.sub', '', false)")
+                )
+                await session.commit()
+            except Exception:
+                pass

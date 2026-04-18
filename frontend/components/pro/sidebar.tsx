@@ -283,6 +283,8 @@ export function Sidebar() {
         height: "100vh",
         position: "sticky",
         top: 0,
+        alignSelf: "flex-start",
+        overflowY: "auto",
         backgroundColor: SIDEBAR_BG,
         borderRight: `1px solid ${SIDEBAR_BORDER}`,
         display: "flex",

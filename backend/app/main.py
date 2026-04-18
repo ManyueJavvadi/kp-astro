@@ -1,8 +1,10 @@
 import logging
 import os
+import traceback
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from app.routers import chart, prediction, feedback
 from app.routers import astrologer
 from app.routers import muhurtha
@@ -74,6 +76,26 @@ app.include_router(clients_router.router, prefix="/clients", tags=["Clients"])
 app.include_router(sessions_router.router, prefix="/sessions", tags=["Sessions"])
 app.include_router(predictions_router.router, prefix="/predictions", tags=["Predictions"])
 app.include_router(followups_router.router, prefix="/followups", tags=["Followups"])
+
+# Catch-all exception handler so every 500 carries CORS headers AND we see
+# the real traceback in Railway logs instead of silently crashing.
+@app.exception_handler(Exception)
+async def _unhandled_exception_handler(request: Request, exc: Exception):
+    log.exception(
+        "Unhandled exception on %s %s: %s",
+        request.method,
+        request.url.path,
+        exc,
+    )
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "Internal server error",
+            "error_type": type(exc).__name__,
+            "error": str(exc)[:500],
+        },
+    )
+
 
 @app.get("/")
 def health_check():

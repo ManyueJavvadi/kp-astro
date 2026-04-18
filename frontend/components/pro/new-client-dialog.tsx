@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { useCreateClient, type ClientCreateBody } from "@/hooks/use-clients";
 import { toast } from "sonner";
+import { PlacePicker } from "@/components/ui/place-picker";
 
 export function NewClientDialog({ trigger }: { trigger?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -122,6 +123,8 @@ export function NewClientDialog({ trigger }: { trigger?: React.ReactNode }) {
               <input
                 required
                 type="date"
+                min="1900-01-01"
+                max={new Date().toISOString().slice(0, 10)}
                 value={form.birth_date}
                 onChange={(e) => setForm({ ...form, birth_date: e.target.value })}
                 style={styles.input}
@@ -139,47 +142,33 @@ export function NewClientDialog({ trigger }: { trigger?: React.ReactNode }) {
           </div>
 
           <Field label="Birth place *">
-            <input
-              required
+            <PlacePicker
               value={form.birth_place}
-              onChange={(e) => setForm({ ...form, birth_place: e.target.value })}
-              placeholder="Hyderabad, Telangana, India"
-              style={styles.input}
+              onChange={(place, pick) => {
+                setForm((f) => ({
+                  ...f,
+                  birth_place: place,
+                  birth_lat: pick ? pick.lat.toFixed(4) : f.birth_lat,
+                  birth_lon: pick ? pick.lon.toFixed(4) : f.birth_lon,
+                  birth_timezone: pick?.timezone ?? f.birth_timezone,
+                }));
+              }}
             />
           </Field>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-            <Field label="Latitude *">
-              <input
-                required
-                type="number"
-                step="0.000001"
-                value={form.birth_lat}
-                onChange={(e) => setForm({ ...form, birth_lat: e.target.value })}
-                placeholder="17.385"
-                style={styles.input}
-              />
-            </Field>
-            <Field label="Longitude *">
-              <input
-                required
-                type="number"
-                step="0.000001"
-                value={form.birth_lon}
-                onChange={(e) => setForm({ ...form, birth_lon: e.target.value })}
-                placeholder="78.4867"
-                style={styles.input}
-              />
-            </Field>
-            <Field label="Timezone">
-              <input
-                value={form.birth_timezone}
-                onChange={(e) => setForm({ ...form, birth_timezone: e.target.value })}
-                placeholder="Asia/Kolkata"
-                style={styles.input}
-              />
-            </Field>
-          </div>
+          {form.birth_lat && form.birth_lon && (
+            <div
+              style={{
+                display: "flex",
+                gap: 18,
+                fontSize: 11,
+                color: theme.text.muted,
+              }}
+            >
+              <span>lat {form.birth_lat}</span>
+              <span>lon {form.birth_lon}</span>
+              <span>{form.birth_timezone}</span>
+            </div>
+          )}
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
             <Field label="Gender">
