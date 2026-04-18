@@ -28,8 +28,8 @@ export default function MatchPage() {
     }
     setLoading(true);
     try {
-      const c1 = (await api.get(`/clients/${id1}`)).data;
-      const c2 = (await api.get(`/clients/${id2}`)).data;
+      const c1 = (await api.get<any>(`/clients/${id1}`)).data;
+      const c2 = (await api.get<any>(`/clients/${id2}`)).data;
       const person1 = {
         name: c1.full_name,
         date: c1.birth_dt_local_str.split("T")[0],

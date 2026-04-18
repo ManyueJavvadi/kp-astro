@@ -400,8 +400,23 @@ function ExportPDFButton({ ws, clientName }: { ws: any; clientName: string }) {
     }
     setLoading(true);
     try {
-      const res = await api.post("/pdf/export", ws, { responseType: "blob" });
-      const blob = new Blob([res.data], { type: "application/pdf" });
+      // PDF export needs a raw binary response, so we bypass the JSON
+      // wrapper and call fetch directly with the Supabase token.
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      const baseUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/+$/, "");
+      const res = await fetch(`${baseUrl}/pdf/export`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(ws),
+      });
+      if (!res.ok) throw new Error(`PDF export HTTP ${res.status}`);
+      const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;

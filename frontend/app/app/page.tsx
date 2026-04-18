@@ -381,7 +381,7 @@ function HeroAI({ client }: { client: any }) {
     setLoading(true);
     setAnswer(null);
     try {
-      const res = await api.post("/astrologer/analyze", {
+      const res = await api.post<{ answer: string }>("/astrologer/analyze", {
         name: client.full_name,
         date: client.birth_dt_local_str.split("T")[0],
         time: client.birth_dt_local_str.split("T")[1].slice(0, 5),

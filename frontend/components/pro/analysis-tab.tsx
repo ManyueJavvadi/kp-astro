@@ -43,7 +43,7 @@ export function AnalysisTab({ input }: { input: AnalysisInput }) {
     setLoading(true);
     setTopic(t);
     try {
-      const res = await api.post("/astrologer/analyze", {
+      const res = await api.post<{ answer: string }>("/astrologer/analyze", {
         ...input,
         topic: t,
         question: "",
@@ -66,7 +66,7 @@ export function AnalysisTab({ input }: { input: AnalysisInput }) {
     setQuestion("");
     setLoading(true);
     try {
-      const res = await api.post("/astrologer/analyze", {
+      const res = await api.post<{ answer: string }>("/astrologer/analyze", {
         ...input,
         topic,
         question: q,

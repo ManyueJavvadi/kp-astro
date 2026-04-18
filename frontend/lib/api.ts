@@ -1,86 +1,144 @@
 "use client";
 
-import axios, { type AxiosInstance, type InternalAxiosRequestConfig } from "axios";
+/**
+ * FastAPI backend client — fetch-based (not axios).
+ *
+ * We previously used axios, but an async request interceptor that awaited
+ * `supabase.auth.getSession()` was stalling axios so hard the request
+ * never reached the network, surfacing as ERR_NETWORK / "Network Error"
+ * in production incognito sessions. Fetch gives us full control.
+ *
+ * Preserves the axios-compatible shape used by TanStack hooks:
+ *   await api.post("/path", body) → { data, status }
+ *   await api.get("/path")
+ *   await api.put("/path", body)
+ *   await api.delete("/path")
+ *   await api.patch("/path", body)
+ *
+ * Rejections look like axios: `{ response: { status, data }, message, code }`
+ * so existing .catch handlers keep working unchanged.
+ */
+
 import { createClient } from "@/lib/supabase/client";
 
-/**
- * Axios client for FastAPI backend.
- * Automatically attaches the Supabase JWT as Bearer token on every request.
- */
-export function createApiClient(): AxiosInstance {
-  const baseURL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const BASE_URL =
+  (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/+$/, "");
 
-  // Log baseURL once per page so production issues can be diagnosed from
-  // the console.
-  if (typeof window !== "undefined") {
-    // eslint-disable-next-line no-console
-    console.info("[api] baseURL =", baseURL);
-  }
-
-  const instance = axios.create({
-    baseURL,
-    timeout: 60_000, // Railway cold starts can take 30+s; was 30s
-    // Don't send cookies — auth is Bearer token only. withCredentials must
-    // stay false so CORS treats this as a "simple" credentialed request
-    // and doesn't require allow_credentials reflection on *every* origin.
-    withCredentials: false,
-  });
-
-  instance.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
-    // supabase.auth.getSession() has been observed to hang indefinitely on
-    // some browsers/extensions, which silently stalls every axios request
-    // and surfaces as ERR_NETWORK. Guard it with a 3s timeout — if we
-    // can't get the session fast, send the request unauthenticated and
-    // let the 401 come back cleanly instead of looking like a network
-    // failure.
-    const getToken = async (): Promise<string | null> => {
-      try {
-        const supabase = createClient();
-        const sessionPromise = supabase.auth.getSession();
-        const timeout = new Promise<null>((resolve) =>
-          setTimeout(() => resolve(null), 3_000)
-        );
-        const result = await Promise.race([sessionPromise, timeout]);
-        if (!result || !("data" in result)) return null;
-        return result.data.session?.access_token ?? null;
-      } catch (e) {
-        // eslint-disable-next-line no-console
-        console.error("[api] Session lookup failed:", e);
-        return null;
-      }
-    };
-
-    const token = await getToken();
-    if (token) {
-      config.headers = config.headers ?? {};
-      config.headers.Authorization = `Bearer ${token}`;
-    } else if (typeof window !== "undefined") {
-      // eslint-disable-next-line no-console
-      console.warn("[api] No Supabase session — request will be unauthenticated:", config.url);
-    }
-    return config;
-  });
-
-  instance.interceptors.response.use(
-    (r) => r,
-    (error) => {
-      if (typeof window !== "undefined") {
-        // eslint-disable-next-line no-console
-        console.error("[api] request failed:", {
-          url: error?.config?.url,
-          method: error?.config?.method,
-          status: error?.response?.status,
-          data: error?.response?.data,
-          code: error?.code,
-          message: error?.message,
-        });
-      }
-      return Promise.reject(error);
-    }
-  );
-
-  return instance;
+if (typeof window !== "undefined") {
+  // eslint-disable-next-line no-console
+  console.info("[api] baseURL =", BASE_URL);
 }
 
-/** Module-level singleton for convenience in client components. */
-export const api = createApiClient();
+type ApiResponse<T> = {
+  data: T;
+  status: number;
+  headers: Headers;
+};
+
+type ApiError = {
+  response?: { status: number; data: unknown; headers: Headers };
+  message: string;
+  code: string;
+  config: { url: string; method: string };
+};
+
+async function getToken(): Promise<string | null> {
+  try {
+    const supabase = createClient();
+    const sessionPromise = supabase.auth.getSession();
+    const timeout = new Promise<null>((resolve) =>
+      setTimeout(() => resolve(null), 3_000)
+    );
+    const result = await Promise.race([sessionPromise, timeout]);
+    if (!result || !("data" in result)) return null;
+    return result.data.session?.access_token ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function request<T>(
+  method: string,
+  path: string,
+  body?: unknown
+): Promise<ApiResponse<T>> {
+  const url = path.startsWith("http") ? path : `${BASE_URL}${path}`;
+  const token = await getToken();
+
+  const headers: Record<string, string> = {};
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  // 60 s abort controller — Railway cold starts need it.
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), 60_000);
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+      // No credentials — bearer-only auth.
+      credentials: "omit",
+      signal: controller.signal,
+      mode: "cors",
+    });
+  } catch (err) {
+    clearTimeout(t);
+    const e = err as Error;
+    // eslint-disable-next-line no-console
+    console.error("[api] fetch threw", { url, method, error: e });
+    const wrapped: ApiError = {
+      message: e.name === "AbortError" ? "Request timed out" : e.message,
+      code: e.name === "AbortError" ? "ECONNABORTED" : "ERR_NETWORK",
+      config: { url, method },
+    };
+    throw wrapped;
+  }
+  clearTimeout(t);
+
+  // Try to parse body; fall back to text.
+  const raw = await res.text();
+  let data: unknown = raw;
+  if (raw) {
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      /* keep raw */
+    }
+  }
+
+  if (!res.ok) {
+    // eslint-disable-next-line no-console
+    console.error("[api] request failed", {
+      url,
+      method,
+      status: res.status,
+      data,
+    });
+    const wrapped: ApiError = {
+      response: { status: res.status, data, headers: res.headers },
+      message: `Request failed with status ${res.status}`,
+      code: `HTTP_${res.status}`,
+      config: { url, method },
+    };
+    throw wrapped;
+  }
+
+  return { data: data as T, status: res.status, headers: res.headers };
+}
+
+// Axios-compatible public surface. The second arg on GET/DELETE is a
+// no-op (axios allows an options object there); kept to avoid touching
+// every caller.
+export const api = {
+  get: <T = unknown>(path: string, _opts?: unknown) => request<T>("GET", path),
+  post: <T = unknown>(path: string, body?: unknown, _opts?: unknown) =>
+    request<T>("POST", path, body ?? {}),
+  put: <T = unknown>(path: string, body?: unknown, _opts?: unknown) =>
+    request<T>("PUT", path, body ?? {}),
+  patch: <T = unknown>(path: string, body?: unknown, _opts?: unknown) =>
+    request<T>("PATCH", path, body ?? {}),
+  delete: <T = unknown>(path: string, _opts?: unknown) => request<T>("DELETE", path),
+};
