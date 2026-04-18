@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import chart, prediction, feedback
@@ -16,10 +18,18 @@ from app.routers import followups as followups_router
 
 app = FastAPI(title="KP Astro API", version="0.1.0")
 
-# This allows your frontend to talk to your backend
+# CORS — env-driven. Set ALLOWED_ORIGINS as a comma-separated list in prod,
+# e.g. "https://devastro.ai,https://www.devastro.ai,https://v2.devastro.ai".
+# Defaults to "*" when unset so local dev keeps working.
+_origins_raw = os.getenv("ALLOWED_ORIGINS", "*").strip()
+if _origins_raw == "*":
+    _allowed_origins = ["*"]
+else:
+    _allowed_origins = [o.strip() for o in _origins_raw.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_allowed_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
