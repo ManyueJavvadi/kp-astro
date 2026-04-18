@@ -9,9 +9,21 @@ import { NextResponse, type NextRequest } from "next/server";
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
+  // Bail gracefully when Supabase env vars are missing (e.g. Vercel preview
+  // deploys without secrets set). Without this the `!` assertions blow up
+  // and the whole site returns 500 MIDDLEWARE_INVOCATION_FAILED.
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key) {
+    console.warn(
+      "[middleware] Supabase env vars missing — skipping auth middleware"
+    );
+    return supabaseResponse;
+  }
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    url,
+    key,
     {
       cookies: {
         getAll() {
