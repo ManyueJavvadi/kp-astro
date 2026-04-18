@@ -50,8 +50,8 @@ export async function updateSession(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
 
-  // Protected path prefixes
-  const PROTECTED_PREFIXES = ["/pro", "/app/chat", "/app/family", "/app/reports", "/settings"];
+  // Protected path prefixes — require login, else redirect to /login
+  const PROTECTED_PREFIXES = ["/pro", "/app", "/settings"];
   const isProtected = PROTECTED_PREFIXES.some((p) => path.startsWith(p));
 
   // Auth pages — if already logged in, bounce to /pro or /app

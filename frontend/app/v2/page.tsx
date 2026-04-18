@@ -33,7 +33,7 @@ import { LogoMark } from "@/components/ui/logo";
  */
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-bg-primary text-text-primary font-sans overflow-x-hidden">
+    <div className="v2-landing min-h-screen font-sans overflow-x-hidden">
       <ScrollProgress />
       <Nav />
       <Hero />
@@ -75,28 +75,36 @@ function ScrollProgress() {
    ══════════════════════════════════════════════════════════════════ */
 function Nav() {
   return (
-    <nav className="sticky top-0 z-50 backdrop-blur-lg bg-bg-primary/80 border-b border-border">
+    <nav className="v2-landing-nav">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link href="/v2" className="flex items-center gap-2.5 shrink-0">
           <LogoMark size={32} />
-          <div className="font-semibold tracking-tight">
-            <span className="text-text-primary">DevAstro</span>
-            <span className="text-gold">AI</span>
+          <div className="font-semibold tracking-tight" style={{ color: "#E8EDF5" }}>
+            DevAstro<span style={{ color: "#FFB400" }}>AI</span>
           </div>
         </Link>
-        <div className="hidden md:flex items-center gap-8 text-small text-text-secondary">
-          <a href="#features" className="hover:text-text-primary transition-colors">Features</a>
-          <a href="#comparison" className="hover:text-text-primary transition-colors">Why us</a>
-          <a href="#pricing" className="hover:text-text-primary transition-colors">Pricing</a>
-          <a href="#stories" className="hover:text-text-primary transition-colors">Stories</a>
+        <div className="hidden md:flex items-center gap-8 text-small" style={{ color: "#94A3B8" }}>
+          <a href="#features" className="transition-colors hover:text-white">Features</a>
+          <a href="#comparison" className="transition-colors hover:text-white">Why us</a>
+          <a href="#pricing" className="transition-colors hover:text-white">Pricing</a>
+          <a href="#stories" className="transition-colors hover:text-white">Stories</a>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/login">Sign in</Link>
-          </Button>
-          <Button variant="primary" size="sm" rightIcon={<ArrowRight />} asChild>
-            <Link href="/signup">Start free</Link>
-          </Button>
+          <Link
+            href="/login"
+            style={{
+              fontSize: 14,
+              color: "#E8EDF5",
+              padding: "8px 14px",
+              textDecoration: "none",
+              borderRadius: 6,
+            }}
+          >
+            Sign in
+          </Link>
+          <Link href="/signup" className="v2-btn-cyan" style={{ padding: "8px 16px", fontSize: 14 }}>
+            Start free <ArrowRight className="size-4" />
+          </Link>
         </div>
       </div>
     </nav>
@@ -108,28 +116,46 @@ function Nav() {
    ══════════════════════════════════════════════════════════════════ */
 function Hero() {
   return (
-    <section className="relative overflow-hidden">
+    <section className="v2-section relative overflow-hidden">
       <StarField />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-gradient-radial from-gold-glow via-transparent to-transparent blur-3xl pointer-events-none" />
-      <div className="relative max-w-6xl mx-auto px-6 pt-24 pb-24 md:pt-32 md:pb-32">
+      <div className="v2-blob-cyan-tl" />
+      <div className="v2-blob-gold-br" />
+      <div className="relative max-w-6xl mx-auto px-6 pt-24 pb-24 md:pt-32 md:pb-32" style={{ zIndex: 1 }}>
         <div className="flex flex-col items-center text-center">
           <Reveal earlier>
-            <Badge variant="gold" size="lg" className="mb-8">
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "6px 14px",
+                borderRadius: 999,
+                background: "rgba(0, 200, 255, 0.08)",
+                border: "1px solid rgba(0, 200, 255, 0.2)",
+                color: "#00C8FF",
+                fontSize: 12,
+                fontWeight: 500,
+                marginBottom: 32,
+              }}
+            >
               <Sparkles className="size-3.5" />
               Now in private beta · Join the waitlist
               <ChevronRight className="size-3.5" />
-            </Badge>
+            </span>
           </Reveal>
           <Reveal delay={0.1}>
-            <h1 className="font-display text-[clamp(2.5rem,6vw,5rem)] leading-[1.05] font-bold tracking-tight mb-6 text-balance max-w-5xl">
+            <h1
+              className="font-display text-[clamp(2.5rem,6vw,5rem)] leading-[1.05] font-bold tracking-tight mb-6 text-balance max-w-5xl"
+              style={{ color: "#E8EDF5" }}
+            >
               The KP astrology tool
               <br />
               every professional will{" "}
-              <span className="italic text-gold">open daily</span>
+              <span className="italic" style={{ color: "#FFB400" }}>open daily</span>
             </h1>
           </Reveal>
           <Reveal delay={0.2}>
-            <p className="text-body-lg md:text-lg text-text-secondary max-w-2xl mb-10 leading-relaxed">
+            <p className="md:text-lg max-w-2xl mb-10 leading-relaxed" style={{ color: "#94A3B8", fontSize: 17 }}>
               Modern cloud-based practice management for serious KP astrologers.
               Client CRM, prediction tracking, and bilingual AI analysis — in one
               beautifully crafted workspace.
@@ -137,33 +163,35 @@ function Hero() {
           </Reveal>
           <Reveal delay={0.3}>
             <div className="flex flex-col sm:flex-row items-center gap-3 mb-10">
-              <Button variant="primary" size="lg" rightIcon={<ArrowRight />} asChild>
-                <Link href="/signup">Start 14-day free trial</Link>
-              </Button>
-              <Button variant="ghost" size="lg" leftIcon={<Play />}>
-                See it in action
-              </Button>
+              <Link href="/signup" className="v2-btn-cyan">
+                Start 14-day free trial <ArrowRight className="size-4" />
+              </Link>
+              <button type="button" className="v2-btn-ghost">
+                <Play className="size-4" /> See it in action
+              </button>
             </div>
           </Reveal>
           <Reveal delay={0.4}>
-            <div className="flex items-center gap-6 text-tiny uppercase tracking-wider text-text-muted">
+            <div className="flex items-center gap-6 text-tiny uppercase tracking-wider" style={{ color: "#4A6080" }}>
               <div className="flex items-center gap-1.5">
-                <Check className="size-3 text-success" />
+                <Check className="size-3" style={{ color: "#00C8FF" }} />
                 No credit card required
               </div>
               <div className="flex items-center gap-1.5">
-                <Check className="size-3 text-success" />
+                <Check className="size-3" style={{ color: "#00C8FF" }} />
                 Full access during trial
               </div>
               <div className="hidden sm:flex items-center gap-1.5">
-                <Check className="size-3 text-success" />
+                <Check className="size-3" style={{ color: "#00C8FF" }} />
                 Cancel anytime
               </div>
             </div>
           </Reveal>
         </div>
         <Reveal delay={0.3} className="mt-16 md:mt-24 relative">
-          <MockAppPreview />
+          <div className="v2-mockup-card">
+            <MockAppPreview />
+          </div>
         </Reveal>
       </div>
     </section>
@@ -365,25 +393,38 @@ function StatsBanner() {
     { value: "₹6k", unit: "/yr", label: "Saved vs legacy tools", sub: "Astrologer Pro vs Leostar Expert" },
   ];
   return (
-    <section className="py-24 md:py-32 bg-gradient-to-b from-bg-primary via-gold-glow/[0.03] to-bg-primary">
-      <div className="max-w-6xl mx-auto px-6">
+    <section className="v2-section relative py-24 md:py-32">
+      <div className="v2-blob-gold-center" />
+      <div className="max-w-6xl mx-auto px-6 relative" style={{ zIndex: 1 }}>
         <Reveal className="text-center mb-16 max-w-3xl mx-auto">
-          <div className="text-tiny uppercase tracking-wider text-gold mb-3">By the numbers</div>
-          <h2 className="font-display text-h1 md:text-[3rem] leading-tight font-semibold text-balance">
+          <div
+            style={{
+              fontSize: 11,
+              textTransform: "uppercase",
+              letterSpacing: "0.1em",
+              color: "#FFB400",
+              marginBottom: 12,
+              fontWeight: 600,
+            }}
+          >
+            By the numbers
+          </div>
+          <h2 className="font-display text-h1 md:text-[3rem] leading-tight font-semibold text-balance" style={{ color: "#E8EDF5" }}>
             Evidence over vibes.{" "}
-            <span className="italic text-gold">Measured</span> astrology.
+            <span className="italic" style={{ color: "#FFB400" }}>Measured</span> astrology.
           </h2>
         </Reveal>
         <RevealStagger className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {stats.map((s) => (
             <RevealChild key={s.label}>
-              <div className="p-6 rounded-xl bg-bg-surface border border-border hover:border-border-strong transition-colors h-full">
-                <div className="font-display text-[clamp(2.5rem,5vw,4rem)] leading-none font-bold text-gold mb-3">
+              <div className="v2-stat-card h-full">
+                <div className="v2-stat-number">
                   {s.value}
-                  <span className="text-text-secondary text-h2">{s.unit}</span>
+                  <span style={{ fontSize: 24, color: "#4A6080", marginLeft: 2 }}>{s.unit}</span>
                 </div>
-                <div className="text-small font-semibold text-text-primary mb-1">{s.label}</div>
-                <div className="text-tiny text-text-muted">{s.sub}</div>
+                <div className="v2-stat-underline" />
+                <div className="v2-stat-label">{s.label}</div>
+                <div className="v2-stat-sub">{s.sub}</div>
               </div>
             </RevealChild>
           ))}
@@ -398,16 +439,19 @@ function StatsBanner() {
    ══════════════════════════════════════════════════════════════════ */
 function FeatureRivers() {
   return (
-    <section id="features" className="py-24 md:py-32">
-      <div className="max-w-6xl mx-auto px-6">
+    <section id="features" className="v2-section relative py-24 md:py-32">
+      <div className="v2-blob-cyan-left" />
+      <div className="max-w-6xl mx-auto px-6 relative" style={{ zIndex: 1 }}>
         <Reveal className="text-center mb-20 max-w-3xl mx-auto">
-          <div className="text-tiny uppercase tracking-wider text-gold mb-3">Built for practitioners</div>
-          <h2 className="font-display text-h1 md:text-[3rem] leading-tight font-semibold mb-4 text-balance">
+          <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.1em", color: "#00C8FF", marginBottom: 12, fontWeight: 600 }}>
+            Built for practitioners
+          </div>
+          <h2 className="font-display text-h1 md:text-[3rem] leading-tight font-semibold mb-4 text-balance" style={{ color: "#E8EDF5" }}>
             Depth where it matters.
             <br />
-            <span className="italic text-gold">Polish</span> everywhere else.
+            <span className="italic" style={{ color: "#FFB400" }}>Polish</span> everywhere else.
           </h2>
-          <p className="text-body-lg text-text-secondary">
+          <p style={{ fontSize: 17, color: "#94A3B8" }}>
             Four product pillars. Every detail designed for astrologers who bet
             their reputation on the answer.
           </p>
@@ -498,44 +542,53 @@ function FeatureRiver({
   reverse?: boolean;
   accent?: "gold" | "ai";
 }) {
+  const iconBg = accent === "ai" ? "rgba(136, 51, 204, 0.14)" : "rgba(0, 200, 255, 0.08)";
+  const iconColor = accent === "ai" ? "#B88FDC" : "#00C8FF";
+  const iconBorder = accent === "ai" ? "1px solid rgba(136, 51, 204, 0.3)" : "1px solid rgba(0, 200, 255, 0.25)";
   return (
     <Reveal>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center">
         <div className={reverse ? "lg:order-2" : ""}>
           <div className="flex items-center gap-3 mb-4">
             <div
-              className={`inline-flex size-10 rounded-lg items-center justify-center border ${
-                accent === "ai"
-                  ? "bg-[color-mix(in_srgb,var(--color-ai)_15%,transparent)] text-ai border-[color-mix(in_srgb,var(--color-ai)_30%,transparent)]"
-                  : "bg-gold-glow text-gold border-border-accent"
-              }`}
+              style={{
+                display: "inline-flex",
+                width: 40,
+                height: 40,
+                borderRadius: 8,
+                alignItems: "center",
+                justifyContent: "center",
+                background: iconBg,
+                color: iconColor,
+                border: iconBorder,
+              }}
             >
               {icon}
             </div>
-            <div className="text-tiny uppercase tracking-wider text-text-muted font-medium">
+            <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.1em", color: "#4A6080", fontWeight: 500 }}>
               {label}
             </div>
           </div>
-          <h3 className="font-display text-[clamp(1.75rem,3vw,2.5rem)] leading-tight font-semibold mb-4 text-balance">
+          <h3 className="font-display text-[clamp(1.75rem,3vw,2.5rem)] leading-tight font-semibold mb-4 text-balance" style={{ color: "#E8EDF5" }}>
             {title}
           </h3>
-          <p className="text-body-lg text-text-secondary mb-6 leading-relaxed">
+          <p style={{ fontSize: 17, color: "#94A3B8", marginBottom: 24, lineHeight: 1.65 }}>
             {description}
           </p>
-          <ul className="flex flex-col gap-2.5">
+          <ul className="flex flex-col gap-3">
             {bullets.map((b) => (
-              <li key={b} className="flex items-start gap-3 text-body text-text-secondary">
-                <Check
-                  className={`size-4 shrink-0 mt-0.5 ${
-                    accent === "ai" ? "text-ai" : "text-gold"
-                  }`}
-                />
+              <li key={b} className="flex items-start gap-3" style={{ fontSize: 14, color: "#94A3B8" }}>
+                <span className="v2-bullet-dot" style={{ marginTop: 7 }} />
                 <span>{b}</span>
               </li>
             ))}
           </ul>
         </div>
-        <div className={reverse ? "lg:order-1" : ""}>{mockup}</div>
+        <div className={reverse ? "lg:order-1" : ""}>
+          <div className="v2-mockup-card">
+            {mockup}
+          </div>
+        </div>
       </div>
     </Reveal>
   );
@@ -546,12 +599,8 @@ function FeatureRiver({
    ══════════════════════════════════════════════════════════════════ */
 function MockPanel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className="rounded-2xl p-px bg-gradient-to-b from-border-accent via-border to-transparent shadow-2xl">
-      <div
-        className={`rounded-2xl bg-bg-surface border border-border-strong overflow-hidden ${className}`}
-      >
-        {children}
-      </div>
+    <div className={className} style={{ overflow: "hidden" }}>
+      {children}
     </div>
   );
 }
@@ -819,50 +868,53 @@ function Comparison() {
     { feature: "Multi-client workspace tabs", us: true, leostar: false, kundaligpt: false },
     { feature: "14-day free trial", us: true, leostar: false, kundaligpt: true },
   ];
-  const renderCell = (val: Cell) =>
+  const renderCell = (val: Cell, ours = false) =>
     val === true ? (
-      <Check className="size-5 text-success mx-auto" />
+      <Check style={{ width: 18, height: 18, color: ours ? "#00C8FF" : "#00C8FF", margin: "0 auto" }} />
     ) : val === "partial" ? (
-      <span className="text-tiny text-warning font-medium">Partial</span>
+      <span style={{ fontSize: 11, color: "#FFB400", fontWeight: 500 }}>Partial</span>
     ) : (
-      <X className="size-5 text-text-disabled mx-auto" />
+      <X style={{ width: 18, height: 18, color: "rgba(239,68,68,0.5)", margin: "0 auto" }} />
     );
   return (
-    <section id="comparison" className="py-24 md:py-32 bg-bg-surface/30 border-y border-border">
-      <div className="max-w-5xl mx-auto px-6">
+    <section id="comparison" className="v2-section relative py-24 md:py-32">
+      <div className="v2-blob-gold-right" />
+      <div className="max-w-5xl mx-auto px-6 relative" style={{ zIndex: 1 }}>
         <Reveal className="mb-12 text-center max-w-3xl mx-auto">
-          <div className="text-tiny uppercase tracking-wider text-gold mb-3">Why astrologers switch</div>
-          <h2 className="font-display text-h1 md:text-[3rem] leading-tight font-semibold mb-4 text-balance">
-            The only tool that combines <span className="italic text-gold">depth</span>,{" "}
-            <span className="italic text-gold">AI</span>, and a real practice layer
+          <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.1em", color: "#FFB400", marginBottom: 12, fontWeight: 600 }}>
+            Why astrologers switch
+          </div>
+          <h2 className="font-display text-h1 md:text-[3rem] leading-tight font-semibold mb-4 text-balance" style={{ color: "#E8EDF5" }}>
+            The only tool that combines <span className="italic" style={{ color: "#FFB400" }}>depth</span>,{" "}
+            <span className="italic" style={{ color: "#FFB400" }}>AI</span>, and a real practice layer
           </h2>
         </Reveal>
         <Reveal delay={0.1}>
-          <div className="rounded-2xl border border-border overflow-hidden bg-bg-surface">
+          <div style={{ background: "#0A0F1C", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, overflow: "hidden" }}>
             <table className="w-full">
               <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left text-tiny uppercase tracking-wider text-text-muted px-6 py-4 font-medium">Capability</th>
-                  <th className="text-center text-small px-6 py-4 bg-gold-glow/30">
-                    <div className="font-semibold text-gold">DevAstroAI</div>
-                    <div className="text-tiny text-text-muted font-normal mt-0.5">Pro astrologer tier</div>
+                <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                  <th style={{ textAlign: "left", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.1em", color: "#4A6080", padding: "16px 24px", fontWeight: 500 }}>Capability</th>
+                  <th style={{ textAlign: "center", padding: "16px 24px", background: "rgba(0,200,255,0.08)", borderBottom: "2px solid #00C8FF" }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "#00C8FF" }}>DevAstroAI</div>
+                    <div style={{ fontSize: 11, color: "#4A6080", fontWeight: 400, marginTop: 2 }}>Pro astrologer tier</div>
                   </th>
-                  <th className="text-center text-small px-6 py-4">
-                    <div className="font-semibold text-text-secondary">Leostar</div>
-                    <div className="text-tiny text-text-muted font-normal mt-0.5">Desktop</div>
+                  <th style={{ textAlign: "center", padding: "16px 24px" }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "#4A6080" }}>Leostar</div>
+                    <div style={{ fontSize: 11, color: "#4A6080", fontWeight: 400, marginTop: 2 }}>Desktop</div>
                   </th>
-                  <th className="text-center text-small px-6 py-4">
-                    <div className="font-semibold text-text-secondary">KundaliGPT</div>
-                    <div className="text-tiny text-text-muted font-normal mt-0.5">Consumer AI</div>
+                  <th style={{ textAlign: "center", padding: "16px 24px" }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "#4A6080" }}>KundaliGPT</div>
+                    <div style={{ fontSize: 11, color: "#4A6080", fontWeight: 400, marginTop: 2 }}>Consumer AI</div>
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((row, i) => (
-                  <tr key={row.feature} className={i % 2 === 0 ? "bg-bg-surface-2/30" : ""}>
-                    <td className="text-small text-text-primary px-6 py-3.5">{row.feature}</td>
-                    <td className="text-center px-6 py-3.5 bg-gold-glow/10">{renderCell(row.us)}</td>
-                    <td className="text-center px-6 py-3.5">{renderCell(row.leostar)}</td>
+                  <tr key={row.feature} style={{ background: i % 2 === 0 ? "rgba(255,255,255,0.01)" : "transparent" }}>
+                    <td style={{ fontSize: 13, color: "#E8EDF5", padding: "14px 24px" }}>{row.feature}</td>
+                    <td style={{ textAlign: "center", padding: "14px 24px", background: "rgba(0,200,255,0.04)" }}>{renderCell(row.us, true)}</td>
+                    <td style={{ textAlign: "center", padding: "14px 24px" }}>{renderCell(row.leostar)}</td>
                     <td className="text-center px-6 py-3.5">{renderCell(row.kundaligpt)}</td>
                   </tr>
                 ))}
@@ -1096,14 +1148,18 @@ function Pricing() {
     },
   ];
   return (
-    <section id="pricing" className="py-24 md:py-32">
-      <div className="max-w-7xl mx-auto px-6">
+    <section id="pricing" className="v2-section relative py-24 md:py-32">
+      <div className="v2-blob-cyan-left" />
+      <div className="v2-blob-gold-right" />
+      <div className="max-w-7xl mx-auto px-6 relative" style={{ zIndex: 1 }}>
         <Reveal className="mb-16 text-center max-w-3xl mx-auto">
-          <div className="text-tiny uppercase tracking-wider text-gold mb-3">Simple pricing, no hidden fees</div>
-          <h2 className="font-display text-h1 md:text-[3rem] leading-tight font-semibold mb-4 text-balance">
+          <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.1em", color: "#00C8FF", marginBottom: 12, fontWeight: 600 }}>
+            Simple pricing, no hidden fees
+          </div>
+          <h2 className="font-display text-h1 md:text-[3rem] leading-tight font-semibold mb-4 text-balance" style={{ color: "#E8EDF5" }}>
             Priced for Indian professionals
           </h2>
-          <p className="text-body-lg text-text-secondary">
+          <p style={{ fontSize: 17, color: "#94A3B8" }}>
             A practicing KP astrologer charges ₹500–2,000 per consultation. Astrologer
             Pro costs less than one consult per month.
           </p>
@@ -1112,47 +1168,51 @@ function Pricing() {
           {tiers.map((tier) => (
             <RevealChild key={tier.name}>
               <div
-                className={`relative rounded-2xl p-6 flex flex-col h-full ${
-                  tier.highlighted
-                    ? "bg-bg-surface border-2 border-gold shadow-[var(--shadow-glow)]"
-                    : "bg-bg-surface border border-border"
-                }`}
+                className={tier.highlighted ? "v2-price-card-popular" : "v2-price-card"}
+                style={{ position: "relative", display: "flex", flexDirection: "column", height: "100%" }}
               >
                 {tier.highlighted && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge variant="gold" size="md">
-                      <Star className="size-3 fill-gold" /> Most popular
-                    </Badge>
+                  <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)" }}>
+                    <span className="v2-price-badge">Most popular</span>
                   </div>
                 )}
-                <div className="mb-6">
-                  <div className="text-small font-medium text-text-secondary mb-2">{tier.name}</div>
-                  <div className="flex items-baseline gap-1 mb-1">
-                    <span className="font-display text-[2.5rem] leading-none font-bold text-text-primary">
-                      {tier.price}
+                <div style={{ marginBottom: 24 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: "#94A3B8", marginBottom: 8 }}>{tier.name}</div>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 4 }}>
+                    <span style={{ fontSize: 20, color: "#4A6080", verticalAlign: "top", fontWeight: 600 }}>
+                      {tier.price.slice(0, 1)}
                     </span>
-                    <span className="text-small text-text-muted">{tier.period}</span>
+                    <span style={{ fontSize: 36, fontWeight: 700, color: "#E8EDF5", lineHeight: 1 }}>
+                      {tier.price.slice(1)}
+                    </span>
+                    <span style={{ fontSize: 14, color: "#4A6080" }}>{tier.period}</span>
                   </div>
                   {tier.yearly && (
-                    <div className="text-tiny text-text-muted">or {tier.yearly}</div>
+                    <div style={{ fontSize: 11, color: "#4A6080" }}>or {tier.yearly}</div>
                   )}
-                  <p className="text-small text-text-secondary mt-3">{tier.description}</p>
+                  <p style={{ fontSize: 13, color: "#94A3B8", marginTop: 12 }}>{tier.description}</p>
                 </div>
-                <ul className="flex-1 space-y-2.5 mb-8">
+                <ul style={{ flex: 1, marginBottom: 28, display: "flex", flexDirection: "column", gap: 10 }}>
                   {tier.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-small text-text-secondary">
-                      <Check className="size-4 text-success shrink-0 mt-0.5" />
+                    <li key={f} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13, color: "#94A3B8" }}>
+                      <Check style={{ width: 16, height: 16, color: "#00C8FF", flexShrink: 0, marginTop: 2 }} />
                       <span>{f}</span>
                     </li>
                   ))}
                 </ul>
-                <Button
-                  variant={tier.highlighted ? "primary" : "secondary"}
-                  fullWidth
-                  rightIcon={<ArrowRight />}
-                >
-                  {tier.cta}
-                </Button>
+                {tier.highlighted ? (
+                  <Link href="/signup" className="v2-btn-cyan" style={{ justifyContent: "center", width: "100%" }}>
+                    {tier.cta} <ArrowRight className="size-4" />
+                  </Link>
+                ) : (
+                  <Link
+                    href={tier.cta === "Contact sales" ? "mailto:sales@devastro.ai" : "/signup"}
+                    className="v2-btn-ghost"
+                    style={{ justifyContent: "center", width: "100%" }}
+                  >
+                    {tier.cta} <ArrowRight className="size-4" />
+                  </Link>
+                )}
               </div>
             </RevealChild>
           ))}
@@ -1201,32 +1261,41 @@ function Testimonials() {
     },
   ];
   return (
-    <section className="py-24 md:py-32 bg-bg-surface/30 border-y border-border">
-      <div className="max-w-6xl mx-auto px-6">
+    <section className="v2-section relative py-24 md:py-32">
+      <div className="v2-blob-cyan-left" />
+      <div className="max-w-6xl mx-auto px-6 relative" style={{ zIndex: 1 }}>
         <Reveal className="mb-16 text-center max-w-3xl mx-auto">
-          <div className="text-tiny uppercase tracking-wider text-gold mb-3">Voices from the field</div>
-          <h2 className="font-display text-h1 md:text-[3rem] leading-tight font-semibold text-balance">
+          <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.1em", color: "#00C8FF", marginBottom: 12, fontWeight: 600 }}>
+            Voices from the field
+          </div>
+          <h2 className="font-display text-h1 md:text-[3rem] leading-tight font-semibold text-balance" style={{ color: "#E8EDF5" }}>
             Loved by astrologers who care about rigor
           </h2>
         </Reveal>
         <RevealStagger className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {quotes.map((q) => (
             <RevealChild key={q.name}>
-              <div className="p-6 rounded-xl bg-bg-surface border border-border flex flex-col h-full">
-                <div className="flex gap-0.5 mb-4">
+              <div className="v2-testi-card flex flex-col h-full">
+                <div style={{ display: "flex", gap: 2, marginBottom: 16 }}>
                   {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="size-4 fill-gold text-gold" />
+                    <Star key={i} style={{ width: 14, height: 14, fill: "#FFB400", color: "#FFB400" }} />
                   ))}
                 </div>
-                <p className="text-body text-text-secondary leading-relaxed mb-6 flex-1 italic">
+                <p style={{ fontSize: 14, color: "#94A3B8", lineHeight: 1.7, marginBottom: 24, flex: 1, fontStyle: "italic" }}>
                   &ldquo;{q.quote}&rdquo;
                 </p>
-                <div className="flex items-center gap-3 pt-4 border-t border-border">
-                  <div className="size-10 rounded-full bg-gold-glow border border-border-accent flex items-center justify-center text-body font-semibold text-gold">
+                <div style={{ display: "flex", alignItems: "center", gap: 12, paddingTop: 16, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: 18,
+                    background: "rgba(0,200,255,0.1)",
+                    border: "1px solid rgba(0,200,255,0.25)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 14, fontWeight: 600, color: "#00C8FF"
+                  }}>
                     {q.initial}
                   </div>
                   <div>
-                    <div className="text-small font-medium text-text-primary">{q.name}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#E8EDF5" }}>{q.name}</div>
                     <div className="text-tiny text-text-muted">{q.role}</div>
                   </div>
                 </div>
@@ -1244,34 +1313,35 @@ function Testimonials() {
    ══════════════════════════════════════════════════════════════════ */
 function FinalCTA() {
   return (
-    <section className="py-24 md:py-32 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-gold-glow/40 to-transparent pointer-events-none" />
-      <div className="relative max-w-4xl mx-auto px-6 text-center">
+    <section className="v2-section relative py-24 md:py-32 overflow-hidden">
+      <div className="v2-blob-gold-center" />
+      <div className="v2-blob-cyan-tl" />
+      <div className="relative max-w-4xl mx-auto px-6 text-center" style={{ zIndex: 1 }}>
         <Reveal>
-          <h2 className="font-display text-h1 md:text-[3.5rem] leading-[1.1] font-bold mb-6 text-balance">
+          <h2 className="font-display text-h1 md:text-[3.5rem] leading-[1.1] font-bold mb-6 text-balance" style={{ color: "#E8EDF5" }}>
             Start your first client session today
           </h2>
         </Reveal>
         <Reveal delay={0.1}>
-          <p className="text-body-lg text-text-secondary mb-10 max-w-xl mx-auto">
+          <p style={{ fontSize: 17, color: "#94A3B8", marginBottom: 40, maxWidth: 560, margin: "0 auto 40px" }}>
             14-day free trial. No credit card. Full Astrologer Pro access. See why
             astrologers are switching from Leostar.
           </p>
         </Reveal>
         <Reveal delay={0.2}>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-6">
-            <Button variant="primary" size="lg" rightIcon={<ArrowRight />} asChild>
-              <Link href="/signup">Start free trial</Link>
-            </Button>
-            <Button variant="ghost" size="lg">
+            <Link href="/signup" className="v2-btn-cyan">
+              Start free trial <ArrowRight className="size-4" />
+            </Link>
+            <a href="mailto:hello@devastroai.com" className="v2-btn-ghost">
               Talk to founder
-            </Button>
+            </a>
           </div>
         </Reveal>
         <Reveal delay={0.3}>
-          <div className="text-tiny text-text-muted">
+          <div style={{ fontSize: 11, color: "#4A6080" }}>
             Questions?{" "}
-            <a href="mailto:hello@devastroai.com" className="text-gold hover:text-gold-bright">
+            <a href="mailto:hello@devastroai.com" style={{ color: "#00C8FF", textDecoration: "none" }}>
               hello@devastroai.com
             </a>
           </div>
