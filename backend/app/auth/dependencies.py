@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 import httpx
+import jwt as pyjwt
 from dotenv import load_dotenv
 from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy import select, text
@@ -28,6 +29,7 @@ SUPABASE_URL = os.environ["SUPABASE_URL"]
 SUPABASE_PUBLISHABLE_KEY = os.environ.get("SUPABASE_PUBLISHABLE_KEY") or os.environ.get(
     "SUPABASE_ANON_KEY", ""
 )
+SUPABASE_JWT_SECRET = os.environ.get("SUPABASE_JWT_SECRET", "")
 
 # In-memory cache: token -> (user_payload, expiry_ts)
 # For multi-worker deployments, switch to Redis.
@@ -47,30 +49,67 @@ class CurrentUser:
     raw_auth: dict | None = None  # full Supabase user payload for advanced use
 
 
+def _verify_token_locally(token: str) -> dict:
+    """Decode + verify a Supabase JWT using the shared HS256 secret.
+
+    Much faster + more reliable than calling Supabase /auth/v1/user — no
+    outbound network hop at all. Railway's egress IPv6 to Supabase has
+    been unreliable (OSError: Network is unreachable), so local decode
+    is the production-safe path.
+
+    Supabase signs access tokens with HS256 using SUPABASE_JWT_SECRET.
+    Claims we care about: sub (user id), email, role, aud, exp.
+    """
+    if not SUPABASE_JWT_SECRET:
+        # Misconfigured server — no way to verify, refuse.
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Server misconfigured: SUPABASE_JWT_SECRET missing",
+        )
+
+    try:
+        claims = pyjwt.decode(
+            token,
+            SUPABASE_JWT_SECRET,
+            algorithms=["HS256"],
+            audience="authenticated",
+            options={"require": ["sub", "exp"]},
+        )
+    except pyjwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token expired",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except pyjwt.InvalidTokenError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Invalid token: {e}",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Return payload in the shape the old /auth/v1/user call produced so
+    # callers don't have to change.
+    return {
+        "id": claims["sub"],
+        "email": claims.get("email", ""),
+        "role": claims.get("role"),
+        "app_metadata": claims.get("app_metadata", {}),
+        "user_metadata": claims.get("user_metadata", {}),
+        "raw_claims": claims,
+    }
+
+
 async def _verify_token_with_supabase(token: str) -> dict:
-    """Hit Supabase auth to verify + decode the JWT. Cached 5 minutes."""
+    """Verify a Supabase JWT — local HS256 decode with 5-min cache."""
     now = time.time()
     cached = _TOKEN_CACHE.get(token)
     if cached and cached[1] > now:
         return cached[0]
 
-    async with httpx.AsyncClient(timeout=5.0) as client:
-        r = await client.get(
-            f"{SUPABASE_URL}/auth/v1/user",
-            headers={
-                "Authorization": f"Bearer {token}",
-                "apikey": SUPABASE_PUBLISHABLE_KEY,
-            },
-        )
-        if r.status_code == 200:
-            payload = r.json()
-            _TOKEN_CACHE[token] = (payload, now + _CACHE_TTL_SECONDS)
-            return payload
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    payload = _verify_token_locally(token)
+    _TOKEN_CACHE[token] = (payload, now + _CACHE_TTL_SECONDS)
+    return payload
 
 
 async def get_current_user(
