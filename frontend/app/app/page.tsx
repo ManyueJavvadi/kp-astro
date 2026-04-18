@@ -37,6 +37,7 @@ import {
 } from "@/hooks/use-clients";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { PlacePicker } from "@/components/ui/place-picker";
 
 function useIsNarrow() {
   const [narrow, setNarrow] = useState(false);
@@ -163,14 +164,24 @@ function OnboardingCard() {
       setErr("Please fill name, date, time and place.");
       return;
     }
+    if (!form.birth_lat || !form.birth_lon) {
+      setErr("Pick your birth place from the dropdown so we can get the coordinates. Start typing and a suggestion list will appear.");
+      return;
+    }
+    // Sanity-check birth date
+    const today = new Date().toISOString().slice(0, 10);
+    if (form.birth_date < "1900-01-01" || form.birth_date > today) {
+      setErr("Birth date must be between 1900 and today.");
+      return;
+    }
     try {
       await create.mutateAsync({
         full_name: form.full_name,
         birth_date: form.birth_date,
         birth_time: form.birth_time,
-        birth_timezone: form.birth_timezone,
-        birth_lat: parseFloat(form.birth_lat || "17.385"),
-        birth_lon: parseFloat(form.birth_lon || "78.4867"),
+        birth_timezone: form.birth_timezone || "Asia/Kolkata",
+        birth_lat: parseFloat(form.birth_lat),
+        birth_lon: parseFloat(form.birth_lon),
         birth_place: form.birth_place,
         tags: ["self"],
       } as ClientCreateBody);
@@ -240,6 +251,8 @@ function OnboardingCard() {
                 required
                 type="date"
                 value={form.birth_date}
+                min="1900-01-01"
+                max={new Date().toISOString().slice(0, 10)}
                 onChange={(e) => setForm({ ...form, birth_date: e.target.value })}
                 style={styles.input}
               />
@@ -255,43 +268,50 @@ function OnboardingCard() {
             </Field>
           </div>
           <Field label="Birth place">
-            <input
-              required
+            <PlacePicker
               value={form.birth_place}
-              onChange={(e) => setForm({ ...form, birth_place: e.target.value })}
-              placeholder="Hyderabad, Telangana, India"
-              style={styles.input}
+              onChange={(place, pick) => {
+                setForm((f) => ({
+                  ...f,
+                  birth_place: place,
+                  birth_lat: pick ? pick.lat.toFixed(4) : f.birth_lat,
+                  birth_lon: pick ? pick.lon.toFixed(4) : f.birth_lon,
+                  birth_timezone: pick?.timezone ?? f.birth_timezone,
+                }));
+              }}
             />
           </Field>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-            <Field label="Latitude">
-              <input
-                type="number"
-                step="0.0001"
-                value={form.birth_lat}
-                onChange={(e) => setForm({ ...form, birth_lat: e.target.value })}
-                placeholder="17.385"
-                style={styles.input}
-              />
-            </Field>
-            <Field label="Longitude">
-              <input
-                type="number"
-                step="0.0001"
-                value={form.birth_lon}
-                onChange={(e) => setForm({ ...form, birth_lon: e.target.value })}
-                placeholder="78.4867"
-                style={styles.input}
-              />
-            </Field>
-            <Field label="Timezone">
-              <input
-                value={form.birth_timezone}
-                onChange={(e) => setForm({ ...form, birth_timezone: e.target.value })}
-                style={styles.input}
-              />
-            </Field>
-          </div>
+          {/* Read-only confirmation row shown ONLY after a place is picked */}
+          {form.birth_lat && form.birth_lon && (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr 1fr",
+                gap: 10,
+                fontSize: 11,
+                color: theme.text.muted,
+              }}
+            >
+              <div>
+                <div style={{ letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 2 }}>
+                  Latitude
+                </div>
+                <div style={{ color: theme.text.secondary, fontSize: 13 }}>{form.birth_lat}</div>
+              </div>
+              <div>
+                <div style={{ letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 2 }}>
+                  Longitude
+                </div>
+                <div style={{ color: theme.text.secondary, fontSize: 13 }}>{form.birth_lon}</div>
+              </div>
+              <div>
+                <div style={{ letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 2 }}>
+                  Timezone
+                </div>
+                <div style={{ color: theme.text.secondary, fontSize: 13 }}>{form.birth_timezone}</div>
+              </div>
+            </div>
+          )}
           {err && (
             <div
               role="alert"
@@ -637,13 +657,17 @@ function AddFamilyButton() {
   });
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.birth_lat || !form.birth_lon) {
+      toast.error("Pick a place from the dropdown so we can get coordinates.");
+      return;
+    }
     await create.mutateAsync({
       full_name: form.full_name,
       birth_date: form.birth_date,
       birth_time: form.birth_time,
-      birth_timezone: form.birth_timezone,
-      birth_lat: parseFloat(form.birth_lat || "17.385"),
-      birth_lon: parseFloat(form.birth_lon || "78.4867"),
+      birth_timezone: form.birth_timezone || "Asia/Kolkata",
+      birth_lat: parseFloat(form.birth_lat),
+      birth_lon: parseFloat(form.birth_lon),
       birth_place: form.birth_place,
       tags: ["family"],
     } as ClientCreateBody);
@@ -696,6 +720,8 @@ function AddFamilyButton() {
                     required
                     type="date"
                     value={form.birth_date}
+                    min="1900-01-01"
+                    max={new Date().toISOString().slice(0, 10)}
                     onChange={(e) => setForm({ ...form, birth_date: e.target.value })}
                     style={styles.input}
                   />
@@ -711,35 +737,33 @@ function AddFamilyButton() {
                 </Field>
               </div>
               <Field label="Place">
-                <input
-                  required
+                <PlacePicker
                   value={form.birth_place}
-                  onChange={(e) => setForm({ ...form, birth_place: e.target.value })}
-                  style={styles.input}
+                  onChange={(place, pick) => {
+                    setForm((f) => ({
+                      ...f,
+                      birth_place: place,
+                      birth_lat: pick ? pick.lat.toFixed(4) : f.birth_lat,
+                      birth_lon: pick ? pick.lon.toFixed(4) : f.birth_lon,
+                      birth_timezone: pick?.timezone ?? f.birth_timezone,
+                    }));
+                  }}
                 />
               </Field>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <Field label="Latitude">
-                  <input
-                    type="number"
-                    step="0.0001"
-                    value={form.birth_lat}
-                    onChange={(e) => setForm({ ...form, birth_lat: e.target.value })}
-                    placeholder="17.385"
-                    style={styles.input}
-                  />
-                </Field>
-                <Field label="Longitude">
-                  <input
-                    type="number"
-                    step="0.0001"
-                    value={form.birth_lon}
-                    onChange={(e) => setForm({ ...form, birth_lon: e.target.value })}
-                    placeholder="78.4867"
-                    style={styles.input}
-                  />
-                </Field>
-              </div>
+              {form.birth_lat && form.birth_lon && (
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: theme.text.muted,
+                    display: "flex",
+                    gap: 18,
+                  }}
+                >
+                  <span>lat {form.birth_lat}</span>
+                  <span>lon {form.birth_lon}</span>
+                  <span>{form.birth_timezone}</span>
+                </div>
+              )}
             </div>
           </DialogBody>
           <DialogFooter>
