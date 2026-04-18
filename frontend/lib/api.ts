@@ -21,8 +21,20 @@
 
 import { createClient } from "@/lib/supabase/client";
 
-const BASE_URL =
-  (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/+$/, "");
+/**
+ * Base URL resolution order:
+ *   1. NEXT_PUBLIC_API_BASE_PATH (relative, e.g. "/api/proxy") — uses the
+ *      same-origin proxy route at app/api/proxy/[...path]. Picks this
+ *      when set to avoid any possibility of cross-origin XHR being
+ *      blocked by browser extensions / ISP / corporate firewall.
+ *   2. NEXT_PUBLIC_API_URL (absolute Railway URL) — direct cross-origin.
+ *   3. http://localhost:8000 — dev fallback.
+ */
+const BASE_URL = (() => {
+  const proxy = process.env.NEXT_PUBLIC_API_BASE_PATH;
+  if (proxy) return proxy.replace(/\/+$/, "");
+  return (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/+$/, "");
+})();
 
 if (typeof window !== "undefined") {
   // eslint-disable-next-line no-console
