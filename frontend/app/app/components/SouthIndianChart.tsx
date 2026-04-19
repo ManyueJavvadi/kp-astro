@@ -1,7 +1,9 @@
 "use client";
 import { PLANET_COLORS } from "./constants";
+import { useLanguage } from "@/lib/i18n";
 
 export default function SouthIndianChart({ planets, cusps, onHouseClick, selectedHouse }: { planets: any[]; cusps: any[]; onHouseClick?: (h: number) => void; selectedHouse?: number | null }) {
+  const { lang } = useLanguage();
   const houseOrder = [12, 1, 2, 3, 11, 0, 0, 4, 10, 0, 0, 5, 9, 8, 7, 6];
   const planetsByHouse: Record<number, any[]> = {};
   planets.forEach(p => {
@@ -32,7 +34,9 @@ export default function SouthIndianChart({ planets, cusps, onHouseClick, selecte
               <span style={{ fontSize: 8, color: isLagna ? "var(--accent)" : "rgba(201,169,110,0.45)", fontWeight: isLagna ? 700 : 400 }}>{house}{isLagna ? "↑" : ""}</span>
               <span style={{ fontSize: 7, color: "rgba(201,169,110,0.3)" }}>{cusp?.degree_in_sign?.toFixed(0)}°</span>
             </div>
-            <div style={{ fontSize: 7, color: "rgba(201,169,110,0.35)", marginBottom: 3 }}>{cusp?.sign_te?.slice(0, 4) || ""}</div>
+            <div style={{ fontSize: 7, color: "rgba(201,169,110,0.35)", marginBottom: 3 }}>
+              {(lang === "en" ? cusp?.sign_en : (cusp?.sign_te ?? cusp?.sign_en ?? ""))?.slice(0, 4) || ""}
+            </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1 }}>
               {hp.map((p: any) => (
                 <div key={p.planet_en} title={`${p.planet_en} | ${p.nakshatra_en} | ${p.degree_in_sign.toFixed(1)}° | Star: ${p.star_lord_en} | Sub: ${p.sub_lord_en}`} style={{ display: "flex", alignItems: "center", gap: 2 }}>

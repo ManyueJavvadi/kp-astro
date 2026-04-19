@@ -146,6 +146,20 @@ export default function Home() {
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [analysisMessages]);
   // Load quick insights when analysis tab opens
   useEffect(() => { if (activeTab === "analysis" && workspaceData) { loadQuickInsights(); } }, [activeTab, workspaceData]);
+
+  // AI language modal — show on FIRST entry to Analysis tab only (once
+  // per astrologer-mode user, persisted in localStorage). Before PR 9
+  // this fired on chart generation which interrupted the chart viewing
+  // flow. Now it fires at the moment the user actually needs the
+  // decision — opening the tab that consumes Claude analysis.
+  useEffect(() => {
+    if (activeTab !== "analysis") return;
+    if (mode !== "astrologer") return;
+    if (typeof window === "undefined") return;
+    const seen = window.localStorage.getItem("devastroai:analysisLangModalSeen");
+    if (seen === "1") return;
+    setShowLangModal(true);
+  }, [activeTab, mode]);
   // Clear shared inline form state when switching tabs to prevent cross-tab data leakage
   useEffect(() => {
     setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "", timezone_offset: 5.5 });
@@ -388,7 +402,13 @@ export default function Home() {
       }
       setSetupDone(true);
       setCurrentSessionId(prev => prev || Date.now().toString());
-      if (mode === "astrologer") setShowLangModal(true);
+      // NOTE: we deliberately do NOT show the AI-language modal here
+      // anymore. The modal's purpose is to let astrologers choose
+      // EN vs Telugu+English output for Claude's analysis — a decision
+      // only relevant the moment they click the Analysis tab. Firing
+      // it right after chart generation interrupts the chart viewing
+      // flow. See the useEffect below that shows it on first Analysis
+      // tab entry instead.
     } catch { alert("Could not generate chart. Please check if the backend is running."); }
     finally { setChartLoading(false); }
   };
@@ -1069,21 +1089,48 @@ export default function Home() {
       {/* Language preference modal */}
       {showLangModal && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(9,9,15,0.85)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
-          <div style={{ background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 14, padding: "2rem", maxWidth: 360, width: "100%", textAlign: "center" }}>
+          <div style={{ background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 14, padding: "2rem", maxWidth: 380, width: "100%", textAlign: "center" }}>
             <div style={{ fontSize: 22, color: "var(--accent)", marginBottom: "0.5rem" }}>◈</div>
-            <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 18, marginBottom: "0.5rem" }}>Analysis Language</div>
-            <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: "1.5rem", lineHeight: 1.6 }}>Choose how you want the AI analysis text to appear. Chart data (planet names, house labels) will always show in Telugu + English.</div>
+            <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 18, marginBottom: "0.5rem" }}>
+              {t("Analysis language", "విశ్లేషణ భాష")}
+            </div>
+            <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: "1.5rem", lineHeight: 1.6 }}>
+              {t(
+                "Choose how Claude should write your KP analysis. You can change this later from the top-bar language toggle.",
+                "Claude మీ KP విశ్లేషణను ఎలా రాయాలో ఎంచుకోండి. తర్వాత పై toolbar లోని language toggle నుండి మార్చవచ్చు."
+              )}
+            </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <button onClick={() => { setAnalysisLang("english"); setShowLangModal(false); }} style={{ padding: "12px 20px", borderRadius: 8, border: "0.5px solid var(--border2)", background: "var(--surface2)", color: "var(--text)", cursor: "pointer", fontSize: 14, fontFamily: "inherit", textAlign: "left" }}>
-                <div style={{ fontWeight: 500, marginBottom: 2 }}>English only</div>
-                <div style={{ fontSize: 11, color: "var(--muted)" }}>Best for analysis quality — AI reasoning stays focused</div>
+              <button
+                onClick={() => {
+                  setAnalysisLang("english");
+                  setShowLangModal(false);
+                  try { window.localStorage.setItem("devastroai:analysisLangModalSeen", "1"); } catch {}
+                }}
+                style={{ padding: "12px 20px", borderRadius: 8, border: "0.5px solid var(--border2)", background: "var(--surface2)", color: "var(--text)", cursor: "pointer", fontSize: 14, fontFamily: "inherit", textAlign: "left" }}
+              >
+                <div style={{ fontWeight: 500, marginBottom: 2 }}>{t("English only", "ఇంగ్లీష్ మాత్రమే")}</div>
+                <div style={{ fontSize: 11, color: "var(--muted)" }}>
+                  {t("Best for analysis quality — AI reasoning stays focused", "ఉత్తమ విశ్లేషణ నాణ్యత — AI reasoning focused")}
+                </div>
               </button>
-              <button onClick={() => { setAnalysisLang("telugu_english"); setShowLangModal(false); }} style={{ padding: "12px 20px", borderRadius: 8, border: "0.5px solid var(--border2)", background: "var(--surface2)", color: "var(--text)", cursor: "pointer", fontSize: 14, fontFamily: "inherit", textAlign: "left" }}>
-                <div style={{ fontWeight: 500, marginBottom: 2 }}>Telugu + English</div>
-                <div style={{ fontSize: 11, color: "var(--muted)" }}>Mixed — technical terms in Telugu, explanations in English</div>
+              <button
+                onClick={() => {
+                  setAnalysisLang("telugu_english");
+                  setShowLangModal(false);
+                  try { window.localStorage.setItem("devastroai:analysisLangModalSeen", "1"); } catch {}
+                }}
+                style={{ padding: "12px 20px", borderRadius: 8, border: "0.5px solid var(--border2)", background: "var(--surface2)", color: "var(--text)", cursor: "pointer", fontSize: 14, fontFamily: "inherit", textAlign: "left" }}
+              >
+                <div style={{ fontWeight: 500, marginBottom: 2 }}>{t("Telugu + English", "తెలుగు + ఇంగ్లీష్")}</div>
+                <div style={{ fontSize: 11, color: "var(--muted)" }}>
+                  {t("Mixed — KP terms in English, explanations in Telugu", "Mixed — KP terms English లో, explanations తెలుగులో")}
+                </div>
               </button>
             </div>
-            <div style={{ fontSize: 10, color: "var(--muted)", marginTop: "1rem" }}>You can change this anytime from the Analysis tab.</div>
+            <div style={{ fontSize: 10, color: "var(--muted)", marginTop: "1rem" }}>
+              {t("Use the EN / TEL·EN / TEL toggle at the top to change anytime.", "పై EN / TEL·EN / TEL toggle తో ఎప్పుడైనా మార్చవచ్చు.")}
+            </div>
           </div>
         </div>
       )}
@@ -1275,44 +1322,64 @@ export default function Home() {
                   }}
                   style={{ marginTop: 8, width: "100%", padding: "5px 0", background: pdfLoading ? "rgba(201,169,110,0.04)" : "rgba(201,169,110,0.08)", border: "0.5px solid var(--border2)", borderRadius: 5, color: pdfLoading ? "var(--muted)" : "var(--accent)", fontSize: 11, cursor: pdfLoading ? "default" : "pointer", fontFamily: "inherit" }}
                 >
-                  {pdfLoading ? "డౌన్‌లోడ్ అవుతోంది..." : "PDF డౌన్‌లోడ్ ↓"}
+                  {pdfLoading
+                    ? t("Downloading…", "డౌన్‌లోడ్ అవుతోంది…")
+                    : t("Download PDF ↓", "PDF డౌన్‌లోడ్ ↓")}
                 </button>
                 {pdfError && <div style={{ fontSize: 10, color: "#f87171", marginTop: 3, textAlign: "center" as const }}>{pdfError}</div>}
               </div>
               <div className="sidebar-section" style={{ padding: "0.75rem 1rem", borderBottom: "0.5px solid var(--border)" }}>
-                <div style={{ fontSize: 9, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6 }}>పంచాంగం · ఇప్పుడు</div>
-                {[{ l: "వారం", v: workspaceData.panchangam_today.vara }, { l: "తిథి", v: workspaceData.panchangam_today.tithi }, { l: "నక్షత్రం", v: workspaceData.panchangam_today.nakshatra }].map(item => (
+                <div style={{ fontSize: 9, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6 }}>
+                  {t("Panchang · now", "పంచాంగం · ఇప్పుడు")}
+                </div>
+                {[
+                  { l: t("Weekday", "వారం"), v: lang === "en" ? (workspaceData.panchangam_today.vara_en ?? workspaceData.panchangam_today.vara) : workspaceData.panchangam_today.vara },
+                  { l: t("Tithi", "తిథి"),   v: lang === "en" ? (workspaceData.panchangam_today.tithi_en ?? workspaceData.panchangam_today.tithi) : workspaceData.panchangam_today.tithi },
+                  { l: t("Nakshatra", "నక్షత్రం"), v: lang === "en" ? (workspaceData.panchangam_today.nakshatra_en ?? workspaceData.panchangam_today.nakshatra) : workspaceData.panchangam_today.nakshatra },
+                ].map(item => (
                   <div key={item.l} style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
                     <span style={{ fontSize: 10, color: "var(--muted)" }}>{item.l}</span>
                     <span style={{ fontSize: 11, color: "var(--text)" }}>{item.v}</span>
                   </div>
                 ))}
                 <div style={{ marginTop: 4, padding: "3px 8px", background: "rgba(248,113,113,0.1)", border: "0.5px solid rgba(248,113,113,0.2)", borderRadius: 4, display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: 10, color: "#f87171" }}>రాహుకాలం</span>
+                  <span style={{ fontSize: 10, color: "#f87171" }}>{t("Rahu Kalam", "రాహుకాలం")}</span>
                   <span style={{ fontSize: 10, color: "#f87171" }}>{workspaceData.panchangam_today.rahu_kalam}</span>
                 </div>
               </div>
               <div className="sidebar-section" style={{ padding: "0.75rem 1rem", borderBottom: "0.5px solid var(--border)" }}>
-                <div style={{ fontSize: 9, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6 }}>దశ</div>
-                <div style={{ fontSize: 13, color: "var(--accent)", fontWeight: 600 }}>{workspaceData.mahadasha.lord_te} మహాదశ</div>
+                <div style={{ fontSize: 9, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6 }}>
+                  {t("Dasha", "దశ")}
+                </div>
+                <div style={{ fontSize: 13, color: "var(--accent)", fontWeight: 600 }}>
+                  {lang === "en" ? workspaceData.mahadasha.lord_en : workspaceData.mahadasha.lord_te}
+                  {" "}
+                  {t("Mahadasha", "మహాదశ")}
+                </div>
                 <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 6 }}>{workspaceData.mahadasha.start} → {workspaceData.mahadasha.end}</div>
                 <div style={{ background: "rgba(201,169,110,0.08)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "6px 8px" }}>
-                  <div style={{ fontSize: 10, color: "var(--muted)" }}>అంతర్దశ</div>
-                  <div style={{ fontSize: 13, color: PLANET_COLORS[workspaceData.current_antardasha.lord_en] || "var(--accent2)", fontWeight: 500 }}>{workspaceData.current_antardasha.lord_te}</div>
+                  <div style={{ fontSize: 10, color: "var(--muted)" }}>{t("Antardasha", "అంతర్దశ")}</div>
+                  <div style={{ fontSize: 13, color: PLANET_COLORS[workspaceData.current_antardasha.lord_en] || "var(--accent2)", fontWeight: 500 }}>
+                    {lang === "en" ? workspaceData.current_antardasha.lord_en : workspaceData.current_antardasha.lord_te}
+                  </div>
                   <div style={{ fontSize: 9, color: "var(--muted)" }}>{workspaceData.current_antardasha.start} → {workspaceData.current_antardasha.end}</div>
                   {workspaceData.current_pratyantardasha && (
                     <div style={{ marginTop: 4, paddingTop: 4, borderTop: "0.5px solid var(--border)" }}>
-                      <div style={{ fontSize: 9, color: "var(--muted)" }}>ప్రత్యంతర్దశ</div>
-                      <div style={{ fontSize: 12, color: PLANET_COLORS[workspaceData.current_pratyantardasha.lord_en] || "var(--text)", fontWeight: 500 }}>{workspaceData.current_pratyantardasha.lord_te}</div>
+                      <div style={{ fontSize: 9, color: "var(--muted)" }}>{t("Pratyantardasha", "ప్రత్యంతర్దశ")}</div>
+                      <div style={{ fontSize: 12, color: PLANET_COLORS[workspaceData.current_pratyantardasha.lord_en] || "var(--text)", fontWeight: 500 }}>
+                        {lang === "en" ? workspaceData.current_pratyantardasha.lord_en : workspaceData.current_pratyantardasha.lord_te}
+                      </div>
                       <div style={{ fontSize: 9, color: "var(--muted)" }}>{workspaceData.current_pratyantardasha.start} → {workspaceData.current_pratyantardasha.end}</div>
                     </div>
                   )}
                 </div>
               </div>
               <div className="sidebar-section" style={{ padding: "0.75rem 1rem", flex: 1 }}>
-                <div style={{ fontSize: 9, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6 }}>రూలింగ్ గ్రహాలు</div>
+                <div style={{ fontSize: 9, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6 }}>
+                  {t("Ruling Planets", "రూలింగ్ గ్రహాలు")}
+                </div>
                 <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                  {workspaceData.ruling_planets.all_te.map((p: string, i: number) => (
+                  {(lang === "en" ? workspaceData.ruling_planets.all_en : workspaceData.ruling_planets.all_te).map((p: string, i: number) => (
                     <span key={i} style={{ fontSize: 11, background: `${PLANET_COLORS[workspaceData.ruling_planets.all_en[i]] || "var(--accent)"}15`, color: PLANET_COLORS[workspaceData.ruling_planets.all_en[i]] || "var(--accent)", border: `0.5px solid ${PLANET_COLORS[workspaceData.ruling_planets.all_en[i]] || "var(--accent)"}30`, borderRadius: 4, padding: "2px 8px" }}>{p}</span>
                   ))}
                 </div>

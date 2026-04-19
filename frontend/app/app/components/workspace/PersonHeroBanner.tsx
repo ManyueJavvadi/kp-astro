@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { PLANET_COLORS } from "../constants";
 import { WorkspaceData, PLANET_SYMBOLS } from "../../types/workspace";
 import { BirthDetails, ChartSession } from "../../types";
+import { useLanguage } from "@/lib/i18n";
 
 interface PersonHeroBannerProps {
   workspaceData: WorkspaceData;
@@ -56,14 +57,20 @@ export default function PersonHeroBanner({
   workspaceData, birthDetails, onNewChart, onPdf, pdfLoading,
   savedSessions, onSwitchSession, astrologerMode,
 }: PersonHeroBannerProps) {
+  const { lang, t } = useLanguage();
   const [showSwitch, setShowSwitch] = useState(false);
 
   // Backend returns cusps as array; lagna = H1's sign
   const cuspsArray = Array.isArray(workspaceData.cusps) ? workspaceData.cusps : Object.values(workspaceData.cusps ?? {});
-  const lagna = (cuspsArray[0] as any)?.sign_en ?? (workspaceData as any).lagna_en ?? "—";
+  const lagnaCusp = cuspsArray[0] as any;
+  const lagna = lang === "en"
+    ? (lagnaCusp?.sign_en ?? (workspaceData as any).lagna_en ?? "—")
+    : (lagnaCusp?.sign_te ?? lagnaCusp?.sign_en ?? (workspaceData as any).lagna_en ?? "—");
 
   const moonPlanet = workspaceData.planets?.find((p: any) => p.planet_en === "Moon");
-  const moonSign   = moonPlanet?.sign_en ?? "—";
+  const moonSign = lang === "en"
+    ? (moonPlanet?.sign_en ?? "—")
+    : ((moonPlanet as any)?.sign_te ?? moonPlanet?.sign_en ?? "—");
 
   // Backend uses lord_en; fallback to lord
   const currentMD  = workspaceData.current_dasha ?? (workspaceData as any).mahadasha;
@@ -137,7 +144,7 @@ export default function PersonHeroBanner({
                   letterSpacing: "0.04em",
                 }}
               >
-                ★ జ్యోతిష్కుడు మోడ్
+                ★ {t("Astrologer mode", "జ్యోతిష్కుడు మోడ్")}
               </span>
             )}
           </div>

@@ -2,6 +2,7 @@
 import React from "react";
 import { PLANET_COLORS } from "../constants";
 import { Planet, PLANET_SYMBOLS } from "../../types/workspace";
+import { useLanguage } from "@/lib/i18n";
 
 interface PlanetListProps {
   planets: Planet[];
@@ -15,7 +16,11 @@ function hexToRgba(hex: string, alpha: number): string {
 }
 
 export default function PlanetList({ planets }: PlanetListProps) {
+  const { lang } = useLanguage();
   if (!planets || planets.length === 0) return null;
+  // Pick English by default; switch to Telugu for te/te_en.
+  const pick = (p: any, base: string): string =>
+    lang === "en" ? (p[`${base}_en`] ?? "") : (p[`${base}_te`] ?? p[`${base}_en`] ?? "");
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
@@ -58,7 +63,7 @@ export default function PlanetList({ planets }: PlanetListProps) {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: "#f0f0f0" }}>
-                  {p.planet_en}
+                  {pick(p, "planet") || p.planet_en}
                 </span>
                 {p.retrograde && (
                   <span style={{
@@ -70,7 +75,7 @@ export default function PlanetList({ planets }: PlanetListProps) {
                   </span>
                 )}
                 <span style={{ fontSize: 11, color: "#b0b0c0" }}>
-                  {p.sign_en} {p.degree_in_sign.toFixed(1)}°
+                  {pick(p, "sign") || p.sign_en} {p.degree_in_sign.toFixed(1)}°
                 </span>
                 <span style={{
                   fontSize: 10, padding: "1px 6px", borderRadius: 8,
@@ -81,7 +86,7 @@ export default function PlanetList({ planets }: PlanetListProps) {
                 </span>
               </div>
               <div style={{ fontSize: 10, color: "#666677", marginTop: 2 }}>
-                {p.nakshatra_en}
+                {pick(p, "nakshatra") || p.nakshatra_en}
               </div>
             </div>
 
@@ -89,11 +94,11 @@ export default function PlanetList({ planets }: PlanetListProps) {
             <div style={{ textAlign: "right", flexShrink: 0 }}>
               <div style={{ fontSize: 11, color: "#c9a96e", fontWeight: 500 }}>
                 <span style={{ color: PLANET_COLORS[p.star_lord_en] ?? "#c9a96e" }}>
-                  {p.star_lord_en}
+                  {pick(p, "star_lord") || p.star_lord_en}
                 </span>
                 <span style={{ color: "#555566", margin: "0 4px" }}>→</span>
                 <span style={{ color: PLANET_COLORS[p.sub_lord_en] ?? "#c9a96e" }}>
-                  {p.sub_lord_en}
+                  {pick(p, "sub_lord") || p.sub_lord_en}
                 </span>
               </div>
               <div style={{ fontSize: 9, color: "#555566", marginTop: 1 }}>
