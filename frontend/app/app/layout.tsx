@@ -11,6 +11,8 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
+import { LanguageToggle } from "@/components/ui/language-toggle";
+import { LanguageProvider } from "@/lib/i18n";
 import { theme } from "@/lib/theme";
 
 export default function AppLayout({
@@ -18,6 +20,14 @@ export default function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
+  return (
+    <LanguageProvider>
+      <AppShell>{children}</AppShell>
+    </LanguageProvider>
+  );
+}
+
+function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div
       style={{
@@ -50,7 +60,8 @@ export default function AppLayout({
           <Link href="/" style={{ textDecoration: "none", flexShrink: 0 }}>
             <Logo size={32} wordmark wordmarkSize={15} />
           </Link>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <LanguageToggle />
             <Link
               href="/"
               style={{

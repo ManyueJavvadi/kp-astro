@@ -8,6 +8,7 @@ import { PLANET_COLORS } from "./components/constants";
 import { ContentCard } from "@/components/ui/content-card";
 import { PlacePicker } from "@/components/ui/place-picker";
 import { theme, styles as uiStyles } from "@/lib/theme";
+import { useLanguage } from "@/lib/i18n";
 import SouthIndianChart from "./components/SouthIndianChart";
 import DashaTimeline from "./components/DashaTimeline";
 import PanchangamCard from "./components/PanchangamCard";
@@ -26,6 +27,7 @@ const API_URL = "https://devastroai.up.railway.app";
 
 // ── Main Component ────────────────────────────────────────────
 export default function Home() {
+  const { lang, t, backendLang } = useLanguage();
   const [mode, setMode] = useState<"user" | "astrologer">("user");
   const [birthDetails, setBirthDetails] = useState<BirthDetails>({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: null, longitude: null, gender: "" });
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
@@ -418,7 +420,7 @@ export default function Home() {
     const topicLabel = TOPICS.find(t => t.id === topic)?.te || topic;
     try {
       // Topic analysis always starts fresh — no prior history for the first message
-      const res = await axios.post(`${API_URL}/astrologer/analyze`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: timezoneOffset, topic, question: `Complete KP analysis for ${topic}`, history: [], language: analysisLang });
+      const res = await axios.post(`${API_URL}/astrologer/analyze`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: timezoneOffset, topic, question: `Complete KP analysis for ${topic}`, history: [], language: backendLang() });
       setAnalysisMessages(prev => [...prev, { q: `${topicLabel} — Full Analysis`, a: res.data.answer, isTopic: true }]);
     } catch {
       setAnalysisMessages(prev => [...prev, { q: topicLabel, a: "Analysis failed. Please try again.", isTopic: true }]);
@@ -435,7 +437,7 @@ export default function Home() {
         latitude: birthDetails.latitude, longitude: birthDetails.longitude,
         timezone_offset: timezoneOffset,
         topics: ["marriage", "job", "health", "foreign_travel", "children", "education", "property", "wealth"],
-        language: analysisLang,
+        language: backendLang(),
       });
       // Response is { topic: insight_string } directly
       if (res.data && typeof res.data === "object") setQuickInsights(res.data);
@@ -450,7 +452,7 @@ export default function Home() {
       // CRITICAL FIX: pass ALL prior messages (including topic analysis) as history
       // This prevents the AI from repeating reasoning already given
       const history = analysisMessages.slice(-6).map(m => ({ question: m.q, answer: m.a }));
-      const res = await axios.post(`${API_URL}/astrologer/analyze`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: timezoneOffset, topic: activeTopic || "general", question: q, history, language: analysisLang });
+      const res = await axios.post(`${API_URL}/astrologer/analyze`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: timezoneOffset, topic: activeTopic || "general", question: q, history, language: backendLang() });
       setAnalysisMessages(prev => [...prev, { q, a: res.data.answer }]);
     } catch { } finally { setAnalysisLoading(false); }
   };
@@ -469,7 +471,7 @@ export default function Home() {
         person2: sessionToApiPerson(p2),
         question: `Complete KP analysis for ${topic} between these two charts`,
         history: [],
-        language: matchAnalysisLang,
+        language: backendLang(),
       });
       setMatchAnalysisMessages(prev => [...prev, { q: topicLabels[topic] || topic, a: res.data.answer, isTopic: true }]);
     } catch {
@@ -490,7 +492,7 @@ export default function Home() {
         person2: sessionToApiPerson(p2),
         question: q,
         history,
-        language: matchAnalysisLang,
+        language: backendLang(),
       });
       setMatchAnalysisMessages(prev => [...prev, { q, a: res.data.answer }]);
     } catch { } finally { setMatchAnalysisLoading(false); }
@@ -564,15 +566,19 @@ export default function Home() {
   const inputStyle: React.CSSProperties = { width: "100%", background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 8, padding: "10px 14px", fontSize: 14, color: "var(--text)", outline: "none" };
   const labelStyle: React.CSSProperties = { display: "block", fontSize: 10, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6 };
 
+  // Tab labels — "primary" is the big line, "secondary" is the subtitle.
+  // In EN mode the Telugu subtitle is hidden (secondary=empty).
+  // In TE mode the English subtitle is hidden.
+  // In TE+EN (default) both show — Telugu primary, English below.
   const TABS = [
-    { id: "chart",    label: "చార్ట్",      en: "Chart",     Icon: LayoutGrid },
-    { id: "houses",   label: "భావాలు",      en: "Houses",    Icon: HomeIcon },
-    { id: "dasha",    label: "దశ",          en: "Dasha",     Icon: Hourglass },
-    { id: "analysis", label: "విశ్లేషణ",   en: "Analysis",  Icon: MessageSquare },
-    { id: "panchang", label: "పంచాంగం",    en: "Panchang",  Icon: Calendar },
-    { id: "muhurtha", label: "ముహూర్త",    en: "Muhurtha",  Icon: Target },
-    { id: "match",    label: "సరిపోలన",    en: "Match",     Icon: Heart },
-    { id: "horary",   label: "ప్రశ్న",     en: "Horary",    Icon: HelpCircle },
+    { id: "chart",    te: "చార్ట్",      en: "Chart",     Icon: LayoutGrid },
+    { id: "houses",   te: "భావాలు",      en: "Houses",    Icon: HomeIcon },
+    { id: "dasha",    te: "దశ",          en: "Dasha",     Icon: Hourglass },
+    { id: "analysis", te: "విశ్లేషణ",   en: "Analysis",  Icon: MessageSquare },
+    { id: "panchang", te: "పంచాంగం",    en: "Panchang",  Icon: Calendar },
+    { id: "muhurtha", te: "ముహూర్త",    en: "Muhurtha",  Icon: Target },
+    { id: "match",    te: "సరిపోలన",    en: "Match",     Icon: Heart },
+    { id: "horary",   te: "ప్రశ్న",     en: "Horary",    Icon: HelpCircle },
   ];
 
   const TOPICS = [
@@ -1343,8 +1349,13 @@ export default function Home() {
                     }}
                   >
                     <TabIcon size={15} strokeWidth={1.8} />
-                    <span style={{ fontSize: 11 }}>{tab.label}</span>
-                    <span style={{ fontSize: 9, opacity: 0.55 }}>{tab.en}</span>
+                    {/* Primary + secondary lines — hidden based on lang */}
+                    <span style={{ fontSize: 11 }}>
+                      {lang === "en" ? tab.en : tab.te}
+                    </span>
+                    {lang === "te_en" && (
+                      <span style={{ fontSize: 9, opacity: 0.55 }}>{tab.en}</span>
+                    )}
                   </button>
                 );
               })}
@@ -4143,6 +4154,14 @@ function SectionEyebrow({
   en?: string;
   noMarginBottom?: boolean;
 }) {
+  // Hook call is safe inside a component; this reads the shared language.
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const { lang } = useLanguage();
+  // EN mode: English primary (drop Telugu entirely).
+  // TE mode: Telugu primary (drop English subtitle).
+  // TE+EN: Telugu primary + English subtitle (default).
+  const primary = lang === "en" ? (en ?? te) : te;
+  const showSubtitle = lang === "te_en" && en;
   return (
     <div style={{ marginBottom: noMarginBottom ? 0 : 10 }}>
       <div
@@ -4154,9 +4173,9 @@ function SectionEyebrow({
           lineHeight: 1.3,
         }}
       >
-        {te}
+        {primary}
       </div>
-      {en && (
+      {showSubtitle && (
         <div
           style={{
             fontSize: 9,
