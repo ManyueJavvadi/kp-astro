@@ -2,9 +2,12 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import remarkGfm from "remark-gfm";
 import axios from "axios";
-import { ArrowRight, Loader2, CheckCircle, XCircle, MessageCircle, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowRight, Loader2, CheckCircle, XCircle, MessageCircle, MapPin, ChevronLeft, ChevronRight, Sparkles, User, Clock, Globe2, Target } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { PLANET_COLORS } from "./components/constants";
+import { ContentCard } from "@/components/ui/content-card";
+import { PlacePicker } from "@/components/ui/place-picker";
+import { theme, styles as uiStyles } from "@/lib/theme";
 import SouthIndianChart from "./components/SouthIndianChart";
 import DashaTimeline from "./components/DashaTimeline";
 import PanchangamCard from "./components/PanchangamCard";
@@ -347,9 +350,15 @@ export default function Home() {
 
   const handleSetup = async () => {
     if (!birthDetails.name || !birthDetails.date || !birthDetails.time) { alert("Please fill in name, date, and time of birth."); return; }
-    if (!birthDetails.latitude || !birthDetails.longitude) { alert("Please select a place from the dropdown or enter coordinates manually."); return; }
+    if (!birthDetails.latitude || !birthDetails.longitude) { alert("Please pick your birth place from the dropdown so we can get the coordinates."); return; }
     const formattedDate = getFormattedDate();
     if (!formattedDate) { alert("Please enter date as DD/MM/YYYY"); return; }
+    // Clamp birth date to a sensible range — the v1 masked input will
+    // happily accept "200000-99-99" so we guard here.
+    const todayISO = new Date().toISOString().slice(0, 10);
+    if (formattedDate < "1900-01-01" || formattedDate > todayISO) {
+      alert("Birth date must be between 1900-01-01 and today."); return;
+    }
     const timeParts = birthDetails.time.split(":").map(Number);
     if (timeParts.length !== 2 || isNaN(timeParts[0]) || isNaN(timeParts[1]) || timeParts[0] < 1 || timeParts[0] > 12 || timeParts[1] < 0 || timeParts[1] > 59) {
       alert("Please enter a valid time (HH:MM, hours 01–12, minutes 00–59)"); return;
@@ -638,149 +647,415 @@ export default function Home() {
         ))}
       </div>
 
-      {/* Status bar — app shell (logo + Back-to-landing) now lives in
-          frontend/app/app/layout.tsx. This strip only shows when state
-          applies (astrologer mode chip, saved-chart clear button). */}
-      {setupDone && (mode === "astrologer" || savedSessions.length > 0) && (
-        <div style={{ position: "relative", zIndex: 10, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, padding: "10px 2rem 0" }}>
-          {mode === "astrologer" && <span style={{ fontSize: 10, background: "rgba(201,169,110,0.1)", color: "var(--accent)", border: "0.5px solid rgba(201,169,110,0.35)", borderRadius: 20, padding: "3px 12px" }}>★ జ్యోతిష్కుడు మోడ్</span>}
-          {savedSessions.length > 0 && (
-            <button onClick={() => { if (window.confirm("All saved charts will be cleared. Continue?")) resetAll(); }} style={{ background: "transparent", border: "none", fontSize: 11, color: "var(--muted)", cursor: "pointer", opacity: 0.5 }}>🗑 Clear</button>
-          )}
+      {/* Astrologer-mode badge + Clear-saved-charts button.
+          Rendered inline in PersonHeroBanner for astrologer mode.
+          This tiny strip only shows for non-astrologer users who still
+          have saved charts (gives them a way to clear stale localStorage). */}
+      {setupDone && mode !== "astrologer" && savedSessions.length > 0 && (
+        <div
+          style={{
+            position: "relative",
+            zIndex: 10,
+            display: "flex",
+            justifyContent: "flex-end",
+            padding: "8px 2rem 0",
+          }}
+        >
+          <button
+            onClick={() => {
+              if (window.confirm("All saved charts will be cleared. Continue?")) resetAll();
+            }}
+            style={{
+              background: "transparent",
+              border: "none",
+              fontSize: 11,
+              color: "var(--muted)",
+              cursor: "pointer",
+              opacity: 0.5,
+            }}
+          >
+            🗑 Clear saved
+          </button>
         </div>
       )}
 
       {/* ── SETUP SCREEN ── */}
       {!setupDone && (
-        <main style={{ flex: 1, position: "relative", zIndex: 5, maxWidth: 760, margin: "0 auto", width: "100%", padding: "2rem 1.5rem" }}>
-          <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
-            {/* KP badge */}
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "5px 16px", borderRadius: 20, background: "rgba(201,169,110,0.08)", border: "0.5px solid rgba(201,169,110,0.3)", marginBottom: "1.25rem" }}>
-              <span style={{ fontSize: 14 }}>♏</span>
-              <span style={{ fontSize: 11, letterSpacing: "0.14em", color: "var(--accent)", textTransform: "uppercase" as const }}>Krishnamurti Paddhati System</span>
-            </div>
-            <h1 style={{ fontFamily: "'DM Serif Display',serif", fontSize: "clamp(2rem,5vw,3.2rem)", lineHeight: 1.15, marginBottom: "1rem", background: "linear-gradient(135deg,#fff 0%,var(--accent2) 60%,var(--accent) 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-              Decode the cosmos,<br /><em>reveal your destiny</em>
+        <main style={{ flex: 1, position: "relative", zIndex: 5, maxWidth: 720, margin: "0 auto", width: "100%", padding: "48px 20px 64px" }}>
+          {/* Intro (eyebrow + headline) */}
+          <div style={{ textAlign: "center", marginBottom: 36 }}>
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "5px 14px",
+                borderRadius: 999,
+                background: "rgba(0,200,255,0.08)",
+                border: "1px solid rgba(0,200,255,0.2)",
+                color: "#00C8FF",
+                fontSize: 11,
+                fontWeight: 500,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                marginBottom: 20,
+              }}
+            >
+              <Sparkles size={12} /> Krishnamurti Paddhati System
+            </span>
+            <h1
+              style={{
+                fontFamily: "'DM Serif Display', serif",
+                fontSize: "clamp(2rem, 5vw, 3rem)",
+                lineHeight: 1.15,
+                color: theme.text.primary,
+                letterSpacing: "-0.01em",
+                margin: "0 0 14px",
+              }}
+            >
+              Decode the cosmos,
+              <br />
+              <span style={{ color: theme.gold, fontStyle: "italic" }}>reveal your destiny</span>
             </h1>
-            {/* Credit + trust block */}
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, marginTop: 12 }}>
-              <p style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.7, maxWidth: 440, margin: 0, textAlign: "center" }}>
-                Precise KP analysis powered by <span style={{ color: "var(--accent2)" }}>Swiss Ephemeris</span> — the gold standard in astronomical computation.
-              </p>
-              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
-                <span style={{ fontSize: 11, color: "var(--muted)" }}>Built by</span>
-                <a href="https://www.linkedin.com/in/manyue-javvadi-datascientist/" target="_blank" rel="noopener noreferrer"
-                  style={{ fontSize: 11, color: "var(--accent)", textDecoration: "none", borderBottom: "0.5px solid rgba(201,169,110,0.4)" }}>
-                  Manyue Javvadi · Data Engineer ↗
-                </a>
-                <span style={{ fontSize: 11, color: "var(--muted)", opacity: 0.4 }}>·</span>
-                <span style={{ fontSize: 11, color: "var(--muted)" }}>Supervised &amp; trusted by KP Astrologers</span>
-              </div>
-            </div>
-            {/* Feature chips */}
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", marginTop: 16 }}>
-              {["♏ KP System", "🌟 Vimsottari Dasha", "🏠 12 Houses + CSL", "💍 Marriage", "⏰ Muhurtha", "🔮 Horary Prashna"].map(f => (
-                <span key={f} style={{ fontSize: 11, padding: "4px 12px", borderRadius: 20, border: "0.5px solid rgba(201,169,110,0.25)", color: "var(--muted)", background: "rgba(201,169,110,0.04)" }}>{f}</span>
-              ))}
-            </div>
+            <p
+              style={{
+                fontSize: 14,
+                color: theme.text.muted,
+                lineHeight: 1.65,
+                maxWidth: 440,
+                margin: "0 auto",
+              }}
+            >
+              Precise KP analysis powered by Swiss Ephemeris — the gold standard
+              in astronomical computation.
+            </p>
           </div>
 
-          <div style={{ background: "var(--surface)", border: "0.5px solid rgba(201,169,110,0.25)", borderRadius: 14, overflow: "hidden", boxShadow: "0 0 0 1px rgba(201,169,110,0.08), 0 0 32px rgba(201,169,110,0.05)" }}>
-            <div style={{ padding: "1.25rem 1.75rem", borderBottom: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--accent)" }} />
-              <span style={{ fontSize: 12, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" }}>Birth Details</span>
-              <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--muted)", opacity: 0.6 }}>✨ Swiss Ephemeris Precision</span>
+          {/* Birth details card */}
+          <ContentCard style={{ padding: 28, boxShadow: theme.shadow.md }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                marginBottom: 20,
+                paddingBottom: 14,
+                borderBottom: theme.border.default,
+              }}
+            >
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: theme.gold,
+                  boxShadow: `0 0 8px ${theme.gold}`,
+                }}
+              />
+              <span
+                style={{
+                  fontSize: 11,
+                  color: theme.text.muted,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  fontWeight: 500,
+                }}
+              >
+                Birth details
+              </span>
+              <span
+                style={{
+                  marginLeft: "auto",
+                  fontSize: 10,
+                  color: theme.text.dim,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                <Sparkles size={10} /> Swiss Ephemeris precision
+              </span>
             </div>
-            <div style={{ padding: "1.75rem" }}>
-              <div className="setup-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
-                <div>
-                  <label style={labelStyle}>Full Name</label>
-                  <input type="text" placeholder="Your name" value={birthDetails.name} onChange={e => setBirthDetails(prev => ({ ...prev, name: e.target.value }))} style={inputStyle} />
-                </div>
-                <div>
-                  <label style={labelStyle}>Date of Birth</label>
-                  <input type="text" placeholder="DD / MM / YYYY" value={birthDetails.date} onChange={e => handleDateChange(e.target.value)} maxLength={10} style={inputStyle} />
-                </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {/* Name */}
+              <div>
+                <Label icon={<User size={11} />}>Full name</Label>
+                <input
+                  type="text"
+                  placeholder="Your name"
+                  value={birthDetails.name}
+                  onChange={(e) =>
+                    setBirthDetails((prev) => ({ ...prev, name: e.target.value }))
+                  }
+                  style={uiStyles.input}
+                />
               </div>
-              <div className="setup-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.25rem" }}>
+
+              {/* Date + Time */}
+              <div
+                className="setup-grid"
+                style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
+              >
                 <div>
-                  <label style={labelStyle}>Time of Birth</label>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <input type="text" placeholder="HH : MM" value={birthDetails.time} onChange={e => handleTimeChange(e.target.value)} maxLength={5} style={{ ...inputStyle, flex: 1 }} />
-                    <select value={birthDetails.ampm} onChange={e => setBirthDetails(prev => ({ ...prev, ampm: e.target.value }))} style={{ background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 8, padding: "10px 12px", fontSize: 14, color: "var(--text)", outline: "none", cursor: "pointer" }}>
-                      <option value="AM">AM</option><option value="PM">PM</option>
+                  <Label icon={<Target size={11} />}>Date of birth</Label>
+                  <input
+                    type="text"
+                    placeholder="DD / MM / YYYY"
+                    value={birthDetails.date}
+                    onChange={(e) => handleDateChange(e.target.value)}
+                    maxLength={10}
+                    style={uiStyles.input}
+                  />
+                </div>
+                <div>
+                  <Label icon={<Clock size={11} />}>Time of birth</Label>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <input
+                      type="text"
+                      placeholder="HH : MM"
+                      value={birthDetails.time}
+                      onChange={(e) => handleTimeChange(e.target.value)}
+                      maxLength={5}
+                      style={{ ...uiStyles.input, flex: 1 }}
+                    />
+                    <select
+                      value={birthDetails.ampm}
+                      onChange={(e) =>
+                        setBirthDetails((prev) => ({
+                          ...prev,
+                          ampm: e.target.value,
+                        }))
+                      }
+                      style={{
+                        ...uiStyles.input,
+                        width: 72,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <option value="AM">AM</option>
+                      <option value="PM">PM</option>
                     </select>
                   </div>
                 </div>
-                <div ref={suggestionsRef} style={{ position: "relative" }}>
-                  <label style={labelStyle}>Place of Birth</label>
-                  <div style={{ position: "relative" }}>
-                    <input type="text" placeholder="Start typing your city..." value={birthDetails.place} onChange={e => handlePlaceChange(e.target.value)} onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-                      style={{ ...inputStyle, paddingRight: 36, border: `0.5px solid ${placeStatus === "found" ? "rgba(52,211,153,0.4)" : placeStatus === "error" ? "rgba(248,113,113,0.4)" : "var(--border2)"}` }} />
-                    <div style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)" }}>
-                      {placeStatus === "loading" && <Loader2 size={14} style={{ color: "var(--muted)", animation: "spin 1s linear infinite" }} />}
-                      {placeStatus === "found" && <CheckCircle size={14} style={{ color: "var(--green)" }} />}
-                      {placeStatus === "error" && <XCircle size={14} style={{ color: "var(--red)" }} />}
-                    </div>
+              </div>
+
+              {/* Place picker */}
+              <div>
+                <Label icon={<Globe2 size={11} />}>Place of birth</Label>
+                <PlacePicker
+                  value={birthDetails.place}
+                  onChange={(placeName, pick) => {
+                    setBirthDetails((prev) => ({
+                      ...prev,
+                      place: placeName,
+                      latitude: pick ? pick.lat : null,
+                      longitude: pick ? pick.lon : null,
+                    }));
+                    if (pick?.timezone) {
+                      // Convert IANA tz to numeric offset if possible
+                      try {
+                        const now = new Date();
+                        const fmt = new Intl.DateTimeFormat("en-US", {
+                          timeZone: pick.timezone,
+                          timeZoneName: "longOffset",
+                        });
+                        const parts = fmt.formatToParts(now);
+                        const tzPart = parts.find((p) => p.type === "timeZoneName")?.value ?? "";
+                        const m = tzPart.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);
+                        if (m) {
+                          const sign = m[1] === "-" ? -1 : 1;
+                          const h = parseInt(m[2], 10);
+                          const mm = parseInt(m[3] ?? "0", 10);
+                          const offset = sign * (h + mm / 60);
+                          setTimezoneOffset(offset);
+                          setTimezoneLabel(pick.timezone.split("/").pop() ?? `UTC${offset >= 0 ? "+" : ""}${offset}`);
+                          return;
+                        }
+                      } catch {
+                        /* silent */
+                      }
+                    }
+                    // fallback: try bigdatacloud path if picker didn't resolve tz
+                    if (pick) {
+                      axios
+                        .get("https://api.bigdatacloud.net/data/reverse-geocode-client", {
+                          params: { latitude: pick.lat, longitude: pick.lon, localityLanguage: "en" },
+                        })
+                        .then((res) => {
+                          const tz = res.data?.timezone;
+                          if (tz?.gmtOffset !== undefined) {
+                            const offset = Math.round((tz.gmtOffset / 3600) * 2) / 2;
+                            setTimezoneOffset(offset);
+                            setTimezoneLabel(
+                              tz.zoneAbbr || `UTC${offset >= 0 ? "+" : ""}${offset}`
+                            );
+                          }
+                        })
+                        .catch(() => {});
+                    }
+                  }}
+                  placeholder="Start typing your city…"
+                />
+                {birthDetails.latitude !== null && birthDetails.longitude !== null && (
+                  <div
+                    style={{
+                      marginTop: 8,
+                      display: "flex",
+                      gap: 16,
+                      flexWrap: "wrap",
+                      fontSize: 11,
+                      color: theme.text.muted,
+                    }}
+                  >
+                    <span>
+                      <span style={{ color: theme.text.dim }}>lat</span>{" "}
+                      <span style={{ color: theme.text.secondary }}>
+                        {birthDetails.latitude.toFixed(4)}°
+                      </span>
+                    </span>
+                    <span>
+                      <span style={{ color: theme.text.dim }}>lon</span>{" "}
+                      <span style={{ color: theme.text.secondary }}>
+                        {birthDetails.longitude.toFixed(4)}°
+                      </span>
+                    </span>
+                    <span>
+                      <span style={{ color: theme.text.dim }}>tz</span>{" "}
+                      <span style={{ color: theme.gold }}>{timezoneLabel}</span>{" "}
+                      <span style={{ color: theme.text.dim }}>
+                        (UTC{timezoneOffset >= 0 ? "+" : ""}{timezoneOffset})
+                      </span>
+                    </span>
                   </div>
-                  {showSuggestions && suggestions.length > 0 && (
-                    <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100, background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 8, marginTop: 4, overflow: "hidden", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
-                      {suggestions.map((s, i) => (
-                        <div key={i} onClick={() => handleSelectPlace(s)} style={{ padding: "10px 14px", fontSize: 13, cursor: "pointer", color: "var(--text)", borderBottom: i < suggestions.length - 1 ? "0.5px solid var(--border)" : "none", display: "flex", alignItems: "center", gap: 8 }}
-                          onMouseEnter={e => (e.currentTarget.style.background = "var(--surface2)")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-                          <MapPin size={12} style={{ color: "var(--accent)", flexShrink: 0 }} /><span>{s.display}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {placeStatus === "found" && birthDetails.latitude && (
-                    <div style={{ fontSize: 10, color: "var(--green)", marginTop: 4 }}>
-                      ✓ {birthDetails.latitude.toFixed(4)}°, {birthDetails.longitude?.toFixed(4)}°
-                      · <span style={{ color: "var(--accent)" }}>{timezoneLabel}</span>
-                      {` (UTC${timezoneOffset >= 0 ? "+" : ""}${timezoneOffset})`}
-                    </div>
-                  )}
-                  {placeStatus === "error" && !manualCoords && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-                      <span style={{ fontSize: 10, color: "var(--red)" }}>Place not found.</span>
-                      <button onClick={() => setManualCoords(true)} style={{ fontSize: 10, color: "var(--accent)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>Enter coordinates manually</button>
-                    </div>
-                  )}
-                  {manualCoords && (
-                    <div style={{ marginTop: 8, display: "flex", gap: 6, alignItems: "center" }}>
-                      <input type="text" placeholder="Lat" value={manualLat} onChange={e => setManualLat(e.target.value)} style={{ ...inputStyle, padding: "7px 10px", fontSize: 12, flex: 1 }} />
-                      <input type="text" placeholder="Lon" value={manualLon} onChange={e => setManualLon(e.target.value)} style={{ ...inputStyle, padding: "7px 10px", fontSize: 12, flex: 1 }} />
-                      <button onClick={handleManualCoords} style={{ background: "var(--accent)", color: "#09090f", border: "none", borderRadius: 6, padding: "7px 12px", fontSize: 12, cursor: "pointer", flexShrink: 0 }}>Set</button>
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
-              <div style={{ marginBottom: "1.25rem" }}>
-                <label style={labelStyle}>Gender</label>
+
+              {/* Gender */}
+              <div>
+                <Label>Gender</Label>
                 <div style={{ display: "flex", gap: 8 }}>
-                  {(["male", "female"] as const).map(g => (
-                    <button key={g} onClick={() => setBirthDetails(prev => ({ ...prev, gender: g }))}
-                      style={{ flex: 1, padding: "10px", borderRadius: 8, cursor: "pointer", border: `0.5px solid ${birthDetails.gender === g ? "var(--accent)" : "var(--border2)"}`, background: birthDetails.gender === g ? "rgba(201,169,110,0.1)" : "var(--surface2)", color: birthDetails.gender === g ? "var(--accent)" : "var(--muted)", fontSize: 13, fontFamily: "inherit", transition: "all 0.2s" }}>
-                      {g === "male" ? "♂ Male" : "♀ Female"}
-                    </button>
-                  ))}
+                  {(["male", "female"] as const).map((g) => {
+                    const active = birthDetails.gender === g;
+                    return (
+                      <button
+                        key={g}
+                        type="button"
+                        onClick={() =>
+                          setBirthDetails((prev) => ({ ...prev, gender: g }))
+                        }
+                        style={{
+                          flex: 1,
+                          height: 38,
+                          borderRadius: theme.radius.sm,
+                          cursor: "pointer",
+                          border: active
+                            ? `1px solid ${theme.gold}`
+                            : theme.border.medium,
+                          background: active ? "rgba(201,169,110,0.08)" : theme.bg.content,
+                          color: active ? theme.gold : theme.text.secondary,
+                          fontSize: 13,
+                          fontWeight: 500,
+                          fontFamily: "inherit",
+                          transition: "all 120ms",
+                        }}
+                      >
+                        {g === "male" ? "♂ Male" : "♀ Female"}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-              <div style={{ marginBottom: "1.25rem" }}>
-                <label style={labelStyle}>I am a</label>
+
+              {/* Role */}
+              <div>
+                <Label>I am a</Label>
                 <div style={{ display: "flex", gap: 8 }}>
-                  {(["user", "astrologer"] as const).map(m => (
-                    <button key={m} onClick={() => setMode(m)} style={{ flex: 1, padding: "10px", borderRadius: 8, cursor: "pointer", border: `0.5px solid ${mode === m ? "var(--accent)" : "var(--border2)"}`, background: mode === m ? "rgba(201,169,110,0.1)" : "var(--surface2)", color: mode === m ? "var(--accent)" : "var(--muted)", fontSize: 13, fontFamily: "inherit" }}>
-                      {m === "user" ? "General User" : "KP Astrologer"}
-                    </button>
-                  ))}
+                  {(["user", "astrologer"] as const).map((m) => {
+                    const active = mode === m;
+                    return (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setMode(m)}
+                        style={{
+                          flex: 1,
+                          height: 38,
+                          borderRadius: theme.radius.sm,
+                          cursor: "pointer",
+                          border: active
+                            ? `1px solid ${theme.gold}`
+                            : theme.border.medium,
+                          background: active ? "rgba(201,169,110,0.08)" : theme.bg.content,
+                          color: active ? theme.gold : theme.text.secondary,
+                          fontSize: 13,
+                          fontWeight: 500,
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        {m === "user" ? "General user" : "KP astrologer"}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-              <button onClick={handleSetup} disabled={chartLoading} style={{ width: "100%", background: chartLoading ? "var(--surface2)" : "linear-gradient(135deg, var(--accent), var(--accent2))", color: "#09090f", border: "none", borderRadius: 8, padding: "12px", fontSize: 14, fontWeight: 600, cursor: chartLoading ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: chartLoading ? 0.7 : 1, fontFamily: "inherit", letterSpacing: "0.02em" }}>
-                {chartLoading ? <><Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />Calculating chart...</> : <>♏ Generate My KP Chart <ArrowRight size={16} /></>}
+
+              {/* Submit */}
+              <button
+                type="button"
+                onClick={handleSetup}
+                disabled={chartLoading}
+                style={{
+                  ...uiStyles.primaryButton,
+                  width: "100%",
+                  height: 44,
+                  justifyContent: "center",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  marginTop: 8,
+                  opacity: chartLoading ? 0.6 : 1,
+                  cursor: chartLoading ? "default" : "pointer",
+                }}
+              >
+                {chartLoading ? (
+                  <>
+                    <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
+                    Calculating chart…
+                  </>
+                ) : (
+                  <>
+                    Generate my KP chart <ArrowRight size={16} />
+                  </>
+                )}
               </button>
+
+              {/* Trust footer */}
+              <div
+                style={{
+                  fontSize: 11,
+                  color: theme.text.dim,
+                  textAlign: "center",
+                  marginTop: 4,
+                  lineHeight: 1.6,
+                }}
+              >
+                Built by{" "}
+                <a
+                  href="https://www.linkedin.com/in/manyue-javvadi-datascientist/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    color: theme.gold,
+                    textDecoration: "none",
+                    borderBottom: `1px solid ${theme.gold}40`,
+                  }}
+                >
+                  Manyue Javvadi
+                </a>{" "}
+                · trusted by practising KP astrologers
+              </div>
             </div>
-          </div>
+          </ContentCard>
         </main>
       )}
 
@@ -3735,6 +4010,36 @@ export default function Home() {
           </div>
         </main>
       )}
+    </div>
+  );
+}
+
+/**
+ * Small form-field label used in the onboarding card. Icon + uppercase text.
+ */
+function Label({
+  icon,
+  children,
+}: {
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        fontSize: 10,
+        color: theme.text.dim,
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        fontWeight: 500,
+        marginBottom: 6,
+      }}
+    >
+      {icon}
+      <span>{children}</span>
     </div>
   );
 }

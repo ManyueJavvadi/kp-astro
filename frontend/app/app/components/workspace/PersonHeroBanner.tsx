@@ -126,6 +126,22 @@ export default function PersonHeroBanner({
             {genderSym && (
               <span style={{ fontSize: 12, color: "#888899" }}>{genderSym}</span>
             )}
+            {astrologerMode && (
+              <span
+                style={{
+                  fontSize: 10,
+                  padding: "2px 10px",
+                  borderRadius: 999,
+                  background: "rgba(201,169,110,0.12)",
+                  border: "0.5px solid rgba(201,169,110,0.35)",
+                  color: "#c9a96e",
+                  fontWeight: 500,
+                  letterSpacing: "0.04em",
+                }}
+              >
+                ★ జ్యోతిష్కుడు మోడ్
+              </span>
+            )}
           </div>
           <div style={{ fontSize: 11, color: "#666677", marginTop: 2 }}>
             {birthLine}
