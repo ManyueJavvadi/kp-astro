@@ -818,3 +818,334 @@ textarea:focus-visible {
   opacity: 0.5;
   cursor: default;
 }
+
+/* ============================================================
+   v2 Landing page — cyan/gold brand system (Apr 2026 spec)
+   Scope: .v2-landing (one class on <main>), so these styles
+   never leak into the app/pro shell.
+   ============================================================ */
+.v2-landing {
+  --v2-base: #060A12;
+  --v2-surface: #0A0F1C;
+  --v2-border: rgba(255, 255, 255, 0.06);
+  --v2-separator: rgba(0, 200, 255, 0.08);
+  --v2-cyan: #00C8FF;
+  --v2-cyan-06: rgba(0, 200, 255, 0.06);
+  --v2-cyan-08: rgba(0, 200, 255, 0.08);
+  --v2-cyan-12: rgba(0, 200, 255, 0.12);
+  --v2-cyan-25: rgba(0, 200, 255, 0.25);
+  --v2-gold: #FFB400;
+  --v2-gold-08: rgba(255, 180, 0, 0.08);
+  --v2-gold-12: rgba(255, 180, 0, 0.12);
+  --v2-purple: #8833CC;
+  --v2-text: #E8EDF5;
+  --v2-text-soft: #94A3B8;
+  --v2-text-muted: #4A6080;
+
+  background: var(--v2-base);
+  color: var(--v2-text);
+}
+
+/* Ambient glow blobs, positioned absolutely by parent section */
+.v2-landing .v2-blob-cyan-tl {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(ellipse 700px 500px at 5% 10%, rgba(0, 200, 255, 0.07) 0%, transparent 70%);
+}
+.v2-landing .v2-blob-gold-br {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(ellipse 500px 400px at 90% 80%, rgba(255, 180, 0, 0.05) 0%, transparent 70%);
+}
+.v2-landing .v2-blob-cyan-left {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(ellipse 600px 400px at 10% 50%, rgba(0, 200, 255, 0.06) 0%, transparent 70%);
+}
+.v2-landing .v2-blob-gold-right {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(ellipse 600px 400px at 90% 50%, rgba(255, 180, 0, 0.05) 0%, transparent 70%);
+}
+.v2-landing .v2-blob-gold-center {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(ellipse 800px 300px at 50% 50%, rgba(255, 180, 0, 0.04) 0%, transparent 70%);
+}
+
+/* Product-mockup card with light-emitting shadow */
+.v2-landing .v2-mockup-card {
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 24px 60px rgba(0, 0, 0, 0.6),
+    0 0 120px rgba(0, 200, 255, 0.06);
+  overflow: hidden;
+  background: var(--v2-surface);
+}
+
+/* Generic surface card */
+.v2-landing .v2-card {
+  background: var(--v2-surface);
+  border: 1px solid var(--v2-border);
+  border-radius: 12px;
+}
+
+.v2-landing .v2-card-cyan {
+  background: var(--v2-surface);
+  border: 1px solid rgba(0, 200, 255, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 0 60px rgba(0, 200, 255, 0.05);
+}
+
+.v2-landing .v2-card-glow {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 20px 50px rgba(0, 0, 0, 0.5),
+    0 0 80px rgba(0, 200, 255, 0.05);
+}
+
+/* Stat card */
+.v2-landing .v2-stat-card {
+  background: var(--v2-surface);
+  border: 1px solid var(--v2-border);
+  border-radius: 12px;
+  padding: 28px 24px;
+  position: relative;
+  z-index: 1;
+}
+.v2-landing .v2-stat-number {
+  font-size: 56px;
+  font-weight: 700;
+  color: var(--v2-text);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.v2-landing .v2-stat-underline {
+  width: 32px;
+  height: 2px;
+  background: var(--v2-gold);
+  margin: 8px 0;
+}
+.v2-landing .v2-stat-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--v2-text-muted);
+  font-weight: 500;
+}
+.v2-landing .v2-stat-sub {
+  font-size: 13px;
+  color: var(--v2-text-muted);
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+/* Primary cyan CTA */
+.v2-landing .v2-btn-cyan {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--v2-cyan);
+  color: var(--v2-base);
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 12px 28px;
+  font-size: 15px;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: background 150ms, box-shadow 150ms, transform 150ms;
+}
+.v2-landing .v2-btn-cyan:hover {
+  background: #33D4FF;
+  box-shadow: 0 0 20px rgba(0, 200, 255, 0.3);
+}
+
+/* Secondary ghost CTA */
+.v2-landing .v2-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--v2-text);
+  background: transparent;
+  border-radius: 8px;
+  padding: 12px 28px;
+  font-size: 15px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color 150ms, background 150ms;
+}
+.v2-landing .v2-btn-ghost:hover {
+  border-color: rgba(0, 200, 255, 0.3);
+  background: var(--v2-cyan-06);
+}
+
+/* Planet / house / topic badges */
+.v2-landing .v2-badge-planet {
+  display: inline-block;
+  background: var(--v2-cyan-08);
+  color: var(--v2-cyan);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font: 12px/1.4 ui-monospace, "SF Mono", Menlo, monospace;
+}
+.v2-landing .v2-badge-house {
+  display: inline-block;
+  background: var(--v2-gold-08);
+  color: var(--v2-gold);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font: 11px/1.4 ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+/* Promised verdict glow */
+.v2-landing .v2-verdict-gold {
+  color: var(--v2-gold);
+  font-weight: 700;
+  font-size: 18px;
+  text-shadow: 0 0 20px rgba(255, 180, 0, 0.4);
+  letter-spacing: 0.04em;
+}
+
+/* Cyan-on-dark accent text used in Section 6 hero number etc */
+.v2-landing .v2-num-cyan {
+  color: var(--v2-cyan);
+  font-weight: 700;
+  text-shadow: 0 0 20px rgba(0, 200, 255, 0.3);
+}
+
+/* Bullet dot prefix for spec'd feature bullets */
+.v2-landing .v2-bullet-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--v2-cyan);
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+  box-shadow: 0 0 8px rgba(0, 200, 255, 0.5);
+}
+
+/* Section separator — between every section */
+.v2-landing .v2-section {
+  position: relative;
+  border-top: 1px solid var(--v2-separator);
+}
+.v2-landing .v2-section:first-of-type {
+  border-top: none;
+}
+
+/* Scroll-reveal animation (Intersection Observer adds .v2-visible) */
+.v2-landing .v2-reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+  will-change: opacity, transform;
+}
+.v2-landing .v2-reveal.v2-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .v2-landing .v2-reveal,
+  .v2-landing .v2-reveal.v2-visible {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* Nav — cyan-tinted sticky */
+.v2-landing-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(6, 10, 18, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(0, 200, 255, 0.06);
+}
+
+/* Testimonial card hover */
+.v2-landing .v2-testi-card {
+  background: var(--v2-surface);
+  border: 1px solid var(--v2-border);
+  border-radius: 12px;
+  padding: 24px;
+  min-height: 160px;
+  transition: border-color 200ms, box-shadow 200ms;
+}
+.v2-landing .v2-testi-card:hover {
+  border-color: rgba(0, 200, 255, 0.15);
+  box-shadow: 0 0 40px rgba(0, 200, 255, 0.05);
+}
+
+/* Pricing popular card */
+.v2-landing .v2-price-card {
+  background: var(--v2-surface);
+  border: 1px solid var(--v2-border);
+  border-radius: 16px;
+  padding: 32px 24px;
+}
+.v2-landing .v2-price-card-popular {
+  background: var(--v2-surface);
+  border: 1px solid rgba(0, 200, 255, 0.25);
+  border-radius: 16px;
+  padding: 32px 24px;
+  box-shadow: 0 0 60px rgba(0, 200, 255, 0.08);
+}
+.v2-landing .v2-price-badge {
+  background: var(--v2-cyan-12);
+  color: var(--v2-cyan);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+  display: inline-block;
+}
+
+/* ============================================================
+   Mobile responsive helpers (data attribute driven).
+   Set data-mobile-stack on any grid to collapse to 1 col on
+   ≤860px; data-mobile-2col to force a 2 col layout; data-mobile-pad
+   to tighten padding to 16px. Works because inline style has
+   higher specificity by default, but !important wins here.
+   ============================================================ */
+@media (max-width: 860px) {
+  [data-mobile-stack] {
+    grid-template-columns: 1fr !important;
+  }
+  [data-mobile-2col] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  [data-mobile-pad] {
+    padding: 16px !important;
+  }
+  [data-mobile-pad-x] {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+  [data-mobile-gap-sm] {
+    gap: 12px !important;
+  }
+  [data-mobile-hide] {
+    display: none !important;
+  }
+  [data-mobile-wrap] {
+    flex-wrap: wrap !important;
+  }
+}
