@@ -116,7 +116,8 @@ export interface PanchangamData {
   time: string;
 }
 
-// House topic labels (used in HouseOverviewGrid)
+// House topic labels (used in HouseOverviewGrid). The `_te` pair is a
+// concise Telugu gloss; the UI picks one per `lang` using tField().
 export const HOUSE_TOPICS: Record<number, string> = {
   1:  "Self & Personality",
   2:  "Wealth & Family",
@@ -130,6 +131,21 @@ export const HOUSE_TOPICS: Record<number, string> = {
   10: "Career & Status",
   11: "Gains & Friends",
   12: "Loss & Liberation",
+};
+
+export const HOUSE_TOPICS_TE: Record<number, string> = {
+  1:  "స్వంతం & వ్యక్తిత్వం",
+  2:  "ధనం & కుటుంబం",
+  3:  "సోదరులు & ధైర్యం",
+  4:  "తల్లి & గృహం",
+  5:  "సంతానం & బుద్ధి",
+  6:  "శత్రువులు & ఆరోగ్యం",
+  7:  "వివాహం & భాగస్వామి",
+  8:  "ఆయుష్షు & రహస్యాలు",
+  9:  "అదృష్టం & ధర్మం",
+  10: "ఉద్యోగం & కీర్తి",
+  11: "లాభం & స్నేహితులు",
+  12: "నష్టం & మోక్షం",
 };
 
 // Planet symbol map — re-exported from the canonical source at

@@ -1,7 +1,8 @@
 "use client";
 import React from "react";
 import { PLANET_COLORS } from "../constants";
-import { Planet, Cusp, HOUSE_TOPICS } from "../../types/workspace";
+import { Planet, Cusp, HOUSE_TOPICS, HOUSE_TOPICS_TE } from "../../types/workspace";
+import { useLanguage } from "@/lib/i18n";
 
 // Backend returns cusps as array with house_num field
 interface CuspItem {
@@ -10,6 +11,7 @@ interface CuspItem {
   sign_en: string;
   sign_te?: string;
   sub_lord_en: string;
+  sub_lord_te?: string;
   star_lord_en?: string;
   nakshatra_en?: string;
   [key: string]: unknown;
@@ -35,9 +37,14 @@ function getPlanetsInHouse(houseNum: number, planets: Planet[]): Planet[] {
 export default function HouseOverviewGrid({
   cusps, planets, selectedHouse, onHouseClick,
 }: HouseOverviewGridProps) {
+  const { lang } = useLanguage();
   if (!cusps || Object.keys(cusps).length === 0) return null;
 
   const houses = Array.from({ length: 12 }, (_, i) => i + 1);
+  const signLabel = (cusp: CuspItem) =>
+    lang === "en" ? cusp.sign_en : (cusp.sign_te ?? cusp.sign_en);
+  const topicLabel = (h: number) =>
+    lang === "en" ? HOUSE_TOPICS[h] : (HOUSE_TOPICS_TE[h] ?? HOUSE_TOPICS[h]);
 
   return (
     <div style={{
@@ -52,7 +59,7 @@ export default function HouseOverviewGrid({
 
         const planetsHere = getPlanetsInHouse(h, planets);
         const isSelected  = selectedHouse === h;
-        const topic       = HOUSE_TOPICS[h] ?? "";
+        const topic       = topicLabel(h);
         const signSym     = SIGN_SYMBOLS[cusp.sign_en] ?? "";
 
         return (
@@ -94,7 +101,7 @@ export default function HouseOverviewGrid({
 
             {/* Sign name */}
             <div style={{ fontSize: 13, fontWeight: 600, color: "#f0f0f0", lineHeight: 1.2 }}>
-              {signSym} {cusp.sign_en}
+              {signSym} {signLabel(cusp)}
             </div>
 
             {/* Topic */}
@@ -112,7 +119,7 @@ export default function HouseOverviewGrid({
                 borderRadius: 6, padding: "2px 6px",
                 alignSelf: "flex-start",
               }}>
-                {cusp.sub_lord_en} CSL
+                {lang === "en" ? cusp.sub_lord_en : (cusp.sub_lord_te ?? cusp.sub_lord_en)} CSL
               </div>
             )}
 
