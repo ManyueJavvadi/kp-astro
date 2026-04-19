@@ -1149,3 +1149,10 @@ textarea:focus-visible {
     flex-wrap: wrap !important;
   }
 }
+
+/* Show/hide helpers for responsive copy in the /app shell etc. */
+.v2-show-mobile { display: none; }
+@media (max-width: 640px) {
+  .v2-hide-mobile { display: none; }
+  .v2-show-mobile { display: inline; }
+}

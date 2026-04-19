@@ -628,8 +628,6 @@ export default function Home() {
         @media (max-width: 480px) {
           .workspace-sidebar { max-height: 180px; }
           nav { padding: 0.6rem 1rem !important; }
-          .logo-subtitle { display: none !important; }
-          .logo-title { font-size: 14px !important; }
         }
       `}</style>
 
@@ -640,22 +638,17 @@ export default function Home() {
         ))}
       </div>
 
-      {/* Nav */}
-      <nav style={{ position: "relative", zIndex: 10, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1.25rem 2.5rem", borderBottom: "0.5px solid var(--border)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 34, height: 34, borderRadius: "50%", border: "1px solid var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent)", fontSize: 18, background: "rgba(201,169,110,0.06)" }}>♏</div>
-          <div>
-            <div className="logo-title" style={{ fontFamily: "'DM Serif Display',serif", fontSize: 17, letterSpacing: "0.02em" }}>DevAstro<span style={{ color: "var(--accent)" }}>AI</span></div>
-            <div className="logo-subtitle" style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.12em", textTransform: "uppercase" }}>KP Astrology Intelligence</div>
-          </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {setupDone && mode === "astrologer" && <span style={{ fontSize: 10, background: "rgba(201,169,110,0.1)", color: "var(--accent)", border: "0.5px solid rgba(201,169,110,0.35)", borderRadius: 20, padding: "3px 12px" }}>★ జ్యోతిష్కుడు మోడ్</span>}
-          {setupDone && savedSessions.length > 0 && (
+      {/* Status bar — app shell (logo + Back-to-landing) now lives in
+          frontend/app/app/layout.tsx. This strip only shows when state
+          applies (astrologer mode chip, saved-chart clear button). */}
+      {setupDone && (mode === "astrologer" || savedSessions.length > 0) && (
+        <div style={{ position: "relative", zIndex: 10, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, padding: "10px 2rem 0" }}>
+          {mode === "astrologer" && <span style={{ fontSize: 10, background: "rgba(201,169,110,0.1)", color: "var(--accent)", border: "0.5px solid rgba(201,169,110,0.35)", borderRadius: 20, padding: "3px 12px" }}>★ జ్యోతిష్కుడు మోడ్</span>}
+          {savedSessions.length > 0 && (
             <button onClick={() => { if (window.confirm("All saved charts will be cleared. Continue?")) resetAll(); }} style={{ background: "transparent", border: "none", fontSize: 11, color: "var(--muted)", cursor: "pointer", opacity: 0.5 }}>🗑 Clear</button>
           )}
         </div>
-      </nav>
+      )}
 
       {/* ── SETUP SCREEN ── */}
       {!setupDone && (
