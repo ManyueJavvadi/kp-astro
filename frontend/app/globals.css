@@ -820,76 +820,104 @@ textarea:focus-visible {
 }
 
 /* ============================================================
-   v2 Landing page — cyan/gold brand system (Apr 2026 spec)
+   v2 Landing page — gold signature system (Apr 2026 spec v2)
+   Research: luxury+finance dark-gold is an uncontested position
+   (nobody in astrology OR AI owns it). Research-ranked #c9a96e as
+   the most premium gold shade for a #070B14 background.
+
+   Rules:
+     - Gold is the ONLY signature accent (was cyan; cyan is too
+       generic-AI in 2025-2026, used by Perplexity/Pi/Copilot/etc.)
+     - AI-authored content uses warm cream #E6C79C instead of the
+       old generic-AI purple — reads as "margin note in an ancient
+       manuscript", no other AI product owns cream.
+     - Gold NEVER covers more than ~5% of any screen (research:
+       more = "gilt furniture = tacky")
+     - Primary CTAs use a 3-layer glow: crisp edge ring + grounded
+       shadow + warm wide halo (research-validated premium recipe).
+
    Scope: .v2-landing (one class on <main>), so these styles
    never leak into the app/pro shell.
+
+   Class names kept stable (.v2-btn-cyan, .v2-blob-cyan-*, .v2-num-cyan)
+   so call sites don't churn — they're gold under the hood now.
    ============================================================ */
 .v2-landing {
   --v2-base: #060A12;
   --v2-surface: #0A0F1C;
   --v2-border: rgba(255, 255, 255, 0.06);
-  --v2-separator: rgba(0, 200, 255, 0.08);
-  --v2-cyan: #00C8FF;
-  --v2-cyan-06: rgba(0, 200, 255, 0.06);
-  --v2-cyan-08: rgba(0, 200, 255, 0.08);
-  --v2-cyan-12: rgba(0, 200, 255, 0.12);
-  --v2-cyan-25: rgba(0, 200, 255, 0.25);
-  --v2-gold: #FFB400;
-  --v2-gold-08: rgba(255, 180, 0, 0.08);
-  --v2-gold-12: rgba(255, 180, 0, 0.12);
-  --v2-purple: #8833CC;
-  --v2-text: #E8EDF5;
-  --v2-text-soft: #94A3B8;
-  --v2-text-muted: #4A6080;
+  --v2-separator: rgba(201, 169, 110, 0.08);
+
+  /* Gold signature — do not change without brand review */
+  --v2-gold: #c9a96e;
+  --v2-gold-bright: #e7c98a;
+  --v2-gold-dim: #8b7a50;
+  --v2-gold-04: rgba(201, 169, 110, 0.04);
+  --v2-gold-06: rgba(201, 169, 110, 0.06);
+  --v2-gold-08: rgba(201, 169, 110, 0.08);
+  --v2-gold-12: rgba(201, 169, 110, 0.12);
+  --v2-gold-25: rgba(201, 169, 110, 0.25);
+
+  /* Warm cream — AI-authored content tint only */
+  --v2-cream: #E6C79C;
+  --v2-cream-08: rgba(230, 199, 156, 0.08);
+  --v2-cream-18: rgba(230, 199, 156, 0.18);
+
+  /* Text — warmer than pure slate, reads like manuscript */
+  --v2-text: #F1E9DC;
+  --v2-text-soft: #9A9287;
+  --v2-text-muted: #5F5A52;
 
   background: var(--v2-base);
   color: var(--v2-text);
 }
 
-/* Ambient glow blobs, positioned absolutely by parent section */
+/* Ambient glow blobs, positioned absolutely by parent section.
+   Class names kept (cyan-tl/gold-br/etc.) so JSX doesn't churn —
+   every blob is a warm gold wash now. */
 .v2-landing .v2-blob-cyan-tl {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  background: radial-gradient(ellipse 700px 500px at 5% 10%, rgba(0, 200, 255, 0.07) 0%, transparent 70%);
+  background: radial-gradient(ellipse 700px 500px at 5% 10%, rgba(201, 169, 110, 0.06) 0%, transparent 70%);
 }
 .v2-landing .v2-blob-gold-br {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  background: radial-gradient(ellipse 500px 400px at 90% 80%, rgba(255, 180, 0, 0.05) 0%, transparent 70%);
+  background: radial-gradient(ellipse 500px 400px at 90% 80%, rgba(231, 201, 138, 0.05) 0%, transparent 70%);
 }
 .v2-landing .v2-blob-cyan-left {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  background: radial-gradient(ellipse 600px 400px at 10% 50%, rgba(0, 200, 255, 0.06) 0%, transparent 70%);
+  background: radial-gradient(ellipse 600px 400px at 10% 50%, rgba(201, 169, 110, 0.05) 0%, transparent 70%);
 }
 .v2-landing .v2-blob-gold-right {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  background: radial-gradient(ellipse 600px 400px at 90% 50%, rgba(255, 180, 0, 0.05) 0%, transparent 70%);
+  background: radial-gradient(ellipse 600px 400px at 90% 50%, rgba(231, 201, 138, 0.05) 0%, transparent 70%);
 }
 .v2-landing .v2-blob-gold-center {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  background: radial-gradient(ellipse 800px 300px at 50% 50%, rgba(255, 180, 0, 0.04) 0%, transparent 70%);
+  background: radial-gradient(ellipse 800px 300px at 50% 50%, rgba(201, 169, 110, 0.04) 0%, transparent 70%);
 }
 
-/* Product-mockup card with light-emitting shadow */
+/* Product-mockup card with light-emitting shadow (gold-tinted halo) */
 .v2-landing .v2-mockup-card {
   border-radius: 12px;
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.06),
     0 24px 60px rgba(0, 0, 0, 0.6),
-    0 0 120px rgba(0, 200, 255, 0.06);
+    0 0 120px rgba(201, 169, 110, 0.06);
   overflow: hidden;
   background: var(--v2-surface);
 }
@@ -901,18 +929,19 @@ textarea:focus-visible {
   border-radius: 12px;
 }
 
+/* Gold-accented surface card (class name kept for call-site stability) */
 .v2-landing .v2-card-cyan {
   background: var(--v2-surface);
-  border: 1px solid rgba(0, 200, 255, 0.1);
+  border: 1px solid rgba(201, 169, 110, 0.12);
   border-radius: 12px;
-  box-shadow: 0 0 60px rgba(0, 200, 255, 0.05);
+  box-shadow: 0 0 60px rgba(201, 169, 110, 0.05);
 }
 
 .v2-landing .v2-card-glow {
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.06),
     0 20px 50px rgba(0, 0, 0, 0.5),
-    0 0 80px rgba(0, 200, 255, 0.05);
+    0 0 80px rgba(201, 169, 110, 0.05);
 }
 
 /* Stat card */
@@ -951,13 +980,17 @@ textarea:focus-visible {
   line-height: 1.5;
 }
 
-/* Primary cyan CTA */
+/* Primary gold CTA (class name .v2-btn-cyan kept for call-site
+   stability — everything that points to this class now gets
+   premium gold with the research-validated 3-layer glow).
+   Idle state shows the signature glow so the CTA pulls the eye;
+   hover intensifies the halo without becoming neon. */
 .v2-landing .v2-btn-cyan {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: var(--v2-cyan);
-  color: var(--v2-base);
+  background: var(--v2-gold);
+  color: #1a130a;
   font-weight: 700;
   border-radius: 8px;
   padding: 12px 28px;
@@ -965,14 +998,21 @@ textarea:focus-visible {
   text-decoration: none;
   border: none;
   cursor: pointer;
+  box-shadow:
+    0 0 0 1px rgba(201, 169, 110, 0.55),
+    0 2px 6px rgba(201, 169, 110, 0.18),
+    0 0 18px rgba(231, 201, 138, 0.28);
   transition: background 150ms, box-shadow 150ms, transform 150ms;
 }
 .v2-landing .v2-btn-cyan:hover {
-  background: #33D4FF;
-  box-shadow: 0 0 20px rgba(0, 200, 255, 0.3);
+  background: var(--v2-gold-bright);
+  box-shadow:
+    0 0 0 1px rgba(231, 201, 138, 0.7),
+    0 2px 8px rgba(201, 169, 110, 0.25),
+    0 0 26px rgba(231, 201, 138, 0.42);
 }
 
-/* Secondary ghost CTA */
+/* Secondary ghost CTA — warm hover tint (not cyan) */
 .v2-landing .v2-btn-ghost {
   display: inline-flex;
   align-items: center;
@@ -986,26 +1026,29 @@ textarea:focus-visible {
   font-weight: 500;
   text-decoration: none;
   cursor: pointer;
-  transition: border-color 150ms, background 150ms;
+  transition: border-color 150ms, background 150ms, color 150ms;
 }
 .v2-landing .v2-btn-ghost:hover {
-  border-color: rgba(0, 200, 255, 0.3);
-  background: var(--v2-cyan-06);
+  border-color: rgba(201, 169, 110, 0.35);
+  background: var(--v2-gold-06);
+  color: var(--v2-gold-bright);
 }
 
-/* Planet / house / topic badges */
+/* Planet badges — gold-tinted (class name kept for call-site stability).
+   Note: in the app workspace we still use the full PLANET_COLORS
+   palette for semantic accuracy; this is landing-page decoration only. */
 .v2-landing .v2-badge-planet {
   display: inline-block;
-  background: var(--v2-cyan-08);
-  color: var(--v2-cyan);
+  background: var(--v2-gold-08);
+  color: var(--v2-gold);
   border-radius: 4px;
   padding: 2px 8px;
   font: 12px/1.4 ui-monospace, "SF Mono", Menlo, monospace;
 }
 .v2-landing .v2-badge-house {
   display: inline-block;
-  background: var(--v2-gold-08);
-  color: var(--v2-gold);
+  background: var(--v2-cream-08);
+  color: var(--v2-cream);
   border-radius: 4px;
   padding: 2px 6px;
   font: 11px/1.4 ui-monospace, "SF Mono", Menlo, monospace;
@@ -1016,26 +1059,26 @@ textarea:focus-visible {
   color: var(--v2-gold);
   font-weight: 700;
   font-size: 18px;
-  text-shadow: 0 0 20px rgba(255, 180, 0, 0.4);
+  text-shadow: 0 0 20px rgba(201, 169, 110, 0.4);
   letter-spacing: 0.04em;
 }
 
-/* Cyan-on-dark accent text used in Section 6 hero number etc */
+/* Big hero number — now gold with glow (class name .v2-num-cyan kept) */
 .v2-landing .v2-num-cyan {
-  color: var(--v2-cyan);
+  color: var(--v2-gold);
   font-weight: 700;
-  text-shadow: 0 0 20px rgba(0, 200, 255, 0.3);
+  text-shadow: 0 0 20px rgba(201, 169, 110, 0.3);
 }
 
-/* Bullet dot prefix for spec'd feature bullets */
+/* Bullet dot prefix — gold with soft glow */
 .v2-landing .v2-bullet-dot {
   width: 6px;
   height: 6px;
-  background: var(--v2-cyan);
+  background: var(--v2-gold);
   border-radius: 50%;
   display: inline-block;
   flex-shrink: 0;
-  box-shadow: 0 0 8px rgba(0, 200, 255, 0.5);
+  box-shadow: 0 0 8px rgba(201, 169, 110, 0.5);
 }
 
 /* Section separator — between every section */
@@ -1067,7 +1110,7 @@ textarea:focus-visible {
   }
 }
 
-/* Nav — cyan-tinted sticky */
+/* Nav — warm gold-tinted sticky */
 .v2-landing-nav {
   position: sticky;
   top: 0;
@@ -1075,10 +1118,10 @@ textarea:focus-visible {
   background: rgba(6, 10, 18, 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(0, 200, 255, 0.06);
+  border-bottom: 1px solid rgba(201, 169, 110, 0.08);
 }
 
-/* Testimonial card hover */
+/* Testimonial card hover — warm gold */
 .v2-landing .v2-testi-card {
   background: var(--v2-surface);
   border: 1px solid var(--v2-border);
@@ -1088,11 +1131,11 @@ textarea:focus-visible {
   transition: border-color 200ms, box-shadow 200ms;
 }
 .v2-landing .v2-testi-card:hover {
-  border-color: rgba(0, 200, 255, 0.15);
-  box-shadow: 0 0 40px rgba(0, 200, 255, 0.05);
+  border-color: rgba(201, 169, 110, 0.18);
+  box-shadow: 0 0 40px rgba(201, 169, 110, 0.05);
 }
 
-/* Pricing popular card */
+/* Pricing cards — popular tier gets the signature gold treatment */
 .v2-landing .v2-price-card {
   background: var(--v2-surface);
   border: 1px solid var(--v2-border);
@@ -1101,14 +1144,14 @@ textarea:focus-visible {
 }
 .v2-landing .v2-price-card-popular {
   background: var(--v2-surface);
-  border: 1px solid rgba(0, 200, 255, 0.25);
+  border: 1px solid rgba(201, 169, 110, 0.3);
   border-radius: 16px;
   padding: 32px 24px;
-  box-shadow: 0 0 60px rgba(0, 200, 255, 0.08);
+  box-shadow: 0 0 60px rgba(201, 169, 110, 0.08);
 }
 .v2-landing .v2-price-badge {
-  background: var(--v2-cyan-12);
-  color: var(--v2-cyan);
+  background: var(--v2-gold-12);
+  color: var(--v2-gold);
   border-radius: 20px;
   padding: 4px 12px;
   font-size: 11px;

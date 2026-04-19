@@ -162,9 +162,9 @@ function Hero() {
             gap: 6,
             padding: "6px 14px",
             borderRadius: 999,
-            background: "rgba(0,200,255,0.08)",
-            border: "1px solid rgba(0,200,255,0.2)",
-            color: "#00C8FF",
+            background: "rgba(201,169,110,0.08)",
+            border: "1px solid rgba(201,169,110,0.3)",
+            color: "#c9a96e",
             fontSize: 12,
             fontWeight: 500,
             marginBottom: 28,
@@ -188,7 +188,7 @@ function Hero() {
           The KP astrology tool
           <br />
           every professional will{" "}
-          <span style={{ color: "#FFB400", fontStyle: "italic" }}>open daily</span>
+          <span style={{ color: "#c9a96e", fontStyle: "italic" }}>open daily</span>
         </h1>
         <p
           style={{
@@ -233,13 +233,13 @@ function Hero() {
           }}
         >
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-            <Check size={12} color="#00C8FF" /> No credit card
+            <Check size={12} color="#c9a96e" /> No credit card
           </span>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-            <Check size={12} color="#00C8FF" /> No signup
+            <Check size={12} color="#c9a96e" /> No signup
           </span>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-            <Check size={12} color="#00C8FF" /> Works in your browser
+            <Check size={12} color="#c9a96e" /> Works in your browser
           </span>
         </div>
       </div>
@@ -274,7 +274,7 @@ function StatsBanner() {
               fontSize: 11,
               textTransform: "uppercase",
               letterSpacing: "0.1em",
-              color: "#FFB400",
+              color: "#c9a96e",
               fontWeight: 600,
               marginBottom: 12,
             }}
@@ -292,7 +292,7 @@ function StatsBanner() {
             }}
           >
             Evidence over vibes.{" "}
-            <span style={{ color: "#FFB400", fontStyle: "italic" }}>Measured</span>{" "}
+            <span style={{ color: "#c9a96e", fontStyle: "italic" }}>Measured</span>{" "}
             astrology.
           </h2>
         </div>
@@ -347,10 +347,10 @@ function FeatureSection({
   accent?: "cyan" | "ai";
 }) {
   const iconBg =
-    accent === "ai" ? "rgba(167,139,250,0.12)" : "rgba(0,200,255,0.08)";
-  const iconColor = accent === "ai" ? "#B88FDC" : "#00C8FF";
+    accent === "ai" ? "rgba(230,199,156,0.14)" : "rgba(201,169,110,0.08)";
+  const iconColor = accent === "ai" ? "#E6C79C" : "#c9a96e";
   const iconBorder =
-    accent === "ai" ? "1px solid rgba(167,139,250,0.3)" : "1px solid rgba(0,200,255,0.25)";
+    accent === "ai" ? "1px solid rgba(230,199,156,0.35)" : "1px solid rgba(201,169,110,0.3)";
 
   return (
     <section id={id} className="v2-section" style={{ position: "relative" }}>
@@ -474,7 +474,7 @@ function KPChainMock() {
           fontSize: 11,
           textTransform: "uppercase",
           letterSpacing: "0.1em",
-          color: "#FFB400",
+          color: "#c9a96e",
           fontWeight: 600,
           marginBottom: 14,
           display: "flex",
@@ -558,7 +558,7 @@ function AIChatMock() {
           fontSize: 11,
           textTransform: "uppercase",
           letterSpacing: "0.1em",
-          color: "#B88FDC",
+          color: "#E6C79C",
           fontWeight: 600,
           marginBottom: 14,
           display: "flex",
@@ -575,8 +575,8 @@ function AIChatMock() {
             maxWidth: "85%",
             padding: "10px 14px",
             borderRadius: 10,
-            background: "rgba(0,200,255,0.08)",
-            border: "1px solid rgba(0,200,255,0.18)",
+            background: "rgba(201,169,110,0.08)",
+            border: "1px solid rgba(201,169,110,0.25)",
             color: "#E8EDF5",
             fontSize: 13,
           }}
@@ -590,8 +590,8 @@ function AIChatMock() {
             maxWidth: "95%",
             padding: "12px 14px",
             borderRadius: 10,
-            background: "rgba(167,139,250,0.06)",
-            border: "1px solid rgba(167,139,250,0.2)",
+            background: "rgba(230,199,156,0.08)",
+            border: "1px solid rgba(230,199,156,0.22)",
             color: "#E8EDF5",
             fontSize: 13,
             lineHeight: 1.55,
@@ -615,10 +615,10 @@ function AIChatMock() {
 
 function AccuracyMock() {
   const buckets = [
-    { label: "Marriage", correct: 0.78, total: 18, color: "#00C8FF" },
-    { label: "Career", correct: 0.65, total: 23, color: "#00C8FF" },
-    { label: "Health", correct: 0.42, total: 12, color: "#FFB400" },
-    { label: "Wealth", correct: 0.7, total: 10, color: "#00C8FF" },
+    { label: "Marriage", correct: 0.78, total: 18, color: "#c9a96e" },
+    { label: "Career", correct: 0.65, total: 23, color: "#c9a96e" },
+    { label: "Health", correct: 0.42, total: 12, color: "#c9a96e" },
+    { label: "Wealth", correct: 0.7, total: 10, color: "#c9a96e" },
   ];
   return (
     <div>
@@ -667,9 +667,9 @@ function AccuracyMock() {
                   background: b.color,
                   borderRadius: 4,
                   boxShadow:
-                    b.color === "#00C8FF"
-                      ? "0 0 8px rgba(0,200,255,0.4)"
-                      : "0 0 8px rgba(255,180,0,0.4)",
+                    b.color === "#c9a96e"
+                      ? "0 0 8px rgba(201,169,110,0.4)"
+                      : "0 0 8px rgba(201,169,110,0.4)",
                 }}
               />
             </div>
@@ -698,9 +698,9 @@ function Comparison() {
 
   const renderCell = (val: Cell) =>
     val === true ? (
-      <Check size={18} style={{ color: "#00C8FF", margin: "0 auto" }} />
+      <Check size={18} style={{ color: "#c9a96e", margin: "0 auto" }} />
     ) : val === "partial" ? (
-      <span style={{ fontSize: 11, color: "#FFB400", fontWeight: 500 }}>Partial</span>
+      <span style={{ fontSize: 11, color: "#c9a96e", fontWeight: 500 }}>Partial</span>
     ) : (
       <X size={18} style={{ color: "rgba(239,68,68,0.5)", margin: "0 auto" }} />
     );
@@ -723,7 +723,7 @@ function Comparison() {
               fontSize: 11,
               textTransform: "uppercase",
               letterSpacing: "0.1em",
-              color: "#FFB400",
+              color: "#c9a96e",
               fontWeight: 600,
               marginBottom: 12,
             }}
@@ -741,7 +741,7 @@ function Comparison() {
             }}
           >
             Depth where it matters.{" "}
-            <span style={{ color: "#FFB400", fontStyle: "italic" }}>Polish</span>{" "}
+            <span style={{ color: "#c9a96e", fontStyle: "italic" }}>Polish</span>{" "}
             everywhere else.
           </h2>
         </div>
@@ -773,11 +773,11 @@ function Comparison() {
                   style={{
                     textAlign: "center",
                     padding: "16px 16px",
-                    background: "rgba(0,200,255,0.08)",
-                    borderBottom: "2px solid #00C8FF",
+                    background: "rgba(201,169,110,0.08)",
+                    borderBottom: "2px solid #c9a96e",
                   }}
                 >
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "#00C8FF" }}>DevAstroAI</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#c9a96e" }}>DevAstroAI</div>
                   <div style={{ fontSize: 11, color: "#4A6080", fontWeight: 400, marginTop: 2 }}>
                     Beta
                   </div>
@@ -809,7 +809,7 @@ function Comparison() {
                     style={{
                       textAlign: "center",
                       padding: "14px 16px",
-                      background: "rgba(0,200,255,0.04)",
+                      background: "rgba(201,169,110,0.04)",
                     }}
                   >
                     {renderCell(row.us)}
@@ -898,7 +898,7 @@ function Pricing() {
               fontSize: 11,
               textTransform: "uppercase",
               letterSpacing: "0.1em",
-              color: "#00C8FF",
+              color: "#c9a96e",
               fontWeight: 600,
               marginBottom: 12,
             }}
@@ -1009,7 +1009,7 @@ function Pricing() {
                       color: "#94A3B8",
                     }}
                   >
-                    <Check size={16} color="#00C8FF" style={{ flexShrink: 0, marginTop: 2 }} />
+                    <Check size={16} color="#c9a96e" style={{ flexShrink: 0, marginTop: 2 }} />
                     {f}
                   </li>
                 ))}
@@ -1084,7 +1084,7 @@ function Testimonials() {
               fontSize: 11,
               textTransform: "uppercase",
               letterSpacing: "0.1em",
-              color: "#00C8FF",
+              color: "#c9a96e",
               fontWeight: 600,
               marginBottom: 12,
             }}
@@ -1123,7 +1123,7 @@ function Testimonials() {
                   <Star
                     key={i}
                     size={14}
-                    style={{ fill: "#FFB400", color: "#FFB400" }}
+                    style={{ fill: "#c9a96e", color: "#c9a96e" }}
                   />
                 ))}
               </div>
@@ -1153,14 +1153,14 @@ function Testimonials() {
                     width: 36,
                     height: 36,
                     borderRadius: 18,
-                    background: "rgba(0,200,255,0.1)",
-                    border: "1px solid rgba(0,200,255,0.25)",
+                    background: "rgba(201,169,110,0.1)",
+                    border: "1px solid rgba(201,169,110,0.3)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     fontSize: 14,
                     fontWeight: 600,
-                    color: "#00C8FF",
+                    color: "#c9a96e",
                   }}
                 >
                   {q.initial}
@@ -1240,7 +1240,7 @@ function Footer() {
       className="v2-section"
       style={{
         padding: "48px 24px 28px",
-        borderTop: "1px solid rgba(0,200,255,0.08)",
+        borderTop: "1px solid rgba(201,169,110,0.08)",
       }}
     >
       <div
@@ -1260,7 +1260,7 @@ function Footer() {
         >
           <LogoMark size={28} />
           <span style={{ fontSize: 14, fontWeight: 600, color: "#E8EDF5" }}>
-            DevAstro<span style={{ color: "#FFB400" }}>AI</span>
+            DevAstro<span style={{ color: "#c9a96e" }}>AI</span>
           </span>
         </Link>
         <div

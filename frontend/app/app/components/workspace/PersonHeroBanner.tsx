@@ -210,7 +210,7 @@ export default function PersonHeroBanner({
               cursor: pdfLoading ? "not-allowed" : "pointer",
               transition: "border-color 0.15s, color 0.15s, background 0.15s",
             }}
-            onMouseEnter={e => { if (pdfLoading) return; e.currentTarget.style.color = "#00C8FF"; e.currentTarget.style.borderColor = "rgba(0,200,255,0.3)"; e.currentTarget.style.background = "rgba(0,200,255,0.04)"; }}
+            onMouseEnter={e => { if (pdfLoading) return; e.currentTarget.style.color = "#c9a96e"; e.currentTarget.style.borderColor = "rgba(201,169,110,0.35)"; e.currentTarget.style.background = "rgba(201,169,110,0.04)"; }}
             onMouseLeave={e => { if (pdfLoading) return; e.currentTarget.style.color = "#b0b0c0"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; e.currentTarget.style.background = "transparent"; }}
           >
             {pdfLoading ? "…" : "PDF ↓"}
@@ -249,7 +249,7 @@ export default function PersonHeroBanner({
                         fontSize: 12, color: "#d0d0d8",
                         transition: "background 0.12s",
                       }}
-                      onMouseEnter={e => (e.currentTarget.style.background = "rgba(0,200,255,0.08)")}
+                      onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.08)")}
                       onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                     >
                       {s.name}
@@ -265,12 +265,14 @@ export default function PersonHeroBanner({
             style={{
               display: "inline-flex", alignItems: "center", gap: 6,
               height: 30, padding: "0 14px", borderRadius: 7,
-              background: "#00C8FF", border: "none",
-              color: "#060A12", fontSize: 12, fontWeight: 700, cursor: "pointer",
+              background: "#c9a96e", border: "none",
+              color: "#1a130a", fontSize: 12, fontWeight: 700, cursor: "pointer",
+              // 3-layer premium glow (ring + shadow + wide halo)
+              boxShadow: "0 0 0 1px rgba(201,169,110,0.55), 0 2px 6px rgba(201,169,110,0.18), 0 0 18px rgba(231,201,138,0.28)",
               transition: "background 0.15s, box-shadow 0.15s",
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = "#33D4FF"; e.currentTarget.style.boxShadow = "0 0 16px rgba(0,200,255,0.3)"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = "#00C8FF"; e.currentTarget.style.boxShadow = "none"; }}
+            onMouseEnter={e => { e.currentTarget.style.background = "#e7c98a"; e.currentTarget.style.boxShadow = "0 0 0 1px rgba(231,201,138,0.7), 0 2px 8px rgba(201,169,110,0.25), 0 0 26px rgba(231,201,138,0.42)"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "#c9a96e"; e.currentTarget.style.boxShadow = "0 0 0 1px rgba(201,169,110,0.55), 0 2px 6px rgba(201,169,110,0.18), 0 0 18px rgba(231,201,138,0.28)"; }}
           >
             + New Chart
           </button>

@@ -34,7 +34,7 @@ export default function AppLayout({
           backgroundColor: "rgba(7,11,20,0.85)",
           backdropFilter: "blur(12px)",
           WebkitBackdropFilter: "blur(12px)",
-          borderBottom: "1px solid rgba(0,200,255,0.06)",
+          borderBottom: "1px solid rgba(201,169,110,0.08)",
         }}
       >
         <div
@@ -68,8 +68,8 @@ export default function AppLayout({
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.color = theme.text.primary;
-                e.currentTarget.style.borderColor = "rgba(0,200,255,0.25)";
-                e.currentTarget.style.background = "rgba(0,200,255,0.04)";
+                e.currentTarget.style.borderColor = "rgba(201,169,110,0.3)";
+                e.currentTarget.style.background = "rgba(201,169,110,0.04)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.color = theme.text.muted;

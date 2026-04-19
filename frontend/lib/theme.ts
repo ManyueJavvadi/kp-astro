@@ -32,9 +32,15 @@ export const theme = {
 
   // Accents
   gold: "#c9a96e",
+  goldBright: "#e7c98a",
   goldDim: "#8b7a50",
-  ai: "#a78bfa",
-  aiDim: "rgba(167,139,250,0.15)",
+  // AI-authored content tint — warm cream. Research: purple (#a78bfa) is
+  // the generic AI color in 2025-2026 (Notion AI, ChatGPT, Linear AI,
+  // Copilot). Cream reads as "margin note in an ancient manuscript" and
+  // no other AI tool owns it. Use on borders / subtle surface washes
+  // behind Claude output, NEVER as a button fill.
+  ai: "#E6C79C",
+  aiDim: "rgba(230,199,156,0.15)",
   success: "#34d399",
   warning: "#fbbf24",
   error: "#f87171",
