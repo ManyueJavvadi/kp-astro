@@ -1,16 +1,15 @@
 /**
- * DevAstroAI brand mark — particle-rendered Saturn with tilted rings.
+ * DevAstroAI brand mark — canvas-rendered rotating Saturn with tilted rings.
  * Single source of truth. Use everywhere the brand appears.
  *
- * The asset is served from /public/saturn-logo.svg (viewBox 680×680,
- * includes its own black background). We render it via <img> so
- * Next/Vercel can compress and cache it, and we keep the JS bundle
- * lean (the raw SVG is ~145 KB of particle circles — too heavy to
- * inline in every page render).
+ * The mark is an animated canvas (AnimatedLogoMark); it auto-scales particle
+ * counts with `size` and falls back to the static /saturn-logo.svg for users
+ * with `prefers-reduced-motion: reduce`.
  */
 
 import type { CSSProperties } from "react";
 import { theme } from "@/lib/theme";
+import { AnimatedLogoMark } from "./animated-logo-mark";
 
 type LogoProps = {
   size?: number;
@@ -95,22 +94,7 @@ export function LogoMark({
           : "0 1px 3px rgba(0,0,0,0.4)",
       }}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/saturn-logo.svg"
-        alt=""
-        width={size}
-        height={size}
-        style={{
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-          display: "block",
-          // Slight scale to crop empty corners of the source SVG
-          transform: "scale(1.08)",
-        }}
-        draggable={false}
-      />
+      <AnimatedLogoMark size={size} />
     </span>
   );
 }

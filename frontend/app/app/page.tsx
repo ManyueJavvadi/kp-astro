@@ -1302,31 +1302,6 @@ export default function Home() {
                   <span style={{ fontSize: 9, background: "rgba(201,169,110,0.1)", color: "var(--accent)", border: "0.5px solid var(--border2)", borderRadius: 3, padding: "2px 6px" }}>KP New</span>
                   <span style={{ fontSize: 9, background: "rgba(201,169,110,0.1)", color: "var(--accent)", border: "0.5px solid var(--border2)", borderRadius: 3, padding: "2px 6px" }}>Placidus</span>
                 </div>
-                <button
-                  disabled={pdfLoading}
-                  onClick={async () => {
-                    if (!workspaceData || pdfLoading) return;
-                    setPdfLoading(true); setPdfError("");
-                    try {
-                      const res = await axios.post(`${API_URL}/pdf/export`, { workspace: workspaceData }, { responseType: "blob", timeout: 30000 });
-                      const url = URL.createObjectURL(new Blob([res.data], { type: "application/pdf" }));
-                      const a = document.createElement("a");
-                      a.href = url;
-                      a.download = `${workspaceData.name || "kp_chart"}_report.pdf`;
-                      a.click();
-                      URL.revokeObjectURL(url);
-                    } catch (e: any) {
-                      setPdfError(e?.response?.status === 500 ? "Server error — try again" : "Download failed");
-                    }
-                    setPdfLoading(false);
-                  }}
-                  style={{ marginTop: 8, width: "100%", padding: "5px 0", background: pdfLoading ? "rgba(201,169,110,0.04)" : "rgba(201,169,110,0.08)", border: "0.5px solid var(--border2)", borderRadius: 5, color: pdfLoading ? "var(--muted)" : "var(--accent)", fontSize: 11, cursor: pdfLoading ? "default" : "pointer", fontFamily: "inherit" }}
-                >
-                  {pdfLoading
-                    ? t("Downloading…", "డౌన్‌లోడ్ అవుతోంది…")
-                    : t("Download PDF ↓", "PDF డౌన్‌లోడ్ ↓")}
-                </button>
-                {pdfError && <div style={{ fontSize: 10, color: "#f87171", marginTop: 3, textAlign: "center" as const }}>{pdfError}</div>}
               </div>
               <div className="sidebar-section" style={{ padding: "0.75rem 1rem", borderBottom: "0.5px solid var(--border)" }}>
                 <div style={{ fontSize: 9, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6 }}>
@@ -1345,43 +1320,6 @@ export default function Home() {
                 <div style={{ marginTop: 4, padding: "3px 8px", background: "rgba(248,113,113,0.1)", border: "0.5px solid rgba(248,113,113,0.2)", borderRadius: 4, display: "flex", justifyContent: "space-between" }}>
                   <span style={{ fontSize: 10, color: "#f87171" }}>{t("Rahu Kalam", "రాహుకాలం")}</span>
                   <span style={{ fontSize: 10, color: "#f87171" }}>{workspaceData.panchangam_today.rahu_kalam}</span>
-                </div>
-              </div>
-              <div className="sidebar-section" style={{ padding: "0.75rem 1rem", borderBottom: "0.5px solid var(--border)" }}>
-                <div style={{ fontSize: 9, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6 }}>
-                  {t("Dasha", "దశ")}
-                </div>
-                <div style={{ fontSize: 13, color: "var(--accent)", fontWeight: 600 }}>
-                  {lang === "en" ? workspaceData.mahadasha.lord_en : workspaceData.mahadasha.lord_te}
-                  {" "}
-                  {t("Mahadasha", "మహాదశ")}
-                </div>
-                <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 6 }}>{workspaceData.mahadasha.start} → {workspaceData.mahadasha.end}</div>
-                <div style={{ background: "rgba(201,169,110,0.08)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "6px 8px" }}>
-                  <div style={{ fontSize: 10, color: "var(--muted)" }}>{t("Antardasha", "అంతర్దశ")}</div>
-                  <div style={{ fontSize: 13, color: PLANET_COLORS[workspaceData.current_antardasha.lord_en] || "var(--accent2)", fontWeight: 500 }}>
-                    {lang === "en" ? workspaceData.current_antardasha.lord_en : workspaceData.current_antardasha.lord_te}
-                  </div>
-                  <div style={{ fontSize: 9, color: "var(--muted)" }}>{workspaceData.current_antardasha.start} → {workspaceData.current_antardasha.end}</div>
-                  {workspaceData.current_pratyantardasha && (
-                    <div style={{ marginTop: 4, paddingTop: 4, borderTop: "0.5px solid var(--border)" }}>
-                      <div style={{ fontSize: 9, color: "var(--muted)" }}>{t("Pratyantardasha", "ప్రత్యంతర్దశ")}</div>
-                      <div style={{ fontSize: 12, color: PLANET_COLORS[workspaceData.current_pratyantardasha.lord_en] || "var(--text)", fontWeight: 500 }}>
-                        {lang === "en" ? workspaceData.current_pratyantardasha.lord_en : workspaceData.current_pratyantardasha.lord_te}
-                      </div>
-                      <div style={{ fontSize: 9, color: "var(--muted)" }}>{workspaceData.current_pratyantardasha.start} → {workspaceData.current_pratyantardasha.end}</div>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="sidebar-section" style={{ padding: "0.75rem 1rem", flex: 1 }}>
-                <div style={{ fontSize: 9, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6 }}>
-                  {t("Ruling Planets", "రూలింగ్ గ్రహాలు")}
-                </div>
-                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                  {(lang === "en" ? workspaceData.ruling_planets.all_en : workspaceData.ruling_planets.all_te).map((p: string, i: number) => (
-                    <span key={i} style={{ fontSize: 11, background: `${PLANET_COLORS[workspaceData.ruling_planets.all_en[i]] || "var(--accent)"}15`, color: PLANET_COLORS[workspaceData.ruling_planets.all_en[i]] || "var(--accent)", border: `0.5px solid ${PLANET_COLORS[workspaceData.ruling_planets.all_en[i]] || "var(--accent)"}30`, borderRadius: 4, padding: "2px 8px" }}>{p}</span>
-                  ))}
                 </div>
               </div>
             </div>
