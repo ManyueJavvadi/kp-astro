@@ -39,10 +39,8 @@ export default function AppLayout({
       >
         <div
           style={{
-            maxWidth: 1240,
-            margin: "0 auto",
             height: 56,
-            padding: "0 20px",
+            padding: "0 24px",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -50,7 +48,7 @@ export default function AppLayout({
           }}
         >
           <Link href="/" style={{ textDecoration: "none", flexShrink: 0 }}>
-            <Logo size={28} wordmark wordmarkSize={14} />
+            <Logo size={32} wordmark wordmarkSize={15} />
           </Link>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Link

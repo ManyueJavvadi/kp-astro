@@ -94,12 +94,10 @@ export default function PersonHeroBanner({
     <div style={{
       background: "var(--hero-gradient)",
       borderBottom: "0.5px solid rgba(201,169,110,0.15)",
-      padding: "12px 20px 10px",
+      padding: "14px 24px 12px",
       position: "relative",
     }}>
       <div style={{
-        maxWidth: 1400,
-        margin: "0 auto",
         display: "flex",
         alignItems: "flex-start",
         gap: 14,
@@ -204,14 +202,18 @@ export default function PersonHeroBanner({
             onClick={onPdf}
             disabled={pdfLoading}
             style={{
-              padding: "6px 12px", borderRadius: 8,
-              background: "rgba(201,169,110,0.1)", border: "0.5px solid rgba(201,169,110,0.3)",
-              color: pdfLoading ? "#666677" : "#c9a96e", fontSize: 11, fontWeight: 500,
+              display: "inline-flex", alignItems: "center", gap: 6,
+              height: 30, padding: "0 12px", borderRadius: 7,
+              background: "transparent", border: "1px solid rgba(255,255,255,0.08)",
+              color: pdfLoading ? "#555566" : "#b0b0c0",
+              fontSize: 12, fontWeight: 500,
               cursor: pdfLoading ? "not-allowed" : "pointer",
-              transition: "background 0.15s",
+              transition: "border-color 0.15s, color 0.15s, background 0.15s",
             }}
+            onMouseEnter={e => { if (pdfLoading) return; e.currentTarget.style.color = "#00C8FF"; e.currentTarget.style.borderColor = "rgba(0,200,255,0.3)"; e.currentTarget.style.background = "rgba(0,200,255,0.04)"; }}
+            onMouseLeave={e => { if (pdfLoading) return; e.currentTarget.style.color = "#b0b0c0"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; e.currentTarget.style.background = "transparent"; }}
           >
-            {pdfLoading ? "..." : "PDF ↓"}
+            {pdfLoading ? "…" : "PDF ↓"}
           </button>
 
           {/* Session switch */}
@@ -220,10 +222,14 @@ export default function PersonHeroBanner({
               <button
                 onClick={() => setShowSwitch(s => !s)}
                 style={{
-                  padding: "6px 12px", borderRadius: 8,
-                  background: "rgba(255,255,255,0.04)", border: "0.5px solid rgba(255,255,255,0.1)",
-                  color: "#b0b0c0", fontSize: 11, cursor: "pointer",
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  height: 30, padding: "0 12px", borderRadius: 7,
+                  background: "transparent", border: "1px solid rgba(255,255,255,0.08)",
+                  color: "#b0b0c0", fontSize: 12, fontWeight: 500, cursor: "pointer",
+                  transition: "border-color 0.15s, color 0.15s, background 0.15s",
                 }}
+                onMouseEnter={e => { e.currentTarget.style.color = "#E8EDF5"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; }}
+                onMouseLeave={e => { e.currentTarget.style.color = "#b0b0c0"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }}
               >
                 Switch ▾
               </button>
@@ -243,7 +249,7 @@ export default function PersonHeroBanner({
                         fontSize: 12, color: "#d0d0d8",
                         transition: "background 0.12s",
                       }}
-                      onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.08)")}
+                      onMouseEnter={e => (e.currentTarget.style.background = "rgba(0,200,255,0.08)")}
                       onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                     >
                       {s.name}
@@ -257,11 +263,14 @@ export default function PersonHeroBanner({
           <button
             onClick={onNewChart}
             style={{
-              padding: "6px 12px", borderRadius: 8,
-              background: "rgba(201,169,110,0.15)", border: "0.5px solid rgba(201,169,110,0.4)",
-              color: "#c9a96e", fontSize: 11, fontWeight: 600, cursor: "pointer",
-              transition: "background 0.15s",
+              display: "inline-flex", alignItems: "center", gap: 6,
+              height: 30, padding: "0 14px", borderRadius: 7,
+              background: "#00C8FF", border: "none",
+              color: "#060A12", fontSize: 12, fontWeight: 700, cursor: "pointer",
+              transition: "background 0.15s, box-shadow 0.15s",
             }}
+            onMouseEnter={e => { e.currentTarget.style.background = "#33D4FF"; e.currentTarget.style.boxShadow = "0 0 16px rgba(0,200,255,0.3)"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "#00C8FF"; e.currentTarget.style.boxShadow = "none"; }}
           >
             + New Chart
           </button>

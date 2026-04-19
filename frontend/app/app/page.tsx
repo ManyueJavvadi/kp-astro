@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import remarkGfm from "remark-gfm";
 import axios from "axios";
-import { ArrowRight, Loader2, CheckCircle, XCircle, MessageCircle, MapPin, ChevronLeft, ChevronRight, Sparkles, User, Clock, Globe2, Target } from "lucide-react";
+import { ArrowRight, Loader2, CheckCircle, XCircle, MessageCircle, MapPin, ChevronLeft, ChevronRight, Sparkles, User, Clock, Globe2, Target, LayoutGrid, Home as HomeIcon, Hourglass, MessageSquare, Calendar, Heart, HelpCircle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { PLANET_COLORS } from "./components/constants";
 import { ContentCard } from "@/components/ui/content-card";
@@ -565,14 +565,14 @@ export default function Home() {
   const labelStyle: React.CSSProperties = { display: "block", fontSize: 10, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6 };
 
   const TABS = [
-    { id: "chart",    label: "చార్ట్",      en: "Chart",     icon: "⊞" },
-    { id: "houses",   label: "భావాలు",      en: "Houses",    icon: "🏠" },
-    { id: "dasha",    label: "దశ",          en: "Dasha",     icon: "⏳" },
-    { id: "analysis", label: "విశ్లేషణ",   en: "Analysis",  icon: "💬" },
-    { id: "panchang", label: "పంచాంగం",    en: "Panchang",  icon: "📅" },
-    { id: "muhurtha", label: "ముహూర్త",    en: "Muhurtha",  icon: "⏰" },
-    { id: "match",    label: "సరిపోలన",    en: "Match",     icon: "💍" },
-    { id: "horary",   label: "ప్రశ్న",     en: "Horary",    icon: "🔮" },
+    { id: "chart",    label: "చార్ట్",      en: "Chart",     Icon: LayoutGrid },
+    { id: "houses",   label: "భావాలు",      en: "Houses",    Icon: HomeIcon },
+    { id: "dasha",    label: "దశ",          en: "Dasha",     Icon: Hourglass },
+    { id: "analysis", label: "విశ్లేషణ",   en: "Analysis",  Icon: MessageSquare },
+    { id: "panchang", label: "పంచాంగం",    en: "Panchang",  Icon: Calendar },
+    { id: "muhurtha", label: "ముహూర్త",    en: "Muhurtha",  Icon: Target },
+    { id: "match",    label: "సరిపోలన",    en: "Match",     Icon: Heart },
+    { id: "horary",   label: "ప్రశ్న",     en: "Horary",    Icon: HelpCircle },
   ];
 
   const TOPICS = [
@@ -1254,13 +1254,36 @@ export default function Home() {
           <div className="workspace-main" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
             {/* Tabs */}
             <div className="tab-bar" style={{ display: "flex", borderBottom: "0.5px solid var(--border)", background: "var(--surface)", overflowX: "auto", flexShrink: 0 }}>
-              {TABS.map(tab => (
-                <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ padding: "0.65rem 1rem", background: "transparent", border: "none", borderBottom: activeTab === tab.id ? "2px solid var(--accent)" : "2px solid transparent", color: activeTab === tab.id ? "var(--accent)" : "var(--muted)", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", transition: "all 0.2s", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-                  <span style={{ fontSize: 14 }}>{(tab as any).icon}</span>
-                  <span style={{ fontSize: 11 }}>{tab.label}</span>
-                  <span style={{ fontSize: 8, opacity: 0.5 }}>{tab.en}</span>
-                </button>
-              ))}
+              {TABS.map(tab => {
+                const TabIcon = tab.Icon;
+                const active = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    style={{
+                      padding: "10px 16px",
+                      background: "transparent",
+                      border: "none",
+                      borderBottom: active ? "2px solid var(--accent)" : "2px solid transparent",
+                      color: active ? "var(--accent)" : "var(--muted)",
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                      whiteSpace: "nowrap",
+                      transition: "color 0.15s, border-color 0.15s",
+                      flexShrink: 0,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 3,
+                    }}
+                  >
+                    <TabIcon size={15} strokeWidth={1.8} />
+                    <span style={{ fontSize: 11 }}>{tab.label}</span>
+                    <span style={{ fontSize: 9, opacity: 0.55 }}>{tab.en}</span>
+                  </button>
+                );
+              })}
             </div>
 
             {/* Tab content */}
