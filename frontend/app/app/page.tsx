@@ -1110,32 +1110,96 @@ export default function Home() {
         />
         <div className="workspace-layout" style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
-          {/* Sidebar toggle — fixed to top-left on mobile, side on desktop */}
-          <button
-            onClick={() => setSidebarOpen(prev => !prev)}
-            style={{
-              position: "absolute",
-              left: sidebarOpen ? 210 : 0,
-              top: 12,
-              zIndex: 30,
-              background: "var(--surface)",
-              border: "0.5px solid var(--border2)",
-              borderLeft: sidebarOpen ? "none" : "0.5px solid var(--border2)",
-              borderRadius: "0 6px 6px 0",
-              padding: "6px 4px",
-              cursor: "pointer",
-              color: "var(--accent)",
-              transition: "left 0.2s",
-              display: "flex",
-              alignItems: "center",
-            }}
-          >
-            {sidebarOpen ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
-          </button>
+          {/* Collapsed rail — shown when sidebar is closed, gives the user
+              a Claude-style reopen affordance on the left edge. */}
+          {!sidebarOpen && (
+            <button
+              type="button"
+              aria-label="Open sidebar"
+              onClick={() => setSidebarOpen(true)}
+              style={{
+                width: 36,
+                flexShrink: 0,
+                borderRight: "0.5px solid var(--border)",
+                background: "var(--surface)",
+                border: "none",
+                borderTop: "none",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "flex-start",
+                justifyContent: "center",
+                padding: "12px 0",
+                color: "var(--muted)",
+                transition: "color 120ms, background 120ms",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "var(--text)";
+                e.currentTarget.style.background = "rgba(255,255,255,0.02)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "var(--muted)";
+                e.currentTarget.style.background = "var(--surface)";
+              }}
+            >
+              <ChevronRight size={16} />
+            </button>
+          )}
 
           {/* Sidebar */}
           {sidebarOpen && (
             <div className="workspace-sidebar" style={{ width: 210, borderRight: "0.5px solid var(--border)", background: "var(--surface)", display: "flex", flexDirection: "column", overflow: "auto", flexShrink: 0, transition: "width 0.2s" }}>
+              {/* Sidebar header — collapse toggle on the right, Claude-style. */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "10px 10px 8px",
+                  borderBottom: "0.5px solid var(--border)",
+                  flexShrink: 0,
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 9,
+                    color: "var(--muted)",
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase" as const,
+                    fontWeight: 500,
+                  }}
+                >
+                  Workspace
+                </span>
+                <button
+                  type="button"
+                  aria-label="Collapse sidebar"
+                  onClick={() => setSidebarOpen(false)}
+                  style={{
+                    width: 24,
+                    height: 24,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: "transparent",
+                    border: "none",
+                    borderRadius: 5,
+                    color: "var(--muted)",
+                    cursor: "pointer",
+                    transition: "color 120ms, background 120ms",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = "var(--text)";
+                    e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = "var(--muted)";
+                    e.currentTarget.style.background = "transparent";
+                  }}
+                >
+                  <ChevronLeft size={14} />
+                </button>
+              </div>
+
               {/* Session switcher */}
               {savedSessions.length > 0 && (
                 <div className="sidebar-section" style={{ padding: "8px 10px", borderBottom: "0.5px solid var(--border)", flexShrink: 0 }}>
