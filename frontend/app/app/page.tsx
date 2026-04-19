@@ -1356,14 +1356,35 @@ export default function Home() {
               {/* CHART — two-column: chart left, PlanetList right */}
               {activeTab === "chart" && (
                 <div className="tab-content">
-                  {/* Mobile toggle */}
-                  <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-                    {[{v:"chart",l:"⊞ Chart"},{v:"planets",l:"≡ Planets"}].map(opt => (
-                      <button key={opt.v} onClick={() => setChartView(opt.v as "chart"|"planets")}
-                        style={{ padding: "5px 14px", borderRadius: 20, border: `0.5px solid ${chartView === opt.v ? "var(--accent)" : "var(--border2)"}`, background: chartView === opt.v ? "rgba(201,169,110,0.12)" : "transparent", color: chartView === opt.v ? "var(--accent)" : "var(--muted)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>
-                        {opt.l}
-                      </button>
-                    ))}
+                  {/* Chart / Planets view toggle */}
+                  <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+                    {[
+                      { v: "chart",   l: "Chart",   Icon: LayoutGrid },
+                      { v: "planets", l: "Planets", Icon: Target },
+                    ].map(opt => {
+                      const active = chartView === opt.v;
+                      const OptIcon = opt.Icon;
+                      return (
+                        <button
+                          key={opt.v}
+                          onClick={() => setChartView(opt.v as "chart"|"planets")}
+                          style={{
+                            display: "inline-flex", alignItems: "center", gap: 6,
+                            padding: "6px 14px", borderRadius: 999,
+                            border: active ? "1px solid rgba(201,169,110,0.45)" : "1px solid rgba(255,255,255,0.08)",
+                            background: active ? "rgba(201,169,110,0.1)" : "transparent",
+                            color: active ? "#c9a96e" : "var(--muted)",
+                            fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit",
+                            transition: "color 120ms, border-color 120ms, background 120ms",
+                          }}
+                          onMouseEnter={e => { if (active) return; e.currentTarget.style.color = "#c9a96e"; e.currentTarget.style.borderColor = "rgba(201,169,110,0.3)"; }}
+                          onMouseLeave={e => { if (active) return; e.currentTarget.style.color = "var(--muted)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }}
+                        >
+                          <OptIcon size={13} strokeWidth={1.8} />
+                          {opt.l}
+                        </button>
+                      );
+                    })}
                   </div>
 
                   <div style={{ display: "flex", gap: "1.5rem", alignItems: "start", flexWrap: "wrap" }}>
@@ -1372,14 +1393,14 @@ export default function Home() {
                       <div style={{ flexShrink: 0 }}>
                         {chartView === "chart" && (
                           <>
-                            <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: "0.6rem" }}>దక్షిణ భారత చార్ట్</div>
+                            <SectionEyebrow te="దక్షిణ భారత చార్ట్" en="South Indian Chart" />
                             <SouthIndianChart
                               planets={workspaceData.planets}
                               cusps={workspaceData.cusps}
                               onHouseClick={h => setSelectedHouse(prev => prev === h ? null : h)}
                               selectedHouse={selectedHouse}
                             />
-                            <div style={{ fontSize: 9, color: "var(--muted)", marginTop: 6, textAlign: "center" }}>Tap a house for details · ↑ = Lagna</div>
+                            <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 8, textAlign: "center", letterSpacing: "0.02em" }}>Tap a house for details · <span style={{ color: "#c9a96e" }}>↑</span> = Lagna</div>
                           </>
                         )}
                       </div>
@@ -1388,9 +1409,15 @@ export default function Home() {
                     {/* RIGHT — PlanetList (star lord → sub lord) */}
                     {chartView === "chart" && !selectedHouse && (
                       <div style={{ flex: 1, minWidth: 260 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                          <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>Planet Positions · KP</div>
-                          <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 6, background: "rgba(201,169,110,0.1)", color: "var(--accent)", border: "0.5px solid rgba(201,169,110,0.25)" }}>Star → Sub Lord</span>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                          <SectionEyebrow te="గ్రహ స్థానాలు" en="Planet Positions · KP" noMarginBottom />
+                          <span style={{
+                            display: "inline-flex", alignItems: "center", gap: 4,
+                            fontSize: 10, padding: "3px 10px", borderRadius: 999,
+                            background: "rgba(201,169,110,0.08)", color: "#c9a96e",
+                            border: "0.5px solid rgba(201,169,110,0.3)",
+                            fontWeight: 500,
+                          }}>Star → Sub Lord</span>
                         </div>
                         <div style={{ background: "var(--card)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 14, overflow: "hidden" }}>
                           <PlanetList planets={workspaceData.planets} />
@@ -1414,7 +1441,7 @@ export default function Home() {
                     {/* Mobile: planets-only view (full table) */}
                     {chartView === "planets" && (
                       <div style={{ flex: 1, minWidth: 260 }}>
-                        <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: "0.75rem" }}>గ్రహ స్థాన పట్టిక · KP పద్ధతి</div>
+                        <SectionEyebrow te="గ్రహ స్థాన పట్టిక" en="Planet Positions · KP" />
                         <div style={{ background: "var(--card)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 14, overflow: "hidden" }}>
                           <PlanetList planets={workspaceData.planets} />
                         </div>
@@ -4096,6 +4123,52 @@ export default function Home() {
             </div>
           </div>
         </main>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Bilingual section eyebrow — big Telugu line with a subtle English
+ * subtitle underneath, gold tinted. Used at the top of every workspace
+ * section so astrologers scanning the page always see the primary
+ * Telugu label first with English as secondary support.
+ */
+function SectionEyebrow({
+  te,
+  en,
+  noMarginBottom,
+}: {
+  te: string;
+  en?: string;
+  noMarginBottom?: boolean;
+}) {
+  return (
+    <div style={{ marginBottom: noMarginBottom ? 0 : 10 }}>
+      <div
+        style={{
+          fontSize: 11,
+          color: "#c9a96e",
+          letterSpacing: "0.08em",
+          fontWeight: 600,
+          lineHeight: 1.3,
+        }}
+      >
+        {te}
+      </div>
+      {en && (
+        <div
+          style={{
+            fontSize: 9,
+            color: "var(--muted)",
+            letterSpacing: "0.12em",
+            textTransform: "uppercase" as const,
+            fontWeight: 500,
+            marginTop: 2,
+          }}
+        >
+          {en}
+        </div>
       )}
     </div>
   );

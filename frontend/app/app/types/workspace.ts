@@ -132,15 +132,6 @@ export const HOUSE_TOPICS: Record<number, string> = {
   12: "Loss & Liberation",
 };
 
-// Planet symbol map
-export const PLANET_SYMBOLS: Record<string, string> = {
-  Sun:     "☉",
-  Moon:    "☽",
-  Mars:    "♂",
-  Mercury: "☿",
-  Jupiter: "♃",
-  Venus:   "♀",
-  Saturn:  "♄",
-  Rahu:    "☊",
-  Ketu:    "☋",
-};
+// Planet symbol map — re-exported from the canonical source at
+// @/lib/planets. All glyphs, colors, short codes live there now.
+export { PLANET_SYMBOLS } from "@/lib/planets";
