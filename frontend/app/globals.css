@@ -2542,4 +2542,548 @@ textarea:focus-visible {
   .match-subtab-pill { padding: 6px 12px; font-size: 11px; }
 }
 
+/* ─────────────────────────────────────────────────────────────
+   PR18 — Transit (Gochar) wow-pass.
+   Transit lives inside the Dasha tab as a collapsible premium
+   section. Toggle is a full-width card (not a tiny row), expanded
+   content uses sub-tabs (Overview / Planets / KP Rule) with serif
+   hero + breathing glow on the current MD planet row.
+   ───────────────────────────────────────────────────────────── */
+
+.transit-section {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 0.5px solid var(--border);
+}
+
+/* Collapsible toggle — upgraded from "🌍 ▼" to a full card with
+   gold eyebrow + serif title + right-side chevron. Echoes the
+   landing page nav-item vibe. */
+.transit-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  background: var(--surface2);
+  border: 0.5px solid rgba(201,169,110,0.18);
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: border-color 180ms, background 180ms, box-shadow 180ms;
+}
+.transit-toggle:hover {
+  border-color: rgba(201,169,110,0.35);
+  background: rgba(201,169,110,0.04);
+}
+.transit-toggle.is-open {
+  border-color: rgba(201,169,110,0.4);
+  background: rgba(201,169,110,0.05);
+  box-shadow: 0 0 0 4px rgba(201,169,110,0.04), 0 0 28px rgba(201,169,110,0.08);
+}
+.transit-toggle-icon {
+  width: 38px; height: 38px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 10px;
+  background: rgba(201,169,110,0.08);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.transit-toggle-body { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.transit-toggle-eyebrow {
+  font-size: 10px;
+  color: var(--accent);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.transit-toggle-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 18px;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  line-height: 1.2;
+}
+.transit-toggle-sub {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.transit-toggle-chevron {
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  border: 0.5px solid var(--border2);
+  color: var(--muted);
+  transition: transform 260ms ease, color 180ms, border-color 180ms;
+  flex-shrink: 0;
+}
+.transit-toggle:hover .transit-toggle-chevron {
+  color: var(--accent);
+  border-color: rgba(201,169,110,0.3);
+}
+.transit-toggle.is-open .transit-toggle-chevron {
+  transform: rotate(180deg);
+  color: var(--accent);
+  border-color: rgba(201,169,110,0.4);
+}
+
+/* Expanded container — fade + slide in. */
+@keyframes transit-expand {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.transit-body {
+  margin-top: 14px;
+  animation: transit-expand 280ms ease both;
+  display: flex; flex-direction: column;
+  gap: 14px;
+}
+
+/* Controls row — current period display + date picker + refresh button. */
+.transit-controls {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  align-items: end;
+  padding: 14px 16px;
+  background: var(--card);
+  border: 0.5px solid var(--border2);
+  border-radius: 10px;
+}
+.transit-controls-period {
+  display: flex; flex-direction: column; gap: 4px;
+  min-width: 0;
+}
+.transit-controls-eyebrow {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+}
+.transit-controls-period-row {
+  display: flex; align-items: center; gap: 10px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+.transit-period-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 0.5px solid;
+  font-weight: 600;
+  font-size: 11px;
+}
+.transit-period-chip .stage {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+}
+.transit-period-chip.md  { color: var(--accent); border-color: rgba(201,169,110,0.35); background: rgba(201,169,110,0.1); }
+.transit-period-chip.ad  { color: var(--text);   border-color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.04); }
+.transit-period-chip.pad { color: var(--muted);  border-color: rgba(255,255,255,0.08); background: transparent; }
+.transit-date-input {
+  padding: 7px 10px;
+  background: var(--surface2);
+  border: 0.5px solid var(--border2);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 160ms;
+}
+.transit-date-input:focus { border-color: rgba(201,169,110,0.4); }
+.transit-refresh-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 18px;
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  color: #0a0a0a;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 120ms, box-shadow 180ms;
+}
+.transit-refresh-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(201,169,110,0.28);
+}
+.transit-refresh-btn:disabled { opacity: 0.6; cursor: default; }
+
+/* Sade Sati hero — only when active. Breathing amber halo + serif
+   title because this is genuinely significant news for the user. */
+@keyframes transit-sade-breath {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(251,191,36,0.3), 0 0 30px rgba(251,191,36,0.16); }
+  50%      { box-shadow: 0 0 0 1px rgba(251,191,36,0.45), 0 0 52px rgba(251,191,36,0.3); }
+}
+.transit-sade-hero {
+  padding: 18px 20px;
+  background: linear-gradient(135deg, rgba(251,191,36,0.08), rgba(251,191,36,0.02));
+  border: 0.5px solid rgba(251,191,36,0.35);
+  border-radius: 12px;
+  display: flex; align-items: flex-start; gap: 14px;
+  animation: transit-sade-breath 4.2s ease-in-out infinite;
+}
+.transit-sade-icon {
+  width: 44px; height: 44px;
+  border-radius: 10px;
+  background: rgba(251,191,36,0.14);
+  color: #fbbf24;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.transit-sade-body { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.transit-sade-eyebrow {
+  font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: #fbbf24; font-weight: 700;
+}
+.transit-sade-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 20px; letter-spacing: -0.01em;
+  color: #fbbf24; line-height: 1.2;
+}
+.transit-sade-meta {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.55;
+  margin-top: 4px;
+}
+.transit-sade-meta b { color: var(--text); font-weight: 600; }
+
+/* Sub-tab bar — echoes match-subtab-bar but with Planets count badge. */
+.transit-subtab-bar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px 0 12px;
+  border-bottom: 0.5px solid var(--border);
+}
+.transit-subtab-pill {
+  padding: 7px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 140ms;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.transit-subtab-pill:hover {
+  color: var(--accent);
+  border-color: rgba(201,169,110,0.3);
+}
+.transit-subtab-pill.is-active {
+  background: rgba(201,169,110,0.12);
+  border-color: rgba(201,169,110,0.55);
+  color: var(--accent);
+  font-weight: 600;
+}
+.transit-subtab-pill .count {
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.06);
+  color: var(--muted);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+.transit-subtab-pill.is-active .count {
+  background: rgba(201,169,110,0.2);
+  color: var(--accent);
+}
+
+/* Pane fade on tab switch. */
+@keyframes transit-subtab-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.transit-pane {
+  animation: transit-subtab-enter 260ms ease both;
+  display: flex; flex-direction: column;
+  gap: 14px;
+}
+
+/* Overview pane — serif gochar hero + 3 spotlight cards (MD/AD/PAD
+   lord transit info). Staggered entrance. */
+@keyframes transit-hero-enter {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.transit-hero {
+  padding: 20px 22px 22px;
+  background: linear-gradient(135deg, rgba(201,169,110,0.06), rgba(201,169,110,0.015));
+  border: 0.5px solid rgba(201,169,110,0.25);
+  border-radius: 14px;
+  display: flex; flex-direction: column; gap: 6px;
+  animation: transit-hero-enter 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  position: relative;
+  overflow: hidden;
+}
+.transit-hero::before {
+  content: "";
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(201,169,110,0.4), transparent);
+}
+.transit-hero-eyebrow {
+  font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--accent); font-weight: 600;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.transit-hero-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 30px; letter-spacing: -0.01em;
+  color: var(--text); line-height: 1.1;
+}
+.transit-hero-sub {
+  font-size: 13px; color: var(--muted);
+  line-height: 1.55;
+  margin-top: 4px;
+  max-width: 620px;
+}
+
+.transit-spotlight-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+@keyframes transit-spot-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.transit-spotlight {
+  padding: 14px 14px 13px;
+  background: var(--card);
+  border: 0.5px solid var(--border2);
+  border-radius: 10px;
+  display: flex; flex-direction: column; gap: 6px;
+  animation: transit-spot-enter 360ms ease both;
+  transition: border-color 180ms, transform 180ms;
+}
+.transit-spotlight:hover { border-color: rgba(201,169,110,0.22); transform: translateY(-1px); }
+.transit-spotlight:nth-child(1) { animation-delay: 80ms; }
+.transit-spotlight:nth-child(2) { animation-delay: 140ms; }
+.transit-spotlight:nth-child(3) { animation-delay: 200ms; }
+.transit-spotlight.is-md {
+  background: rgba(201,169,110,0.06);
+  border-color: rgba(201,169,110,0.3);
+}
+.transit-spot-stage {
+  font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--muted); font-weight: 700;
+}
+.transit-spotlight.is-md .transit-spot-stage { color: var(--accent); }
+.transit-spot-planet {
+  font-size: 15px; font-weight: 600; color: var(--text);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.transit-spot-planet .sym { font-size: 16px; }
+.transit-spot-retro {
+  font-size: 10px; color: #f87171;
+  margin-left: 2px;
+}
+.transit-spot-meta {
+  font-size: 11px; color: var(--muted);
+  line-height: 1.5;
+}
+.transit-spot-meta b { color: var(--text); font-weight: 600; }
+.transit-spot-house {
+  display: inline-block;
+  padding: 2px 8px;
+  background: rgba(201,169,110,0.14);
+  color: var(--accent);
+  border-radius: 10px;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+/* Planets pane — the full table. MD row has subtle breathing glow. */
+@keyframes transit-md-breath {
+  0%, 100% { box-shadow: inset 3px 0 0 rgba(201,169,110,0.55); }
+  50%      { box-shadow: inset 3px 0 0 rgba(201,169,110,0.9), 0 0 24px rgba(201,169,110,0.1); }
+}
+.transit-table-wrap { overflow-x: auto; border-radius: 10px; border: 0.5px solid var(--border2); }
+.transit-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.transit-table thead tr {
+  background: rgba(255,255,255,0.02);
+  border-bottom: 0.5px solid var(--border2);
+}
+.transit-table th {
+  text-align: left;
+  padding: 9px 10px;
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.transit-table th.center { text-align: center; }
+.transit-table td {
+  padding: 10px 10px;
+  border-bottom: 0.5px solid rgba(255,255,255,0.04);
+  color: var(--text);
+  vertical-align: middle;
+}
+.transit-table tbody tr.row-md {
+  background: rgba(201,169,110,0.08);
+  animation: transit-md-breath 4.6s ease-in-out infinite;
+}
+.transit-table tbody tr.row-ad { background: rgba(201,169,110,0.035); }
+.transit-table tbody tr.row-pad { background: rgba(255,255,255,0.01); }
+.transit-table .planet-cell {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-weight: 500;
+}
+.transit-table .planet-cell .sym { font-size: 15px; color: var(--accent); }
+.transit-table .planet-cell.strong { font-weight: 700; color: var(--accent); }
+.transit-table .planet-cell.medium { font-weight: 600; color: var(--text); }
+.transit-table .retro-mark { color: #f87171; font-size: 10px; }
+.transit-table .stage-badge {
+  margin-left: 6px;
+  font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.transit-table .stage-badge.md  { color: var(--accent); background: rgba(201,169,110,0.22); }
+.transit-table .stage-badge.ad  { color: var(--text);   background: rgba(255,255,255,0.1); }
+.transit-table .stage-badge.pad { color: var(--muted);  background: rgba(255,255,255,0.05); }
+.transit-table .house-pill {
+  display: inline-block;
+  padding: 2px 9px;
+  background: rgba(201,169,110,0.14);
+  color: var(--accent);
+  border-radius: 10px;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.transit-table .over-natal {
+  margin-left: 4px;
+  color: #34d399;
+  font-size: 11px;
+}
+.transit-table .note-cell {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.5;
+  max-width: 240px;
+}
+.transit-table .note-cell .activated {
+  display: inline-block;
+  margin-left: 4px;
+  color: #34d399;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* KP Rule pane — legend card + sutra card + date pill. */
+.transit-kp-stack { display: flex; flex-direction: column; gap: 14px; }
+.transit-kp-legend {
+  padding: 16px 18px;
+  background: var(--card);
+  border: 0.5px solid var(--border2);
+  border-radius: 10px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.transit-kp-legend-title {
+  font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--accent); font-weight: 700;
+}
+.transit-kp-legend-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  font-size: 12px; color: var(--muted);
+  line-height: 1.5;
+}
+.transit-kp-legend-row b { color: var(--text); font-weight: 600; }
+.transit-kp-legend-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.transit-kp-legend-badge.md  { color: var(--accent); background: rgba(201,169,110,0.22); }
+.transit-kp-legend-badge.ad  { color: var(--text);   background: rgba(255,255,255,0.1); }
+.transit-kp-legend-badge.pad { color: var(--muted);  background: rgba(255,255,255,0.05); }
+
+.transit-kp-sutra {
+  padding: 16px 18px;
+  background: linear-gradient(135deg, rgba(201,169,110,0.05), rgba(201,169,110,0.01));
+  border: 0.5px solid rgba(201,169,110,0.22);
+  border-radius: 10px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.transit-kp-sutra-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 16px; color: var(--accent);
+  letter-spacing: -0.005em;
+}
+.transit-kp-sutra-body {
+  font-size: 12px; color: var(--text);
+  line-height: 1.7;
+}
+.transit-kp-sutra-date {
+  margin-top: 6px;
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px;
+  background: var(--card);
+  border: 0.5px solid var(--border2);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 11px; font-weight: 500;
+  align-self: flex-start;
+}
+
+/* Empty / loading states. */
+.transit-empty {
+  padding: 30px 20px;
+  text-align: center;
+  background: var(--card);
+  border: 0.5px dashed var(--border2);
+  border-radius: 10px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
+.transit-empty-icon {
+  width: 46px; height: 46px;
+  border-radius: 10px;
+  background: rgba(201,169,110,0.08);
+  color: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+}
+.transit-empty-title {
+  font-size: 14px; font-weight: 600; color: var(--text);
+}
+.transit-empty-sub {
+  font-size: 12px; color: var(--muted);
+  max-width: 340px;
+  line-height: 1.5;
+}
+.transit-loading {
+  padding: 36px 0;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  color: var(--muted); font-size: 13px;
+}
+
+@media (max-width: 720px) {
+  .transit-controls { grid-template-columns: 1fr 1fr; }
+  .transit-controls-period { grid-column: 1 / -1; }
+  .transit-spotlight-grid { grid-template-columns: 1fr; }
+  .transit-hero-title { font-size: 24px; }
+  .transit-subtab-pill { padding: 6px 12px; font-size: 11px; }
+  .transit-toggle-title { font-size: 16px; }
+  .transit-table th, .transit-table td { padding: 8px 6px; }
+  .transit-table .note-cell { max-width: none; }
+}
 

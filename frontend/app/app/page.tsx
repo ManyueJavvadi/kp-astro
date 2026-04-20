@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import remarkGfm from "remark-gfm";
 import axios from "axios";
-import { ArrowRight, Loader2, CheckCircle, XCircle, MessageCircle, MapPin, ChevronLeft, ChevronRight, Sparkles, User, Clock, Globe2, Target, LayoutGrid, Home as HomeIcon, Hourglass, MessageSquare, Calendar, Heart, HelpCircle, Moon, Star, Sunrise, Sunset, MoonStar, Crown, TriangleAlert, Ban, CircleDashed, Sun, Briefcase, Plane, BookOpen, Stethoscope, Wallet, Car, HandHeart, Lock, Wand2, Dices, CheckCircle2, HeartPulse, Baby, Scale, Globe } from "lucide-react";
+import { ArrowRight, Loader2, CheckCircle, XCircle, MessageCircle, MapPin, ChevronLeft, ChevronRight, Sparkles, User, Clock, Globe2, Target, LayoutGrid, Home as HomeIcon, Hourglass, MessageSquare, Calendar, Heart, HelpCircle, Moon, Star, Sunrise, Sunset, MoonStar, Crown, TriangleAlert, Ban, CircleDashed, Sun, Briefcase, Plane, BookOpen, Stethoscope, Wallet, Car, HandHeart, Lock, Wand2, Dices, CheckCircle2, HeartPulse, Baby, Scale, Globe, TrendingUp, ChevronDown, RefreshCw, Compass, Orbit } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { PLANET_COLORS } from "./components/constants";
 import { ContentCard } from "@/components/ui/content-card";
@@ -120,6 +120,7 @@ export default function Home() {
   const [housesSubTab, setHousesSubTab] = useState<"overview"|"cusps"|"sigs"|"ruling"|"panchang">("overview");
   const [chartView, setChartView] = useState<"chart"|"planets">("chart");
   const [showTransitInDasha, setShowTransitInDasha] = useState(false);
+  const [transitSubTab, setTransitSubTab] = useState<"overview" | "planets" | "kp">("overview");
   // Quick insights
   const [quickInsights, setQuickInsights] = useState<Record<string, string>>({});
   // Panchangam — auto-detect location, single page
@@ -2137,84 +2138,362 @@ export default function Home() {
                     </div>
                   )}
 
-                  {/* Collapsible Transit Section */}
-                  <div style={{ marginTop: 20, borderTop: "0.5px solid var(--border)", paddingTop: 16 }}>
-                    <button onClick={() => {
-                      const next = !showTransitInDasha;
-                      setShowTransitInDasha(next);
-                      if (next && workspaceData && !transitData && !transitLoading) {
-                        setTransitLoading(true);
-                        axios.post(`${API_URL}/transit/analyze`, {
-                          natal: workspaceData, transit_date: undefined,
-                          latitude: workspaceData.latitude || 17.385,
-                          longitude: workspaceData.longitude || 78.4867,
-                          timezone_offset: timezoneOffset,
-                        }).then(res => { setTransitData(res.data); setTransitLoading(false); })
-                          .catch(() => setTransitLoading(false));
-                      }
-                    }}
-                      style={{ display: "flex", alignItems: "center", gap: 8, background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 12, fontFamily: "inherit", padding: 0, marginBottom: showTransitInDasha ? 12 : 0 }}>
-                      <span style={{ fontSize: 14 }}>🌍</span>
-                      <span>ప్రస్తుత గోచారం</span>
-                      <span style={{ marginLeft: 4, fontSize: 10 }}>{showTransitInDasha ? "▲" : "▼"}</span>
+                  {/* ────────────────────────────────────────────────
+                       TRANSIT (Gochar) — PR18 wow-pass.
+                       Collapsible section inside Dasha. Premium toggle
+                       card, serif gochar hero, 3 MD/AD/PAD spotlight
+                       cards, polished planets table with breathing
+                       dasha-lord row, KP rule card. Full i18n.
+                       ──────────────────────────────────────────────── */}
+                  <div className="transit-section">
+                    <button
+                      className={`transit-toggle${showTransitInDasha ? " is-open" : ""}`}
+                      onClick={() => {
+                        const next = !showTransitInDasha;
+                        setShowTransitInDasha(next);
+                        if (next && workspaceData && !transitData && !transitLoading) {
+                          setTransitLoading(true);
+                          axios.post(`${API_URL}/transit/analyze`, {
+                            natal: workspaceData, transit_date: undefined,
+                            latitude: workspaceData.latitude || 17.385,
+                            longitude: workspaceData.longitude || 78.4867,
+                            timezone_offset: timezoneOffset,
+                          }).then(res => { setTransitData(res.data); setTransitLoading(false); })
+                            .catch(() => setTransitLoading(false));
+                        }
+                      }}
+                    >
+                      <span className="transit-toggle-icon"><Orbit size={20} strokeWidth={1.6} /></span>
+                      <span className="transit-toggle-body">
+                        <span className="transit-toggle-eyebrow">{t("Gochar · Current Sky", "గోచారం · ప్రస్తుత ఆకాశం")}</span>
+                        <span className="transit-toggle-title">{t("Today's transits", "నేటి గోచారాలు")}</span>
+                        <span className="transit-toggle-sub">
+                          {t(
+                            "Rank current-sky planets against your dasha — flag Sade Sati.",
+                            "ప్రస్తుత గ్రహాలను మీ దశతో పోల్చి చూపుతుంది — సాడేసాతి హెచ్చరిక."
+                          )}
+                        </span>
+                      </span>
+                      <span className="transit-toggle-chevron"><ChevronDown size={16} strokeWidth={2} /></span>
                     </button>
+
                     {showTransitInDasha && (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                          <div style={{ fontSize: 13, color: "var(--muted)", flex: 1 }}>
-                            ప్రస్తుత దశ: <span style={{ color: "var(--accent)" }}>{workspaceData.mahadasha?.lord_te}</span> / <span style={{ color: "var(--text)" }}>{workspaceData.current_antardasha?.lord_te}</span>
+                      <div className="transit-body">
+                        {/* Controls row: current period chips + date input + refresh */}
+                        <div className="transit-controls">
+                          <div className="transit-controls-period">
+                            <div className="transit-controls-eyebrow">{t("Your current period", "మీ ప్రస్తుత దశ")}</div>
+                            <div className="transit-controls-period-row">
+                              {workspaceData.mahadasha && (
+                                <span className="transit-period-chip md">
+                                  <span className="stage">MD</span>
+                                  <span>{lang === "en" ? workspaceData.mahadasha.lord_en : (workspaceData.mahadasha.lord_te || workspaceData.mahadasha.lord_en)}</span>
+                                </span>
+                              )}
+                              {workspaceData.current_antardasha && (
+                                <span className="transit-period-chip ad">
+                                  <span className="stage">AD</span>
+                                  <span>{lang === "en" ? workspaceData.current_antardasha.lord_en : (workspaceData.current_antardasha.lord_te || workspaceData.current_antardasha.lord_en)}</span>
+                                </span>
+                              )}
+                              {workspaceData.current_pratyantardasha && (
+                                <span className="transit-period-chip pad">
+                                  <span className="stage">PAD</span>
+                                  <span>{lang === "en" ? workspaceData.current_pratyantardasha.lord_en : (workspaceData.current_pratyantardasha.lord_te || workspaceData.current_pratyantardasha.lord_en)}</span>
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <input type="date" value={transitDate} onChange={e => setTransitDate(e.target.value)}
-                            style={{ padding: "5px 10px", background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 6, color: "var(--text)", fontSize: 12, fontFamily: "inherit" }} />
-                          <button onClick={async () => {
-                            if (!workspaceData) return;
-                            setTransitLoading(true);
-                            try {
-                              const res = await axios.post(`${API_URL}/transit/analyze`, { natal: workspaceData, transit_date: transitDate || undefined, latitude: workspaceData.latitude || 17.385, longitude: workspaceData.longitude || 78.4867, timezone_offset: timezoneOffset });
-                              setTransitData(res.data);
-                            } catch { setTransitData(null); }
-                            setTransitLoading(false);
-                          }}
-                            style={{ padding: "6px 16px", background: "var(--accent)", border: "none", borderRadius: 6, color: "#000", fontSize: 12, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>
-                            {transitLoading ? "లోడ్..." : "రిఫ్రెష్"}
+                          <input
+                            type="date"
+                            className="transit-date-input"
+                            value={transitDate}
+                            onChange={e => setTransitDate(e.target.value)}
+                            aria-label={t("Transit date", "గోచార తేదీ")}
+                          />
+                          <button
+                            className="transit-refresh-btn"
+                            disabled={transitLoading}
+                            onClick={async () => {
+                              if (!workspaceData) return;
+                              setTransitLoading(true);
+                              try {
+                                const res = await axios.post(`${API_URL}/transit/analyze`, {
+                                  natal: workspaceData,
+                                  transit_date: transitDate || undefined,
+                                  latitude: workspaceData.latitude || 17.385,
+                                  longitude: workspaceData.longitude || 78.4867,
+                                  timezone_offset: timezoneOffset,
+                                });
+                                setTransitData(res.data);
+                              } catch { setTransitData(null); }
+                              setTransitLoading(false);
+                            }}
+                          >
+                            {transitLoading
+                              ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} />
+                              : <RefreshCw size={13} strokeWidth={2} />}
+                            {transitLoading ? t("Loading…", "లోడ్...") : t("Refresh", "రిఫ్రెష్")}
                           </button>
                         </div>
-                        {transitLoading && <div style={{ textAlign: "center", padding: "1rem", color: "var(--muted)", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />లోడ్ అవుతోంది...</div>}
+
+                        {/* Sade Sati hero (only when active) */}
                         {transitData?.sade_sati?.active && (
-                          <div style={{ padding: "10px 14px", background: "rgba(251,191,36,0.08)", border: "0.5px solid rgba(251,191,36,0.3)", borderRadius: 8, fontSize: 12 }}>
-                            <span style={{ color: "#fbbf24", fontWeight: 600 }}>⚠ సాడేసాతి అక్టివ్</span>
-                            <span style={{ color: "var(--muted)", marginLeft: 8 }}>{transitData.sade_sati.phase}</span>
+                          <div className="transit-sade-hero">
+                            <span className="transit-sade-icon"><TriangleAlert size={22} strokeWidth={1.8} /></span>
+                            <div className="transit-sade-body">
+                              <div className="transit-sade-eyebrow">{t("Alert · Sade Sati active", "హెచ్చరిక · సాడేసాతి")}</div>
+                              <div className="transit-sade-title">{transitData.sade_sati.phase}</div>
+                              <div className="transit-sade-meta">
+                                {t("Natal Moon sign", "చంద్ర రాశి")}: <b>{transitData.sade_sati.natal_moon_sign}</b>
+                                {" · "}
+                                {t("Saturn transiting", "శని ప్రస్తుతం")}: <b>{transitData.sade_sati.saturn_in}</b>
+                              </div>
+                            </div>
                           </div>
                         )}
-                        {transitData?.transits && (
-                          <div style={{ overflowX: "auto" }}>
-                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                              <thead><tr style={{ borderBottom: "0.5px solid var(--border2)", color: "var(--muted)" }}>
-                                {["గ్రహం","రాశి","నక్షత్రం","స్టార్‌లార్డ్","సబ్‌లార్డ్","భావం","వివరణ"].map(h => <th key={h} style={{ textAlign: "left", padding: "6px 8px", fontWeight: 500 }}>{h}</th>)}
-                              </tr></thead>
-                              <tbody>
-                                {transitData.transits.map((t: any) => {
-                                  const isDasha = t.is_dasha_lord; const isBhukti = t.is_bhukti_lord;
+
+                        {/* Loading state */}
+                        {transitLoading && (
+                          <div className="transit-loading">
+                            <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
+                            {t("Scanning the current sky…", "ప్రస్తుత ఆకాశం చదువుతోంది...")}
+                          </div>
+                        )}
+
+                        {/* Empty state */}
+                        {!transitLoading && !transitData && (
+                          <div className="transit-empty">
+                            <span className="transit-empty-icon"><Compass size={22} strokeWidth={1.6} /></span>
+                            <div className="transit-empty-title">{t("No transit data yet", "గోచార డేటా ఇంకా లేదు")}</div>
+                            <div className="transit-empty-sub">
+                              {t(
+                                "Pick a date and press Refresh to see today's sky against your chart.",
+                                "తేదీ ఎంచుకుని రిఫ్రెష్ నొక్కండి — మీ చార్ట్‌తో పోల్చి చూపుతుంది."
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Sub-tabs + panes — only when we have data */}
+                        {!transitLoading && transitData?.transits && (() => {
+                          const mdLord = transitData.current_period?.dasha_lord;
+                          const adLord = transitData.current_period?.bhukti_lord;
+                          const padLord = transitData.current_period?.antara_lord;
+                          const mdT = transitData.transits.find((x: any) => x.planet === mdLord);
+                          const adT = transitData.transits.find((x: any) => x.planet === adLord);
+                          const padT = transitData.transits.find((x: any) => x.planet === padLord);
+                          const planetCount = transitData.transits.length;
+
+                          return (
+                            <>
+                              <div className="transit-subtab-bar">
+                                {(["overview", "planets", "kp"] as const).map(key => {
+                                  const labels = {
+                                    overview: { en: "Overview", te: "అవలోకనం" },
+                                    planets:  { en: "Planets",  te: "గ్రహాలు"   },
+                                    kp:       { en: "KP Rule",  te: "KP సూత్రం" },
+                                  };
+                                  const active = transitSubTab === key;
                                   return (
-                                    <tr key={t.planet} style={{ borderBottom: "0.5px solid rgba(255,255,255,0.05)", background: isDasha ? "rgba(201,169,110,0.12)" : isBhukti ? "rgba(201,169,110,0.06)" : "transparent" }}>
-                                      <td style={{ padding: "7px 8px", color: isDasha ? "var(--accent)" : isBhukti ? "var(--text)" : "var(--muted)", fontWeight: isDasha || isBhukti ? 600 : 400 }}>
-                                        {t.symbol} {t.planet}{t.retrograde && <span style={{ color: "#f87171", fontSize: 10, marginLeft: 4 }}>℞</span>}
-                                        {isDasha && <span style={{ marginLeft: 5, fontSize: 9, color: "var(--accent)", background: "rgba(201,169,110,0.2)", padding: "1px 5px", borderRadius: 4 }}>MD</span>}
-                                        {isBhukti && !isDasha && <span style={{ marginLeft: 5, fontSize: 9, color: "var(--text)", background: "rgba(255,255,255,0.08)", padding: "1px 5px", borderRadius: 4 }}>AD</span>}
-                                      </td>
-                                      <td style={{ padding: "7px 8px", color: "var(--text)" }}>{t.sign}</td>
-                                      <td style={{ padding: "7px 8px", color: "var(--muted)" }}>{t.nakshatra}</td>
-                                      <td style={{ padding: "7px 8px", color: "var(--text)" }}>{t.star_lord}</td>
-                                      <td style={{ padding: "7px 8px", color: "var(--text)" }}>{t.sub_lord}</td>
-                                      <td style={{ padding: "7px 8px", textAlign: "center" }}><span style={{ display: "inline-block", padding: "2px 8px", background: "rgba(201,169,110,0.15)", borderRadius: 10, color: "var(--accent)", fontSize: 11, fontWeight: 600 }}>H{t.transit_house}</span></td>
-                                      <td style={{ padding: "7px 8px", color: "var(--muted)", fontSize: 11, maxWidth: 180 }}>{t.note}</td>
-                                    </tr>
+                                    <button
+                                      key={key}
+                                      className={`transit-subtab-pill${active ? " is-active" : ""}`}
+                                      onClick={() => setTransitSubTab(key)}
+                                    >
+                                      <span>{lang === "en" ? labels[key].en : labels[key].te}</span>
+                                      {key === "planets" && <span className="count">{planetCount}</span>}
+                                    </button>
                                   );
                                 })}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
+                              </div>
+
+                              {/* ── Overview pane ── */}
+                              {transitSubTab === "overview" && (
+                                <div className="transit-pane" key="overview">
+                                  <div className="transit-hero">
+                                    <div className="transit-hero-eyebrow">
+                                      <Sparkles size={12} strokeWidth={1.8} />
+                                      {t("Gochar · ", "గోచారం · ")}{transitData.transit_date}
+                                    </div>
+                                    <div className="transit-hero-title">
+                                      {t("How the sky speaks to your chart today", "నేడు ఆకాశం మీ చార్ట్‌తో ఏమి చెబుతోంది")}
+                                    </div>
+                                    <div className="transit-hero-sub">
+                                      {t(
+                                        "KP Gochar rule: only the Dasha and Bhukti lords deliver strong results. A transit sub-lord aligned with the relevant houses confirms timing.",
+                                        "KP గోచార సూత్రం: దశాధిపతి మరియు అంతర్దశాధిపతి గ్రహాలు మాత్రమే బలమైన ఫలితాన్ని ఇస్తాయి. ట్రాన్‌జిట్ సబ్‌లార్డ్ సంబంధిత భావాలను సూచిస్తే — ఆ సమయం నిర్ధారణ."
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {(mdT || adT || padT) && (
+                                    <div className="transit-spotlight-grid">
+                                      {mdT && (
+                                        <div className="transit-spotlight is-md">
+                                          <div className="transit-spot-stage">{t("Mahadasha lord", "మహాదశ నాథుడు")}</div>
+                                          <div className="transit-spot-planet">
+                                            <span className="sym">{mdT.symbol}</span>
+                                            <span>{mdT.planet}</span>
+                                            {mdT.retrograde && <span className="transit-spot-retro">℞</span>}
+                                          </div>
+                                          <div className="transit-spot-meta">
+                                            <b>{mdT.sign}</b> · {mdT.nakshatra}
+                                          </div>
+                                          <div><span className="transit-spot-house">{t("House", "భావం")} {mdT.transit_house}</span></div>
+                                        </div>
+                                      )}
+                                      {adT && (
+                                        <div className="transit-spotlight">
+                                          <div className="transit-spot-stage">{t("Antardasha lord", "అంతర్దశ నాథుడు")}</div>
+                                          <div className="transit-spot-planet">
+                                            <span className="sym">{adT.symbol}</span>
+                                            <span>{adT.planet}</span>
+                                            {adT.retrograde && <span className="transit-spot-retro">℞</span>}
+                                          </div>
+                                          <div className="transit-spot-meta">
+                                            <b>{adT.sign}</b> · {adT.nakshatra}
+                                          </div>
+                                          <div><span className="transit-spot-house">{t("House", "భావం")} {adT.transit_house}</span></div>
+                                        </div>
+                                      )}
+                                      {padT && (
+                                        <div className="transit-spotlight">
+                                          <div className="transit-spot-stage">{t("Pratyantardasha lord", "ప్రత్యంతర్దశ నాథుడు")}</div>
+                                          <div className="transit-spot-planet">
+                                            <span className="sym">{padT.symbol}</span>
+                                            <span>{padT.planet}</span>
+                                            {padT.retrograde && <span className="transit-spot-retro">℞</span>}
+                                          </div>
+                                          <div className="transit-spot-meta">
+                                            <b>{padT.sign}</b> · {padT.nakshatra}
+                                          </div>
+                                          <div><span className="transit-spot-house">{t("House", "భావం")} {padT.transit_house}</span></div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* ── Planets pane ── */}
+                              {transitSubTab === "planets" && (
+                                <div className="transit-pane" key="planets">
+                                  <div className="transit-table-wrap">
+                                    <table className="transit-table">
+                                      <thead>
+                                        <tr>
+                                          <th>{t("Planet", "గ్రహం")}</th>
+                                          <th>{t("Sign", "రాశి")}</th>
+                                          <th>{t("Nakshatra", "నక్షత్రం")}</th>
+                                          <th>{t("Star lord", "స్టార్ లార్డ్")}</th>
+                                          <th>{t("Sub lord", "సబ్ లార్డ్")}</th>
+                                          <th className="center">{t("House", "భావం")}</th>
+                                          <th>{t("Note", "వివరణ")}</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {transitData.transits.map((tr: any) => {
+                                          const isDasha  = tr.is_dasha_lord;
+                                          const isBhukti = tr.is_bhukti_lord;
+                                          const isAntara = tr.is_antara_lord;
+                                          const rowClass = isDasha ? "row-md" : isBhukti ? "row-ad" : isAntara ? "row-pad" : "";
+                                          const cellClass = isDasha ? "planet-cell strong" : isBhukti ? "planet-cell medium" : "planet-cell";
+                                          return (
+                                            <tr key={tr.planet} className={rowClass}>
+                                              <td>
+                                                <span className={cellClass}>
+                                                  <span className="sym">{tr.symbol}</span>
+                                                  <span>{tr.planet}</span>
+                                                  {tr.retrograde && <span className="retro-mark">℞</span>}
+                                                  {isDasha  && <span className="stage-badge md">MD</span>}
+                                                  {isBhukti && !isDasha  && <span className="stage-badge ad">AD</span>}
+                                                  {isAntara && !isDasha && !isBhukti && <span className="stage-badge pad">PAD</span>}
+                                                </span>
+                                              </td>
+                                              <td>{tr.sign}</td>
+                                              <td style={{ color: "var(--muted)" }}>{tr.nakshatra}</td>
+                                              <td>{tr.star_lord}</td>
+                                              <td>{tr.sub_lord}</td>
+                                              <td style={{ textAlign: "center" }}>
+                                                <span className="house-pill">H{tr.transit_house}</span>
+                                                {tr.over_natal_position && (
+                                                  <span className="over-natal" title={t("Transiting over natal position", "జన్మస్థానం మీద గోచారం")}>●</span>
+                                                )}
+                                              </td>
+                                              <td className="note-cell">
+                                                {tr.note}
+                                                {tr.natal_houses_activated?.length > 0 && (
+                                                  <span className="activated">
+                                                    ({t("Natal H", "జన్మ H")}{tr.natal_houses_activated.join("/")})
+                                                  </span>
+                                                )}
+                                              </td>
+                                            </tr>
+                                          );
+                                        })}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* ── KP Rule pane ── */}
+                              {transitSubTab === "kp" && (
+                                <div className="transit-pane" key="kp">
+                                  <div className="transit-kp-stack">
+                                    <div className="transit-kp-legend">
+                                      <div className="transit-kp-legend-title">{t("Stage badges", "దశ బ్యాడ్జ్‌లు")}</div>
+                                      <div className="transit-kp-legend-row">
+                                        <span className="transit-kp-legend-badge md">MD</span>
+                                        <span>
+                                          <b>{t("Mahadasha lord", "మహాదశ నాథుడు")}</b> — {t(
+                                            "The planet ruling the current major period. Transits of this planet are strong and primary.",
+                                            "ప్రస్తుత ప్రధాన దశను శాసించే గ్రహం. దీని గోచారం బలమైనది మరియు ప్రధానమైనది."
+                                          )}
+                                        </span>
+                                      </div>
+                                      <div className="transit-kp-legend-row">
+                                        <span className="transit-kp-legend-badge ad">AD</span>
+                                        <span>
+                                          <b>{t("Antardasha lord", "అంతర్దశ నాథుడు")}</b> — {t(
+                                            "The sub-period lord. Transits of this planet confirm or trigger MD promises.",
+                                            "ఉప-దశ నాథుడు. దీని గోచారం మహాదశ వాగ్దానాలను నిర్ధారిస్తుంది లేదా ప్రేరేపిస్తుంది."
+                                          )}
+                                        </span>
+                                      </div>
+                                      <div className="transit-kp-legend-row">
+                                        <span className="transit-kp-legend-badge pad">PAD</span>
+                                        <span>
+                                          <b>{t("Pratyantardasha lord", "ప్రత్యంతర్దశ నాథుడు")}</b> — {t(
+                                            "The fine-grained sub-sub-period lord. Supplies precise day-level timing.",
+                                            "సూక్ష్మ ఉప-ఉప-దశ నాథుడు. ఖచ్చితమైన రోజు-స్థాయి సమయాన్ని ఇస్తుంది."
+                                          )}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    <div className="transit-kp-sutra">
+                                      <div className="transit-kp-sutra-title">
+                                        {t("KP Gochar Sutra", "KP గోచార సూత్రం")}
+                                      </div>
+                                      <div className="transit-kp-sutra-body">
+                                        {t(
+                                          "Only the Dasha lord and Antardasha lord give prominent results. If the transit planet's sub-lord also signifies the matching natal houses — the event manifests.",
+                                          "దశాధిపతి మరియు అంతర్దశాధిపతి గ్రహాలు మాత్రమే ప్రస్తుతం ఎక్కువ ఫలితాన్ని ఇస్తాయి. ట్రాన్‌జిట్ సబ్‌లార్డ్ కూడా సంబంధిత భావాలను సూచిస్తే — ఆ ఫలితం నిర్ధారణ."
+                                        )}
+                                      </div>
+                                      <span className="transit-kp-sutra-date">
+                                        <Calendar size={11} strokeWidth={2} />
+                                        {t("Date", "తేదీ")}: {transitData.transit_date}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
                     )}
                   </div>
@@ -4742,149 +5021,6 @@ export default function Home() {
                 </div>
                 );
               })()}
-
-              {/* TRANSIT — now inside Dasha tab, this block intentionally removed */}
-              {false && (
-                <div className="tab-content">
-                  {!workspaceData ? (
-                    <div style={{ textAlign: "center", padding: "2rem", color: "var(--muted)", fontSize: 13 }}>
-                      పహ్లగా చార్ట్ లోడ్ చేయండి — సెటప్ కార్డ్‌లో వివరాలు నమోదు చేయండి.
-                    </div>
-                  ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                      {/* Header row */}
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                        <div style={{ fontSize: 13, color: "var(--muted)", flex: 1 }}>
-                          ప్రస్తుత దశ: <span style={{ color: "var(--accent)" }}>{workspaceData.mahadasha?.lord_te || workspaceData.mahadasha?.lord_en || "—"}</span> / <span style={{ color: "var(--fg)" }}>{workspaceData.current_antardasha?.lord_te || workspaceData.current_antardasha?.lord_en || "—"}</span> / <span style={{ color: "var(--muted)" }}>{workspaceData.current_pratyantardasha?.lord_te || workspaceData.current_pratyantardasha?.lord_en || "—"}</span>
-                        </div>
-                        <input
-                          type="date"
-                          value={transitDate}
-                          onChange={e => setTransitDate(e.target.value)}
-                          style={{ padding: "5px 10px", background: "var(--card)", border: "0.5px solid var(--border2)", borderRadius: 6, color: "var(--fg)", fontSize: 12, fontFamily: "inherit" }}
-                        />
-                        <button
-                          onClick={async () => {
-                            if (!workspaceData) return;
-                            setTransitLoading(true);
-                            try {
-                              const res = await axios.post(`${API_URL}/transit/analyze`, {
-                                natal: workspaceData,
-                                transit_date: transitDate || undefined,
-                                latitude: workspaceData.latitude || 17.385,
-                                longitude: workspaceData.longitude || 78.4867,
-                                timezone_offset: timezoneOffset,
-                              });
-                              setTransitData(res.data);
-                            } catch { setTransitData(null); }
-                            setTransitLoading(false);
-                          }}
-                          style={{ padding: "6px 16px", background: "var(--accent)", border: "none", borderRadius: 6, color: "#000", fontSize: 12, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}
-                        >
-                          {transitLoading ? "లోడ్..." : "గోచారం చూడు"}
-                        </button>
-                      </div>
-
-                      {/* Auto-load on first visit */}
-                      {!transitData && !transitLoading && (
-                        <div style={{ textAlign: "center", padding: "1rem", color: "var(--muted)", fontSize: 12 }}>
-                          పై బటన్ నొక్కి నేటి గోచారం చూడండి.
-                        </div>
-                      )}
-
-                      {/* Sade Sati Warning */}
-                      {transitData?.sade_sati?.active && (
-                        <div style={{ padding: "10px 14px", background: "rgba(251,191,36,0.08)", border: "0.5px solid rgba(251,191,36,0.3)", borderRadius: 8, fontSize: 12 }}>
-                          <span style={{ color: "#fbbf24", fontWeight: 600 }}>⚠ సాడేసాతి అక్టివ్</span>
-                          <span style={{ color: "var(--muted)", marginLeft: 8 }}>
-                            {transitData.sade_sati.phase} — చంద్ర రాశి: {transitData.sade_sati.natal_moon_sign}, శని ప్రస్తుత రాశి: {transitData.sade_sati.saturn_in}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Transit table */}
-                      {transitData?.transits && (
-                        <div style={{ overflowX: "auto" }}>
-                          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                            <thead>
-                              <tr style={{ borderBottom: "0.5px solid var(--border2)", color: "var(--muted)" }}>
-                                <th style={{ textAlign: "left", padding: "6px 8px", fontWeight: 500 }}>గ్రహం</th>
-                                <th style={{ textAlign: "left", padding: "6px 8px", fontWeight: 500 }}>రాశి</th>
-                                <th style={{ textAlign: "left", padding: "6px 8px", fontWeight: 500 }}>నక్షత్రం</th>
-                                <th style={{ textAlign: "left", padding: "6px 8px", fontWeight: 500 }}>స్టార్‌లార్డ్</th>
-                                <th style={{ textAlign: "left", padding: "6px 8px", fontWeight: 500 }}>సబ్‌లార్డ్</th>
-                                <th style={{ textAlign: "center", padding: "6px 8px", fontWeight: 500 }}>భావం</th>
-                                <th style={{ textAlign: "left", padding: "6px 8px", fontWeight: 500 }}>వివరణ</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {transitData.transits.map((t: any) => {
-                                const isDasha = t.is_dasha_lord;
-                                const isBhukti = t.is_bhukti_lord;
-                                const isAntara = t.is_antara_lord;
-                                const rowBg = isDasha
-                                  ? "rgba(201,169,110,0.12)"
-                                  : isBhukti
-                                  ? "rgba(201,169,110,0.06)"
-                                  : "transparent";
-                                const nameColor = isDasha
-                                  ? "var(--accent)"
-                                  : isBhukti
-                                  ? "var(--fg)"
-                                  : "var(--muted)";
-                                return (
-                                  <tr key={t.planet} style={{ borderBottom: "0.5px solid rgba(255,255,255,0.05)", background: rowBg }}>
-                                    <td style={{ padding: "7px 8px", color: nameColor, fontWeight: isDasha || isBhukti ? 600 : 400 }}>
-                                      {t.symbol} {t.planet}
-                                      {t.retrograde && <span style={{ color: "#f87171", fontSize: 10, marginLeft: 4 }}>℞</span>}
-                                      {isDasha && <span style={{ marginLeft: 5, fontSize: 9, color: "var(--accent)", background: "rgba(201,169,110,0.2)", padding: "1px 5px", borderRadius: 4 }}>MD</span>}
-                                      {isBhukti && !isDasha && <span style={{ marginLeft: 5, fontSize: 9, color: "var(--fg)", background: "rgba(255,255,255,0.08)", padding: "1px 5px", borderRadius: 4 }}>AD</span>}
-                                      {isAntara && !isDasha && !isBhukti && <span style={{ marginLeft: 5, fontSize: 9, color: "var(--muted)", background: "rgba(255,255,255,0.04)", padding: "1px 5px", borderRadius: 4 }}>PAD</span>}
-                                    </td>
-                                    <td style={{ padding: "7px 8px", color: "var(--fg)" }}>{t.sign}</td>
-                                    <td style={{ padding: "7px 8px", color: "var(--muted)" }}>{t.nakshatra}</td>
-                                    <td style={{ padding: "7px 8px", color: "var(--fg)" }}>{t.star_lord}</td>
-                                    <td style={{ padding: "7px 8px", color: "var(--fg)" }}>{t.sub_lord}</td>
-                                    <td style={{ padding: "7px 8px", textAlign: "center" }}>
-                                      <span style={{ display: "inline-block", padding: "2px 8px", background: "rgba(201,169,110,0.15)", borderRadius: 10, color: "var(--accent)", fontSize: 11, fontWeight: 600 }}>
-                                        H{t.transit_house}
-                                      </span>
-                                      {t.over_natal_position && (
-                                        <span style={{ marginLeft: 4, fontSize: 9, color: "#34d399" }} title="Transiting over natal position">●</span>
-                                      )}
-                                    </td>
-                                    <td style={{ padding: "7px 8px", color: "var(--muted)", fontSize: 11, maxWidth: 200 }}>
-                                      {t.note}
-                                      {t.natal_houses_activated?.length > 0 && (
-                                        <span style={{ color: "#34d399", marginLeft: 4 }}>
-                                          (నాటల్ H{t.natal_houses_activated.join("/")})
-                                        </span>
-                                      )}
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-
-                      {/* KP interpretation summary */}
-                      {transitData?.transits && (
-                        <div style={{ padding: "10px 14px", background: "var(--card)", border: "0.5px solid var(--border2)", borderRadius: 8, fontSize: 12, color: "var(--muted)", lineHeight: 1.7 }}>
-                          <div style={{ color: "var(--accent)", fontWeight: 600, marginBottom: 6 }}>KP గోచార సూత్రం</div>
-                          దశాధిపతి & అంతర్దశాధిపతి గ్రహాలు మాత్రమే ప్రస్తుతం ఎక్కువ ఫలితాన్నిస్తాయి.
-                          ట్రాన్‌జిట్ సబ్‌లార్డ్ కూడా సంబంధిత భావాలను సూచిస్తే — ఆ ఫలితం నిర్ధారణ.
-                          <br />
-                          <span style={{ color: "var(--fg)", fontSize: 11 }}>
-                            ప్రస్తుత తేదీ: {transitData.transit_date}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* KP HORARY / PRASHNA */}
               {activeTab === "horary" && (
