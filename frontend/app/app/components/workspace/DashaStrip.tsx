@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import { PLANET_COLORS } from "../constants";
+import { useLanguage } from "@/lib/i18n";
 
 // Backend may use lord_en instead of lord; support both
 interface DashaLike {
@@ -24,7 +25,13 @@ interface DashaStripProps {
 }
 
 function getLord(d: DashaLike): string {
+  // English key — used for palette/tooltip lookups. Always en.
   return d.lord ?? d.lord_en ?? "?";
+}
+function getLordLabel(d: DashaLike, lang: string): string {
+  // Display label — respects language preference.
+  if (lang === "en") return d.lord_en ?? d.lord ?? "?";
+  return d.lord_te ?? d.lord_en ?? d.lord ?? "?";
 }
 
 function parseYear(dateStr?: string): number {
@@ -47,6 +54,7 @@ export default function DashaStrip({
   dashas, currentDasha, antardashas, currentAntardasha,
   pratyantardashas, currentPratyantardasha,
 }: DashaStripProps) {
+  const { lang, t } = useLanguage();
   const [hovered, setHovered] = useState<string | null>(null);
 
   if (!dashas || dashas.length === 0) return null;
@@ -58,7 +66,7 @@ export default function DashaStrip({
     <div style={{ marginBottom: 20 }}>
       {/* MD Strip header */}
       <div style={{ fontSize: 11, color: "#888899", marginBottom: 8, letterSpacing: "0.05em", textTransform: "uppercase" }}>
-        Mahadasha Timeline
+        {t("Mahadasha Timeline", "మహాదశ కాలక్రమం")}
       </div>
 
       {/* Visual strip */}
@@ -125,8 +133,8 @@ export default function DashaStrip({
                   boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
                   zIndex: 50,
                 }}>
-                  <span style={{ color, fontWeight: 600 }}>{lord}</span>
-                  {" "}MD · {formatDateShort(d.start)} – {formatDateShort(d.end)}
+                  <span style={{ color, fontWeight: 600 }}>{getLordLabel(d, lang)}</span>
+                  {" "}{t("MD", "మహా")} · {formatDateShort(d.start)} – {formatDateShort(d.end)}
                 </div>
               )}
             </div>
@@ -144,16 +152,16 @@ export default function DashaStrip({
           padding: "12px 14px",
         }}>
           <div style={{ fontSize: 10, color: "#888899", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>
-            Current Period
+            {t("Current Period", "ప్రస్తుత కాలం")}
           </div>
 
           {/* MD row */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
             <span style={{ fontSize: 12, color: "#666677" }}>┌─</span>
             <span style={{ color: PLANET_COLORS[getLord(currentDasha)] ?? "#c9a96e", fontWeight: 600, fontSize: 13 }}>
-              {getLord(currentDasha)}
+              {getLordLabel(currentDasha, lang)}
             </span>
-            <span style={{ fontSize: 11, color: "#555566" }}>Mahadasha</span>
+            <span style={{ fontSize: 11, color: "#555566" }}>{t("Mahadasha", "మహాదశ")}</span>
             <span style={{ fontSize: 10, color: "#444455" }}>
               {formatDateShort(currentDasha.start)} – {formatDateShort(currentDasha.end)}
             </span>
@@ -164,9 +172,9 @@ export default function DashaStrip({
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, paddingLeft: 14 }}>
               <span style={{ fontSize: 12, color: "#555566" }}>└─</span>
               <span style={{ color: PLANET_COLORS[getLord(currentAntardasha)] ?? "#c9a96e", fontWeight: 600, fontSize: 12 }}>
-                {getLord(currentAntardasha)}
+                {getLordLabel(currentAntardasha, lang)}
               </span>
-              <span style={{ fontSize: 11, color: "#555566" }}>Antardasha</span>
+              <span style={{ fontSize: 11, color: "#555566" }}>{t("Antardasha", "అంతర్దశ")}</span>
               <span style={{ fontSize: 10, color: "#444455" }}>
                 {formatDateShort(currentAntardasha.start)} – {formatDateShort(currentAntardasha.end)}
               </span>
@@ -194,15 +202,15 @@ export default function DashaStrip({
                   >
                     <span style={{ fontSize: 11, color: "#444455" }}>└─</span>
                     <span style={{ color: isCurrPAD ? padColor : "#888899", fontWeight: isCurrPAD ? 600 : 400, fontSize: 11 }}>
-                      {padLord}
+                      {getLordLabel(pad, lang)}
                     </span>
-                    <span style={{ fontSize: 10, color: "#444455" }}>PAD</span>
+                    <span style={{ fontSize: 10, color: "#444455" }}>{t("PAD", "ప్రత్య")}</span>
                     <span style={{ fontSize: 9, color: "#333344" }}>
                       {pad.start?.slice(0, 7)} – {pad.end?.slice(0, 7)}
                     </span>
                     {isCurrPAD && (
                       <span style={{ fontSize: 9, fontWeight: 700, color: padColor, marginLeft: 4 }}>
-                        ◀ NOW
+                        ◀ {t("NOW", "ప్రస్తుతం")}
                       </span>
                     )}
                   </div>
@@ -217,7 +225,10 @@ export default function DashaStrip({
       {antardashas && antardashas.length > 0 && (
         <div style={{ marginTop: 14 }}>
           <div style={{ fontSize: 10, color: "#888899", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
-            All Antardashas in {currentDasha ? getLord(currentDasha) : "?"} MD
+            {t(
+              `All Antardashas in ${currentDasha ? getLordLabel(currentDasha, lang) : "?"} MD`,
+              `${currentDasha ? getLordLabel(currentDasha, lang) : "?"} మహాదశలో అన్ని అంతర్దశలు`
+            )}
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {antardashas.map((ad, i) => {
@@ -238,12 +249,12 @@ export default function DashaStrip({
                   }}
                 >
                   <div style={{ fontSize: 12, fontWeight: 600, color: isCurr ? color : "#b0b0c0" }}>
-                    {adLord}
+                    {getLordLabel(ad, lang)}
                   </div>
                   <div style={{ fontSize: 9, color: "#555566", marginTop: 1 }}>
                     {formatDateShort(ad.start)}–{formatDateShort(ad.end)}
                   </div>
-                  {isCurr && <div style={{ fontSize: 8, color, fontWeight: 700, marginTop: 1 }}>NOW</div>}
+                  {isCurr && <div style={{ fontSize: 8, color, fontWeight: 700, marginTop: 1 }}>{t("NOW", "ప్రస్తుతం")}</div>}
                 </div>
               );
             })}
