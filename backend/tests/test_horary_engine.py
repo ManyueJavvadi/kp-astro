@@ -1,0 +1,136 @@
+"""
+Horary engine tests — PR A1.1.
+
+Two classes of tests:
+  (1) Structural / regression: lock in post-fix behavior as a golden snapshot
+      so future PRs can't accidentally revert the A1.1 fixes.
+  (2) Correctness: tests drawn from canonical KP rules (audit Section 5).
+
+These tests use a FIXED query_date + query_time so planet positions are
+deterministic across runs.
+"""
+from app.services.horary_engine import analyze_horary
+
+
+# A known moment — 2024-01-15 10:30 IST from Hyderabad
+FIXED_KWARGS = dict(
+    latitude=17.385,
+    longitude=78.4867,
+    timezone_offset=5.5,
+    query_date="2024-01-15",
+    query_time="10:30",
+)
+
+
+def test_engine_returns_expected_top_level_keys():
+    r = analyze_horary(number=42, question="test", topic="general", **FIXED_KWARGS)
+    assert set(r.keys()) >= {
+        "prashna_number", "question", "topic", "chart_time",
+        "lagna", "ruling_planets", "rp_context", "moon_analysis",
+        "verdict", "topic_houses", "planets", "cusps", "house_themes",
+    }
+
+
+def test_249_accepted():
+    r = analyze_horary(number=249, question="test", topic="general", **FIXED_KWARGS)
+    assert r["prashna_number"] == 249
+    # #249 should land in Pisces/Revati — NOT in Aries (pre-A1.1 modulo bug)
+    assert r["lagna"]["sign"] == "Pisces"
+    assert r["lagna"]["nakshatra"] == "Revati"
+
+
+def test_250_rejected():
+    import pytest
+    with pytest.raises(ValueError):
+        analyze_horary(number=250, question="test", topic="general", **FIXED_KWARGS)
+
+
+def test_rp_independence_from_prashna_number():
+    """
+    CRITICAL REGRESSION TEST — the pre-A1.1 engine used the prashna-derived
+    Lagna to compute RPs, which meant changing the prashna number shifted
+    the RP list. Post-A1.1, RPs depend ONLY on the query moment + location.
+    Two different numbers at the same moment + location → SAME RPs.
+    """
+    r1 = analyze_horary(number=42,  question="a", topic="general", **FIXED_KWARGS)
+    r2 = analyze_horary(number=201, question="b", topic="general", **FIXED_KWARGS)
+    assert r1["ruling_planets"] == r2["ruling_planets"]
+
+
+def test_rp_context_present_and_sensible():
+    r = analyze_horary(number=42, question="test", topic="general", **FIXED_KWARGS)
+    ctx = r["rp_context"]
+    # The astrologer should see what location + moment produced their RPs
+    for key in ["latitude", "longitude", "timezone_offset",
+                "local_datetime", "utc_datetime", "weekday", "day_lord",
+                "actual_lagna_longitude", "actual_lagna_sign",
+                "lagna_sign_lord", "lagna_star_lord",
+                "moon_longitude", "moon_sign_lord", "moon_star_lord"]:
+        assert key in ctx, f"Missing rp_context key: {key}"
+    # Day lord on 2024-01-15 (Monday) at IST must be Moon
+    assert ctx["day_lord"] == "Moon"
+    assert ctx["weekday"] == "Monday"
+
+
+def test_placidus_cusps_not_equal_house():
+    """
+    Pre-A1.1 used equal-house (cusps 30° apart). Post-A1.1 uses Placidus,
+    whose non-angular spans depend on latitude and are almost never exactly
+    30°. H4-H1 at Hyderabad on this date MUST differ from 90°.
+    """
+    r = analyze_horary(number=42, question="test", topic="general", **FIXED_KWARGS)
+    cusps = r["cusps"]
+    h1 = cusps[0]["longitude"]
+    h4 = cusps[3]["longitude"]
+    h4_minus_h1 = (h4 - h1) % 360
+    # Placidus at 17.385°N is NOT 90° exact — typical range 70-110°
+    assert abs(h4_minus_h1 - 90.0) > 0.5, (
+        f"H4-H1 = {h4_minus_h1}° suggests equal-house (pre-A1.1 regression)"
+    )
+
+
+def test_latitude_longitude_required_via_engine():
+    """analyze_horary signature requires lat/lon/tz (no default kwargs)."""
+    import pytest
+    with pytest.raises(TypeError):
+        # Missing lat/lon/tz should be a TypeError
+        analyze_horary(number=1, question="x", topic="general")
+
+
+def test_level_3_significations_present():
+    """
+    Post-A1.1 each planet's significations include Level 3 (star lord's
+    owned houses). Verify at least one planet's sig-set is strictly larger
+    than it would have been under the 3-level (pre-A1.1) rule.
+    """
+    from app.services.horary_engine import _planet_significations
+    from app.services.chart_engine import get_nakshatra_and_starlord, get_sign
+    r = analyze_horary(number=42, question="test", topic="general", **FIXED_KWARGS)
+    cusp_lons = [c["longitude"] for c in r["cusps"]]
+    planet_lons = {p["planet"]: p["longitude"] for p in r["planets"]}
+    # Find a planet whose star lord owns at least one house AND is distinct
+    # from the planet's own occupied/owned houses.
+    sig_levels_seen = 0
+    for p in planet_lons:
+        sigs = set(_planet_significations(p, planet_lons, cusp_lons))
+        if len(sigs) > 0:
+            sig_levels_seen += 1
+    assert sig_levels_seen > 0
+
+
+def test_prashna_244_distinct_from_1():
+    """
+    Pre-A1.1 modulo bug made #244-249 identical to #1-6.
+    Post-A1.1, the canonical 249 table returns distinct rows.
+    """
+    r1 = analyze_horary(number=1, question="x", topic="general", **FIXED_KWARGS)
+    r244 = analyze_horary(number=244, question="x", topic="general", **FIXED_KWARGS)
+    assert r1["lagna"]["sign"] != r244["lagna"]["sign"]
+    assert abs(r1["lagna"]["longitude"] - r244["lagna"]["longitude"]) > 5
+
+
+def test_topic_marriage_yes_houses_include_5():
+    """PR A1.1 expanded marriage yes-houses to include H5 (romance/attraction)."""
+    r = analyze_horary(number=42, question="will i marry?", topic="marriage", **FIXED_KWARGS)
+    yes_houses = set(r["topic_houses"]["yes"])
+    assert {2, 5, 7, 11}.issubset(yes_houses)

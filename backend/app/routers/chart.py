@@ -35,7 +35,10 @@ def get_chart(request: ChartRequest):
     antardashas = calculate_antardashas(current_md)
     current_ad = get_current_antardasha(antardashas)
     all_significators = get_all_house_significators(chart["planets"], chart["cusps"])
-    ruling_planets = get_ruling_planets()
+    # PR A1.1: lat/lon/tz now required for correct RPs.
+    ruling_planets = get_ruling_planets(
+        request.latitude, request.longitude, request.timezone_offset,
+    )
 
     return {
         "name": request.name,
@@ -83,7 +86,10 @@ def analyze_topic(request: TopicRequest):
         request.topic, current_md, current_ad,
         chart["planets"], chart["cusps"]
     )
-    ruling_planets = get_ruling_planets(request.timezone_offset)
+    # PR A1.1: lat/lon/tz now required for correct RPs.
+    ruling_planets = get_ruling_planets(
+        request.latitude, request.longitude, request.timezone_offset,
+    )
 
     return {
         "name": request.name,

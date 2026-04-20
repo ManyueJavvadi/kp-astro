@@ -353,61 +353,93 @@ DAY_LORDS = {
 }
 
 
-def get_ruling_planets(timezone_offset: float = 5.5) -> dict:
+def get_ruling_planets(
+    latitude: float,
+    longitude: float,
+    timezone_offset: float,
+) -> dict:
     """
-    Calculate ruling planets at the current moment of query.
-    These are used in KP to filter and confirm predictions.
+    Calculate the 5 canonical KP Ruling Planets at the present moment at
+    the astrologer's current location.
+
+    PR A1.1 fix: previously used lat=0, lon=0 (middle of Atlantic!) for
+    the Lagna calculation and used UTC weekday — both wrong. Now requires
+    the caller's lat/lon/tz and uses the caller's local weekday.
+
+    The 5 RPs (order preserved, duplicates removed):
+        1. Day Lord       — weekday in LOCAL time at latitude/longitude
+        2. Lagna Sign Lord — sign lord of the real ascendant now
+        3. Lagna Star Lord — nakshatra lord of the real ascendant now
+        4. Moon Sign Lord  — sign lord of Moon's sidereal longitude now
+        5. Moon Star Lord  — nakshatra lord of Moon's sidereal longitude
+
+    Returns an extended dict (NOT breaking — all existing keys retained)
+    plus a new ``rp_context`` object describing the location + moment that
+    was used, for display purposes (frontend shows "(Computed for: X)").
     """
     import swisseph as swe
-    from datetime import datetime
+    from datetime import datetime, timedelta, timezone as dt_tz
 
-    now = datetime.utcnow()
+    # Current UTC moment — never trust client-supplied time. Server's
+    # clock is the single source of truth for "now" in KP.
+    utc_now = datetime.now(dt_tz.utc)
+    local_now = utc_now + timedelta(hours=timezone_offset)
 
-    # Julian day for current moment — swe.julday expects UT (UTC)
-    # Do NOT add timezone_offset here — utcnow() is already UTC
+    # Julian day for the actual UTC moment (not rounded to the minute —
+    # KP timing cares about the second when we're near a nakshatra boundary)
     jd_now = swe.julday(
-        now.year, now.month, now.day,
-        now.hour + now.minute / 60
+        utc_now.year, utc_now.month, utc_now.day,
+        utc_now.hour + utc_now.minute / 60 + utc_now.second / 3600,
     )
 
-    # Set KP New ayanamsa
     swe.set_sid_mode(swe.SIDM_KRISHNAMURTI_VP291)
 
-    # 1. Day lord
-    weekday = datetime.now().weekday()
-    day_lord = DAY_LORDS[weekday]
+    # 1. Day lord — LOCAL weekday (astrologer's perceived day)
+    day_lord = DAY_LORDS[local_now.weekday()]
 
-    # 2. Current lagna (ascendant at this moment)
-    # Use a neutral location for lagna calculation
-    # In practice this should use the query location
-    cusps, ascmc = swe.houses_ex(jd_now, 0.0, 0.0, b'P', swe.FLG_SIDEREAL)
+    # 2+3. Actual ascendant at the astrologer's lat/lon — Placidus, sidereal
+    _, ascmc = swe.houses_ex(jd_now, latitude, longitude, b'P', swe.FLG_SIDEREAL)
     lagna_longitude = ascmc[0]
     lagna_sign_lord = get_sign_lord(lagna_longitude)
     lagna_star_lord = get_nakshatra_and_starlord(lagna_longitude)["star_lord"]
 
-    # 3. Current Moon
+    # 4+5. Current Moon
     moon_result, _ = swe.calc_ut(jd_now, swe.MOON, swe.FLG_SIDEREAL)
     moon_longitude = moon_result[0]
     moon_sign_lord = get_sign_lord(moon_longitude)
     moon_star_lord = get_nakshatra_and_starlord(moon_longitude)["star_lord"]
 
-    # Collect unique ruling planets
+    # Collect unique ruling planets preserving order of encounter.
     ruling_planets = list(dict.fromkeys([
         day_lord,
         lagna_sign_lord,
         lagna_star_lord,
         moon_sign_lord,
-        moon_star_lord
+        moon_star_lord,
     ]))
 
     return {
-        "query_time": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        # Back-compat keys retained
+        "query_time": local_now.strftime("%Y-%m-%d %H:%M"),
         "day_lord": day_lord,
         "lagna_sign_lord": lagna_sign_lord,
         "lagna_star_lord": lagna_star_lord,
         "moon_sign_lord": moon_sign_lord,
         "moon_star_lord": moon_star_lord,
-        "ruling_planets": ruling_planets
+        "ruling_planets": ruling_planets,
+
+        # NEW — context the frontend can render in muted grey so the
+        # astrologer can verify which location + moment drove the RPs.
+        "rp_context": {
+            "latitude": round(latitude, 4),
+            "longitude": round(longitude, 4),
+            "timezone_offset": timezone_offset,
+            "local_datetime": local_now.strftime("%Y-%m-%d %H:%M:%S"),
+            "utc_datetime": utc_now.strftime("%Y-%m-%d %H:%M:%S UTC"),
+            "weekday": local_now.strftime("%A"),
+            "lagna_longitude": round(lagna_longitude, 4),
+            "moon_longitude": round(moon_longitude, 4),
+        },
     }
 
 

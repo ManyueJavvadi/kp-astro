@@ -63,7 +63,10 @@ def ask_prediction(request: PredictionRequest):
         topic, current_md, current_ad,
         chart["planets"], chart["cusps"]
     )
-    ruling_planets = get_ruling_planets(request.timezone_offset)
+    # PR A1.1: lat/lon/tz now required for correct RPs.
+    ruling_planets = get_ruling_planets(
+        request.latitude, request.longitude, request.timezone_offset,
+    )
     all_significators = get_all_house_significators(chart["planets"], chart["cusps"])
 
     # Use proper house position calculation — chart["planets"] has no "house" key

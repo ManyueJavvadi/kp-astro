@@ -293,7 +293,15 @@ def get_workspace(request: WorkspaceRequest):
     pratyantardashas = calculate_pratyantardashas(current_ad)
     current_pad = get_current_pratyantardasha(pratyantardashas)
     all_significators = get_all_house_significators(chart["planets"], chart["cusps"])
-    ruling_planets = get_ruling_planets(request.timezone_offset)
+    # PR A1.1: RPs now require the CHART's lat/lon/tz — previously this
+    # silently used lat=0 lon=0 (middle of the Atlantic). The change lets
+    # Analysis compute RPs against the native chart's context instead of
+    # a fictional neutral ocean point. For live-moment RPs (current time
+    # + astrologer's actual location), use the Horary router which passes
+    # real geolocation.
+    ruling_planets = get_ruling_planets(
+        request.latitude, request.longitude, request.timezone_offset,
+    )
 
     cusp_longitudes = [data.get("cusp_longitude", 0) for data in chart["cusps"].values()]
 
@@ -447,7 +455,10 @@ def analyze_topic(request: AnalysisRequest):
     topic = request.topic
     promise = check_promise(topic, chart["cusps"], chart["planets"])
     timing = check_dasha_relevance(topic, current_md, current_ad, chart["planets"], chart["cusps"])
-    ruling_planets = get_ruling_planets(request.timezone_offset)
+    # PR A1.1: RPs now require lat/lon/tz — see /workspace endpoint above.
+    ruling_planets = get_ruling_planets(
+        request.latitude, request.longitude, request.timezone_offset,
+    )
     all_significators = get_all_house_significators(chart["planets"], chart["cusps"])
 
     # Use proper house position calculation — chart["planets"] has no "house" key

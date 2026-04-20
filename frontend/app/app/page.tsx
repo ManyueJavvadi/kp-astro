@@ -10,7 +10,10 @@ import { PlacePicker } from "@/components/ui/place-picker";
 import { theme, styles as uiStyles } from "@/lib/theme";
 import { useLanguage } from "@/lib/i18n";
 import CommandOrb from "./components/CommandOrb";
+import LiveLocationPill from "./components/LiveLocationPill";
+import RPContextStrip from "./components/RPContextStrip";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { useLiveLocation } from "@/hooks/useLiveLocation";
 import { formatMaskedDate, formatMaskedTime } from "./lib/maskedInput";
 import SouthIndianChart from "./components/SouthIndianChart";
 import DashaTimeline from "./components/DashaTimeline";
@@ -32,6 +35,10 @@ const API_URL = "https://devastroai.up.railway.app";
 export default function Home() {
   const { lang, t, backendLang } = useLanguage();
   const isMobile = useIsMobile();
+  // PR A1.1 — live location for Horary (and later: Muhurtha / Transit /
+  // Panchang). KP RPs require the astrologer's CURRENT location, not
+  // the natal location. No natal fallback.
+  const liveLoc = useLiveLocation();
   const [mode, setMode] = useState<"user" | "astrologer">("user");
   const [birthDetails, setBirthDetails] = useState<BirthDetails>({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: null, longitude: null, gender: "" });
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
@@ -5169,6 +5176,16 @@ export default function Home() {
                             "ఒక ప్రశ్న అడగండి, 1–249 మధ్య సంఖ్య ఎంచుకోండి. లగ్న సబ్‌లార్డ్ + భావ CSL + నియమిత గ్రహాలతో YES/NO నిర్ణయం పొందండి."
                           )}
                         </p>
+                        {/* PR A1.1 — live location pill; astrologer can override */}
+                        <div style={{ marginTop: 10 }}>
+                          <LiveLocationPill
+                            location={liveLoc.location}
+                            status={liveLoc.status}
+                            error={liveLoc.error}
+                            onOverride={liveLoc.override}
+                            onRefresh={liveLoc.refresh}
+                          />
+                        </div>
                       </header>
                     )}
 
@@ -5315,6 +5332,16 @@ export default function Home() {
                             <button
                               onClick={async () => {
                                 if (!horaryNumber || !horaryQuestion.trim()) return;
+                                // PR A1.1 — Horary RPs use the astrologer's
+                                // LIVE location, not natal. Refuse to submit
+                                // if we don't yet have one.
+                                if (!liveLoc.location) {
+                                  alert(t(
+                                    "We need your current location for KP Ruling Planets. Please enable geolocation or pick your city in the Location pill above.",
+                                    "KP నియమ గ్రహాల కోసం మీ ప్రస్తుత ప్రదేశం అవసరం. దయచేసి లొకేషన్ అనుమతించండి లేదా పైన మీ నగరం ఎంచుకోండి."
+                                  ));
+                                  return;
+                                }
                                 setHoraryLoading(true);
                                 // Enforce a minimum 650ms loading state so the
                                 // reveal has a moment — an instant flip from
@@ -5326,9 +5353,9 @@ export default function Home() {
                                     number: horaryNumber,
                                     question: horaryQuestion,
                                     topic: horaryTopic,
-                                    latitude: workspaceData?.latitude || 17.385,
-                                    longitude: workspaceData?.longitude || 78.4867,
-                                    timezone_offset: timezoneOffset,
+                                    latitude: liveLoc.location.latitude,
+                                    longitude: liveLoc.location.longitude,
+                                    timezone_offset: liveLoc.location.timezone_offset,
                                   });
                                   const elapsed = Date.now() - startedAt;
                                   if (elapsed < 650) {
@@ -5464,6 +5491,12 @@ export default function Home() {
                                     <span key={rp} style={{ fontSize: 11, background: "rgba(201,169,110,0.12)", color: "var(--accent)", border: "0.5px solid rgba(201,169,110,0.3)", borderRadius: 999, padding: "4px 12px", fontWeight: 500 }}>{rp}</span>
                                   ))}
                                 </div>
+                                {/* PR A1.1 — muted strip showing WHICH location + moment produced these RPs. */}
+                                {r.rp_context && (
+                                  <div style={{ maxWidth: 520, margin: "8px auto 0" }}>
+                                    <RPContextStrip ctx={r.rp_context} locationName={liveLoc.location?.display} />
+                                  </div>
+                                )}
                               </div>
                             )}
                             {(v.rp_confirms_csl || v.moon_supports) && (
