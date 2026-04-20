@@ -177,40 +177,81 @@ def _compute_ruling_planets(
     planet_lons: dict,
 ) -> tuple[list[str], dict]:
     """
-    Compute the 5 canonical Ruling Planets at the query moment and location.
+    Compute the 7-slot Ruling Planets set at the query moment + location.
 
-    Returns (rp_list, rp_context_dict).
+    PR A1.1c — expanded from 5 slots to 7 to match mainstream KP apps
+    (e.g. ksrinivas.com KP Astrology). The 7 canonical slots are:
+      1. Day Lord         — weekday planet in LOCAL time
+      2. Asc Sign Lord    — of the real ascendant now
+      3. Asc Star Lord    — nakshatra lord of the real ascendant
+      4. Asc Sub Lord     — KP sub lord of the real ascendant
+      5. Moon Sign Lord   — of Moon's sidereal sign
+      6. Moon Star Lord   — nakshatra lord of Moon
+      7. Moon Sub Lord    — KP sub lord of Moon
 
-    This is NOT the same as chart_engine.get_ruling_planets() — that one
-    uses datetime.now() internally. Horary accepts a pre-computed JD (UT)
-    so the cusp calculation and RP calculation reference the exact same
-    instant.
+    Returns (rp_list, rp_context_dict) where:
+      - rp_list is the unique-planet list ordered by frequency (planets
+        hitting multiple slots bubble to the top), ties broken by
+        traditional slot order. This matches how ksrinivas.com ranks
+        "strongest ruling planets".
+      - rp_context_dict now includes:
+          slot_assignments: ordered list of {slot, planet} for all 7
+          planet_slots:     map of planet -> list of slot names
+          strongest:        planets appearing >=2 times (KSK's rule:
+                            more slot-appearances => more weight)
     """
-    # Compute the ACTUAL ascendant at the astrologer's lat/lon at JD.
-    # This is the canonical "independent jury" used by KP RPs, not the
-    # Prashna Lagna (which is question-specific).
+    # Actual ascendant at the astrologer's lat/lon — Placidus, sidereal.
     _, ascmc = swe.houses_ex(jd_utc, latitude, longitude, b'P', swe.FLG_SIDEREAL)
     actual_lagna_lon = ascmc[0] % 360
 
-    # Local weekday. Build local datetime from the same JD.
+    # Local weekday. Build local datetime from JD.
     utc_dt = datetime(2000, 1, 1, 12, 0, 0, tzinfo=dt_tz.utc) + \
              timedelta(days=(jd_utc - 2451545.0))
     local_dt = utc_dt + timedelta(hours=timezone_offset)
     day_lord = WEEKDAY_LORDS[local_dt.weekday()]
 
-    lagna_sign_lord = SIGN_LORDS.get(get_sign(actual_lagna_lon), "")
-    lagna_star_lord = get_nakshatra_and_starlord(actual_lagna_lon).get("star_lord", "")
+    # Slot derivations
+    asc_sign_lord = SIGN_LORDS.get(get_sign(actual_lagna_lon), "")
+    asc_star_lord = get_nakshatra_and_starlord(actual_lagna_lon).get("star_lord", "")
+    asc_sub_lord  = get_sub_lord(actual_lagna_lon)
 
     moon_lon = planet_lons.get("Moon", 0) % 360
     moon_sign_lord = SIGN_LORDS.get(get_sign(moon_lon), "")
     moon_star_lord = get_nakshatra_and_starlord(moon_lon).get("star_lord", "")
+    moon_sub_lord  = get_sub_lord(moon_lon)
 
-    seen = set()
-    rps: list[str] = []
-    for p in [day_lord, lagna_sign_lord, lagna_star_lord, moon_sign_lord, moon_star_lord]:
-        if p and p not in seen:
-            seen.add(p)
-            rps.append(p)
+    # Seven slots in canonical order.
+    slot_assignments = [
+        {"slot": "Day Lord",       "planet": day_lord},
+        {"slot": "Asc Sign Lord",  "planet": asc_sign_lord},
+        {"slot": "Asc Star Lord",  "planet": asc_star_lord},
+        {"slot": "Asc Sub Lord",   "planet": asc_sub_lord},
+        {"slot": "Moon Sign Lord", "planet": moon_sign_lord},
+        {"slot": "Moon Star Lord", "planet": moon_star_lord},
+        {"slot": "Moon Sub Lord",  "planet": moon_sub_lord},
+    ]
+
+    # planet -> list of slots it occupies (preserves slot order).
+    planet_slots: dict[str, list[str]] = {}
+    for a in slot_assignments:
+        if not a["planet"]:
+            continue
+        planet_slots.setdefault(a["planet"], []).append(a["slot"])
+
+    # Rank planets by: (frequency desc, earliest slot index asc, name asc).
+    # Earliest-slot tiebreak preserves KSK's priority Day > Asc > Moon.
+    def _rank_key(p: str) -> tuple:
+        slots = planet_slots[p]
+        first_slot_idx = min(
+            i for i, a in enumerate(slot_assignments) if a["planet"] == p
+        )
+        return (-len(slots), first_slot_idx, p)
+    rps: list[str] = sorted(planet_slots.keys(), key=_rank_key)
+
+    # Strongest significators — planets with >=2 slot occurrences.
+    # KSK: "a planet which is a significator of the same matter AND
+    # also appears among the RPs more than once is the most reliable".
+    strongest = [p for p in rps if len(planet_slots[p]) >= 2]
 
     rp_context = {
         "latitude": round(latitude, 4),
@@ -220,13 +261,25 @@ def _compute_ruling_planets(
         "utc_datetime": utc_dt.strftime("%Y-%m-%d %H:%M:%S UTC"),
         "weekday": local_dt.strftime("%A"),
         "day_lord": day_lord,
+
+        # Actual ascendant (the independent jury)
         "actual_lagna_longitude": round(actual_lagna_lon, 4),
         "actual_lagna_sign": get_sign(actual_lagna_lon),
-        "lagna_sign_lord": lagna_sign_lord,
-        "lagna_star_lord": lagna_star_lord,
+        "lagna_sign_lord": asc_sign_lord,
+        "lagna_star_lord": asc_star_lord,
+        "lagna_sub_lord":  asc_sub_lord,
+
+        # Moon
         "moon_longitude": round(moon_lon, 4),
         "moon_sign_lord": moon_sign_lord,
         "moon_star_lord": moon_star_lord,
+        "moon_sub_lord":  moon_sub_lord,
+
+        # NEW — PR A1.1c
+        "slot_assignments":     slot_assignments,   # [{slot, planet}, ...]
+        "planet_slots":         planet_slots,       # { planet: [slot, ...] }
+        "strongest":            strongest,          # planets occurring >=2 times
+        "rp_system":            "7-slot (KSK extended)",
     }
     return rps, rp_context
 
@@ -337,9 +390,28 @@ def _kp_verdict(
                   f"and no {sorted(layer2['no_activated'])} houses. "
                   f"{'H2+H11 support.' if h2_supports and h11_supports else 'Monitor H2/H11 CSLs for fulfillment timing.'}")
     else:
-        overall, confidence = "UNCLEAR", "LOW"
-        reason = (f"H{primary_house} CSL {query_csl} signifies H{sorted(layer2['significations'])} "
-                  f"— no direct connection to topic houses. Query may be premature or question unclear.")
+        # PR A1.1c — "RP signifies topic → PARTIAL" rule.
+        # When the primary-house CSL has no direct connection to topic
+        # houses (would be UNCLEAR), but one or more Ruling Planets DO
+        # signify those houses, classical KP treats this as a delayed /
+        # partial YES — the moment carries promise even though the
+        # primary gate is weak. We upgrade UNCLEAR -> PARTIAL to give
+        # the astrologer that nuance.
+        if rp_strength >= 1:
+            overall = "PARTIAL"
+            confidence = "MEDIUM" if rp_strength >= 2 else "LOW"
+            rp_names = ", ".join(rp_signifying_yes)
+            reason = (f"H{primary_house} CSL {query_csl} does not signify topic houses, "
+                      f"but {rp_strength} Ruling Planet{'s' if rp_strength != 1 else ''} "
+                      f"({rp_names}) signify them. Classical KP: the moment carries the "
+                      f"promise even though the primary gate is weak. "
+                      f"Expect a delayed or indirect outcome — watch dasha/bhukti of {rp_names} "
+                      f"for timing.")
+        else:
+            overall, confidence = "UNCLEAR", "LOW"
+            reason = (f"H{primary_house} CSL {query_csl} signifies H{sorted(layer2['significations'])} "
+                      f"— no direct connection to topic houses and no Ruling Planet supports them either. "
+                      f"Query may be premature or question unclear.")
 
     return {
         "verdict": overall,

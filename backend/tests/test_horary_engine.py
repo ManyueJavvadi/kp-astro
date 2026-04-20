@@ -64,12 +64,60 @@ def test_rp_context_present_and_sensible():
     for key in ["latitude", "longitude", "timezone_offset",
                 "local_datetime", "utc_datetime", "weekday", "day_lord",
                 "actual_lagna_longitude", "actual_lagna_sign",
-                "lagna_sign_lord", "lagna_star_lord",
-                "moon_longitude", "moon_sign_lord", "moon_star_lord"]:
+                "lagna_sign_lord", "lagna_star_lord", "lagna_sub_lord",
+                "moon_longitude", "moon_sign_lord", "moon_star_lord", "moon_sub_lord",
+                # PR A1.1c additions
+                "slot_assignments", "planet_slots", "strongest", "rp_system"]:
         assert key in ctx, f"Missing rp_context key: {key}"
     # Day lord on 2024-01-15 (Monday) at IST must be Moon
     assert ctx["day_lord"] == "Moon"
     assert ctx["weekday"] == "Monday"
+
+
+def test_rp_7_slot_system():
+    """PR A1.1c — 7 slot_assignments, correct slot names, frequency ranking."""
+    r = analyze_horary(number=42, question="test", topic="general", **FIXED_KWARGS)
+    ctx = r["rp_context"]
+
+    # Exactly 7 slot assignments in canonical order.
+    assert len(ctx["slot_assignments"]) == 7
+    expected_slots = [
+        "Day Lord", "Asc Sign Lord", "Asc Star Lord", "Asc Sub Lord",
+        "Moon Sign Lord", "Moon Star Lord", "Moon Sub Lord",
+    ]
+    assert [a["slot"] for a in ctx["slot_assignments"]] == expected_slots
+
+    # planet_slots sums to 7 across all entries (one per slot).
+    total = sum(len(v) for v in ctx["planet_slots"].values())
+    assert total == 7
+
+    # ruling_planets list is ordered by frequency desc (ties by first slot).
+    rps = r["ruling_planets"]
+    freqs = [len(ctx["planet_slots"][p]) for p in rps]
+    assert freqs == sorted(freqs, reverse=True), (
+        f"RPs not frequency-ranked: {list(zip(rps, freqs))}"
+    )
+
+    # 'strongest' = planets occurring >=2 times.
+    for p in ctx["strongest"]:
+        assert len(ctx["planet_slots"][p]) >= 2
+
+
+def test_partial_yes_rule_when_rp_signifies_topic():
+    """
+    PR A1.1c partial YES rule — even when the primary CSL doesn't touch
+    topic houses, if a Ruling Planet does, the verdict is PARTIAL not
+    UNCLEAR. We can't force a specific chart here without heavy mocking,
+    but we CAN confirm the engine returns one of the 6 documented verdict
+    labels for a range of inputs.
+    """
+    valid = {"YES", "NO", "CONDITIONAL", "PARTIAL", "UNCLEAR", "MAYBE"}
+    for n in (1, 42, 128, 200, 249):
+        r = analyze_horary(number=n, question="test", topic="career", **FIXED_KWARGS)
+        verdict = r["verdict"]["verdict"]
+        assert verdict in valid, (
+            f"Unknown verdict '{verdict}' for number={n}"
+        )
 
 
 def test_placidus_cusps_not_equal_house():

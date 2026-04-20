@@ -4005,11 +4005,10 @@ textarea:focus-visible {
 /* Muted RP-context strip that hangs under RP chip rows. */
 .rp-context-strip {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  padding: 5px 10px;
-  border-radius: 6px;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
   background: rgba(255,255,255,0.02);
   color: var(--muted);
   font-size: 10.5px;
@@ -4017,6 +4016,13 @@ textarea:focus-visible {
   letter-spacing: 0.01em;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   margin-top: 6px;
+  text-align: left;
+}
+.rp-context-strip .rp-context-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 .rp-context-strip .rp-context-item {
   display: inline-flex;
@@ -4036,7 +4042,71 @@ textarea:focus-visible {
   font-weight: 600;
 }
 
+/* PR A1.1c — 7-slot breakdown block */
+.rp-context-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 6px;
+  border-top: 0.5px dashed var(--border);
+}
+.rp-context-breakdown-title {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+.rp-context-breakdown-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rp-context-row {
+  display: grid;
+  grid-template-columns: 90px 36px 1fr;
+  gap: 6px;
+  align-items: center;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+.rp-context-row.is-strongest {
+  background: rgba(201,169,110,0.06);
+  border: 0.5px solid rgba(201,169,110,0.2);
+}
+.rp-context-planet {
+  font-weight: 600;
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.rp-context-star {
+  color: var(--accent);
+  font-size: 10px;
+  margin-right: 1px;
+}
+.rp-context-freq {
+  color: var(--accent);
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: 0.04em;
+}
+.rp-context-slots {
+  color: var(--muted);
+  font-size: 10px;
+}
+.rp-context-strongest-note {
+  font-size: 10px;
+  font-family: inherit;
+  color: var(--muted);
+  padding-top: 4px;
+  line-height: 1.45;
+}
+
 @media (max-width: 640px) {
   .rp-context-strip { font-size: 10px; }
+  .rp-context-row { grid-template-columns: 72px 30px 1fr; }
 }
 

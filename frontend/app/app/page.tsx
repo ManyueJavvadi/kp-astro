@@ -5526,13 +5526,42 @@ export default function Home() {
                                   {t("Ruling planets · supporting the query", "నియమిత గ్రహాలు · ప్రశ్నకు అనుకూలం")}
                                 </div>
                                 <div style={{ display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap" as const }}>
-                                  {v.ruling_planets.map((rp: string) => (
-                                    <span key={rp} style={{ fontSize: 11, background: "rgba(201,169,110,0.12)", color: "var(--accent)", border: "0.5px solid rgba(201,169,110,0.3)", borderRadius: 999, padding: "4px 12px", fontWeight: 500 }}>{rp}</span>
-                                  ))}
+                                  {v.ruling_planets.map((rp: string) => {
+                                    // PR A1.1c — strongest planets (2+ of 7 slots) get star + bold.
+                                    const strongest: string[] = r.rp_context?.strongest ?? [];
+                                    const freq = r.rp_context?.planet_slots?.[rp]?.length ?? 1;
+                                    const isStrong = strongest.includes(rp);
+                                    return (
+                                      <span
+                                        key={rp}
+                                        title={isStrong
+                                          ? `${rp} — ${freq}/7 slots · strongest RP for this moment`
+                                          : `${rp} — ${freq}/7 slots`}
+                                        style={{
+                                          fontSize: 11,
+                                          background: isStrong ? "rgba(201,169,110,0.22)" : "rgba(201,169,110,0.12)",
+                                          color: "var(--accent)",
+                                          border: isStrong
+                                            ? "0.5px solid rgba(201,169,110,0.55)"
+                                            : "0.5px solid rgba(201,169,110,0.3)",
+                                          borderRadius: 999,
+                                          padding: "4px 12px",
+                                          fontWeight: isStrong ? 700 : 500,
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          gap: 4,
+                                        }}
+                                      >
+                                        {isStrong && <span style={{ color: "var(--accent)" }}>★</span>}
+                                        {rp}
+                                        <span style={{ fontSize: 9, opacity: 0.7, marginLeft: 2 }}>{freq}/7</span>
+                                      </span>
+                                    );
+                                  })}
                                 </div>
                                 {/* PR A1.1 — muted strip showing WHICH location + moment produced these RPs. */}
                                 {r.rp_context && (
-                                  <div style={{ maxWidth: 520, margin: "8px auto 0" }}>
+                                  <div style={{ maxWidth: 560, margin: "8px auto 0" }}>
                                     <RPContextStrip ctx={r.rp_context} locationName={liveLoc.location?.display} />
                                   </div>
                                 )}

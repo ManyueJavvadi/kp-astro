@@ -1,5 +1,76 @@
 # Horary Engine Audit — Track A.1 / PR A1.0
 
+---
+
+## Addendum — PR A1.1c outcomes (2026-04-20)
+
+After PR A1.1 + A1.1b shipped and the user cross-verified our RPs against
+ksrinivas.com's KP Astrology app, two gaps surfaced and were closed in
+PR A1.1c:
+
+### Gap 1 — 5-slot vs 7-slot RP system
+
+Mainstream KP apps (ksrinivas.com, Jagannatha Hora, onlinejyotish.com)
+use the 7-slot extension of KSK's original 5-slot RP set, adding the
+**Lagna Sub Lord** and **Moon Sub Lord** as slots 4 and 7 respectively.
+Our 5-slot output matched their top 5 planets exactly but missed the
+Sub Lord contributors (e.g. Rahu showing up via "Moon Sub Lord" on the
+same moment ksrinivas.com tested).
+
+Fix: `_compute_ruling_planets` now returns 7 slot assignments and ranks
+planets by frequency across those slots. Planets appearing in ≥2 slots
+are flagged `strongest` — KSK's guidance: these carry the most weight.
+
+### Gap 2 — UNCLEAR swallowing PARTIAL cases
+
+The user tested a career question where:
+- H10 CSL was Rahu, signifying only H4 → Layer 2 "no direct connection"
+- But 4 of 5 Ruling Planets (Venus, Mars, Moon, Ketu) signified the
+  career yes-houses
+- Engine returned UNCLEAR — which reads as "weak verdict" and misses
+  the nuance that the MOMENT carries the promise
+
+Classical KP (KSK Reader I on timing via RPs): when the primary gate is
+silent but RPs speak clearly, the event still manifests — just delayed
+or via an indirect route. Watch the dasha/bhukti of the RPs for timing.
+
+Fix: verdict cascade now emits **PARTIAL** (not UNCLEAR) when the
+primary CSL doesn't touch topic houses but 1+ RPs do. Confidence
+MEDIUM at 2+ RPs, LOW at 1. UNCLEAR is reserved for "neither CSL
+nor RPs carry it".
+
+### Cross-verification against ksrinivas.com
+
+User's cross-check screenshot (2026-04-20 19:44 Etobicoke):
+
+| Dimension | Our engine | ksrinivas.com | Match |
+|---|---|---|---|
+| Ayanamsa | KP New (VP291) | KP New | ✓ |
+| Actual Lagna | Libra 2.14° | Libra 3°10' (6min later) | ✓ |
+| Asc sign/star/sub lord | Venus/Mars/Ketu | Venus/Mars/Venus | ✓ (sub differs by 6min) |
+| Moon position | Taurus 25.26° / Mrigashira | Taurus 25°13' / Mrigashira | ✓ |
+| Moon sign/star/sub | Venus/Mars/Rahu | Venus/Mars/Rahu | ✓ |
+| Day Lord | Moon | Moon | ✓ |
+| Strongest RPs | Venus (2/7), Mars (2/7) | Venus (3/7), Mars (2/7) | ✓ shape match |
+
+Zero disagreement on underlying astronomy. Post-A1.1c our engine is
+spec-equivalent to ksrinivas.com for RP computation.
+
+### New response fields in PR A1.1c
+
+In `rp_context`:
+- `slot_assignments: [{slot, planet}, ...]` — all 7, in canonical order
+- `planet_slots: { planet: [slot, ...] }` — inverted view
+- `strongest: [...]` — planets with ≥2 slot occurrences
+- `rp_system: "7-slot (KSK extended)"` — system identifier
+
+In `verdict`:
+- New `verdict` value **PARTIAL** (alongside YES/NO/CONDITIONAL/UNCLEAR)
+
+---
+
+
+
 **Status**: Research complete, awaiting user approval before any code change.
 **Scope**: `backend/app/services/horary_engine.py` (479 lines) and its dependencies in `backend/app/services/chart_engine.py`.
 **Sources researched**: KSK's writings summarized on KP portals, JyotishPortal canonical 1-249 table, AstroSage KP reference, tony-louis.wordpress.com experimental horary posts, K.P. Astrologer blog, swisseph sweph.h source.

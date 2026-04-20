@@ -46,18 +46,32 @@ There are two Ascendants in a Horary analysis:
    lat/lon at the query moment. Used **only** as the independent
    "jury" for Ruling Planets. Never merges into the chart layout.
 
-## 5 Ruling Planets (canonical KP)
+## 7 Ruling Planets (PR A1.1c default)
 
-At the query moment and astrologer's location, in this order (duplicates removed):
+At the query moment + astrologer's location, KP assigns a planet to each
+of 7 canonical slots. The RP list is the **unique planets** that appear
+across those 7 slots, ranked by how many slots they fill (most-frequent
+first; ties broken by slot order).
 
-1. **Day Lord** — weekday in the astrologer's LOCAL time
-2. **Moon Sign Lord** — sign lord of Moon's current sidereal sign
-3. **Moon Star Lord** — nakshatra lord of Moon's current longitude
-4. **Ascendant Sign Lord** — sign lord of the ACTUAL Lagna (not Prashna Lagna)
-5. **Ascendant Star Lord** — nakshatra lord of the Actual Lagna
+Slots (in canonical priority order):
 
-Some schools extend to 7 RPs by adding Moon Sub-Lord and Lagna Sub-Lord.
-We use the 5 standard.
+1. **Day Lord** — weekday in LOCAL time (astrologer's perceived day)
+2. **Ascendant Sign Lord** — sign lord of the ACTUAL Lagna (not Prashna Lagna)
+3. **Ascendant Star Lord** — nakshatra lord of the Actual Lagna
+4. **Ascendant Sub Lord** — KP sub lord of the Actual Lagna
+5. **Moon Sign Lord** — sign lord of Moon's current sidereal sign
+6. **Moon Star Lord** — nakshatra lord of Moon's current longitude
+7. **Moon Sub Lord** — KP sub lord of Moon's current longitude
+
+**Strongest significators** = planets that occur in 2+ of the 7 slots.
+By KSK: a planet that is a significator of the queried houses AND also
+appears ≥ 2× in the RP list is highly likely to deliver the result.
+
+KSK's original Reader I used 5 slots (Day Lord + Lagna Sign/Star +
+Moon Sign/Star). PR A1.1c adopts the expanded 7-slot system used by
+mainstream KP software (ksrinivas.com, Jagannatha Hora, onlinejyotish)
+because it gives more discriminating strength rankings and exposes the
+sub-lord information the Layer-2/3 cascade already depends on.
 
 ## 4-level Significators (strongest → weakest)
 
@@ -106,18 +120,38 @@ Supporting gates: H2 CSL + H11 CSL. These are the "material fulfillment"
 houses. If they also signify the Yes-houses, the promise is strong.
 
 **Layer 3 — Ruling Planet confirmation.**
-Compute the 5 RPs (see above). Confirmation patterns:
+Compute the 7 RPs (see above). Confirmation patterns:
 - If the Layer-2 CSL IS among the RPs → HIGH confidence YES
 - If 2+ RPs signify Yes-houses → MEDIUM confidence YES
 - If neither but Lagna was fruitful → LOW confidence YES
 - If RPs signify No-houses → pushback against the verdict
 
+**Partial-YES rule (PR A1.1c).** When the primary-house CSL has no
+direct connection to topic houses (would be UNCLEAR), but one or more
+RPs DO signify those houses, upgrade to **PARTIAL**:
+- 2+ RPs signify topic houses → PARTIAL · MEDIUM confidence
+- 1 RP signifies topic houses → PARTIAL · LOW confidence
+- 0 RPs signify topic houses → UNCLEAR (unchanged)
+
+PARTIAL means "the moment carries the promise even though the primary
+gate is weak — expect a delayed or indirect outcome; watch the dasha/
+bhukti of the supporting RPs for timing."
+
+## Verdict labels
+
+- **YES** — Layer 2 CSL signifies Yes-houses and not No-houses
+- **NO** — Layer 2 CSL signifies No-houses and not Yes-houses
+- **CONDITIONAL** — Layer 2 CSL signifies both (mixed signal)
+- **PARTIAL** — Layer 2 CSL doesn't signify topic houses BUT 1+ RPs do
+  (PR A1.1c new label — replaces UNCLEAR when RPs carry the promise)
+- **UNCLEAR** — neither Layer 2 CSL nor any RP signifies topic houses
+
 ## Confidence labels (our UX layer, not a KP textbook rule)
 
 - **HIGH** — Layer 2 YES + Lagna fruitful + CSL in RPs
-- **MEDIUM** — Layer 2 YES and (Lagna fruitful OR 2+ supporting RPs)
-- **LOW** — Layer 2 YES but Lagna weak and RPs weak
-- For NO/CONDITIONAL/UNCLEAR verdicts, confidence mirrors the certainty
+- **MEDIUM** — Layer 2 YES with partial support, OR PARTIAL with 2+ supporting RPs
+- **LOW** — Layer 2 YES with thin support, OR PARTIAL with 1 RP, OR UNCLEAR
+- For NO/CONDITIONAL verdicts, confidence mirrors the certainty
   of the denial or ambiguity.
 
 ## Rules the AI must NEVER do
