@@ -146,27 +146,26 @@ On mobile (`isMobile` from `useIsMobile`):
 
 Desktop: handle zone hidden via CSS, header non-draggable.
 
-### Session auto-restore (PR22 + PR24)
+### Session auto-restore — REMOVED in PR25
 
-iOS Safari pull-to-refresh can reload the page and lose state. We
-persist to `localStorage` and restore on reload:
+Previous attempts (PR22 snapshot + PR24 reload-only gate) were reverted.
+The `navigationType === "reload"` detection wasn't reliable enough across
+browsers to distinguish "user pulled to refresh" from "user navigated to
+/app fresh", and the net result was stale charts opening when the user
+intentionally wanted the onboarding flow.
 
-**Keys**:
-- `devastroai:savedSessions` — array of ChartSession (always hydrated)
-- `devastroai:lastSnapshot` — active ChartSession (only restored on reload)
-- `devastroai:mode` — "user" | "astrologer"
-
-**Critical PR24 detail — restore only on `navigationType === "reload"`**.
-If the user navigates to `/app` fresh (link click, URL typed, back/forward)
-we do NOT restore, so they land on the onboarding flow as expected. Only
-a true reload (pull-to-refresh, F5, reload button) fires the restore.
-
-Detection: `performance.getEntriesByType("navigation")[0].type === "reload"`
-with a fallback to legacy `performance.navigation.type === 1`.
+**Do not re-introduce this feature without an explicit UX** — any future
+session-resume should be an opt-in "Resume chart?" prompt, shipped as
+part of Track B alongside auth.
 
 **DO NOT re-add `overscroll-behavior-y: contain`** — we tried in PR22 and
-it broke iOS touch scroll inside tab content. Removed in PR23. The
-localStorage restore is the sole pull-to-refresh defense.
+it broke iOS touch scroll inside tab content. Removed in PR23. Pull-to-
+refresh reload is currently accepted as a normal browser behavior.
+
+The `localStorage` keys `devastroai:lastSnapshot`, `devastroai:savedSessions`,
+and `devastroai:mode` are actively cleaned up in PR25 via a one-shot
+removeItem effect, in case they linger in any user's browser from the
+PR22/PR24 era.
 
 ### Masked date/time inputs
 
@@ -203,9 +202,10 @@ The Person-1/Person-2 card grid uses `.match-people-grid` (extracted from
 |---|---|
 | PR20 | CommandOrb (draggable floating nav) + bottom sheet + mobile shell CSS |
 | PR21 | Orb tucks into edge + Saturn LogoMark + always-on breath + swipe-to-dismiss (both sheets) + useSheetDrag hook |
-| PR22 | Masked-input backspace fix + synced match house state + localStorage auto-restore (attempt 1, with overscroll-behavior) + match form mobile overflow |
+| PR22 | Masked-input backspace fix + synced match house state + (reverted) localStorage auto-restore + match form mobile overflow |
 | PR23 | Reverted overscroll-behavior (broke iOS scroll) + manual-separator-pads-zero for masked inputs |
-| PR24 | Restore-only-on-reload (not on navigate) + this CLAUDE.md |
+| PR24 | (reverted) Restore-only-on-reload gate + this CLAUDE.md |
+| PR25 | Reverted the localStorage session auto-restore entirely; kept masked-input helpers + CLAUDE.md + synced match houses + match mobile grid |
 
 ---
 

@@ -163,107 +163,25 @@ export default function Home() {
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [analysisMessages]);
 
-  // PR22 / PR24 — session auto-restore, but ONLY on actual page reload.
+  // Note: PR22's localStorage session auto-restore + PR24's reload-only
+  // gate were reverted in PR25. Users want a fresh onboarding flow when
+  // they intentionally return to /app, and the reload-type detection
+  // wasn't reliable enough to distinguish intents on every browser.
+  // We'll revisit a proper session-resume UX in Track B alongside auth,
+  // where we can give the user an explicit "Resume?" prompt.
+  // Masked-input helpers (formatMaskedDate / formatMaskedTime) from
+  // PR22 + PR23 are KEPT — those are pure input UX fixes.
   //
-  // Mobile browsers (iOS Safari especially) can reload the page when the
-  // user pulls down aggressively. Without persistence, all in-memory
-  // chart state is lost and the user has to re-enter their birth
-  // details. We continuously snapshot the active session to localStorage.
-  //
-  // PR24: the restore should NOT fire when the user intentionally
-  // navigates to /app (clicking "Open the app" from landing, typing
-  // the URL, back/forward). It should only fire when the navigation
-  // type is "reload" — otherwise the user's intent to start fresh gets
-  // overridden by a stale chart reopening.
-  //
-  // savedSessions[] is still hydrated always — the list is useful in
-  // every scenario (astrologer pickers etc.).
-  const hydratedRef = useRef(false);
+  // One-shot cleanup of the stale keys we wrote in PR22/PR24 so returning
+  // users don't have ghost data taking up their localStorage budget.
   useEffect(() => {
-    if (hydratedRef.current) return;
-    hydratedRef.current = true;
     if (typeof window === "undefined") return;
-
-    // Was this load a reload (vs. a navigation)?
-    let isReload = false;
     try {
-      const navEntries = performance.getEntriesByType("navigation") as PerformanceNavigationTiming[];
-      if (navEntries.length > 0) {
-        isReload = navEntries[0].type === "reload";
-      } else {
-        // Fallback for older browsers.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const legacy = (performance as any).navigation;
-        if (legacy?.type === 1) isReload = true; // TYPE_RELOAD
-      }
-    } catch { /* performance API unavailable — treat as navigate */ }
-
-    try {
-      // Always hydrate savedSessions — useful in any scenario.
-      const rawSessions = window.localStorage.getItem("devastroai:savedSessions");
-      if (rawSessions) {
-        const parsed = JSON.parse(rawSessions) as ChartSession[];
-        if (Array.isArray(parsed) && parsed.length > 0) setSavedSessions(parsed);
-      }
-
-      // Only restore the ACTIVE chart on reload. On fresh navigation
-      // (link click, new tab, URL typed) start clean so the user lands
-      // on the onboarding form as expected.
-      if (!isReload) return;
-
-      const rawSnap = window.localStorage.getItem("devastroai:lastSnapshot");
-      const savedMode = window.localStorage.getItem("devastroai:mode");
-      if (rawSnap) {
-        const snap = JSON.parse(rawSnap) as ChartSession;
-        if (snap?.workspaceData && snap?.birthDetails) {
-          setCurrentSessionId(snap.id);
-          setBirthDetails(snap.birthDetails);
-          setWorkspaceData(snap.workspaceData);
-          setAnalysisMessages(snap.analysisMessages ?? []);
-          setActiveTopic(snap.activeTopic ?? "");
-          setSelectedHouse(snap.selectedHouse ?? null);
-          setChatQ(snap.chatQ ?? "");
-          setAnalysisLang(snap.analysisLang ?? "english");
-          setActiveTab(snap.activeTab ?? "chart");
-          if (snap.birthDetails.timezone_offset != null) setTimezoneOffset(snap.birthDetails.timezone_offset);
-          if (savedMode === "astrologer" || savedMode === "user") setMode(savedMode as "user" | "astrologer");
-          setSetupDone(true);
-        }
-      }
-    } catch {
-      // localStorage blocked / corrupt JSON — fall through to onboarding.
-    }
-  }, []);
-
-  // Persist saved sessions list whenever it changes.
-  useEffect(() => {
-    if (!hydratedRef.current) return;
-    try {
-      window.localStorage.setItem("devastroai:savedSessions", JSON.stringify(savedSessions));
+      window.localStorage.removeItem("devastroai:lastSnapshot");
+      window.localStorage.removeItem("devastroai:savedSessions");
+      window.localStorage.removeItem("devastroai:mode");
     } catch { /* ignore */ }
-  }, [savedSessions]);
-
-  // Persist current snapshot whenever key state changes (debounced via
-  // microtask — fine because we only read on load).
-  useEffect(() => {
-    if (!hydratedRef.current || !setupDone || !workspaceData) return;
-    try {
-      const snap = {
-        id: currentSessionId || Date.now().toString(),
-        name: workspaceData.name,
-        birthDetails: { ...birthDetails, timezone_offset: timezoneOffset },
-        workspaceData,
-        analysisMessages,
-        activeTopic,
-        selectedHouse,
-        chatQ,
-        analysisLang,
-        activeTab,
-      };
-      window.localStorage.setItem("devastroai:lastSnapshot", JSON.stringify(snap));
-      window.localStorage.setItem("devastroai:mode", mode);
-    } catch { /* quota exceeded — chart data can be large */ }
-  }, [setupDone, workspaceData, birthDetails, timezoneOffset, analysisMessages, activeTopic, selectedHouse, chatQ, analysisLang, activeTab, mode, currentSessionId]);
+  }, []);
 
   // Load quick insights when analysis tab opens
   useEffect(() => { if (activeTab === "analysis" && workspaceData) { loadQuickInsights(); } }, [activeTab, workspaceData]);
