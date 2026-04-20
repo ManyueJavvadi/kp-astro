@@ -3789,153 +3789,235 @@ export default function Home() {
               {activeTab === "match" && (() => {
                 // Person 1 is always the current chart
                 const matchPerson1 = workspaceData ? snapshotCurrentSession() : null;
+                const canAddP2     = !!(mNewP.name && mNewP.date && mNewP.time);
                 return (
-                <div className="tab-content" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                <div className="tab-content" style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: 1020 }}>
+
+                  {/* Page hero — consistent with Horary / Muhurtha / Panchang (PR14-16). */}
+                  <header className="match-header">
+                    <div className="match-header-eyebrow">
+                      <Heart size={12} strokeWidth={1.8} />
+                      {t("KP + Ashtakoota compatibility", "KP + అష్టకూట సరిపోలన")}
+                    </div>
+                    <h1 className="match-header-title">{t("Marriage match", "వివాహ సరిపోలన")}</h1>
+                    <p className="match-header-sub">
+                      {t(
+                        "Combines KP 7th-cusp sub-lord analysis, Venus karaka, Dasha-Bhukti timing, D9 Navamsa, Kuja Dosha, and the 36-gun Ashtakoota into a single compatibility verdict.",
+                        "KP 7-భావ సబ్ లార్డ్, శుక్ర కారక, దశా-భుక్తి సమయం, D9 నవాంశ, కుజ దోష, 36-గుణ అష్టకూటను కలిపి ఒకే సరిపోలన నిర్ణయంగా మార్చుతుంది."
+                      )}
+                    </p>
+                  </header>
 
                   {/* Selection step — SPLIT LAYOUT */}
                   {!matchLoading && (!matchResults || !matchResults.overall_verdict) && !matchResults?.__error && (
                     <div style={{ display: "flex", flexDirection: "column" as const, gap: "1rem" }}>
-                      <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>వివాహ సరిపోలన — Marriage Compatibility</div>
 
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
 
-                      {/* Person 1 — always current chart */}
-                      <div style={{ background: "var(--surface2)", borderLeft: "3px solid var(--accent)", border: "0.5px solid rgba(201,169,110,0.35)", borderRadius: 10, padding: "1rem 1.125rem", position: "relative" as const, overflow: "hidden" }}>
-                        <div style={{ position: "absolute" as const, top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, var(--accent), transparent)" }} />
-                        <div style={{ fontSize: 9, color: "var(--accent)", letterSpacing: "0.12em", textTransform: "uppercase" as const, marginBottom: "0.625rem", fontWeight: 600 }}>వ్యక్తి 1 — Client</div>
-                        {matchPerson1 ? (
-                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                            <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(201,169,110,0.12)", border: "1.5px solid rgba(201,169,110,0.4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "var(--accent)", fontWeight: 700, flexShrink: 0 }}>
-                              {(matchPerson1.name || matchPerson1.birthDetails.name || "?")[0]?.toUpperCase()}
-                            </div>
-                            <div>
-                              <div style={{ fontSize: 15, color: "var(--accent)", fontWeight: 600 }}>{matchPerson1.name || matchPerson1.birthDetails.name}</div>
-                              <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 3 }}>
-                                {matchPerson1.birthDetails.date} · {matchPerson1.birthDetails.gender === "male" ? "♂ Male" : matchPerson1.birthDetails.gender === "female" ? "♀ Female" : "⚠ Gender not set"}
-                              </div>
-                              {matchPerson1.birthDetails.place && <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 2, opacity: 0.7 }}>{matchPerson1.birthDetails.place}</div>}
-                            </div>
+                        {/* Person 1 — always current chart */}
+                        <div className="match-person-card is-p1">
+                          <div className="match-person-eyebrow" style={{ color: "var(--accent)" }}>
+                            <User size={11} strokeWidth={2} />
+                            {t("Person 1 · Primary", "వ్యక్తి 1 · ప్రాధమిక")}
                           </div>
-                        ) : (
-                          <div style={{ fontSize: 12, color: "var(--muted)", padding: "0.5rem 0" }}>చార్ట్ లోడ్ చేయండి మొదట (Setup tab).</div>
-                        )}
-                      </div>
+                          {matchPerson1 ? (
+                            <div className="match-person-body">
+                              <div className="match-person-avatar p1">
+                                {(matchPerson1.name || matchPerson1.birthDetails.name || "?")[0]?.toUpperCase()}
+                              </div>
+                              <div style={{ minWidth: 0 }}>
+                                <div className="match-person-name p1">{matchPerson1.name || matchPerson1.birthDetails.name}</div>
+                                <div className="match-person-meta">
+                                  <span>{matchPerson1.birthDetails.date}</span>
+                                  <span style={{ color: "var(--border2)" }}>·</span>
+                                  <span>
+                                    {matchPerson1.birthDetails.gender === "male"   ? `♂ ${t("Male", "పురుషుడు")}`
+                                      : matchPerson1.birthDetails.gender === "female" ? `♀ ${t("Female", "స్త్రీ")}`
+                                      : <span style={{ color: "#fbbf24" }}>⚠ {t("Gender not set", "లింగం సెట్ చేయలేదు")}</span>}
+                                  </span>
+                                </div>
+                                {matchPerson1.birthDetails.place && <div className="match-person-place">{matchPerson1.birthDetails.place}</div>}
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: 12, color: "var(--muted)", padding: "0.5rem 0" }}>
+                              {t("Load a chart first from Setup.", "ముందు సెటప్‌లో చార్ట్ లోడ్ చేయండి.")}
+                            </div>
+                          )}
+                        </div>
 
-                      {/* Person 2 — select from saved or add inline */}
-                      <div style={{ background: "var(--surface2)", borderLeft: matchResults?.__p2 ? "3px solid #93c5fd" : "3px solid var(--border2)", border: `0.5px solid ${matchResults?.__p2 ? "rgba(147,197,253,0.35)" : "var(--border)"}`, borderRadius: 10, padding: "1rem 1.125rem", position: "relative" as const, overflow: "hidden" }}>
-                        {matchResults?.__p2 && <div style={{ position: "absolute" as const, top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, #93c5fd, transparent)" }} />}
-                        <div style={{ fontSize: 9, color: matchResults?.__p2 ? "#93c5fd" : "var(--muted)", letterSpacing: "0.12em", textTransform: "uppercase" as const, marginBottom: "0.625rem", fontWeight: 600 }}>వ్యక్తి 2 — Partner</div>
-                        {/* Show saved sessions (excluding current) */}
-                        {!matchPerson2Inline && (
-                          <div style={{ display: "flex", flexDirection: "column" as const, gap: 6 }}>
-                            {savedSessions.filter(s => s.id !== matchPerson1?.id).length > 0 && (
-                              <select onChange={e => {
-                                const found = savedSessions.find(s => s.id === e.target.value);
-                                if (found) { setMatchResults({ __p2: found }); e.target.value = ""; }
-                              }} value={matchResults?.__p2?.id || ""}
-                                style={{ width: "100%", background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "9px 10px", fontSize: 13, color: "var(--muted)", outline: "none", cursor: "pointer", fontFamily: "inherit" }}>
-                                <option value="" disabled>సేవ్ చేసిన చార్ట్ ఎంచుకోండి...</option>
-                                {savedSessions.filter(s => s.id !== matchPerson1?.id).map(s => (
-                                  <option key={s.id} value={s.id}>{s.name || s.birthDetails.name} {s.birthDetails.gender === "male" ? "♂" : s.birthDetails.gender === "female" ? "♀" : ""}</option>
-                                ))}
-                              </select>
-                            )}
-                            <button onClick={() => setMatchPerson2Inline(true)}
-                              style={{ padding: "8px", background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, color: "var(--muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
-                              + కొత్త వ్యక్తి వివరాలు నమోదు చేయండి
-                            </button>
+                        {/* Person 2 — select from saved or add inline */}
+                        <div className={`match-person-card is-p2 ${matchResults?.__p2 ? "is-filled" : "is-empty"}`}>
+                          <div className="match-person-eyebrow" style={{ color: matchResults?.__p2 ? "#93c5fd" : "var(--muted)" }}>
+                            <Heart size={11} strokeWidth={2} />
+                            {t("Person 2 · Partner", "వ్యక్తి 2 · భాగస్వామి")}
                           </div>
-                        )}
-                        {/* Inline add form for person 2 */}
-                        {matchPerson2Inline && (
-                          <div style={{ display: "flex", flexDirection: "column" as const, gap: 7 }}>
-                            <input placeholder="పేరు / Name" value={mNewP.name} onChange={e => setMNewP(p => ({ ...p, name: e.target.value }))}
-                              style={{ background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "7px 10px", fontSize: 12, color: "var(--text)", outline: "none" }} />
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-                              <input placeholder="DD/MM/YYYY" value={mNewP.date} onChange={e => handleMNewPDateChange(e.target.value)} maxLength={10}
-                                style={{ background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "7px 10px", fontSize: 12, color: "var(--text)", outline: "none" }} />
-                              <div style={{ display: "flex", gap: 4 }}>
-                                <input placeholder="HH:MM" value={mNewP.time} onChange={e => handleMNewPTimeChange(e.target.value)} maxLength={5}
-                                  style={{ flex: 1, background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "7px 10px", fontSize: 12, color: "var(--text)", outline: "none" }} />
-                                <button onClick={() => setMNewP(p => ({ ...p, ampm: p.ampm === "AM" ? "PM" : "AM" }))}
-                                  style={{ padding: "7px 8px", background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, color: "var(--accent)", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>
-                                  {mNewP.ampm}
-                                </button>
-                              </div>
+
+                          {/* Show saved sessions / New button when no p2 and no inline form */}
+                          {!matchPerson2Inline && !matchResults?.__p2 && (
+                            <div style={{ display: "flex", flexDirection: "column" as const, gap: 8 }}>
+                              {savedSessions.filter(s => s.id !== matchPerson1?.id).length > 0 && (
+                                <select onChange={e => {
+                                  const found = savedSessions.find(s => s.id === e.target.value);
+                                  if (found) { setMatchResults({ __p2: found }); e.target.value = ""; }
+                                }} defaultValue=""
+                                  style={{ width: "100%", background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 8, padding: "9px 12px", fontSize: 13, color: "var(--muted)", outline: "none", cursor: "pointer", fontFamily: "inherit" }}>
+                                  <option value="" disabled>{t("Pick a saved chart…", "సేవ్ చేసిన చార్ట్ ఎంచుకోండి…")}</option>
+                                  {savedSessions.filter(s => s.id !== matchPerson1?.id).map(s => (
+                                    <option key={s.id} value={s.id}>{s.name || s.birthDetails.name} {s.birthDetails.gender === "male" ? "♂" : s.birthDetails.gender === "female" ? "♀" : ""}</option>
+                                  ))}
+                                </select>
+                              )}
+                              <button onClick={() => setMatchPerson2Inline(true)}
+                                style={{ padding: "9px 14px", background: "var(--surface)", border: "0.5px dashed var(--border2)", borderRadius: 8, color: "var(--muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit", textAlign: "left" as const, transition: "border-color 140ms, color 140ms" }}
+                                onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(147,197,253,0.5)"; e.currentTarget.style.color = "#93c5fd"; }}
+                                onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border2)"; e.currentTarget.style.color = "var(--muted)"; }}
+                              >
+                                + {t("Enter new person details", "కొత్త వ్యక్తి వివరాలు నమోదు చేయండి")}
+                              </button>
                             </div>
-                            <div style={{ position: "relative" as const }}>
-                              <input placeholder="పుట్టిన ఊరు / Place of Birth" value={mNewP.place} onChange={e => handleMNewPPlaceChange(e.target.value)}
-                                style={{ width: "100%", background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "7px 10px", fontSize: 12, color: "var(--text)", outline: "none", boxSizing: "border-box" as const }} />
-                              {mNewPPlaceStatus === "searching" && <div style={{ position: "absolute", right: 10, top: 8, fontSize: 10, color: "var(--muted)" }}>...</div>}
-                              {mNewPPlaceSugg.length > 0 && (
-                                <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100, background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 6, overflow: "hidden", marginTop: 2 }}>
-                                  {mNewPPlaceSugg.map((s, i) => (
-                                    <button key={i} onClick={() => {
-                                      setMNewP(p => ({ ...p, place: s.display, latitude: s.lat, longitude: s.lon }));
-                                      setMNewPPlaceSugg([]); setMNewPPlaceStatus("idle");
+                          )}
+
+                          {/* Inline add form for person 2 — reuses the PR17a participant-form visual style */}
+                          {matchPerson2Inline && (
+                            <div className="muhurtha-participant-form" style={{ marginTop: 0 }}>
+                              <div className="pf-header">
+                                <div className="pf-header-title">{t("New partner details", "కొత్త భాగస్వామి వివరాలు")}</div>
+                                <div className="pf-header-sub">{t("Saved so you can reuse", "సేవ్ అయి తిరిగి వాడవచ్చు")}</div>
+                              </div>
+                              <div>
+                                <div className="pf-field-label"><User size={10} strokeWidth={2} /> {t("Name", "పేరు")}</div>
+                                <input type="text" placeholder={t("Full name", "పూర్తి పేరు")} value={mNewP.name}
+                                  onChange={e => setMNewP(p => ({ ...p, name: e.target.value }))}
+                                  className={`pf-input${mNewP.name ? " filled" : ""}`} />
+                              </div>
+                              <div className="pf-row">
+                                <div>
+                                  <div className="pf-field-label"><Clock size={10} strokeWidth={2} /> {t("Date of birth", "పుట్టిన తేదీ")}</div>
+                                  <input type="text" placeholder="DD/MM/YYYY" maxLength={10} value={mNewP.date}
+                                    onChange={e => handleMNewPDateChange(e.target.value)}
+                                    className={`pf-input${mNewP.date ? " filled" : ""}`} />
+                                </div>
+                                <div>
+                                  <div className="pf-field-label"><Clock size={10} strokeWidth={2} /> {t("Time of birth", "పుట్టిన సమయం")}</div>
+                                  <div style={{ display: "flex", gap: 6 }}>
+                                    <input type="text" placeholder="HH:MM" maxLength={5} value={mNewP.time}
+                                      onChange={e => handleMNewPTimeChange(e.target.value)}
+                                      className={`pf-input${mNewP.time ? " filled" : ""}`} style={{ flex: 1 }} />
+                                    <button onClick={() => setMNewP(p => ({ ...p, ampm: p.ampm === "AM" ? "PM" : "AM" }))}
+                                      className="pf-input filled"
+                                      style={{ width: 64, cursor: "pointer", color: "var(--accent)", fontWeight: 600, textAlign: "center" as const, padding: "8px 0" }}>
+                                      {mNewP.ampm}
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                              <div>
+                                <div className="pf-field-label"><Globe2 size={10} strokeWidth={2} /> {t("Place of birth", "పుట్టిన ఊరు")}</div>
+                                <PlacePicker
+                                  value={mNewP.place}
+                                  placeholder={t("Start typing a city…", "నగరం టైప్ చేయండి…")}
+                                  onChange={(placeName, pick) => {
+                                    setMNewP(p => ({
+                                      ...p, place: placeName,
+                                      latitude: pick ? pick.lat : p.latitude,
+                                      longitude: pick ? pick.lon : p.longitude,
+                                    }));
+                                    if (pick?.timezone) {
+                                      try {
+                                        const now = new Date();
+                                        const fmt = new Intl.DateTimeFormat("en-US", { timeZone: pick.timezone, timeZoneName: "longOffset" });
+                                        const parts = fmt.formatToParts(now);
+                                        const tzPart = parts.find(part => part.type === "timeZoneName")?.value ?? "";
+                                        const m = tzPart.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);
+                                        if (m) {
+                                          const sign = m[1] === "-" ? -1 : 1;
+                                          const h = parseInt(m[2], 10);
+                                          const mm = parseInt(m[3] ?? "0", 10);
+                                          const offset = sign * (h + mm / 60);
+                                          setMNewP(p => ({ ...p, timezone_offset: offset }));
+                                          return;
+                                        }
+                                      } catch { /* silent */ }
+                                    }
+                                    if (pick) {
                                       axios.get("https://api.bigdatacloud.net/data/reverse-geocode-client", {
-                                        params: { latitude: s.lat, longitude: s.lon, localityLanguage: "en" }
+                                        params: { latitude: pick.lat, longitude: pick.lon, localityLanguage: "en" },
                                       }).then(r => {
-                                        const offset = Math.round(((r.data?.timezone?.gmtOffset || 19800) / 3600) * 2) / 2;
-                                        setMNewP(p => ({ ...p, timezone_offset: offset }));
+                                        const tz = r.data?.timezone;
+                                        if (tz?.gmtOffset !== undefined) {
+                                          const offset = Math.round((tz.gmtOffset / 3600) * 2) / 2;
+                                          setMNewP(p => ({ ...p, timezone_offset: offset }));
+                                        }
                                       }).catch(() => {});
-                                    }}
-                                      style={{ width: "100%", padding: "7px 10px", background: "none", border: "none", borderBottom: "0.5px solid var(--border)", color: "var(--text)", fontSize: 11, textAlign: "left" as const, cursor: "pointer", fontFamily: "inherit" }}>
-                                      {s.display}
+                                    }
+                                  }}
+                                />
+                              </div>
+                              <div>
+                                <div className="pf-field-label">{t("Gender", "లింగం")}</div>
+                                <div className="pf-gender-grid">
+                                  {(["male","female"] as const).map(g => (
+                                    <button key={g} onClick={() => setMNewP(p => ({ ...p, gender: g }))}
+                                      className={`pf-gender-pill${mNewP.gender === g ? " is-active" : ""}`}>
+                                      <span style={{ fontSize: 14, lineHeight: 1 }}>{g === "male" ? "♂" : "♀"}</span>
+                                      {g === "male" ? t("Male", "పురుషుడు") : t("Female", "స్త్రీ")}
                                     </button>
                                   ))}
                                 </div>
-                              )}
-                            </div>
-                            <div style={{ display: "flex", gap: 6 }}>
-                              {(["male","female"] as const).map(g => (
-                                <button key={g} onClick={() => setMNewP(p => ({ ...p, gender: g }))}
-                                  style={{ flex: 1, padding: "6px", borderRadius: 6, cursor: "pointer", border: `0.5px solid ${mNewP.gender === g ? "var(--accent)" : "var(--border2)"}`, background: mNewP.gender === g ? "rgba(201,169,110,0.1)" : "var(--surface)", color: mNewP.gender === g ? "var(--accent)" : "var(--muted)", fontSize: 12, fontFamily: "inherit" }}>
-                                  {g === "male" ? "♂ Male" : "♀ Female"}
+                              </div>
+                              <div className="pf-actions">
+                                <button onClick={() => { setMatchPerson2Inline(false); setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "", timezone_offset: 5.5 }); setMNewPPlaceSugg([]); }}
+                                  className="pf-btn-cancel">
+                                  {t("Cancel", "రద్దు")}
                                 </button>
-                              ))}
-                            </div>
-                            <div style={{ display: "flex", gap: 6 }}>
-                              <button onClick={() => {
-                                if (!mNewP.name || !mNewP.date || !mNewP.time) return;
-                                const newSession: ChartSession = {
-                                  id: Date.now().toString(), name: mNewP.name,
-                                  birthDetails: { name: mNewP.name, date: mNewP.date, time: mNewP.time, ampm: mNewP.ampm, place: mNewP.place, latitude: mNewP.latitude, longitude: mNewP.longitude, gender: mNewP.gender, timezone_offset: mNewP.timezone_offset },
-                                  workspaceData: null, analysisMessages: [], activeTopic: "", selectedHouse: null, chatQ: "", analysisLang: "english", activeTab: "chart"
-                                };
-                                setSavedSessions(prev => [...prev, newSession]);
-                                setMatchResults({ __p2: newSession });
-                                setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "", timezone_offset: 5.5 });
-                                setMNewPPlaceSugg([]); setMNewPPlaceStatus("idle");
-                                setMatchPerson2Inline(false);
-                              }} style={{ flex: 1, padding: "7px", background: "var(--accent)", border: "none", borderRadius: 6, color: "#09090f", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
-                                జోడించు
-                              </button>
-                              <button onClick={() => { setMatchPerson2Inline(false); setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "", timezone_offset: 5.5 }); setMNewPPlaceSugg([]); }}
-                                style={{ padding: "7px 12px", background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, color: "var(--muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
-                                రద్దు
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                        {/* Show selected person 2 */}
-                        {matchResults?.__p2 && !matchPerson2Inline && (
-                          <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 6 }}>
-                            <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(147,197,253,0.1)", border: "1.5px solid rgba(147,197,253,0.35)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#93c5fd", fontWeight: 700, flexShrink: 0 }}>
-                              {(matchResults.__p2.name || matchResults.__p2.birthDetails.name || "?")[0]?.toUpperCase()}
-                            </div>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 15, color: "#93c5fd", fontWeight: 600 }}>{matchResults.__p2.name || matchResults.__p2.birthDetails.name}</div>
-                              <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 3 }}>
-                                {matchResults.__p2.birthDetails.date} · {matchResults.__p2.birthDetails.gender === "male" ? "♂ Male" : matchResults.__p2.birthDetails.gender === "female" ? "♀ Female" : ""}
+                                <button disabled={!canAddP2}
+                                  onClick={() => {
+                                    if (!canAddP2) return;
+                                    const newSession: ChartSession = {
+                                      id: Date.now().toString(), name: mNewP.name,
+                                      birthDetails: { name: mNewP.name, date: mNewP.date, time: mNewP.time, ampm: mNewP.ampm, place: mNewP.place, latitude: mNewP.latitude, longitude: mNewP.longitude, gender: mNewP.gender, timezone_offset: mNewP.timezone_offset },
+                                      workspaceData: null, analysisMessages: [], activeTopic: "", selectedHouse: null, chatQ: "", analysisLang: "english", activeTab: "chart"
+                                    };
+                                    setSavedSessions(prev => [...prev, newSession]);
+                                    setMatchResults({ __p2: newSession });
+                                    setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "", timezone_offset: 5.5 });
+                                    setMNewPPlaceSugg([]); setMNewPPlaceStatus("idle");
+                                    setMatchPerson2Inline(false);
+                                  }}
+                                  className="pf-btn-add">
+                                  {t("Add partner", "జోడించు")}
+                                </button>
                               </div>
                             </div>
-                            <button onClick={() => { setMatchResults(null); }} style={{ background: "none", border: "0.5px solid var(--border2)", borderRadius: 6, color: "var(--muted)", cursor: "pointer", padding: "5px 12px", fontSize: 11, fontFamily: "inherit" }}>
-                              మార్చు
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                          )}
+
+                          {/* Show selected person 2 */}
+                          {matchResults?.__p2 && !matchPerson2Inline && (
+                            <div className="match-person-body">
+                              <div className="match-person-avatar p2">
+                                {(matchResults.__p2.name || matchResults.__p2.birthDetails.name || "?")[0]?.toUpperCase()}
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div className="match-person-name p2">{matchResults.__p2.name || matchResults.__p2.birthDetails.name}</div>
+                                <div className="match-person-meta">
+                                  <span>{matchResults.__p2.birthDetails.date}</span>
+                                  <span style={{ color: "var(--border2)" }}>·</span>
+                                  <span>
+                                    {matchResults.__p2.birthDetails.gender === "male"   ? `♂ ${t("Male", "పురుషుడు")}`
+                                      : matchResults.__p2.birthDetails.gender === "female" ? `♀ ${t("Female", "స్త్రీ")}` : "—"}
+                                  </span>
+                                </div>
+                                {matchResults.__p2.birthDetails.place && <div className="match-person-place">{matchResults.__p2.birthDetails.place}</div>}
+                              </div>
+                              <button onClick={() => { setMatchResults(null); }}
+                                className="match-back-btn"
+                                style={{ padding: "4px 12px" }}>
+                                {t("Change", "మార్చు")}
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>{/* close 2-col grid */}
 
                       <button onClick={async () => {
@@ -3944,17 +4026,36 @@ export default function Home() {
                         setMatchLoading(true); setMatchHouse1(null); setMatchHouse2(null);
                         const prevP2 = p2;
                         setMatchResults(null);
+                        const startedAt = Date.now();
                         try {
                           const res = await axios.post(`${API_URL}/compatibility/match`, {
                             person1: sessionToApiPerson(matchPerson1),
                             person2: sessionToApiPerson(prevP2),
                           });
+                          // Minimum 650ms loading window so the verdict reveal
+                          // has weight, same pattern as horary PR14.
+                          const elapsed = Date.now() - startedAt;
+                          if (elapsed < 650) await new Promise(r => setTimeout(r, 650 - elapsed));
                           setMatchResults({ ...res.data, __p2: prevP2 });
-                        } catch { setMatchResults({ __p2: prevP2, __error: true }); }
+                        } catch {
+                          const elapsed = Date.now() - startedAt;
+                          if (elapsed < 650) await new Promise(r => setTimeout(r, 650 - elapsed));
+                          setMatchResults({ __p2: prevP2, __error: true });
+                        }
                         setMatchLoading(false);
                       }} disabled={!matchPerson1 || !matchResults?.__p2}
-                        style={{ width: "100%", padding: "14px", background: matchPerson1 && matchResults?.__p2 ? "linear-gradient(135deg, #c9a96e, #e8c97a)" : "var(--surface2)", color: matchPerson1 && matchResults?.__p2 ? "#09090f" : "var(--muted)", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: matchPerson1 && matchResults?.__p2 ? "pointer" : "default", fontFamily: "inherit", transition: "all 0.3s", letterSpacing: "0.03em", boxShadow: matchPerson1 && matchResults?.__p2 ? "0 4px 20px rgba(201,169,110,0.25)" : "none" }}>
-                        సరిపోలన చూడు →
+                        className="match-compute-btn">
+                        {matchLoading ? (
+                          <>
+                            <Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} />
+                            {t("Computing compatibility…", "సరిపోలన లెక్కిస్తోంది…")}
+                          </>
+                        ) : (
+                          <>
+                            <Heart size={15} strokeWidth={1.8} />
+                            {t("Compute compatibility", "సరిపోలన చూడు")}
+                          </>
+                        )}
                       </button>
                     </div>
                   )}
@@ -3963,7 +4064,7 @@ export default function Home() {
                   {matchLoading && (
                     <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--muted)", padding: "3rem", justifyContent: "center" }}>
                       <div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid var(--accent)", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
-                      గ్రహ స్థానాలు లెక్కిస్తున్నాం...
+                      {t("Calculating planetary positions…", "గ్రహ స్థానాలు లెక్కిస్తున్నాం…")}
                     </div>
                   )}
 
@@ -3976,142 +4077,165 @@ export default function Home() {
                     const verdictColor = r.overall_verdict === "Highly Compatible" ? "var(--accent)" : r.overall_verdict === "Compatible" ? "#4ade80" : r.overall_verdict === "Conditionally Compatible" ? "#fbbf24" : "#f87171";
 
                     return (
-                      <div style={{ display: "flex", flexDirection: "column" as const, gap: "0.875rem" }}>
-                        {/* Back button */}
-                        <button onClick={() => { setMatchResults({ __p2: r.__p2 }); setMatchHouse1(null); setMatchHouse2(null); setMatchAnalysisMessages([]); }} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 12, fontFamily: "inherit", padding: 0 }}>
-                          ← వేరే వ్యక్తి ఎంచుకోండి
+                      <div className="match-result-stack" style={{ display: "flex", flexDirection: "column" as const, gap: "0.875rem" }}>
+                        {/* Back pill */}
+                        <button onClick={() => { setMatchResults({ __p2: r.__p2 }); setMatchHouse1(null); setMatchHouse2(null); setMatchAnalysisMessages([]); }}
+                          className="match-back-btn">
+                          ← {t("Pick a different person", "వేరే వ్యక్తి ఎంచుకోండి")}
                         </button>
 
                         {/* Gender warning if either person has no gender set */}
                         {(!r.person1?.gender || !r.person2?.gender) && (
-                          <div style={{ padding: "6px 10px", background: "rgba(251,191,36,0.08)", border: "0.5px solid rgba(251,191,36,0.25)", borderRadius: 6, fontSize: 11, color: "#fbbf24" }}>
-                            ⚠ {[!r.person1?.gender && r.person1?.name, !r.person2?.gender && r.person2?.name].filter(Boolean).join(", ")} — Gender not set. Ashtakoota assumes Person 1 = Boy. Set gender in Setup for accurate 36-gun score.
+                          <div style={{ padding: "8px 12px", background: "rgba(251,191,36,0.08)", border: "0.5px solid rgba(251,191,36,0.25)", borderRadius: 8, fontSize: 11, color: "#fbbf24", display: "flex", alignItems: "center", gap: 8 }}>
+                            <TriangleAlert size={13} strokeWidth={2} color="#fbbf24" style={{ flexShrink: 0 }} />
+                            <span>
+                              <strong>{[!r.person1?.gender && r.person1?.name, !r.person2?.gender && r.person2?.name].filter(Boolean).join(", ")}</strong> —{" "}
+                              {t(
+                                "Gender not set. Ashtakoota assumes Person 1 = Boy. Set gender in Setup for an accurate 36-gun score.",
+                                "లింగం సెట్ చేయలేదు. అష్టకూట వ్యక్తి 1 = పురుషుడు అని భావిస్తుంది. ఖచ్చితమైన 36-గుణ స్కోరు కోసం సెటప్‌లో లింగం సెట్ చేయండి."
+                              )}
+                            </span>
                           </div>
                         )}
 
-                        {/* Overall verdict banner — upgraded with avatar chips + donut gauge */}
-                        <div style={{ padding: "14px 16px", background: "var(--surface2)", border: `1px solid ${verdictColor}40`, borderRadius: 12, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" as const }}>
+                        {/* Result hero — serif verdict + score donut + both avatars */}
+                        <div className="match-result-hero" style={{
+                          color: verdictColor,
+                          background: `radial-gradient(ellipse at 50% 0%, ${verdictColor}20 0%, transparent 70%), var(--surface2)`,
+                          border: `1px solid ${verdictColor}40`,
+                          boxShadow: `0 22px 40px -24px ${verdictColor}40, 0 0 0 1px ${verdictColor}0d inset`,
+                          display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" as const,
+                        }}>
                           {/* Person 1 avatar */}
-                          <div style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 4 }}>
-                            <div style={{ width: 42, height: 42, borderRadius: "50%", background: "rgba(201,169,110,0.15)", border: "1.5px solid rgba(201,169,110,0.5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#c9a96e", fontWeight: 700 }}>
+                          <div style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 5, minWidth: 68 }}>
+                            <div style={{ width: 48, height: 48, borderRadius: "50%", background: "rgba(201,169,110,0.15)", border: "1.5px solid rgba(201,169,110,0.5)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Serif Display', serif", fontSize: 20, color: "#c9a96e" }}>
                               {(r.person1?.name || "?")[0]?.toUpperCase()}
                             </div>
-                            <div style={{ fontSize: 10, color: "var(--muted)", maxWidth: 60, textAlign: "center" as const, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{r.person1?.name}</div>
+                            <div style={{ fontSize: 10, color: "var(--muted)", maxWidth: 68, textAlign: "center" as const, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{r.person1?.name}</div>
                           </div>
-                          {/* Score donut in center */}
-                          <div style={{ flex: 1, display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 4 }}>
-                            <svg width={72} height={72} viewBox="0 0 72 72">
-                              <circle cx={36} cy={36} r={28} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={8} />
-                              <circle cx={36} cy={36} r={28} fill="none" stroke={verdictColor} strokeWidth={8}
-                                strokeDasharray={`${((ast?.total_score ?? 0)/(ast?.max_score ?? 36)) * 175.9} 175.9`}
-                                strokeLinecap="round" strokeDashoffset={44} />
-                              <text x={36} y={38} textAnchor="middle" fontSize={14} fontWeight={700} fill={verdictColor}>{ast?.total_score ?? "?"}</text>
-                              <text x={36} y={50} textAnchor="middle" fontSize={8} fill="#666677">/{ast?.max_score ?? 36}</text>
+                          {/* Score donut + serif verdict */}
+                          <div style={{ flex: 1, display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 6, minWidth: 200 }}>
+                            <svg width={84} height={84} viewBox="0 0 84 84">
+                              <circle cx={42} cy={42} r={34} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={8} />
+                              <circle cx={42} cy={42} r={34} fill="none" stroke={verdictColor} strokeWidth={8}
+                                strokeDasharray={`${((ast?.total_score ?? 0)/(ast?.max_score ?? 36)) * 213.6} 213.6`}
+                                strokeLinecap="round" strokeDashoffset={53.4}
+                                style={{ filter: `drop-shadow(0 0 8px ${verdictColor}60)` }} />
+                              <text x={42} y={44} textAnchor="middle" className="match-score-donut-num" fontSize={18} fill={verdictColor}>{ast?.total_score ?? "?"}</text>
+                              <text x={42} y={58} textAnchor="middle" fontSize={9} fill="var(--muted)">/{ast?.max_score ?? 36}</text>
                             </svg>
-                            <div style={{ fontSize: 14, fontWeight: 700, color: verdictColor, textAlign: "center" as const }}>{r.overall_verdict}</div>
-                            <div style={{ fontSize: 10, color: "var(--muted)" }}>KP: {kp?.kp_verdict}</div>
+                            <div className="match-verdict-word" style={{ color: verdictColor }}>
+                              {r.overall_verdict}
+                            </div>
+                            <div style={{ display: "inline-flex", gap: 6, alignItems: "center", fontSize: 10, color: "var(--muted)", letterSpacing: "0.06em", textTransform: "uppercase" as const }}>
+                              <span>KP</span>
+                              <span style={{ color: verdictColor, fontWeight: 600, textTransform: "none" as const, letterSpacing: "0.02em" }}>{kp?.kp_verdict}</span>
+                              {r.kuja_dosha?.mutual_cancellation && (
+                                <span className="match-dosha-chip good" style={{ marginLeft: 4 }}>
+                                  <CheckCircle size={10} strokeWidth={2} /> {t("Mangal Dosha cancelled", "కుజ దోష రద్దు")}
+                                </span>
+                              )}
+                            </div>
                           </div>
                           {/* Person 2 avatar */}
-                          <div style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 4 }}>
-                            <div style={{ width: 42, height: 42, borderRadius: "50%", background: "rgba(147,197,253,0.12)", border: "1.5px solid rgba(147,197,253,0.4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#93c5fd", fontWeight: 700 }}>
+                          <div style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 5, minWidth: 68 }}>
+                            <div style={{ width: 48, height: 48, borderRadius: "50%", background: "rgba(147,197,253,0.12)", border: "1.5px solid rgba(147,197,253,0.4)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Serif Display', serif", fontSize: 20, color: "#93c5fd" }}>
                               {(r.person2?.name || "?")[0]?.toUpperCase()}
                             </div>
-                            <div style={{ fontSize: 10, color: "var(--muted)", maxWidth: 60, textAlign: "center" as const, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{r.person2?.name}</div>
+                            <div style={{ fontSize: 10, color: "var(--muted)", maxWidth: 68, textAlign: "center" as const, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{r.person2?.name}</div>
                           </div>
                         </div>
 
                         {/* ═══ KUNDALI CHARTS — Side by Side ═══ */}
                         {(r.chart1_data || r.chart2_data) && (
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                            {/* Person 1 Kundali */}
-                            <div style={{ background: "var(--surface2)", border: "0.5px solid rgba(201,169,110,0.3)", borderRadius: 10, padding: "0.875rem", display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 8 }}>
-                              <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, width: "100%", marginBottom: 4 }}>{r.person1?.name} — కుండలి</div>
-                              {r.chart1_data && (
-                                <>
-                                  <SouthIndianChart
-                                    planets={r.chart1_data.planets}
-                                    cusps={r.chart1_data.cusps}
-                                    onHouseClick={(h: number) => setMatchHouse1(matchHouse1 === h ? null : h)}
-                                    selectedHouse={matchHouse1}
-                                  />
-                                  {matchHouse1 && (
-                                    <div style={{ width: "100%", marginTop: 4 }}>
-                                      <HousePanel
-                                        house={matchHouse1}
-                                        cusps={r.chart1_data.cusps}
-                                        significators={null}
-                                        planets={r.chart1_data.planets}
-                                        rulingPlanets={kp?.ruling_planets_chart1 || []}
-                                        antardashas={[]}
-                                        onClose={() => setMatchHouse1(null)}
-                                      />
-                                    </div>
-                                  )}
-                                </>
-                              )}
-                            </div>
-                            {/* Person 2 Kundali */}
-                            <div style={{ background: "var(--surface2)", border: "0.5px solid rgba(201,169,110,0.3)", borderRadius: 10, padding: "0.875rem", display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 8 }}>
-                              <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, width: "100%", marginBottom: 4 }}>{r.person2?.name} — కుండలి</div>
-                              {r.chart2_data && (
-                                <>
-                                  <SouthIndianChart
-                                    planets={r.chart2_data.planets}
-                                    cusps={r.chart2_data.cusps}
-                                    onHouseClick={(h: number) => setMatchHouse2(matchHouse2 === h ? null : h)}
-                                    selectedHouse={matchHouse2}
-                                  />
-                                  {matchHouse2 && (
-                                    <div style={{ width: "100%", marginTop: 4 }}>
-                                      <HousePanel
-                                        house={matchHouse2}
-                                        cusps={r.chart2_data.cusps}
-                                        significators={null}
-                                        planets={r.chart2_data.planets}
-                                        rulingPlanets={kp?.ruling_planets_chart2 || []}
-                                        antardashas={[]}
-                                        onClose={() => setMatchHouse2(null)}
-                                      />
-                                    </div>
-                                  )}
-                                </>
-                              )}
-                            </div>
+                          <div className="match-section-grid">
+                            {[
+                              { chart: r.chart1_data, name: r.person1?.name, isP1: true,  house: matchHouse1, setHouse: setMatchHouse1, rp: kp?.ruling_planets_chart1 },
+                              { chart: r.chart2_data, name: r.person2?.name, isP1: false, house: matchHouse2, setHouse: setMatchHouse2, rp: kp?.ruling_planets_chart2 },
+                            ].map((it, i) => (
+                              <div key={i} className="match-section" style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 8, padding: "14px" }}>
+                                <div className="match-section-title" style={{ alignSelf: "flex-start", color: it.isP1 ? "var(--accent)" : "#93c5fd" }}>
+                                  {it.name} · {t("Kundali", "కుండలి")}
+                                </div>
+                                {it.chart && (
+                                  <>
+                                    <SouthIndianChart
+                                      planets={it.chart.planets}
+                                      cusps={it.chart.cusps}
+                                      onHouseClick={(h: number) => it.setHouse(it.house === h ? null : h)}
+                                      selectedHouse={it.house}
+                                    />
+                                    {it.house && (
+                                      <div style={{ width: "100%", marginTop: 4 }}>
+                                        <HousePanel
+                                          house={it.house}
+                                          cusps={it.chart.cusps}
+                                          significators={null}
+                                          planets={it.chart.planets}
+                                          rulingPlanets={it.rp || []}
+                                          antardashas={[]}
+                                          onClose={() => it.setHouse(null)}
+                                        />
+                                      </div>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            ))}
                           </div>
                         )}
 
-                        {/* ═══ KP PROMISE — Side by Side ═══ */}
-                        <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem" }}>
-                          <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.625rem" }}>KP వివాహ ప్రమాణం — Marriage Promise</div>
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                        {/* ═══ KP Marriage Promise ═══ */}
+                        <div className="match-section">
+                          <div className="match-section-title">
+                            <HandHeart size={12} strokeWidth={1.8} />
+                            {t("KP marriage promise", "KP వివాహ ప్రమాణం")}
+                          </div>
+                          <div className="match-section-grid">
                             {[{p: kp?.chart1_promise, name: r.person1?.name}, {p: kp?.chart2_promise, name: r.person2?.name}].map((item, i) => item.p && (
-                              <div key={i} style={{ padding: "10px 12px", background: "var(--surface)", borderRadius: 8, border: `0.5px solid ${item.p.has_promise && !item.p.has_denial ? "rgba(74,222,128,0.3)" : item.p.has_denial ? "rgba(248,113,113,0.3)" : "var(--border)"}` }}>
-                                <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 4 }}>{item.name}</div>
-                                <div style={{ fontSize: 12, fontWeight: 600, color: item.p.has_promise && !item.p.has_denial ? "#4ade80" : item.p.has_denial ? "#f87171" : "var(--accent)", marginBottom: 4 }}>
+                              <div key={i} className="match-tile" style={{ borderColor: item.p.has_promise && !item.p.has_denial ? "rgba(74,222,128,0.3)" : item.p.has_denial ? "rgba(248,113,113,0.3)" : "var(--border)" }}>
+                                <div className="match-tile-name">{item.name}</div>
+                                <div className="match-tile-primary" style={{ color: item.p.has_promise && !item.p.has_denial ? "#4ade80" : item.p.has_denial ? "#f87171" : "var(--accent)" }}>
                                   H7 CSL: {item.p.sub_lord} — {item.p.verdict}
                                 </div>
-                                <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 2 }}>Signifies: H{item.p.signified_houses?.join(", H")}</div>
-                                {item.p.marriage_type && <div style={{ fontSize: 10, color: "var(--text)", marginBottom: 2 }}>Type: {item.p.marriage_type}</div>}
-                                {item.p.spouse_nature && <div style={{ fontSize: 10, color: "var(--muted)" }}>Spouse: {item.p.spouse_nature}</div>}
+                                <div className="match-tile-row">
+                                  <span className="k">{t("Signifies", "సూచిస్తుంది")}</span>
+                                  <span className="v">H{item.p.signified_houses?.join(", H")}</span>
+                                </div>
+                                {item.p.marriage_type && (
+                                  <div className="match-tile-row">
+                                    <span className="k">{t("Type", "రకం")}</span>
+                                    <span className="v">{item.p.marriage_type}</span>
+                                  </div>
+                                )}
+                                {item.p.spouse_nature && (
+                                  <div className="match-tile-row">
+                                    <span className="k">{t("Spouse", "భాగస్వామి")}</span>
+                                    <span className="v">{item.p.spouse_nature}</span>
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>
                         </div>
 
                         {/* ═══ SUPPORTING CUSPS — H2 & H11 ═══ */}
-                        <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem" }}>
-                          <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>Supporting Cusps (H2 & H11)</div>
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                        <div className="match-section">
+                          <div className="match-section-title">
+                            <Sparkles size={12} strokeWidth={1.8} />
+                            {t("Supporting cusps (H2 & H11)", "సపోర్టింగ్ కస్పాలు (H2 & H11)")}
+                          </div>
+                          <div className="match-section-grid">
                             {[{sc: kp?.supporting_cusps_chart1, name: r.person1?.name}, {sc: kp?.supporting_cusps_chart2, name: r.person2?.name}].map((item, i) => item.sc && (
-                              <div key={i} style={{ background: "var(--surface)", borderRadius: 8, padding: "10px 12px" }}>
-                                <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 6 }}>{item.name}</div>
-                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                                  <span style={{ fontSize: 11, color: "var(--muted)" }}>H2 CSL: {item.sc.h2_csl}</span>
-                                  <span style={{ fontSize: 11, color: item.sc.h2_supports ? "#4ade80" : "var(--muted)" }}>{item.sc.h2_supports ? "✓" : "✗"}</span>
+                              <div key={i} className="match-tile">
+                                <div className="match-tile-name">{item.name}</div>
+                                <div className="match-tile-row">
+                                  <span className="k">H2 CSL: <span style={{ color: "var(--text)" }}>{item.sc.h2_csl}</span></span>
+                                  <span style={{ color: item.sc.h2_supports ? "#4ade80" : "var(--muted)", fontWeight: 600 }}>{item.sc.h2_supports ? "✓" : "✗"}</span>
                                 </div>
-                                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                                  <span style={{ fontSize: 11, color: "var(--muted)" }}>H11 CSL: {item.sc.h11_csl}</span>
-                                  <span style={{ fontSize: 11, color: item.sc.h11_supports ? "#4ade80" : "var(--muted)" }}>{item.sc.h11_supports ? "✓" : "✗"}</span>
+                                <div className="match-tile-row">
+                                  <span className="k">H11 CSL: <span style={{ color: "var(--text)" }}>{item.sc.h11_csl}</span></span>
+                                  <span style={{ color: item.sc.h11_supports ? "#4ade80" : "var(--muted)", fontWeight: 600 }}>{item.sc.h11_supports ? "✓" : "✗"}</span>
                                 </div>
                               </div>
                             ))}
@@ -4120,63 +4244,80 @@ export default function Home() {
 
                         {/* ═══ DETAILED SIGNIFICATORS — 4-level ═══ */}
                         {(r.significators_detailed_chart1 || r.significators_detailed_chart2) && (
-                          <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem" }}>
-                            <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>2,7,11 Significators (4-Level)</div>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                          <div className="match-section">
+                            <div className="match-section-title">
+                              <Target size={12} strokeWidth={1.8} />
+                              {t("2,7,11 significators · 4 levels", "2,7,11 సూచకులు · 4 స్థాయిలు")}
+                            </div>
+                            <div className="match-section-grid">
                               {[{sd: r.significators_detailed_chart1, name: r.person1?.name}, {sd: r.significators_detailed_chart2, name: r.person2?.name}].map((item, i) => item.sd && (
-                                <div key={i} style={{ background: "var(--surface)", borderRadius: 8, padding: "10px 12px" }}>
-                                  <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 6 }}>{item.name}</div>
+                                <div key={i} className="match-tile">
+                                  <div className="match-tile-name">{item.name}</div>
                                   {[
-                                    ["L1 Occupants", item.sd.by_level?.occupants_2_7_11],
-                                    ["L2 Lords", item.sd.by_level?.lords_2_7_11],
-                                    ["L3 Star/Occ", item.sd.by_level?.star_of_occupants],
-                                    ["L4 Star/Lord", item.sd.by_level?.star_of_lords],
+                                    [t("L1 Occupants", "L1 నివాసులు"), item.sd.by_level?.occupants_2_7_11],
+                                    [t("L2 Lords", "L2 అధిపతులు"),      item.sd.by_level?.lords_2_7_11],
+                                    [t("L3 Star/Occ", "L3 నక్/నివాస"),  item.sd.by_level?.star_of_occupants],
+                                    [t("L4 Star/Lord", "L4 నక్/అధి"),   item.sd.by_level?.star_of_lords],
                                   ].map(([label, planets]: any) => (
-                                    <div key={label} style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
-                                      <span style={{ fontSize: 10, color: "var(--muted)" }}>{label}:</span>
-                                      <span style={{ fontSize: 10, color: "var(--text)" }}>{planets?.length ? planets.join(", ") : "—"}</span>
+                                    <div key={label} className="match-tile-row">
+                                      <span className="k">{label}</span>
+                                      <span className="v">{planets?.length ? planets.join(", ") : "—"}</span>
                                     </div>
                                   ))}
                                   {item.sd.fruitful?.length > 0 && (
-                                    <div style={{ marginTop: 4, fontSize: 10, color: "#4ade80" }}>Fruitful (RP): {item.sd.fruitful.join(", ")}</div>
+                                    <div style={{ marginTop: 6, fontSize: 11, color: "#4ade80" }}>
+                                      {t("Fruitful (RP)", "ఫలదాయి (RP)")}: {item.sd.fruitful.join(", ")}
+                                    </div>
                                   )}
                                 </div>
                               ))}
                             </div>
                             {/* Resonance */}
-                            <div style={{ marginTop: 8, fontSize: 11, color: "var(--muted)", textAlign: "center" as const }}>
-                              Cross-Resonance: <span style={{ color: "#4ade80" }}>
-                                {[...(kp?.resonance_1_to_2||[]), ...(kp?.resonance_2_to_1||[])].filter((v: string, i: number, a: string[]) => a.indexOf(v) === i).join(", ") || "None"}
-                              </span> ({kp?.total_resonance_count || 0} planets)
+                            <div style={{ marginTop: 10, padding: "8px 12px", background: "rgba(74,222,128,0.05)", border: "0.5px solid rgba(74,222,128,0.2)", borderRadius: 8, fontSize: 11, color: "var(--muted)", textAlign: "center" as const }}>
+                              {t("Cross-resonance", "క్రాస్-ప్రతిధ్వని")}:{" "}
+                              <span style={{ color: "#4ade80", fontWeight: 600 }}>
+                                {[...(kp?.resonance_1_to_2||[]), ...(kp?.resonance_2_to_1||[])].filter((v: string, i: number, a: string[]) => a.indexOf(v) === i).join(", ") || t("None", "లేదు")}
+                              </span>
+                              {" "}({kp?.total_resonance_count || 0} {t("planets", "గ్రహాలు")})
                             </div>
                           </div>
                         )}
 
                         {/* ═══ VENUS KARAKA ═══ */}
-                        <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem" }}>
-                          <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>Venus Karaka</div>
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                        <div className="match-section">
+                          <div className="match-section-title">
+                            <Sparkles size={12} strokeWidth={1.8} />
+                            {t("Venus karaka", "శుక్ర కారక")}
+                          </div>
+                          <div className="match-section-grid">
                             {[{v: kp?.venus_chart1, name: r.person1?.name}, {v: kp?.venus_chart2, name: r.person2?.name}].map((item, i) => item.v && (
-                              <div key={i} style={{ background: "var(--surface)", borderRadius: 8, padding: "10px 12px" }}>
-                                <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 4 }}>{item.name}</div>
-                                <div style={{ fontSize: 12, color: "var(--text)", marginBottom: 2 }}>H{item.v.house} · {item.v.sign}</div>
-                                <div style={{ fontSize: 11, color: item.v.strength === "Strong" ? "#4ade80" : item.v.strength === "Afflicted" ? "#f87171" : "var(--accent)", fontWeight: 500 }}>{item.v.strength}</div>
-                                <div style={{ fontSize: 10, color: item.v.signifies_h7 ? "#4ade80" : "var(--muted)", marginTop: 2 }}>{item.v.signifies_h7 ? "✓ Signifies H7" : "○ No H7"}</div>
+                              <div key={i} className="match-tile">
+                                <div className="match-tile-name">{item.name}</div>
+                                <div className="match-tile-primary" style={{ color: "var(--text)" }}>H{item.v.house} · {item.v.sign}</div>
+                                <div style={{ fontSize: 12, color: item.v.strength === "Strong" ? "#4ade80" : item.v.strength === "Afflicted" ? "#f87171" : "var(--accent)", fontWeight: 600 }}>
+                                  {item.v.strength}
+                                </div>
+                                <div style={{ fontSize: 10, color: item.v.signifies_h7 ? "#4ade80" : "var(--muted)", marginTop: 3 }}>
+                                  {item.v.signifies_h7 ? `✓ ${t("Signifies H7", "H7 సూచిస్తుంది")}` : `○ ${t("No H7", "H7 లేదు")}`}
+                                </div>
                               </div>
                             ))}
                           </div>
                         </div>
 
-                        {/* ═══ RULING PLANETS + CROSS-RESONANCE ═══ */}
-                        <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem" }}>
-                          <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>Ruling Planets</div>
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                        {/* ═══ RULING PLANETS ═══ */}
+                        <div className="match-section">
+                          <div className="match-section-title">
+                            <Target size={12} strokeWidth={1.8} />
+                            {t("Ruling planets", "నియమిత గ్రహాలు")}
+                          </div>
+                          <div className="match-section-grid">
                             {[{rps: kp?.ruling_planets_chart1, name: r.person1?.name}, {rps: kp?.ruling_planets_chart2, name: r.person2?.name}].map((item, i) => (
-                              <div key={i} style={{ background: "var(--surface)", borderRadius: 8, padding: "10px 12px" }}>
-                                <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 4 }}>{item.name}</div>
-                                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" as const }}>
+                              <div key={i} className="match-tile">
+                                <div className="match-tile-name">{item.name}</div>
+                                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" as const, marginTop: 2 }}>
                                   {(item.rps || []).map((p: string) => (
-                                    <span key={p} style={{ fontSize: 10, background: "rgba(201,169,110,0.1)", color: "var(--accent)", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "2px 6px" }}>{p}</span>
+                                    <span key={p} style={{ fontSize: 11, background: "rgba(201,169,110,0.12)", color: "var(--accent)", border: "0.5px solid rgba(201,169,110,0.3)", borderRadius: 999, padding: "2px 10px", fontWeight: 500 }}>{p}</span>
                                   ))}
                                 </div>
                               </div>
@@ -4186,20 +4327,23 @@ export default function Home() {
 
                         {/* ═══ CURRENT DBA ═══ */}
                         {(r.dba_chart1 || r.dba_chart2) && (
-                          <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem" }}>
-                            <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>Current Dasha-Bhukti</div>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                          <div className="match-section">
+                            <div className="match-section-title">
+                              <Hourglass size={12} strokeWidth={1.8} />
+                              {t("Current Dasha-Bhukti", "ప్రస్తుత దశ-భుక్తి")}
+                            </div>
+                            <div className="match-section-grid">
                               {[{dba: r.dba_chart1, name: r.person1?.name}, {dba: r.dba_chart2, name: r.person2?.name}].map((item, i) => item.dba && (
-                                <div key={i} style={{ background: "var(--surface)", borderRadius: 8, padding: "10px 12px" }}>
-                                  <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 6 }}>{item.name}</div>
+                                <div key={i} className="match-tile">
+                                  <div className="match-tile-name">{item.name}</div>
                                   {[
-                                    ["MD", item.dba.md_lord, item.dba.md_end, item.dba.md_favorable],
-                                    ["AD", item.dba.ad_lord, item.dba.ad_end, item.dba.ad_favorable],
+                                    ["MD",  item.dba.md_lord,  item.dba.md_end,  item.dba.md_favorable],
+                                    ["AD",  item.dba.ad_lord,  item.dba.ad_end,  item.dba.ad_favorable],
                                     ["PAD", item.dba.pad_lord, item.dba.pad_end, null],
                                   ].map(([label, lord, end, fav]: any) => (
-                                    <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
-                                      <span style={{ fontSize: 10, color: "var(--muted)" }}>{label}: <span style={{ color: "var(--text)" }}>{lord}</span></span>
-                                      <span style={{ fontSize: 9, color: fav === true ? "#4ade80" : fav === false ? "#f87171" : "var(--muted)" }}>
+                                    <div key={label} className="match-tile-row">
+                                      <span className="k">{label}: <span style={{ color: "var(--text)" }}>{lord}</span></span>
+                                      <span style={{ fontSize: 10, color: fav === true ? "#4ade80" : fav === false ? "#f87171" : "var(--muted)", fontVariantNumeric: "tabular-nums" }}>
                                         {end ? `→${end.slice(0,7)}` : ""} {fav === true ? "✓" : fav === false ? "✗" : ""}
                                       </span>
                                     </div>
@@ -4209,8 +4353,9 @@ export default function Home() {
                             </div>
                             {/* Timing overlap */}
                             {r.timing_analysis && (
-                              <div style={{ marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                                <span style={{ fontSize: 11, fontWeight: 500, color: r.timing_analysis.timing_verdict === "Aligned" ? "#4ade80" : r.timing_analysis.timing_verdict === "Misaligned" ? "#f87171" : "var(--accent)" }}>Timing: {r.timing_analysis.timing_verdict}</span>
+                              <div style={{ marginTop: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "7px 10px", background: "rgba(255,255,255,0.02)", borderRadius: 8, border: "0.5px solid var(--border)" }}>
+                                <span style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>{t("Timing", "సమయం")}</span>
+                                <span style={{ fontSize: 12, fontWeight: 600, color: r.timing_analysis.timing_verdict === "Aligned" ? "#4ade80" : r.timing_analysis.timing_verdict === "Misaligned" ? "#f87171" : "var(--accent)" }}>{r.timing_analysis.timing_verdict}</span>
                                 {r.timing_analysis.strong_timing_planets?.length > 0 && (
                                   <span style={{ fontSize: 10, color: "#4ade80" }}>({r.timing_analysis.strong_timing_planets.join(", ")})</span>
                                 )}
@@ -4220,24 +4365,36 @@ export default function Home() {
                         )}
 
                         {/* ═══ KUJA DOSHA + MOON ═══ */}
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                          <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.75rem" }}>
-                            <div style={{ fontSize: 9, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.5rem" }}>Kuja Dosha</div>
+                        <div className="match-section-grid">
+                          <div className="match-section" style={{ padding: "12px 14px" }}>
+                            <div className="match-section-title">
+                              <TriangleAlert size={12} strokeWidth={1.8} />
+                              {t("Kuja Dosha", "కుజ దోష")}
+                            </div>
                             {[kuja?.person1, kuja?.person2].map((p: any, i: number) => p && (
                               <div key={i} style={{ marginBottom: 6 }}>
-                                <div style={{ fontSize: 10, color: "var(--muted)" }}>{p.name}</div>
-                                <div style={{ fontSize: 11, fontWeight: 500, color: p.has_dosha ? "#f87171" : "#4ade80" }}>{p.has_dosha ? `Manglik H${p.mars_house} (${p.severity})` : "No Dosha"}</div>
-                                {p.cancellations?.[0] && <div style={{ fontSize: 9, color: "#4ade80" }}>{p.cancellations[0]}</div>}
+                                <div className="match-tile-name">{p.name}</div>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: p.has_dosha ? "#f87171" : "#4ade80" }}>
+                                  {p.has_dosha ? `${t("Manglik", "మాంగ్లిక్")} H${p.mars_house} (${p.severity})` : t("No Dosha", "దోషం లేదు")}
+                                </div>
+                                {p.cancellations?.[0] && <div style={{ fontSize: 10, color: "#4ade80", marginTop: 2 }}>{p.cancellations[0]}</div>}
                               </div>
                             ))}
-                            {kuja?.mutual_cancellation && <div style={{ fontSize: 10, color: "#4ade80" }}>Both have Kuja — cancelled</div>}
+                            {kuja?.mutual_cancellation && (
+                              <div className="match-dosha-chip good" style={{ marginTop: 4 }}>
+                                <CheckCircle size={11} strokeWidth={2} /> {t("Both have Kuja — cancelled", "ఇద్దరికీ కుజం — రద్దు")}
+                              </div>
+                            )}
                           </div>
-                          <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.75rem" }}>
-                            <div style={{ fontSize: 9, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.5rem" }}>Moon Details</div>
+                          <div className="match-section" style={{ padding: "12px 14px" }}>
+                            <div className="match-section-title">
+                              <Moon size={12} strokeWidth={1.8} />
+                              {t("Moon details", "చంద్ర వివరాలు")}
+                            </div>
                             {[r.person1, r.person2].map((p: any, i: number) => p && (
                               <div key={i} style={{ marginBottom: 6 }}>
-                                <div style={{ fontSize: 10, color: "var(--muted)" }}>{p.name}</div>
-                                <div style={{ fontSize: 11, color: "var(--text)" }}>{p.moon_sign} · {p.moon_nakshatra}</div>
+                                <div className="match-tile-name">{p.name}</div>
+                                <div style={{ fontSize: 12, color: "var(--text)" }}>{p.moon_sign} · {p.moon_nakshatra}</div>
                               </div>
                             ))}
                           </div>
@@ -4245,22 +4402,25 @@ export default function Home() {
 
                         {/* ═══ D9 NAVAMSA ═══ */}
                         {(r.d9_chart1 || r.d9_chart2) && (
-                          <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem" }}>
-                            <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>D9 Navamsa</div>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                          <div className="match-section">
+                            <div className="match-section-title">
+                              <LayoutGrid size={12} strokeWidth={1.8} />
+                              {t("D9 Navamsa", "D9 నవాంశ")}
+                            </div>
+                            <div className="match-section-grid">
                               {[{d9: r.d9_chart1, name: r.person1?.name}, {d9: r.d9_chart2, name: r.person2?.name}].map((item, i) => item.d9 && (
-                                <div key={i} style={{ background: "var(--surface)", borderRadius: 8, padding: "10px 12px" }}>
-                                  <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 6 }}>{item.name}</div>
+                                <div key={i} className="match-tile">
+                                  <div className="match-tile-name">{item.name}</div>
                                   {[
-                                    ["D9 Lagna", item.d9.d9_lagna_sign],
-                                    ["Venus D9", item.d9.venus_d9_sign],
-                                    ["Moon D9", item.d9.moon_d9_sign],
-                                    ["7th Lord", `${item.d9.d9_7th_lord} in ${item.d9.d9_7th_lord_sign || "—"}`],
-                                    ["D9 7th", item.d9.d9_7th_sign],
+                                    [t("D9 Lagna", "D9 లగ్న"),     item.d9.d9_lagna_sign],
+                                    [t("Venus D9", "శుక్ర D9"),     item.d9.venus_d9_sign],
+                                    [t("Moon D9", "చంద్ర D9"),      item.d9.moon_d9_sign],
+                                    [t("7th Lord", "7-అధిపతి"),    `${item.d9.d9_7th_lord} in ${item.d9.d9_7th_lord_sign || "—"}`],
+                                    [t("D9 7th", "D9 7వది"),       item.d9.d9_7th_sign],
                                   ].map(([label, val]: any) => (
-                                    <div key={label} style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
-                                      <span style={{ fontSize: 10, color: "var(--muted)" }}>{label}:</span>
-                                      <span style={{ fontSize: 10, color: "var(--text)" }}>{val || "—"}</span>
+                                    <div key={label} className="match-tile-row">
+                                      <span className="k">{label}</span>
+                                      <span className="v">{val || "—"}</span>
                                     </div>
                                   ))}
                                 </div>
@@ -4270,38 +4430,49 @@ export default function Home() {
                         )}
 
                         {/* ═══ 5th CSL + SEPARATION RISK ═══ */}
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                          {/* 5th CSL Love */}
-                          <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.75rem" }}>
-                            <div style={{ fontSize: 9, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.5rem" }}>5th CSL (Love)</div>
+                        <div className="match-section-grid">
+                          <div className="match-section" style={{ padding: "12px 14px" }}>
+                            <div className="match-section-title">
+                              <HandHeart size={12} strokeWidth={1.8} />
+                              {t("5th CSL · Love", "5వ CSL · ప్రేమ")}
+                            </div>
                             {[{h5: r.h5_analysis_chart1, name: r.person1?.name}, {h5: r.h5_analysis_chart2, name: r.person2?.name}].map((item, i) => item.h5 && (
                               <div key={i} style={{ marginBottom: 6 }}>
-                                <div style={{ fontSize: 10, color: "var(--muted)" }}>{item.name}</div>
-                                <div style={{ fontSize: 11, color: item.h5.love_indicated ? "#4ade80" : item.h5.heartbreak_5_8_12 ? "#f87171" : "var(--muted)" }}>
-                                  {item.h5.sub_lord}: {item.h5.love_indicated ? "Love ✓" : item.h5.heartbreak_5_8_12 ? "5-8-12 Risk" : "Neutral"}
+                                <div className="match-tile-name">{item.name}</div>
+                                <div style={{ fontSize: 12, color: item.h5.love_indicated ? "#4ade80" : item.h5.heartbreak_5_8_12 ? "#f87171" : "var(--muted)", fontWeight: 500 }}>
+                                  {item.h5.sub_lord}: {item.h5.love_indicated ? `${t("Love", "ప్రేమ")} ✓` : item.h5.heartbreak_5_8_12 ? t("5-8-12 Risk", "5-8-12 ప్రమాదం") : t("Neutral", "తటస్థం")}
                                 </div>
                               </div>
                             ))}
                           </div>
-                          {/* Separation Risk */}
-                          <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.75rem" }}>
-                            <div style={{ fontSize: 9, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.5rem" }}>Separation Risk</div>
+                          <div className="match-section" style={{ padding: "12px 14px" }}>
+                            <div className="match-section-title">
+                              <TriangleAlert size={12} strokeWidth={1.8} />
+                              {t("Separation risk", "విడిపోయే ప్రమాదం")}
+                            </div>
                             {[{sr: r.separation_risk_chart1, name: r.person1?.name}, {sr: r.separation_risk_chart2, name: r.person2?.name}].map((item, i) => item.sr && (
                               <div key={i} style={{ marginBottom: 6 }}>
-                                <div style={{ fontSize: 10, color: "var(--muted)" }}>{item.name}</div>
-                                <div style={{ fontSize: 11, fontWeight: 500, color: item.sr.risk_level === "High" ? "#f87171" : item.sr.risk_level === "Moderate" ? "#fbbf24" : "#4ade80" }}>{item.sr.risk_level}</div>
-                                {item.sr.factors?.length > 0 && <div style={{ fontSize: 9, color: "var(--muted)" }}>{item.sr.factors[0]}</div>}
+                                <div className="match-tile-name">{item.name}</div>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: item.sr.risk_level === "High" ? "#f87171" : item.sr.risk_level === "Moderate" ? "#fbbf24" : "#4ade80" }}>
+                                  {item.sr.risk_level === "High" ? t("High", "అధిక")
+                                    : item.sr.risk_level === "Moderate" ? t("Moderate", "మోస్తరు")
+                                    : t("Low", "తక్కువ")}
+                                </div>
+                                {item.sr.factors?.length > 0 && <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}>{item.sr.factors[0]}</div>}
                               </div>
                             ))}
                           </div>
                         </div>
 
-                        {/* ═══ ASHTAKOOTA — 36 GUN ═══ */}
-                        <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.875rem" }}>
-                            <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const }}>Ashtakoota — 36 Gun</div>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: ast?.total_score >= 25 ? "var(--accent)" : ast?.total_score >= 18 ? "#4ade80" : "#f87171" }}>
-                              {ast?.total_score}/{ast?.max_score}
+                        {/* ═══ ASHTAKOOTA — 36 Gun ═══ */}
+                        <div className="match-section">
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                            <div className="match-section-title" style={{ marginBottom: 0 }}>
+                              <Sparkles size={12} strokeWidth={1.8} />
+                              {t("Ashtakoota · 36 Gun", "అష్టకూట · 36 గుణ")}
+                            </div>
+                            <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 22, lineHeight: 1, color: ast?.total_score >= 25 ? "var(--accent)" : ast?.total_score >= 18 ? "#4ade80" : "#f87171", letterSpacing: "-0.02em" }}>
+                              {ast?.total_score}<span style={{ fontSize: 14, color: "var(--muted)", marginLeft: 2 }}>/{ast?.max_score}</span>
                             </div>
                           </div>
                           <div style={{ display: "flex", flexDirection: "column" as const, gap: 6 }}>
@@ -4309,60 +4480,68 @@ export default function Home() {
                               const pct = k.max > 0 ? (k.score / k.max) * 100 : 0;
                               const barColor = k.score === 0 ? "#f87171" : k.score >= k.max * 0.6 ? "#4ade80" : "var(--accent)";
                               return (
-                                <div key={i} title={k.note || ""} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                  <div style={{ width: 72, fontSize: 10, color: k.score === 0 ? "#f87171" : "var(--muted)", flexShrink: 0, textAlign: "right" as const, borderLeft: k.score === 0 ? "2px solid #f87171" : "2px solid transparent", paddingRight: 6 }}>{k.kuta}</div>
-                                  <div style={{ flex: 1, height: 6, background: "var(--surface)", borderRadius: 3, overflow: "hidden" }}>
-                                    <div style={{ height: "100%", width: `${pct}%`, background: barColor, borderRadius: 3, transition: "width 0.4s ease" }} />
+                                <div key={i} title={k.note || ""} className={`match-ashta-row${k.score === 0 ? " is-zero" : ""}`}>
+                                  <div className="match-ashta-label">{k.kuta}</div>
+                                  <div className="match-ashta-bar-wrap">
+                                    <div className="match-ashta-bar-fill" style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${barColor}80 0%, ${barColor} 100%)`, boxShadow: k.score >= k.max * 0.6 ? `0 0 8px ${barColor}50` : "none" }} />
                                   </div>
-                                  <div style={{ width: 32, fontSize: 10, fontWeight: 600, color: barColor, flexShrink: 0, textAlign: "left" as const }}>{k.score}/{k.max}</div>
+                                  <div className="match-ashta-score" style={{ color: barColor }}>{k.score}/{k.max}</div>
                                 </div>
                               );
                             })}
                           </div>
-                          <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 6, marginTop: 12 }}>
+                          <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 6, marginTop: 14 }}>
                             {(() => {
                               const nadiKuta = (ast?.kutas || []).find((k: any) => k.kuta?.toLowerCase().includes("nadi"));
                               const hasNadiDosha = nadiKuta?.score === 0;
-                              return <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 6, background: hasNadiDosha ? "rgba(248,113,113,0.12)" : "rgba(74,222,128,0.08)", color: hasNadiDosha ? "#f87171" : "#4ade80", border: `0.5px solid ${hasNadiDosha ? "rgba(248,113,113,0.3)" : "rgba(74,222,128,0.25)"}` }}>{hasNadiDosha ? "Nadi Dosha" : "Nadi OK"}</span>;
+                              return <span className={`match-dosha-chip ${hasNadiDosha ? "bad" : "good"}`}>{hasNadiDosha ? t("Nadi Dosha", "నాడి దోష") : t("Nadi OK", "నాడి సరే")}</span>;
                             })()}
                             {(() => {
                               const ganaKuta = (ast?.kutas || []).find((k: any) => k.kuta?.toLowerCase().includes("gana"));
                               const hasGanaDosha = ganaKuta?.score === 0;
-                              return <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 6, background: hasGanaDosha ? "rgba(248,113,113,0.12)" : "rgba(74,222,128,0.08)", color: hasGanaDosha ? "#f87171" : "#4ade80", border: `0.5px solid ${hasGanaDosha ? "rgba(248,113,113,0.3)" : "rgba(74,222,128,0.25)"}` }}>{hasGanaDosha ? "Gana Mismatch" : "Gana OK"}</span>;
+                              return <span className={`match-dosha-chip ${hasGanaDosha ? "bad" : "good"}`}>{hasGanaDosha ? t("Gana Mismatch", "గణ మిస్‌మ్యాచ్") : t("Gana OK", "గణ సరే")}</span>;
                             })()}
-                            {kuja && <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 6, background: kuja?.person1?.has_dosha || kuja?.person2?.has_dosha ? "rgba(248,113,113,0.12)" : "rgba(74,222,128,0.08)", color: kuja?.person1?.has_dosha || kuja?.person2?.has_dosha ? "#f87171" : "#4ade80", border: `0.5px solid ${kuja?.person1?.has_dosha || kuja?.person2?.has_dosha ? "rgba(248,113,113,0.3)" : "rgba(74,222,128,0.25)"}` }}>{kuja?.person1?.has_dosha || kuja?.person2?.has_dosha ? "Manglik" : "No Manglik"}</span>}
+                            {kuja && (
+                              <span className={`match-dosha-chip ${kuja?.person1?.has_dosha || kuja?.person2?.has_dosha ? "bad" : "good"}`}>
+                                {kuja?.person1?.has_dosha || kuja?.person2?.has_dosha ? t("Manglik", "మాంగ్లిక్") : t("No Manglik", "మాంగ్లిక్ లేదు")}
+                              </span>
+                            )}
                           </div>
                         </div>
 
-                        {/* ═══ AI DEEP ANALYSIS SECTION ═══ */}
-                        <div style={{ background: "var(--surface2)", border: "0.5px solid rgba(201,169,110,0.3)", borderRadius: 10, padding: "0.875rem 1rem" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                            <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const }}>AI Deep Analysis</div>
+                        {/* ═══ AI DEEP ANALYSIS ═══ */}
+                        <div className="match-ai-section">
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                            <div className="match-section-title" style={{ marginBottom: 0, color: "#a78bfa" }}>
+                              <Sparkles size={12} strokeWidth={1.8} />
+                              {t("AI compatibility analysis", "AI సరిపోలన విశ్లేషణ")}
+                            </div>
                             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                               {matchAnalysisMessages.length > 0 && (
-                                <button onClick={() => { setMatchAnalysisMessages([]); }} style={{ background: "transparent", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "3px 10px", fontSize: 11, color: "var(--muted)", cursor: "pointer" }}>Clear</button>
+                                <button onClick={() => { setMatchAnalysisMessages([]); }}
+                                  style={{ background: "transparent", border: "0.5px solid var(--border2)", borderRadius: 999, padding: "3px 10px", fontSize: 11, color: "var(--muted)", cursor: "pointer", fontFamily: "inherit" }}>
+                                  {t("Clear", "తొలగించు")}
+                                </button>
                               )}
-                              <div style={{ display: "flex", background: "var(--surface)", borderRadius: 6, border: "0.5px solid var(--border2)", overflow: "hidden" }}>
-                                {([["english", "EN"], ["telugu_english", "తె+EN"]] as const).map(([val, label]) => (
-                                  <button key={val} onClick={() => setMatchAnalysisLang(val)} style={{ padding: "4px 10px", background: matchAnalysisLang === val ? "rgba(201,169,110,0.15)" : "transparent", color: matchAnalysisLang === val ? "var(--accent)" : "var(--muted)", border: "none", cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>{label}</button>
+                              <div style={{ display: "flex", background: "var(--surface)", borderRadius: 999, border: "0.5px solid var(--border2)", overflow: "hidden" }}>
+                                {([["english", t("EN", "EN")], ["telugu_english", t("TEL·EN", "తె+EN")]] as const).map(([val, label]) => (
+                                  <button key={val} onClick={() => setMatchAnalysisLang(val as "english" | "telugu_english")} style={{ padding: "4px 10px", background: matchAnalysisLang === val ? "rgba(201,169,110,0.15)" : "transparent", color: matchAnalysisLang === val ? "var(--accent)" : "var(--muted)", border: "none", cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>{label}</button>
                                 ))}
                               </div>
                             </div>
                           </div>
                           {/* Topic pills */}
-                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const, marginBottom: 10 }}>
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const, marginBottom: 12 }}>
                             {[
-                              { id: "promise", label: "Marriage Promise" },
-                              { id: "harmony", label: "Harmony" },
-                              { id: "divorce_risk", label: "Divorce Risk" },
-                              { id: "timing", label: "Timing" },
-                              { id: "remedies", label: "Remedies" },
-                            ].map(t => (
-                              <button key={t.id} onClick={() => handleMatchTopicAnalysis(t.id)} disabled={matchAnalysisLoading}
-                                style={{ padding: "6px 12px", borderRadius: 6, border: "0.5px solid var(--border2)", background: "var(--surface)", color: "var(--text)", fontSize: 11, cursor: matchAnalysisLoading ? "default" : "pointer", fontFamily: "inherit", transition: "all 0.2s" }}
-                                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(201,169,110,0.5)"; }}
-                                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border2)"; }}>
-                                {t.label}
+                              { id: "promise",      en: "Marriage promise", te: "వివాహ ప్రమాణం" },
+                              { id: "harmony",      en: "Harmony",          te: "సామరస్యం" },
+                              { id: "divorce_risk", en: "Divorce risk",     te: "విడాకుల ప్రమాదం" },
+                              { id: "timing",       en: "Timing",           te: "సమయం" },
+                              { id: "remedies",     en: "Remedies",         te: "పరిహారాలు" },
+                            ].map(pill => (
+                              <button key={pill.id} onClick={() => handleMatchTopicAnalysis(pill.id)} disabled={matchAnalysisLoading}
+                                className="match-ai-pill">
+                                {lang === "en" ? pill.en : pill.te}
                               </button>
                             ))}
                           </div>
@@ -4370,14 +4549,14 @@ export default function Home() {
                           <div style={{ maxHeight: 400, overflowY: "auto", marginBottom: matchAnalysisMessages.length > 0 || matchAnalysisLoading ? 10 : 0 }}>
                             {matchAnalysisMessages.length === 0 && !matchAnalysisLoading && (
                               <div style={{ textAlign: "center" as const, padding: "1rem", fontSize: 12, color: "var(--muted)" }}>
-                                Click a topic above or type a question below
+                                {t("Click a topic above or type a question below", "పై అంశాన్ని క్లిక్ చేయండి లేదా ప్రశ్న టైప్ చేయండి")}
                               </div>
                             )}
                             {matchAnalysisMessages.map((msg, i) => (
                               <div key={i} style={{ marginBottom: "1rem" }} className="fade-in">
                                 <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}>
                                   <div className="chat-bubble-user" style={{ padding: "8px 14px", maxWidth: "72%", fontSize: 12, color: "#d0d0d8", lineHeight: 1.5 }}>
-                                    {msg.isTopic && <span style={{ fontSize: 9, color: "var(--accent)", display: "block", marginBottom: 2 }}>Topic Analysis</span>}
+                                    {msg.isTopic && <span style={{ fontSize: 9, color: "var(--accent)", display: "block", marginBottom: 2 }}>{t("Topic analysis", "అంశ విశ్లేషణ")}</span>}
                                     {msg.q}
                                   </div>
                                 </div>
@@ -4389,17 +4568,19 @@ export default function Home() {
                             {matchAnalysisLoading && (
                               <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--muted)", fontSize: 13, padding: "0.75rem 1rem" }}>
                                 <div style={{ width: 10, height: 10, borderRadius: "50%", border: "1.5px solid var(--accent)", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
-                                Analyzing compatibility...
+                                {t("Analyzing compatibility…", "సరిపోలనను విశ్లేషిస్తోంది…")}
                               </div>
                             )}
                           </div>
                           {/* Chat input */}
                           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                             <input value={matchChatQ} onChange={e => setMatchChatQ(e.target.value)} onKeyDown={e => { if (e.key === "Enter") handleMatchChat(); }}
-                              placeholder="Follow-up question..."
+                              placeholder={t("Follow-up question…", "తదుపరి ప్రశ్న…")}
                               style={{ flex: 1, background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 8, padding: "9px 14px", fontSize: 13, color: "var(--text)", outline: "none", fontFamily: "inherit" }} />
                             <button onClick={handleMatchChat} disabled={matchAnalysisLoading || !matchChatQ.trim()}
-                              style={{ background: matchChatQ.trim() ? "var(--accent)" : "var(--surface)", color: matchChatQ.trim() ? "#09090f" : "var(--muted)", border: "none", borderRadius: 8, padding: "9px 18px", fontSize: 13, cursor: matchChatQ.trim() ? "pointer" : "default", fontWeight: 500, fontFamily: "inherit" }}>Ask</button>
+                              style={{ background: matchChatQ.trim() ? "var(--accent)" : "var(--surface)", color: matchChatQ.trim() ? "#09090f" : "var(--muted)", border: "none", borderRadius: 8, padding: "9px 18px", fontSize: 13, cursor: matchChatQ.trim() ? "pointer" : "default", fontWeight: 500, fontFamily: "inherit" }}>
+                              {t("Ask", "అడగు")}
+                            </button>
                           </div>
                         </div>
 
@@ -4410,9 +4591,13 @@ export default function Home() {
                   {/* Error */}
                   {!matchLoading && matchResults?.__error && (
                     <div style={{ textAlign: "center" as const, padding: "2rem", color: "#f87171", fontSize: 13 }}>
-                      సరిపోలన లోడ్ చేయడంలో సమస్య. మళ్ళీ ప్రయత్నించండి.
+                      {t("Could not load compatibility. Please try again.", "సరిపోలన లోడ్ చేయడంలో సమస్య. మళ్ళీ ప్రయత్నించండి.")}
                       <br />
-                      <button onClick={() => setMatchResults({ __p2: matchResults.__p2 })} style={{ marginTop: 12, padding: "6px 14px", background: "none", border: "0.5px solid var(--border2)", borderRadius: 6, color: "var(--muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>← వెనక్కి</button>
+                      <button onClick={() => setMatchResults({ __p2: matchResults.__p2 })}
+                        className="match-back-btn"
+                        style={{ marginTop: 12 }}>
+                        ← {t("Back", "వెనక్కి")}
+                      </button>
                     </div>
                   )}
                 </div>
