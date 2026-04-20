@@ -3312,8 +3312,8 @@ textarea:focus-visible {
   width: 54px; height: 54px;
   border-radius: 50%;
   z-index: 50;
-  border: 1px solid rgba(201,169,110,0.5);
-  background: linear-gradient(135deg, rgba(201,169,110,0.22), rgba(201,169,110,0.08));
+  border: 1px solid rgba(201,169,110,0.45);
+  background: linear-gradient(135deg, rgba(20,14,10,0.92), rgba(15,17,25,0.92));
   color: var(--accent);
   cursor: grab;
   align-items: center;
@@ -3328,26 +3328,63 @@ textarea:focus-visible {
   user-select: none;
   -webkit-user-select: none;
   font-family: inherit;
+  padding: 0;
+  overflow: hidden;
 }
-.command-orb.is-dragging { cursor: grabbing; transition: none !important; }
+/* Logo wrapper inside the orb. */
+.command-orb-logo {
+  display: inline-flex; align-items: center; justify-content: center;
+  pointer-events: none;
+  transition: transform 260ms ease;
+}
+/* PR21 — idle tuck. Orb sits half-inside the edge with a subtle
+   always-on gold breath so the user knows it's there. Drag / open /
+   hover pop it fully into view. */
+@keyframes command-orb-idle-breath {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(201,169,110,0.22), 0 10px 28px rgba(0,0,0,0.45), 0 0 18px rgba(201,169,110,0.15); }
+  50%      { box-shadow: 0 0 0 1px rgba(201,169,110,0.4),  0 10px 28px rgba(0,0,0,0.45), 0 0 38px rgba(201,169,110,0.32); }
+}
+.command-orb[data-side="right"] { transform: translateX(50%); }
+.command-orb[data-side="left"]  { transform: translateX(-50%); }
+.command-orb { animation: command-orb-idle-breath 3.8s ease-in-out infinite; }
+/* Nudge the logo toward the visible half of the orb so it reads
+   as a half-moon on the screen edge, not a cropped centered logo. */
+.command-orb[data-side="right"] .command-orb-logo { transform: translateX(-12px); }
+.command-orb[data-side="left"]  .command-orb-logo { transform: translateX(12px); }
+
+/* Pop fully visible when interacting. */
+.command-orb.is-dragging,
+.command-orb.is-open,
+.command-orb:hover,
+.command-orb:focus-visible {
+  transform: translateX(0) !important;
+}
+.command-orb.is-dragging .command-orb-logo,
+.command-orb.is-open .command-orb-logo,
+.command-orb:hover .command-orb-logo,
+.command-orb:focus-visible .command-orb-logo {
+  transform: translateX(0) !important;
+}
+.command-orb.is-dragging { cursor: grabbing; transition: none !important; animation: none; }
+
+/* Hide orb entirely while the sheet is open — sheet owns focus. */
 .command-orb.is-open {
-  background: rgba(201,169,110,0.3);
-  box-shadow: 0 0 0 1px var(--accent), 0 0 32px rgba(201,169,110,0.35);
-}
-@keyframes command-orb-coach-pulse {
-  0%, 100% { box-shadow: 0 0 0 1px rgba(201,169,110,0.3), 0 10px 28px rgba(0,0,0,0.45), 0 0 0 0 rgba(201,169,110,0.5); }
-  50%      { box-shadow: 0 0 0 1px rgba(201,169,110,0.5), 0 10px 28px rgba(0,0,0,0.45), 0 0 0 12px rgba(201,169,110,0.0); }
-}
-.command-orb.is-coaching {
-  animation: command-orb-coach-pulse 2s ease-in-out infinite;
+  opacity: 0;
+  pointer-events: none;
+  animation: none;
 }
 
-/* Coach tooltip — only during first visit, disappears on interaction. */
+/* Stronger pulse during first visit — overrides the idle breath. */
+@keyframes command-orb-coach-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(201,169,110,0.35), 0 10px 28px rgba(0,0,0,0.45), 0 0 0 0 rgba(201,169,110,0.55); }
+  50%      { box-shadow: 0 0 0 1px rgba(201,169,110,0.55), 0 10px 28px rgba(0,0,0,0.45), 0 0 0 14px rgba(201,169,110,0.0); }
+}
+.command-orb.is-coaching { animation: command-orb-coach-pulse 2s ease-in-out infinite; }
+
+/* Coach tooltip — points inward, data-side aware. */
 .command-orb-coach {
   position: absolute;
   top: 50%;
-  right: calc(100% + 12px);
-  transform: translateY(-50%);
   padding: 6px 10px;
   background: var(--elevated);
   border: 0.5px solid rgba(201,169,110,0.4);
@@ -3359,13 +3396,54 @@ textarea:focus-visible {
   pointer-events: none;
   animation: command-orb-coach-fade 260ms ease both;
 }
-.command-orb[style*="left: 12px"] .command-orb-coach {
-  right: auto;
-  left: calc(100% + 12px);
+.command-orb[data-side="right"] .command-orb-coach {
+  right: calc(100% - 6px);
+  transform: translateY(-50%);
+}
+.command-orb[data-side="left"] .command-orb-coach {
+  left: calc(100% - 6px);
+  transform: translateY(-50%);
 }
 @keyframes command-orb-coach-fade {
-  from { opacity: 0; transform: translateY(-50%) translateX(4px); }
-  to   { opacity: 1; transform: translateY(-50%) translateX(0); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* PR21 — drag zone above the sheet handle. Gives a generous tap +
+   swipe area so users can flick the sheet down with the thumb. */
+.command-sheet-drag-zone {
+  padding: 8px 0 4px;
+  cursor: grab;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.command-sheet-drag-zone:active { cursor: grabbing; }
+
+/* PR21 — HousePanel mobile drag handle + larger close target. */
+.house-panel-drag-zone {
+  display: none; /* shown on mobile via media query below */
+  padding: 8px 0 4px;
+  cursor: grab;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.house-panel-drag-zone:active { cursor: grabbing; }
+.house-panel-handle {
+  width: 38px; height: 4px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.18);
+}
+.house-panel-close {
+  font-family: inherit;
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: 50% !important;
+  transition: color 140ms, background 140ms;
+}
+.house-panel-close:hover {
+  color: var(--accent) !important;
+  background: rgba(201,169,110,0.08);
 }
 
 /* Bottom sheet — slides up from bottom with spring. */
@@ -3620,5 +3698,9 @@ textarea:focus-visible {
   .person-hero { flex-direction: column !important; align-items: flex-start !important; }
   /* New-chart modal becomes near-fullscreen. */
   .new-chart-modal { max-width: 94vw !important; max-height: 92vh !important; }
+  /* HousePanel — show the drag handle on mobile. */
+  .house-panel-drag-zone { display: flex !important; }
+  .house-panel-header { cursor: grab; }
+  .house-panel-header:active { cursor: grabbing; }
 }
 

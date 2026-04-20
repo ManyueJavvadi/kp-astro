@@ -1,12 +1,19 @@
 "use client";
 import { PLANET_COLORS } from "./constants";
 import { useLanguage } from "@/lib/i18n";
+import { useSheetDrag } from "@/hooks/useSheetDrag";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import { X } from "lucide-react";
 
 export default function HousePanel({ house, cusps, significators, planets, rulingPlanets, antardashas, onClose }: {
   house: number; cusps: any[]; significators: any;
   planets: any[]; rulingPlanets: string[]; antardashas: any[]; onClose: () => void;
 }) {
   const { lang, t } = useLanguage();
+  const isMobile = useIsMobile();
+  // PR21 — mobile swipe-down-to-dismiss on the header drag zone.
+  // Desktop keeps the close button only.
+  const { dragProps, sheetStyle } = useSheetDrag({ onClose });
   // Pick the right language variant for a "{foo}_en" / "{foo}_te" pair.
   // `te` = pure Telugu, `en` = pure English, `te_en` = Telugu (current default).
   const pick = (enVal?: string, teVal?: string): string => {
@@ -35,14 +42,33 @@ export default function HousePanel({ house, cusps, significators, planets, rulin
     <div className="house-panel-overlay" style={{
       background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 12,
       overflow: "hidden", minWidth: 240, flex: 1, display: "flex", flexDirection: "column",
+      ...(isMobile ? sheetStyle : {}),
     }}>
+      {/* Mobile drag handle — hidden on desktop via CSS. */}
+      {isMobile && (
+        <div className="house-panel-drag-zone" {...dragProps}>
+          <div className="house-panel-handle" />
+        </div>
+      )}
+
       {/* Header */}
-      <div style={{ padding: "10px 14px", borderBottom: "0.5px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(201,169,110,0.05)", flexShrink: 0 }}>
+      <div
+        className="house-panel-header"
+        {...(isMobile ? dragProps : {})}
+        style={{ padding: "10px 14px", borderBottom: "0.5px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(201,169,110,0.05)", flexShrink: 0 }}
+      >
         <div>
           <span style={{ fontSize: 13, fontWeight: 700, color: "var(--accent)" }}>H{house}</span>
           <span style={{ fontSize: 11, color: "var(--muted)", marginLeft: 8 }}>{HOUSE_TOPIC_MAP[house]}</span>
         </div>
-        <button onClick={onClose} style={{ background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: "0 4px" }}>×</button>
+        <button
+          onClick={onClose}
+          className="house-panel-close"
+          aria-label={t("Close", "మూసివేయండి")}
+          style={{ background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", padding: 8, display: "flex", alignItems: "center", justifyContent: "center" }}
+        >
+          <X size={16} strokeWidth={2} />
+        </button>
       </div>
 
       <div style={{ padding: "12px 14px", overflowY: "auto", flex: 1 }}>

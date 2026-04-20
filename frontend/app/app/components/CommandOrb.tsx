@@ -1,21 +1,26 @@
 "use client";
 
 /*
- * PR20 — Mobile Command Orb.
+ * PR20 + PR21 — Mobile Command Orb.
  *
- * A draggable, edge-snapping floating orb that is our mobile nav.
+ * A draggable, edge-tucking floating orb that is our mobile nav.
  * Inspired by iOS AssistiveTouch + Samsung's floating note toolbox.
  *
- * - Tap the orb → opens a bottom sheet with tab chips + power actions
- * - Drag the orb → snaps to nearest vertical edge (L/R), persisted to localStorage
- * - First visit → 1-shot coach-mark pulse + tooltip ("Tap for tabs · Drag to move")
+ * - Orb idle → tucks half into the screen edge with always-on breath
+ * - Tap → pops out + opens a bottom sheet with tab chips + power actions
+ * - Drag → follows finger, snaps to nearest vertical edge on release,
+ *          position persisted to localStorage
+ * - First visit → 1-shot coach mark (pulse + tooltip)
+ * - Sheet can be dismissed with swipe-down on handle/header (PR21)
  * - Desktop: this component renders null (useIsMobile gate in page.tsx)
  */
 
 import React, { useEffect, useRef, useState } from "react";
-import { Compass, Plus, Globe2, X, Users } from "lucide-react";
+import { Plus, Globe2, X, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
+import { useSheetDrag } from "@/hooks/useSheetDrag";
+import { LogoMark } from "@/components/ui/logo";
 import type { ChartSession } from "../types";
 
 type Tab = {
@@ -106,7 +111,6 @@ export default function CommandOrb({
       const liveYPct = Math.max(6, Math.min(94, (ev.clientY / vh) * 100));
       setSide(liveSide);
       setYPct(liveYPct);
-      // Suppress coach once the user interacts.
       if (showCoach) setShowCoach(false);
     };
 
@@ -153,25 +157,37 @@ export default function CommandOrb({
     setOpen(false);
   };
 
+  // ── Swipe-to-dismiss hook for the sheet drag handle
+  const { dragProps: sheetDragProps, sheetStyle } = useSheetDrag({
+    onClose: () => setOpen(false),
+  });
+
+  // Orb positions flush with the edge; idle state tucks it halfway
+  // into the edge via transform (see .command-orb CSS). Dragging +
+  // open both bypass the tuck so the orb is fully visible then.
   const orbStyle: React.CSSProperties = {
     top: `${yPct}%`,
-    [side]: 12,
+    [side]: 0,
     [side === "left" ? "right" : "left"]: "auto",
-    transition: dragging ? "none" : "top 240ms cubic-bezier(0.2,0.8,0.2,1), left 240ms cubic-bezier(0.2,0.8,0.2,1), right 240ms cubic-bezier(0.2,0.8,0.2,1)",
+    transition: dragging ? "none" : "top 240ms cubic-bezier(0.2,0.8,0.2,1), left 240ms cubic-bezier(0.2,0.8,0.2,1), right 240ms cubic-bezier(0.2,0.8,0.2,1), transform 220ms ease",
   };
 
   return (
     <>
-      {/* Floating orb */}
+      {/* Floating orb (hidden while sheet is open — the sheet is the focus then) */}
       <button
         ref={orbRef}
+        data-side={side}
         className={`command-orb${dragging ? " is-dragging" : ""}${open ? " is-open" : ""}${showCoach ? " is-coaching" : ""}`}
         style={orbStyle}
         aria-label={t("Open navigation menu", "నావిగేషన్ మెనూ తెరవండి")}
+        aria-hidden={open ? true : undefined}
         onPointerDown={onPointerDown}
         onClick={onClick}
       >
-        <Compass size={20} strokeWidth={1.8} />
+        <span className="command-orb-logo" aria-hidden>
+          <LogoMark size={34} glow={false} />
+        </span>
         {showCoach && (
           <span className="command-orb-coach" aria-hidden>
             {t("Tap for tabs · Drag to move", "ట్యాబ్‌ల కోసం నొక్కండి · తరలించండి")}
@@ -183,8 +199,11 @@ export default function CommandOrb({
       {open && (
         <>
           <div className="command-sheet-backdrop" onClick={() => setOpen(false)} />
-          <div className="command-sheet" role="dialog" aria-modal="true">
-            <div className="command-sheet-handle" />
+          <div className="command-sheet" role="dialog" aria-modal="true" style={sheetStyle}>
+            {/* Drag handle area — swipe down here to dismiss. */}
+            <div className="command-sheet-drag-zone" {...sheetDragProps}>
+              <div className="command-sheet-handle" />
+            </div>
 
             <div className="command-sheet-head">
               <div>
