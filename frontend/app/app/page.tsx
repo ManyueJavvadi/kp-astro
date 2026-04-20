@@ -2322,6 +2322,35 @@ export default function Home() {
                   "ఉత్తరాయణం": "Uttarayana",
                   "దక్షిణాయనం": "Dakshinayana",
                 };
+                // 60-year Samvatsara cycle — must match backend
+                // services/telugu_terms.py → TELUGU_YEARS (index 0 = "ప్రభవ").
+                const SAMVATSARA_EN: Record<string, string> = {
+                  "ప్రభవ": "Prabhava",         "విభవ": "Vibhava",            "శుక్ల": "Shukla",
+                  "ప్రమోదూత": "Pramoda",        "ప్రజాపతి": "Prajapati",      "ఆంగీరస": "Angirasa",
+                  "శ్రీముఖ": "Shrimukha",       "భావ": "Bhava",               "యువ": "Yuva",
+                  "ధాత": "Dhata",               "ఈశ్వర": "Ishvara",           "వహుధాన్య": "Bahudhanya",
+                  "ప్రమాది": "Pramadi",         "విక్రమ": "Vikrama",           "వృష": "Vrisha",
+                  "చిత్రభాను": "Chitrabhanu",    "స్వభాను": "Svabhanu",        "తారణ": "Tarana",
+                  "పార్థివ": "Parthiva",         "వ్యయ": "Vyaya",              "సర్వజిత్": "Sarvajit",
+                  "సర్వధారి": "Sarvadhari",      "విరోధి": "Virodhi",          "వికృతి": "Vikriti",
+                  "ఖర": "Khara",                "నందన": "Nandana",            "విజయ": "Vijaya",
+                  "జయ": "Jaya",                 "మన్మథ": "Manmatha",           "దుర్ముఖి": "Durmukhi",
+                  "హేవిళంబి": "Hevilambi",      "విళంబి": "Vilambi",          "వికారి": "Vikari",
+                  "శార్వరి": "Sharvari",         "ప్లవ": "Plava",              "శుభకృత్": "Shubhakrit",
+                  "శోభకృత్": "Shobhakrit",      "క్రోధి": "Krodhi",           "విశ్వావసు": "Vishvavasu",
+                  "పరాభవ": "Parabhava",         "ప్లవంగ": "Plavanga",         "కీలక": "Kilaka",
+                  "సౌమ్య": "Saumya",            "సాధారణ": "Sadharana",         "విరోధికృత్": "Virodhikrit",
+                  "పరీధావి": "Paridhavi",       "ప్రమాదీచ": "Pramadicha",     "ఆనంద": "Ananda",
+                  "రాక్షస": "Rakshasa",         "నల": "Nala",                 "పింగళ": "Pingala",
+                  "కాళయుక్తి": "Kalayukti",     "సిద్ధార్థి": "Siddharthi",   "రౌద్ర": "Raudra",
+                  "దుర్మతి": "Durmati",         "దుందుభి": "Dundubhi",         "రుధిరోద్గారి": "Rudhirodgari",
+                  "రక్తాక్షి": "Raktakshi",     "క్రోధన": "Krodhana",          "అక్షయ": "Akshaya",
+                };
+                const samvatsaraValue = (teName: string | null | undefined): string => {
+                  if (!teName) return "";
+                  if (lang === "en") return SAMVATSARA_EN[teName] ?? teName;
+                  return teName;
+                };
                 const RUTU_EN: Record<string, string> = {
                   "వసంత ఋతువు":   "Vasanta (Spring)",
                   "గ్రీష్మ ఋతువు": "Grishma (Summer)",
@@ -2413,7 +2442,7 @@ export default function Home() {
                           {pcData.samvatsara_te && (
                             <>
                               <span className="dot" />
-                              <span>Samvat {pcData.samvatsara_te}</span>
+                              <span>Samvat {samvatsaraValue(pcData.samvatsara_te)}</span>
                             </>
                           )}
                         </div>
@@ -2486,10 +2515,9 @@ export default function Home() {
                           const items = [
                             {
                               label: "Samvatsara",
-                              // Samvatsara names are proper Sanskrit transliterations; the
-                              // Telugu value IS the name. Show same in both modes but label
-                              // it "Samvatsara" (the English term) in EN mode.
-                              value: pcData.samvatsara_te,
+                              // Backend only emits the Telugu name; SAMVATSARA_EN maps
+                              // to the Sanskrit transliteration ("Vijaya", "Jaya", …).
+                              value: samvatsaraValue(pcData.samvatsara_te),
                               sub:   lang === "en" ? "60-year cycle" : "60 సంవత్సరాల చక్రం",
                             },
                             {
@@ -2964,9 +2992,11 @@ export default function Home() {
                         <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 6, marginBottom: "0.625rem" }}>
                           {/* Main user — always included, locked */}
                           {workspaceData && (
-                            <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", background: "rgba(201,169,110,0.15)", border: "0.5px solid var(--accent)", borderRadius: 20, fontSize: 12, color: "var(--accent)" }}>
-                              <Lock size={11} strokeWidth={1.8} />
-                              <span>{workspaceData.name || birthDetails.name} (You)</span>
+                            <div className="muhurtha-you-chip" title={t("Your chart is always included as the primary participant for RP resonance scoring.", "మీ చార్ట్ ఎల్లప్పుడూ ప్రాధమిక పాల్గొనేవారిగా చేర్చబడుతుంది.")}>
+                              <Lock size={10} strokeWidth={2} style={{ opacity: 0.75 }} />
+                              <span className="muhurtha-you-chip-label">{t("Primary", "ప్రాధమిక")}</span>
+                              <span className="muhurtha-you-chip-sep" />
+                              <span className="muhurtha-you-chip-name">{workspaceData.name || birthDetails.name}</span>
                             </div>
                           )}
                           {mParticipants.map((p, i) => (
@@ -3002,82 +3032,172 @@ export default function Home() {
                           </div>
                         )}
 
-                        {/* Inline mini-form for new participant */}
-                        {mShowAddParticipant && (
-                          <div style={{ display: "flex", flexDirection: "column" as const, gap: 7 }}>
-                            <input placeholder={t("Full name", "పూర్తి పేరు")} value={mNewP.name} onChange={e => setMNewP(p => ({ ...p, name: e.target.value }))}
-                              style={{ background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "7px 10px", fontSize: 12, color: "var(--text)", outline: "none" }} />
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-                              <input placeholder="DD/MM/YYYY" value={mNewP.date} onChange={e => handleMNewPDateChange(e.target.value)} maxLength={10}
-                                style={{ background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "7px 10px", fontSize: 12, color: "var(--text)", outline: "none" }} />
-                              <div style={{ display: "flex", gap: 4 }}>
-                                <input placeholder="HH:MM" value={mNewP.time} onChange={e => handleMNewPTimeChange(e.target.value)} maxLength={5}
-                                  style={{ flex: 1, background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "7px 10px", fontSize: 12, color: "var(--text)", outline: "none" }} />
-                                <button onClick={() => setMNewP(p => ({ ...p, ampm: p.ampm === "AM" ? "PM" : "AM" }))}
-                                  style={{ padding: "7px 8px", background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, color: "var(--accent)", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>
-                                  {mNewP.ampm}
-                                </button>
+                        {/* Inline mini-form for new participant (PR17a redesign):
+                            now a contained sub-card with labeled field eyebrows,
+                            gender pills, PlacePicker, and pill action buttons. */}
+                        {mShowAddParticipant && (() => {
+                          const canAdd = !!(mNewP.name && mNewP.date && mNewP.time);
+                          return (
+                            <div className="muhurtha-participant-form">
+                              <div className="pf-header">
+                                <div className="pf-header-title">{t("Add new participant", "కొత్త పాల్గొనేవారిని జోడించండి")}</div>
+                                <div className="pf-header-sub">{t("Optional — improves RP resonance scoring", "ఐచ్ఛికం — RP ప్రతిధ్వని స్కోరింగ్ మెరుగుపరుస్తుంది")}</div>
                               </div>
-                            </div>
-                            {/* Place search */}
-                            <div style={{ position: "relative" as const }}>
-                              <input placeholder={t("Place of birth", "పుట్టిన ఊరు")} value={mNewP.place} onChange={e => handleMNewPPlaceChange(e.target.value)}
-                                style={{ width: "100%", background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "7px 10px", fontSize: 12, color: "var(--text)", outline: "none", boxSizing: "border-box" as const }} />
-                              {mNewPPlaceStatus === "searching" && <div style={{ position: "absolute", right: 10, top: 8, fontSize: 10, color: "var(--muted)" }}>...</div>}
-                              {mNewPPlaceSugg.length > 0 && (
-                                <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100, background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 6, overflow: "hidden", marginTop: 2 }}>
-                                  {mNewPPlaceSugg.map((s, i) => (
-                                    <button key={i} onClick={() => {
-                                      setMNewP(p => ({ ...p, place: s.display, latitude: s.lat, longitude: s.lon }));
-                                      setMNewPPlaceSugg([]); setMNewPPlaceStatus("idle");
-                                      // Auto-detect timezone for inline participant
+
+                              {/* Name */}
+                              <div>
+                                <div className="pf-field-label">
+                                  <User size={10} strokeWidth={2} /> {t("Name", "పేరు")}
+                                </div>
+                                <input
+                                  type="text"
+                                  placeholder={t("Full name", "పూర్తి పేరు")}
+                                  value={mNewP.name}
+                                  onChange={e => setMNewP(p => ({ ...p, name: e.target.value }))}
+                                  className={`pf-input${mNewP.name ? " filled" : ""}`}
+                                />
+                              </div>
+
+                              {/* Date + Time */}
+                              <div className="pf-row">
+                                <div>
+                                  <div className="pf-field-label">
+                                    <Clock size={10} strokeWidth={2} /> {t("Date of birth", "పుట్టిన తేదీ")}
+                                  </div>
+                                  <input
+                                    type="text"
+                                    placeholder="DD/MM/YYYY"
+                                    maxLength={10}
+                                    value={mNewP.date}
+                                    onChange={e => handleMNewPDateChange(e.target.value)}
+                                    className={`pf-input${mNewP.date ? " filled" : ""}`}
+                                  />
+                                </div>
+                                <div>
+                                  <div className="pf-field-label">
+                                    <Clock size={10} strokeWidth={2} /> {t("Time of birth", "పుట్టిన సమయం")}
+                                  </div>
+                                  <div style={{ display: "flex", gap: 6 }}>
+                                    <input
+                                      type="text"
+                                      placeholder="HH:MM"
+                                      maxLength={5}
+                                      value={mNewP.time}
+                                      onChange={e => handleMNewPTimeChange(e.target.value)}
+                                      className={`pf-input${mNewP.time ? " filled" : ""}`}
+                                      style={{ flex: 1 }}
+                                    />
+                                    <button
+                                      onClick={() => setMNewP(p => ({ ...p, ampm: p.ampm === "AM" ? "PM" : "AM" }))}
+                                      className="pf-input filled"
+                                      style={{ width: 64, cursor: "pointer", color: "var(--accent)", fontWeight: 600, textAlign: "center" as const, padding: "8px 0" }}
+                                    >
+                                      {mNewP.ampm}
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Place — now using the shared PlacePicker for consistency */}
+                              <div>
+                                <div className="pf-field-label">
+                                  <Globe2 size={10} strokeWidth={2} /> {t("Place of birth", "పుట్టిన ఊరు")}
+                                </div>
+                                <PlacePicker
+                                  value={mNewP.place}
+                                  placeholder={t("Start typing a city…", "నగరం టైప్ చేయండి…")}
+                                  onChange={(placeName, pick) => {
+                                    setMNewP(p => ({
+                                      ...p,
+                                      place: placeName,
+                                      latitude: pick ? pick.lat : p.latitude,
+                                      longitude: pick ? pick.lon : p.longitude,
+                                    }));
+                                    if (pick?.timezone) {
+                                      try {
+                                        const now = new Date();
+                                        const fmt = new Intl.DateTimeFormat("en-US", { timeZone: pick.timezone, timeZoneName: "longOffset" });
+                                        const parts = fmt.formatToParts(now);
+                                        const tzPart = parts.find(part => part.type === "timeZoneName")?.value ?? "";
+                                        const m = tzPart.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);
+                                        if (m) {
+                                          const sign = m[1] === "-" ? -1 : 1;
+                                          const h = parseInt(m[2], 10);
+                                          const mm = parseInt(m[3] ?? "0", 10);
+                                          const offset = sign * (h + mm / 60);
+                                          setMNewP(p => ({ ...p, timezone_offset: offset }));
+                                          return;
+                                        }
+                                      } catch { /* silent */ }
+                                    }
+                                    if (pick) {
                                       axios.get("https://api.bigdatacloud.net/data/reverse-geocode-client", {
-                                        params: { latitude: s.lat, longitude: s.lon, localityLanguage: "en" }
+                                        params: { latitude: pick.lat, longitude: pick.lon, localityLanguage: "en" },
                                       }).then(r => {
-                                        const offset = Math.round(((r.data?.timezone?.gmtOffset || 19800) / 3600) * 2) / 2;
-                                        setMNewP(p => ({ ...p, timezone_offset: offset }));
+                                        const tz = r.data?.timezone;
+                                        if (tz?.gmtOffset !== undefined) {
+                                          const offset = Math.round((tz.gmtOffset / 3600) * 2) / 2;
+                                          setMNewP(p => ({ ...p, timezone_offset: offset }));
+                                        }
                                       }).catch(() => {});
-                                    }}
-                                      style={{ width: "100%", padding: "7px 10px", background: "none", border: "none", borderBottom: "0.5px solid var(--border)", color: "var(--text)", fontSize: 11, textAlign: "left" as const, cursor: "pointer", fontFamily: "inherit" }}>
-                                      {s.display}
+                                    }
+                                  }}
+                                />
+                              </div>
+
+                              {/* Gender — now pill-with-glyph to match event-type cards */}
+                              <div>
+                                <div className="pf-field-label">{t("Gender", "లింగం")}</div>
+                                <div className="pf-gender-grid">
+                                  {(["male","female"] as const).map(g => (
+                                    <button
+                                      key={g}
+                                      onClick={() => setMNewP(p => ({ ...p, gender: g }))}
+                                      className={`pf-gender-pill${mNewP.gender === g ? " is-active" : ""}`}
+                                    >
+                                      <span style={{ fontSize: 14, lineHeight: 1 }}>{g === "male" ? "♂" : "♀"}</span>
+                                      {g === "male" ? t("Male", "పురుషుడు") : t("Female", "స్త్రీ")}
                                     </button>
                                   ))}
                                 </div>
-                              )}
-                            </div>
-                            {/* Gender */}
-                            <div style={{ display: "flex", gap: 6 }}>
-                              {(["male","female"] as const).map(g => (
-                                <button key={g} onClick={() => setMNewP(p => ({ ...p, gender: g }))}
-                                  style={{ flex: 1, padding: "6px", borderRadius: 6, cursor: "pointer", border: `0.5px solid ${mNewP.gender === g ? "var(--accent)" : "var(--border2)"}`, background: mNewP.gender === g ? "rgba(201,169,110,0.1)" : "var(--surface)", color: mNewP.gender === g ? "var(--accent)" : "var(--muted)", fontSize: 12, fontFamily: "inherit" }}>
-                                  {g === "male" ? `♂ ${t("Male", "పురుషుడు")}` : `♀ ${t("Female", "స్త్రీ")}`}
+                              </div>
+
+                              {/* Actions — equal-weight Cancel text-only; Add accent-pill */}
+                              <div className="pf-actions">
+                                <button
+                                  onClick={() => {
+                                    setMShowAddParticipant(false);
+                                    setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "", timezone_offset: 5.5 });
+                                    setMNewPPlaceSugg([]);
+                                  }}
+                                  className="pf-btn-cancel"
+                                >
+                                  {t("Cancel", "రద్దు")}
                                 </button>
-                              ))}
+                                <button
+                                  disabled={!canAdd}
+                                  onClick={() => {
+                                    if (!canAdd) return;
+                                    const newSession: ChartSession = {
+                                      id: Date.now().toString(),
+                                      name: mNewP.name,
+                                      birthDetails: { name: mNewP.name, date: mNewP.date, time: mNewP.time, ampm: mNewP.ampm, place: mNewP.place, latitude: mNewP.latitude, longitude: mNewP.longitude, gender: mNewP.gender, timezone_offset: mNewP.timezone_offset },
+                                      workspaceData: null, analysisMessages: [], activeTopic: "", selectedHouse: null, chatQ: "", analysisLang: "english", activeTab: "chart"
+                                    };
+                                    setMParticipants(prev => [...prev, newSession]);
+                                    setSavedSessions(prev => [...prev, newSession]);
+                                    setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "", timezone_offset: 5.5 });
+                                    setMNewPPlaceSugg([]); setMNewPPlaceStatus("idle");
+                                    setMShowAddParticipant(false);
+                                  }}
+                                  className="pf-btn-add"
+                                >
+                                  {t("Add participant", "జోడించు")}
+                                </button>
+                              </div>
                             </div>
-                            <div style={{ display: "flex", gap: 6 }}>
-                              <button onClick={() => {
-                                if (!mNewP.name || !mNewP.date || !mNewP.time) return;
-                                const newSession: ChartSession = {
-                                  id: Date.now().toString(),
-                                  name: mNewP.name,
-                                  birthDetails: { name: mNewP.name, date: mNewP.date, time: mNewP.time, ampm: mNewP.ampm, place: mNewP.place, latitude: mNewP.latitude, longitude: mNewP.longitude, gender: mNewP.gender, timezone_offset: mNewP.timezone_offset },
-                                  workspaceData: null, analysisMessages: [], activeTopic: "", selectedHouse: null, chatQ: "", analysisLang: "english", activeTab: "chart"
-                                };
-                                setMParticipants(prev => [...prev, newSession]);
-                                setSavedSessions(prev => [...prev, newSession]);
-                                setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "", timezone_offset: 5.5 });
-                                setMNewPPlaceSugg([]); setMNewPPlaceStatus("idle");
-                                setMShowAddParticipant(false);
-                              }} style={{ flex: 1, padding: "7px", background: "var(--accent)", border: "none", borderRadius: 6, color: "#09090f", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
-                                {t("Add", "జోడించు")}
-                              </button>
-                              <button onClick={() => { setMShowAddParticipant(false); setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "", timezone_offset: 5.5 }); setMNewPPlaceSugg([]); }}
-                                style={{ padding: "7px 12px", background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, color: "var(--muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
-                                {t("Cancel", "రద్దు")}
-                              </button>
-                            </div>
-                          </div>
-                        )}
+                          );
+                        })()}
                       </div>
 
                       <button onClick={() => setMStep(2)} disabled={!mEventType}
@@ -4744,20 +4864,35 @@ export default function Home() {
                                 {v.confidence || "LOW"} {t("CONFIDENCE", "విశ్వాసం")}
                               </span>
                             </div>
+                            {/* Confidence → separator → Ruling Planets (with subhead) →
+                                flags → Reasoning. Each block gets its own visual tier so
+                                the hierarchy reads at a glance. */}
                             {v.ruling_planets?.length > 0 && (
-                              <div style={{ display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap" as const, marginBottom: 10 }}>
-                                {v.ruling_planets.map((rp: string) => (
-                                  <span key={rp} style={{ fontSize: 11, background: "rgba(201,169,110,0.12)", color: "var(--accent)", border: "0.5px solid rgba(201,169,110,0.3)", borderRadius: 999, padding: "4px 12px", fontWeight: 500 }}>{rp}</span>
-                                ))}
+                              <div style={{ marginTop: 6, marginBottom: 10, paddingTop: 12, borderTop: `0.5px solid ${verdictColor}20` }}>
+                                <div style={{ fontSize: 9, color: "var(--muted)", letterSpacing: "0.14em", textTransform: "uppercase" as const, fontWeight: 600, marginBottom: 8 }}>
+                                  {t("Ruling planets · supporting the query", "నియమిత గ్రహాలు · ప్రశ్నకు అనుకూలం")}
+                                </div>
+                                <div style={{ display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap" as const }}>
+                                  {v.ruling_planets.map((rp: string) => (
+                                    <span key={rp} style={{ fontSize: 11, background: "rgba(201,169,110,0.12)", color: "var(--accent)", border: "0.5px solid rgba(201,169,110,0.3)", borderRadius: 999, padding: "4px 12px", fontWeight: 500 }}>{rp}</span>
+                                  ))}
+                                </div>
                               </div>
                             )}
-                            <div style={{ display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap" as const }}>
-                              {v.rp_confirms_csl && <span style={{ fontSize: 10, background: "rgba(52,211,153,0.15)", color: "#34d399", border: "0.5px solid rgba(52,211,153,0.3)", borderRadius: 4, padding: "3px 10px", letterSpacing: "0.04em" }}>RP ✓ CSL</span>}
-                              {v.moon_supports && <span style={{ fontSize: 10, background: "rgba(201,169,110,0.15)", color: "var(--accent)", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "3px 10px", letterSpacing: "0.04em" }}>Moon ✓</span>}
-                            </div>
+                            {(v.rp_confirms_csl || v.moon_supports) && (
+                              <div style={{ display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap" as const, marginBottom: 6 }}>
+                                {v.rp_confirms_csl && <span style={{ fontSize: 10, background: "rgba(52,211,153,0.15)", color: "#34d399", border: "0.5px solid rgba(52,211,153,0.3)", borderRadius: 4, padding: "3px 10px", letterSpacing: "0.04em" }}>RP ✓ CSL</span>}
+                                {v.moon_supports && <span style={{ fontSize: 10, background: "rgba(52,211,153,0.15)", color: "#34d399", border: "0.5px solid rgba(52,211,153,0.3)", borderRadius: 4, padding: "3px 10px", letterSpacing: "0.04em" }}>Moon ✓</span>}
+                              </div>
+                            )}
                             {(v.verdict_reason || v.explanation) && (
-                              <div style={{ fontSize: 12, color: "var(--muted)", fontStyle: "italic", lineHeight: 1.65, maxWidth: 460, margin: "14px auto 0" }}>
-                                {v.verdict_reason || v.explanation}
+                              <div style={{ marginTop: 14, paddingTop: 14, borderTop: `0.5px solid ${verdictColor}20`, maxWidth: 480, marginLeft: "auto", marginRight: "auto" }}>
+                                <div style={{ fontSize: 9, color: "var(--muted)", letterSpacing: "0.14em", textTransform: "uppercase" as const, fontWeight: 600, marginBottom: 6 }}>
+                                  {t("Reasoning", "తర్కం")}
+                                </div>
+                                <div style={{ fontSize: 12, color: "var(--muted)", fontStyle: "italic", lineHeight: 1.65 }}>
+                                  {v.verdict_reason || v.explanation}
+                                </div>
                               </div>
                             )}
                           </div>
@@ -4891,21 +5026,38 @@ export default function Home() {
                             })()}
                           </div>
 
-                          {/* Lagna info grid */}
+                          {/* Lagna info grid — Favorable Houses rendered as
+                              house chips to match the planet table visual style. */}
                           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                            {[
-                              [t("Prashna number", "ప్రశ్న సంఖ్య"),     `#${r.prashna_number}`],
-                              [t("Lagna sign", "లగ్న రాశి"),            `${r.lagna?.sign} ${r.lagna?.longitude?.toFixed(2)}°`],
-                              [t("Lagna nakshatra", "లగ్న నక్షత్రం"),   r.lagna?.nakshatra],
-                              [t("Lagna star lord", "లగ్న స్టార్‌లార్డ్"), r.lagna?.star_lord],
-                              [t("Lagna sub lord", "లగ్న సబ్‌లార్డ్"),   r.lagna?.sub_lord],
-                              [t("Favorable houses", "అనుకూల భావాలు"), (v.yes_houses || []).map((h: number) => `H${h}`).join(", ")],
-                            ].map(([label, val]) => (
-                              <div key={label as string} style={{ padding: "7px 10px", background: "var(--card)", border: "0.5px solid var(--border2)", borderRadius: 6 }}>
-                                <div style={{ fontSize: 9, color: "var(--accent)", marginBottom: 2 }}>{label}</div>
-                                <div style={{ fontSize: 12, color: "var(--fg)", fontWeight: 500 }}>{val}</div>
-                              </div>
-                            ))}
+                            {(() => {
+                              type Entry = { label: string; val: React.ReactNode };
+                              const entries: Entry[] = [
+                                { label: t("Prashna number", "ప్రశ్న సంఖ్య"),     val: `#${r.prashna_number}` },
+                                { label: t("Lagna sign", "లగ్న రాశి"),            val: `${r.lagna?.sign} ${r.lagna?.longitude?.toFixed(2)}°` },
+                                { label: t("Lagna nakshatra", "లగ్న నక్షత్రం"),   val: r.lagna?.nakshatra },
+                                { label: t("Lagna star lord", "లగ్న స్టార్‌లార్డ్"), val: r.lagna?.star_lord },
+                                { label: t("Lagna sub lord", "లగ్న సబ్‌లార్డ్"),   val: r.lagna?.sub_lord },
+                                {
+                                  label: t("Favorable houses", "అనుకూల భావాలు"),
+                                  val: (
+                                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" as const, marginTop: 1 }}>
+                                      {(v.yes_houses || []).length === 0
+                                        ? <span style={{ color: "var(--muted)" }}>—</span>
+                                        : (v.yes_houses || []).map((h: number) => (
+                                            <span key={h} style={{ background: "rgba(201,169,110,0.15)", color: "var(--accent)", border: "0.5px solid rgba(201,169,110,0.3)", padding: "1px 7px", borderRadius: 8, fontSize: 10, fontWeight: 600, letterSpacing: "0.02em" }}>H{h}</span>
+                                          ))
+                                      }
+                                    </div>
+                                  ),
+                                },
+                              ];
+                              return entries.map(e => (
+                                <div key={e.label} style={{ padding: "7px 10px", background: "var(--card)", border: "0.5px solid var(--border2)", borderRadius: 6 }}>
+                                  <div style={{ fontSize: 9, color: "var(--accent)", marginBottom: 2 }}>{e.label}</div>
+                                  <div style={{ fontSize: 12, color: "var(--fg)", fontWeight: 500 }}>{e.val}</div>
+                                </div>
+                              ));
+                            })()}
                           </div>
 
                           {/* Planet table — alternating rows + left accent for ruling planets */}
