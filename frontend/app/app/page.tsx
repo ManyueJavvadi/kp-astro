@@ -9,6 +9,8 @@ import { ContentCard } from "@/components/ui/content-card";
 import { PlacePicker } from "@/components/ui/place-picker";
 import { theme, styles as uiStyles } from "@/lib/theme";
 import { useLanguage } from "@/lib/i18n";
+import CommandOrb from "./components/CommandOrb";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import SouthIndianChart from "./components/SouthIndianChart";
 import DashaTimeline from "./components/DashaTimeline";
 import PanchangamCard from "./components/PanchangamCard";
@@ -28,6 +30,7 @@ const API_URL = "https://devastroai.up.railway.app";
 // ── Main Component ────────────────────────────────────────────
 export default function Home() {
   const { lang, t, backendLang } = useLanguage();
+  const isMobile = useIsMobile();
   const [mode, setMode] = useState<"user" | "astrologer">("user");
   const [birthDetails, setBirthDetails] = useState<BirthDetails>({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: null, longitude: null, gender: "" });
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
@@ -5927,6 +5930,21 @@ export default function Home() {
             </div>
           </div>
         </main>
+      )}
+
+      {/* PR20 — Mobile Command Orb. Renders only on mobile viewports,
+          only after the chart is set up (no point showing nav during
+          onboarding). Provides draggable tab access + power actions. */}
+      {setupDone && isMobile && (
+        <CommandOrb
+          tabs={TABS}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          onNewChart={handleNewChart}
+          sessions={savedSessions}
+          currentSessionId={currentSessionId}
+          onSwitchSession={handleSwitchSession}
+        />
       )}
     </div>
   );
