@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import remarkGfm from "remark-gfm";
 import axios from "axios";
-import { ArrowRight, Loader2, CheckCircle, XCircle, MessageCircle, MapPin, ChevronLeft, ChevronRight, Sparkles, User, Clock, Globe2, Target, LayoutGrid, Home as HomeIcon, Hourglass, MessageSquare, Calendar, Heart, HelpCircle } from "lucide-react";
+import { ArrowRight, Loader2, CheckCircle, XCircle, MessageCircle, MapPin, ChevronLeft, ChevronRight, Sparkles, User, Clock, Globe2, Target, LayoutGrid, Home as HomeIcon, Hourglass, MessageSquare, Calendar, Heart, HelpCircle, Moon, Star, Sunrise, Sunset, MoonStar, Crown, TriangleAlert, Ban, CircleDashed, Sun, Briefcase, Plane, BookOpen, Stethoscope, Wallet, Car, HandHeart, Lock } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { PLANET_COLORS } from "./components/constants";
 import { ContentCard } from "@/components/ui/content-card";
@@ -57,6 +57,11 @@ export default function Home() {
   const [selectedHouse, setSelectedHouse] = useState<number | null>(null);
   const [savedSessions, setSavedSessions] = useState<ChartSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string>("");
+  // New-chart floating modal: kept separate from the initial `!setupDone`
+  // onboarding so the workspace stays mounted (and visibly blurred) behind.
+  const [newChartModalOpen, setNewChartModalOpen] = useState(false);
+  const [prevBirthDetailsStash, setPrevBirthDetailsStash] = useState<BirthDetails | null>(null);
+  const [prevTimezoneStash, setPrevTimezoneStash] = useState<{ offset: number; label: string } | null>(null);
   // Muhurtha wizard state
   const [mStep, setMStep] = useState<1 | 2 | 3>(1);
   const [mEventType, setMEventType] = useState("");
@@ -546,6 +551,20 @@ export default function Home() {
   };
 
   const handleNewChart = () => {
+    // If there's no workspace yet (first-time user or already on onboarding),
+    // fall through to the original full-page setup flow — no modal needed.
+    if (!setupDone || !workspaceData) {
+      setSetupDone(false); setWorkspaceData(null); setMessages([]); setChartData(null);
+      setAnalysisMessages([]); setActiveTopic(""); setActiveTab("chart"); setSidebarOpen(true);
+      setSelectedHouse(null); setChatQ(""); setCurrentSessionId("");
+      setBirthDetails({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: null, longitude: null, gender: "" });
+      setPlaceStatus("idle");
+      return;
+    }
+    // Otherwise: snapshot the current chart into saved sessions so nothing is
+    // lost, stash the current birth inputs so Cancel can restore them, clear
+    // the form for the new chart, and open a centred modal on top of the
+    // still-mounted (and now blurred) workspace.
     const snap = snapshotCurrentSession();
     if (snap) {
       setSavedSessions(prev => {
@@ -553,11 +572,40 @@ export default function Home() {
         return idx >= 0 ? prev.map((s, i) => i === idx ? snap : s) : [...prev, snap];
       });
     }
-    setSetupDone(false); setWorkspaceData(null); setMessages([]); setChartData(null);
-    setAnalysisMessages([]); setActiveTopic(""); setActiveTab("chart"); setSidebarOpen(true);
-    setSelectedHouse(null); setChatQ(""); setCurrentSessionId("");
+    setPrevBirthDetailsStash(birthDetails);
+    setPrevTimezoneStash({ offset: timezoneOffset, label: timezoneLabel });
     setBirthDetails({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: null, longitude: null, gender: "" });
     setPlaceStatus("idle");
+    setNewChartModalOpen(true);
+  };
+
+  const handleCancelNewChartModal = () => {
+    // Restore the previous form values so the workspace's source-of-truth
+    // matches the chart that's still rendered behind the modal.
+    if (prevBirthDetailsStash) setBirthDetails(prevBirthDetailsStash);
+    if (prevTimezoneStash) {
+      setTimezoneOffset(prevTimezoneStash.offset);
+      setTimezoneLabel(prevTimezoneStash.label);
+    }
+    setPrevBirthDetailsStash(null);
+    setPrevTimezoneStash(null);
+    setNewChartModalOpen(false);
+  };
+
+  const handleSubmitNewChartModal = async () => {
+    // `handleSetup` reads birthDetails/timezoneOffset, POSTs to the backend,
+    // and updates workspaceData on success. Close the modal regardless; on
+    // validation failure the user sees an alert and can reopen via + New.
+    await handleSetup();
+    setPrevBirthDetailsStash(null);
+    setPrevTimezoneStash(null);
+    setCurrentSessionId(Date.now().toString());
+    setActiveTab("chart");
+    setSelectedHouse(null);
+    setAnalysisMessages([]);
+    setActiveTopic("");
+    setChatQ("");
+    setNewChartModalOpen(false);
   };
 
   const handleRemoveSession = (id: string) => setSavedSessions(prev => prev.filter(s => s.id !== id));
@@ -1135,8 +1183,248 @@ export default function Home() {
         </div>
       )}
 
+      {/* ── NEW CHART FLOATING MODAL ── */}
+      {/* Mounted over the astrologer workspace when the user clicks "+ New
+          Chart" on the Person Hero Banner. The workspace behind is blurred
+          via filter on its container. Reuses birthDetails/timezone state,
+          stashing the previous values so Cancel can fully restore. */}
+      {newChartModalOpen && (
+        <div
+          onClick={handleCancelNewChartModal}
+          style={{
+            position: "fixed", inset: 0, zIndex: 200,
+            background: "rgba(9,9,15,0.55)",
+            backdropFilter: "blur(8px) saturate(0.9)",
+            WebkitBackdropFilter: "blur(8px) saturate(0.9)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: "2rem 1rem",
+            animation: "fade-in 140ms ease",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%", maxWidth: 520, maxHeight: "calc(100vh - 4rem)",
+              overflowY: "auto",
+              background: theme.bg.content,
+              border: `1px solid ${theme.gold}33`,
+              borderRadius: theme.radius.lg,
+              boxShadow: "0 30px 60px -20px rgba(0,0,0,0.65), 0 0 0 1px rgba(201,169,110,0.1)",
+              padding: "1.5rem",
+            }}
+          >
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 }}>
+              <div>
+                <div style={{
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  padding: "4px 10px", borderRadius: 999,
+                  background: "rgba(0,200,255,0.08)", border: "1px solid rgba(0,200,255,0.2)",
+                  color: "#00C8FF", fontSize: 10, fontWeight: 500,
+                  letterSpacing: "0.08em", textTransform: "uppercase",
+                  marginBottom: 10,
+                }}>
+                  <Sparkles size={11} /> {t("New KP chart", "కొత్త KP చార్ట్")}
+                </div>
+                <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 20, color: theme.text.primary, lineHeight: 1.2 }}>
+                  {t("Add a new chart", "కొత్త చార్ట్ జోడించండి")}
+                </div>
+                <div style={{ fontSize: 12, color: theme.text.muted, marginTop: 4 }}>
+                  {t("Your current chart stays open in the background.", "మీ ప్రస్తుత చార్ట్ వెనుక తెరిచి ఉంటుంది.")}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleCancelNewChartModal}
+                aria-label="Close"
+                style={{
+                  background: "transparent", border: `1px solid ${theme.border.medium}`,
+                  color: theme.text.secondary, width: 30, height: 30, borderRadius: 8,
+                  cursor: "pointer", fontSize: 18, lineHeight: 1, display: "flex",
+                  alignItems: "center", justifyContent: "center",
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {/* Name */}
+              <div>
+                <Label icon={<User size={11} />}>{t("Name", "పేరు")}</Label>
+                <input
+                  type="text"
+                  placeholder={t("Full name", "పూర్తి పేరు")}
+                  value={birthDetails.name}
+                  onChange={(e) => setBirthDetails((prev) => ({ ...prev, name: e.target.value }))}
+                  style={uiStyles.input}
+                />
+              </div>
+
+              {/* Date + Time */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div>
+                  <Label icon={<Clock size={11} />}>{t("Date of birth", "పుట్టిన తేదీ")}</Label>
+                  <input
+                    type="text"
+                    placeholder="DD/MM/YYYY"
+                    maxLength={10}
+                    value={birthDetails.date}
+                    onChange={(e) => handleDateChange(e.target.value)}
+                    style={uiStyles.input}
+                  />
+                </div>
+                <div>
+                  <Label icon={<Clock size={11} />}>{t("Time of birth", "పుట్టిన సమయం")}</Label>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <input
+                      type="text"
+                      placeholder="HH:MM"
+                      maxLength={5}
+                      value={birthDetails.time}
+                      onChange={(e) => handleTimeChange(e.target.value)}
+                      style={{ ...uiStyles.input, flex: 1 }}
+                    />
+                    <select
+                      value={birthDetails.ampm}
+                      onChange={(e) => setBirthDetails((prev) => ({ ...prev, ampm: e.target.value }))}
+                      style={{ ...uiStyles.input, width: 70, cursor: "pointer" }}
+                    >
+                      <option value="AM">AM</option>
+                      <option value="PM">PM</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Place */}
+              <div>
+                <Label icon={<Globe2 size={11} />}>{t("Place of birth", "పుట్టిన ప్రదేశం")}</Label>
+                <PlacePicker
+                  value={birthDetails.place}
+                  onChange={(placeName, pick) => {
+                    setBirthDetails((prev) => ({
+                      ...prev,
+                      place: placeName,
+                      latitude: pick ? pick.lat : null,
+                      longitude: pick ? pick.lon : null,
+                    }));
+                    if (pick?.timezone) {
+                      try {
+                        const now = new Date();
+                        const fmt = new Intl.DateTimeFormat("en-US", { timeZone: pick.timezone, timeZoneName: "longOffset" });
+                        const parts = fmt.formatToParts(now);
+                        const tzPart = parts.find((p) => p.type === "timeZoneName")?.value ?? "";
+                        const m = tzPart.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);
+                        if (m) {
+                          const sign = m[1] === "-" ? -1 : 1;
+                          const h = parseInt(m[2], 10);
+                          const mm = parseInt(m[3] ?? "0", 10);
+                          const offset = sign * (h + mm / 60);
+                          setTimezoneOffset(offset);
+                          setTimezoneLabel(pick.timezone.split("/").pop() ?? `UTC${offset >= 0 ? "+" : ""}${offset}`);
+                          return;
+                        }
+                      } catch { /* silent */ }
+                    }
+                    if (pick) {
+                      axios.get("https://api.bigdatacloud.net/data/reverse-geocode-client", {
+                        params: { latitude: pick.lat, longitude: pick.lon, localityLanguage: "en" },
+                      }).then((res) => {
+                        const tz = res.data?.timezone;
+                        if (tz?.gmtOffset !== undefined) {
+                          const offset = Math.round((tz.gmtOffset / 3600) * 2) / 2;
+                          setTimezoneOffset(offset);
+                          setTimezoneLabel(tz.zoneAbbr || `UTC${offset >= 0 ? "+" : ""}${offset}`);
+                        }
+                      }).catch(() => {});
+                    }
+                  }}
+                  placeholder={t("Start typing a city…", "నగరం టైప్ చేయండి…")}
+                />
+              </div>
+
+              {/* Gender */}
+              <div>
+                <Label>{t("Gender", "లింగం")}</Label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {(["male", "female"] as const).map((g) => {
+                    const active = birthDetails.gender === g;
+                    return (
+                      <button
+                        key={g}
+                        type="button"
+                        onClick={() => setBirthDetails((prev) => ({ ...prev, gender: g }))}
+                        style={{
+                          flex: 1, height: 38, borderRadius: theme.radius.sm, cursor: "pointer",
+                          border: active ? `1px solid ${theme.gold}` : theme.border.medium,
+                          background: active ? "rgba(201,169,110,0.08)" : theme.bg.content,
+                          color: active ? theme.gold : theme.text.secondary,
+                          fontSize: 13, fontWeight: 500, fontFamily: "inherit",
+                          transition: "all 120ms",
+                        }}
+                      >
+                        {g === "male" ? "♂ Male" : "♀ Female"}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Submit + Cancel */}
+              <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+                <button
+                  type="button"
+                  onClick={handleCancelNewChartModal}
+                  style={{
+                    flex: "0 0 auto", padding: "0 18px", height: 44,
+                    borderRadius: theme.radius.sm, border: theme.border.medium,
+                    background: "transparent", color: theme.text.secondary,
+                    fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit",
+                  }}
+                >
+                  {t("Cancel", "రద్దు")}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSubmitNewChartModal}
+                  disabled={chartLoading}
+                  style={{
+                    ...uiStyles.primaryButton,
+                    flex: 1, height: 44, justifyContent: "center",
+                    fontSize: 14, fontWeight: 600,
+                    opacity: chartLoading ? 0.6 : 1,
+                    cursor: chartLoading ? "default" : "pointer",
+                  }}
+                >
+                  {chartLoading ? (
+                    <>
+                      <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
+                      {t("Calculating…", "లెక్కిస్తోంది…")}
+                    </>
+                  ) : (
+                    <>
+                      {t("Generate chart", "చార్ట్ రూపొందించు")} <ArrowRight size={16} />
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {setupDone && mode === "astrologer" && workspaceData && (
-        <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden", position: "relative", zIndex: 5 }}>
+        <div
+          style={{
+            display: "flex", flexDirection: "column", flex: 1, overflow: "hidden",
+            position: "relative", zIndex: 5,
+            filter: newChartModalOpen ? "blur(4px) saturate(0.85)" : "none",
+            pointerEvents: newChartModalOpen ? "none" : "auto",
+            transition: "filter 160ms ease",
+          }}
+          aria-hidden={newChartModalOpen ? "true" : undefined}
+        >
         {/* Person Hero Banner — always visible above tabs */}
         <PersonHeroBanner
           workspaceData={workspaceData as WorkspaceData}
@@ -2122,7 +2410,7 @@ export default function Home() {
                         <div className="pc-elements-grid">
                           {/* Tithi card with moon illumination */}
                           <div className="pc-element-card el-tithi">
-                            <div className="pc-element-icon">🌙</div>
+                            <div className="pc-element-icon" style={{ color: "var(--accent)" }}><Moon size={20} strokeWidth={1.6} /></div>
                             <div className="pc-element-te">{pcData.tithi_te}</div>
                             <div className="pc-element-en">{pcData.tithi_en}</div>
                             {pcData.tithi_ends_at && <div className="pc-element-until">until {pcData.tithi_ends_at}</div>}
@@ -2137,21 +2425,21 @@ export default function Home() {
                           </div>
                           {/* Nakshatra card with pada */}
                           <div className="pc-element-card el-nakshatra">
-                            <div className="pc-element-icon">⭐</div>
+                            <div className="pc-element-icon" style={{ color: "#fbbf24" }}><Star size={20} strokeWidth={1.6} /></div>
                             <div className="pc-element-te">{pcData.nakshatra_te}{pcData.nakshatra_pada ? ` - ${pcData.nakshatra_pada}` : ""}</div>
                             <div className="pc-element-en">{pcData.nakshatra_en}{pcData.nakshatra_pada ? ` (Pada ${pcData.nakshatra_pada})` : ""}</div>
                             {pcData.nakshatra_ends_at && <div className="pc-element-until">until {pcData.nakshatra_ends_at}</div>}
                           </div>
                           {/* Yoga card */}
                           <div className="pc-element-card el-yoga">
-                            <div className="pc-element-icon">☯</div>
+                            <div className="pc-element-icon" style={{ color: "#a78bfa" }}><Sparkles size={20} strokeWidth={1.6} /></div>
                             <div className="pc-element-te">{pcData.yoga_te}</div>
                             <div className="pc-element-en">{pcData.yoga_en}</div>
                             {pcData.yoga_ends_at && <div className="pc-element-until">until {pcData.yoga_ends_at}</div>}
                           </div>
                           {/* Karana card — both karanas */}
                           <div className="pc-element-card el-karana">
-                            <div className="pc-element-icon">🔱</div>
+                            <div className="pc-element-icon" style={{ color: "#34d399" }}><HandHeart size={20} strokeWidth={1.6} /></div>
                             <div className="pc-element-te">{pcData.karana_te}</div>
                             <div className="pc-element-en">{pcData.karana}</div>
                             {pcData.karana_ends_at && <div className="pc-element-until">until {pcData.karana_ends_at}</div>}
@@ -2192,13 +2480,13 @@ export default function Home() {
                         {/* Left: Sun & Moon times 2x2 */}
                         <div className="pc-celestial-grid">
                           {[
-                            { icon: "🌅", label: "Sunrise", time: pcData.sunrise, warm: true },
-                            { icon: "🌇", label: "Sunset", time: pcData.sunset, warm: true },
-                            { icon: "🌙", label: "Moonrise", time: pcData.moonrise || "—", warm: false },
-                            { icon: "🌒", label: "Moonset", time: pcData.moonset || "—", warm: false },
+                            { Icon: Sunrise,  color: "#fbbf24", label: "Sunrise",  time: pcData.sunrise,            warm: true  },
+                            { Icon: Sunset,   color: "#fbbf24", label: "Sunset",   time: pcData.sunset,             warm: true  },
+                            { Icon: Moon,     color: "#93c5fd", label: "Moonrise", time: pcData.moonrise || "—",    warm: false },
+                            { Icon: MoonStar, color: "#93c5fd", label: "Moonset",  time: pcData.moonset  || "—",    warm: false },
                           ].map(c => (
                             <div key={c.label} className={`pc-celestial-card ${c.warm ? "warm" : "cool"}`}>
-                              <div className="pc-celestial-icon">{c.icon}</div>
+                              <div className="pc-celestial-icon" style={{ color: c.color }}><c.Icon size={18} strokeWidth={1.6} /></div>
                               <div className="pc-celestial-label">{c.label}</div>
                               <div className="pc-celestial-time">{c.time}</div>
                             </div>
@@ -2209,10 +2497,10 @@ export default function Home() {
                           {/* Brahma Muhurta */}
                           {pcData.brahma_muhurta && (
                             <div className="pc-times-item brahma">
-                              <span className="pc-times-icon">🧘</span>
+                              <span className="pc-times-icon" style={{ color: "#c9a96e" }}><Sparkles size={16} strokeWidth={1.6} /></span>
                               <div>
                                 <div className="pc-times-label">Brahma Muhurta</div>
-                                <div className="pc-times-sub">Best for meditation & study</div>
+                                <div className="pc-times-sub">Best for meditation &amp; study</div>
                               </div>
                               <span className="pc-times-value">{pcData.brahma_muhurta.start} – {pcData.brahma_muhurta.end}</span>
                             </div>
@@ -2220,7 +2508,7 @@ export default function Home() {
                           {/* Abhijit Muhurtha */}
                           {pcData.abhijit_muhurtha?.valid && (
                             <div className="pc-times-item auspicious">
-                              <span className="pc-times-icon">👑</span>
+                              <span className="pc-times-icon" style={{ color: "#34d399" }}><Crown size={16} strokeWidth={1.6} /></span>
                               <div>
                                 <div className="pc-times-label">Abhijit Muhurtha</div>
                                 <div className="pc-times-sub">Universally auspicious</div>
@@ -2230,23 +2518,23 @@ export default function Home() {
                           )}
                           {/* Inauspicious */}
                           <div className="pc-times-item danger">
-                            <span className="pc-times-icon">⚠️</span>
+                            <span className="pc-times-icon" style={{ color: "#f87171" }}><TriangleAlert size={16} strokeWidth={1.6} /></span>
                             <div><div className="pc-times-label">Rahu Kalam</div></div>
                             <span className="pc-times-value">{pcData.rahu_kalam}</span>
                           </div>
                           <div className="pc-times-item warning">
-                            <span className="pc-times-icon">🛑</span>
+                            <span className="pc-times-icon" style={{ color: "#fbbf24" }}><Ban size={16} strokeWidth={1.6} /></span>
                             <div><div className="pc-times-label">Yamagandam</div></div>
                             <span className="pc-times-value">{pcData.yamagandam}</span>
                           </div>
                           <div className="pc-times-item purple">
-                            <span className="pc-times-icon">🔮</span>
+                            <span className="pc-times-icon" style={{ color: "#a78bfa" }}><CircleDashed size={16} strokeWidth={1.6} /></span>
                             <div><div className="pc-times-label">Gulika Kalam</div></div>
                             <span className="pc-times-value">{pcData.gulika_kalam}</span>
                           </div>
                           {pcData.durmuhurtha?.map((dm: any, i: number) => (
                             <div key={i} className="pc-times-item warning">
-                              <span className="pc-times-icon">⏳</span>
+                              <span className="pc-times-icon" style={{ color: "#fbbf24" }}><Hourglass size={16} strokeWidth={1.6} /></span>
                               <div><div className="pc-times-label">Durmuhurtha {i + 1}</div></div>
                               <span className="pc-times-value">{dm.start} – {dm.end}</span>
                             </div>
@@ -2262,7 +2550,7 @@ export default function Home() {
                             {/* Day */}
                             <div>
                               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                                <span style={{ fontSize: 11, color: "#fbbf24" }}>☀ Day</span>
+                                <span style={{ fontSize: 11, color: "#fbbf24", display: "inline-flex", alignItems: "center", gap: 5 }}><Sun size={13} strokeWidth={1.8} /> Day</span>
                                 <span style={{ fontSize: 9, color: "var(--muted)" }}>Sunrise {pcData.sunrise}</span>
                               </div>
                               <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
@@ -2282,7 +2570,7 @@ export default function Home() {
                             {/* Night */}
                             <div>
                               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                                <span style={{ fontSize: 11, color: "#93c5fd" }}>🌙 Night</span>
+                                <span style={{ fontSize: 11, color: "#93c5fd", display: "inline-flex", alignItems: "center", gap: 5 }}><Moon size={13} strokeWidth={1.8} /> Night</span>
                                 <span style={{ fontSize: 9, color: "var(--muted)" }}>Sunset {pcData.sunset}</span>
                               </div>
                               <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
@@ -2366,20 +2654,21 @@ export default function Home() {
                       {/* Event type icon card grid */}
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, marginBottom: "1.25rem" }}>
                         {[
-                          { emoji: "💍", te: "వివాహం", en: "Marriage" },
-                          { emoji: "💼", te: "వ్యాపారం", en: "Business Opening" },
-                          { emoji: "🏠", te: "గృహప్రవేశం", en: "House Warming" },
-                          { emoji: "✈️", te: "ప్రయాణం", en: "Travel" },
-                          { emoji: "📚", te: "విద్య", en: "Education" },
-                          { emoji: "🏥", te: "వైద్యం", en: "Medical / Surgery" },
-                          { emoji: "💰", te: "పెట్టుబడి", en: "Investment" },
-                          { emoji: "🚗", te: "వాహనం", en: "Vehicle Delivery" },
+                          { Icon: HandHeart,  te: "వివాహం",       en: "Marriage" },
+                          { Icon: Briefcase,  te: "వ్యాపారం",     en: "Business Opening" },
+                          { Icon: HomeIcon,   te: "గృహప్రవేశం",   en: "House Warming" },
+                          { Icon: Plane,      te: "ప్రయాణం",      en: "Travel" },
+                          { Icon: BookOpen,   te: "విద్య",         en: "Education" },
+                          { Icon: Stethoscope, te: "వైద్యం",        en: "Medical / Surgery" },
+                          { Icon: Wallet,     te: "పెట్టుబడి",    en: "Investment" },
+                          { Icon: Car,        te: "వాహనం",         en: "Vehicle Delivery" },
                         ].map(item => {
                           const active = mEventType === item.en;
+                          const ItemIcon = item.Icon;
                           return (
-                            <button key={item.en} onClick={() => setMEventType(item.en)} style={{ padding: "10px 6px", background: active ? "rgba(201,169,110,0.12)" : "var(--card)", border: `1px solid ${active ? "rgba(201,169,110,0.55)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, cursor: "pointer", fontFamily: "inherit", display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 4, transition: "all 0.15s" }}>
-                              <span style={{ fontSize: 22 }}>{item.emoji}</span>
-                              <span style={{ fontSize: 10, color: active ? "var(--accent)" : "var(--muted)", fontWeight: active ? 600 : 400, textAlign: "center" as const, lineHeight: 1.2 }}>{item.te}</span>
+                            <button key={item.en} onClick={() => setMEventType(item.en)} style={{ padding: "10px 6px", background: active ? "rgba(201,169,110,0.12)" : "var(--card)", border: `1px solid ${active ? "rgba(201,169,110,0.55)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, cursor: "pointer", fontFamily: "inherit", display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 6, transition: "all 0.15s" }}>
+                              <ItemIcon size={20} strokeWidth={1.6} color={active ? "var(--accent)" : "var(--muted)"} />
+                              <span style={{ fontSize: 10, color: active ? "var(--accent)" : "var(--muted)", fontWeight: active ? 600 : 400, textAlign: "center" as const, lineHeight: 1.2 }}>{lang === "en" ? item.en : item.te}</span>
                             </button>
                           );
                         })}
@@ -2395,7 +2684,8 @@ export default function Home() {
                           {/* Main user — always included, locked */}
                           {workspaceData && (
                             <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", background: "rgba(201,169,110,0.15)", border: "0.5px solid var(--accent)", borderRadius: 20, fontSize: 12, color: "var(--accent)" }}>
-                              <span>🔒 {workspaceData.name || birthDetails.name} (You)</span>
+                              <Lock size={11} strokeWidth={1.8} />
+                              <span>{workspaceData.name || birthDetails.name} (You)</span>
                             </div>
                           )}
                           {mParticipants.map((p, i) => (
@@ -2525,14 +2815,14 @@ export default function Home() {
                       </div>
                       {/* Event location section */}
                       <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem", marginBottom: "1rem" }}>
-                        <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.625rem" }}>
-                          📍 Event Location
+                        <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.625rem", display: "inline-flex", alignItems: "center", gap: 5 }}>
+                          <MapPin size={11} strokeWidth={1.8} /> Event Location
                         </div>
                         <div style={{ display: "flex", gap: 6, marginBottom: mEventLocMode === "different" ? 10 : 0 }}>
                           {(["same","different"] as const).map(mode => (
                             <button key={mode} onClick={() => { setMEventLocMode(mode); if(mode==="same") setMEventLoc(null); }}
-                              style={{ flex: 1, padding: "8px 6px", background: mEventLocMode === mode ? "rgba(201,169,110,0.12)" : "var(--card)", border: `0.5px solid ${mEventLocMode === mode ? "rgba(201,169,110,0.55)" : "var(--border2)"}`, borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontSize: 11, color: mEventLocMode === mode ? "var(--accent)" : "var(--muted)", fontWeight: mEventLocMode === mode ? 600 : 400, transition: "all 0.15s" }}>
-                              {mode === "same" ? "🏠 Same as birth" : "📍 Different location"}
+                              style={{ flex: 1, padding: "8px 6px", background: mEventLocMode === mode ? "rgba(201,169,110,0.12)" : "var(--card)", border: `0.5px solid ${mEventLocMode === mode ? "rgba(201,169,110,0.55)" : "var(--border2)"}`, borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontSize: 11, color: mEventLocMode === mode ? "var(--accent)" : "var(--muted)", fontWeight: mEventLocMode === mode ? 600 : 400, transition: "all 0.15s", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                              {mode === "same" ? (<><HomeIcon size={12} strokeWidth={1.8} /> Same as birth</>) : (<><MapPin size={12} strokeWidth={1.8} /> Different location</>)}
                             </button>
                           ))}
                         </div>
@@ -2650,7 +2940,13 @@ export default function Home() {
                         const uniqueDates = [...new Set(allWindows.map((w: any) => w.date))] as string[];
                         const filteredWindows = mSelectedDate ? allWindows.filter((w: any) => w.date === mSelectedDate) : allWindows;
                         const bestWindow = mResults.best_window;
-                        const eventEmoji: Record<string, string> = { marriage: "💍", business: "💼", house_warming: "🏠", travel: "✈️", education: "📚" };
+                        const eventIcon: Record<string, any> = {
+                          marriage: HandHeart,
+                          business: Briefcase,
+                          house_warming: HomeIcon,
+                          travel: Plane,
+                          education: BookOpen,
+                        };
                         const qualityColor = (q: string) => q === "Excellent" ? "var(--accent)" : q === "Good" ? "#4ade80" : q === "Fair" ? "#a78bfa" : "var(--muted)";
                         const qualityBg = (q: string) => q === "Excellent" ? "rgba(201,169,110,0.12)" : q === "Good" ? "rgba(74,222,128,0.08)" : q === "Fair" ? "rgba(167,139,250,0.08)" : "rgba(255,255,255,0.03)";
                         const qualityBorder = (q: string) => q === "Excellent" ? "rgba(201,169,110,0.4)" : q === "Good" ? "rgba(74,222,128,0.3)" : q === "Fair" ? "rgba(167,139,250,0.3)" : "var(--border)";
@@ -2681,8 +2977,12 @@ export default function Home() {
                           <div className="muhurtha-summary-banner">
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                               <div>
-                                <div style={{ fontSize: 18, fontWeight: 600, color: "var(--accent)", fontFamily: "'DM Serif Display', serif", marginBottom: 4 }}>
-                                  {eventEmoji[mEventType] || "🕉"} {mEventType.replace("_", " ").toUpperCase()} ముహూర్తాలు
+                                <div style={{ fontSize: 18, fontWeight: 600, color: "var(--accent)", fontFamily: "'DM Serif Display', serif", marginBottom: 4, display: "inline-flex", alignItems: "center", gap: 10 }}>
+                                  {(() => {
+                                    const BannerIcon = eventIcon[mEventType] || Sparkles;
+                                    return <BannerIcon size={20} strokeWidth={1.6} />;
+                                  })()}
+                                  {mEventType.replace("_", " ").toUpperCase()} ముహూర్తాలు
                                 </div>
                                 <div style={{ fontSize: 12, color: "var(--muted)" }}>
                                   {mDateStart} → {mDateEnd} {mResults.participants_loaded?.length > 0 && `· ${mResults.participants_loaded.length} participants`}
