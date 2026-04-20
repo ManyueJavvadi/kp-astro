@@ -33,10 +33,11 @@ html, body {
   font-family: 'DM Sans', sans-serif;
   min-height: 100vh;
   overflow-x: hidden;
-  /* PR22 — prevent iOS Safari / Android Chrome pull-to-refresh from
-     reloading the app when the user swipes down aggressively inside a
-     sheet or near the top of the viewport. Loses in-memory state. */
-  overscroll-behavior-y: contain;
+  /* PR23 — reverted overscroll-behavior-y: contain from PR22. It
+     interacted badly with iOS touch scroll and made the tab content
+     feel stuck. localStorage session auto-restore (also added in PR22
+     and retained) is the real pull-to-refresh defense: if the browser
+     does reload, the user lands back on the same chart/tab. */
 }
 
 input, textarea, select, button {
