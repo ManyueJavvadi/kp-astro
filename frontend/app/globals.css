@@ -1199,3 +1199,142 @@ textarea:focus-visible {
   .v2-hide-mobile { display: none; }
   .v2-show-mobile { display: inline; }
 }
+
+/* ───────── Horary — wow pass animations (PR14) ───────── */
+
+/* The number picker's core digit: breathing gold glow + serif weight. */
+@keyframes horary-breathe {
+  0%, 100% {
+    text-shadow:
+      0 0 24px rgba(201,169,110,0.35),
+      0 0 48px rgba(201,169,110,0.15);
+  }
+  50% {
+    text-shadow:
+      0 0 36px rgba(201,169,110,0.55),
+      0 0 72px rgba(201,169,110,0.25);
+  }
+}
+.horary-digit {
+  font-family: 'DM Serif Display', serif;
+  font-weight: 400;
+  font-size: clamp(72px, 10vw, 104px);
+  line-height: 1;
+  color: var(--accent);
+  letter-spacing: -0.02em;
+  animation: horary-breathe 3.6s ease-in-out infinite;
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A soft circular halo sitting behind the digit. */
+.horary-digit-halo {
+  position: absolute;
+  inset: -18%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(201,169,110,0.18) 0%,
+    rgba(201,169,110,0.06) 30%,
+    transparent 65%
+  );
+  pointer-events: none;
+  filter: blur(2px);
+  animation: horary-halo-pulse 3.6s ease-in-out infinite;
+}
+@keyframes horary-halo-pulse {
+  0%, 100% { opacity: 0.7; transform: scale(0.96); }
+  50%       { opacity: 1;   transform: scale(1.04); }
+}
+
+/* +/- stepper buttons — gold on hover, no jank. */
+.horary-step-btn {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--card);
+  border: 0.5px solid var(--border2);
+  color: var(--muted);
+  font-size: 20px; line-height: 1;
+  cursor: pointer; font-family: inherit;
+  display: flex; align-items: center; justify-content: center;
+  transition: color 140ms, border-color 140ms, background 140ms, transform 80ms;
+}
+.horary-step-btn:hover {
+  color: var(--accent);
+  border-color: rgba(201,169,110,0.45);
+  background: rgba(201,169,110,0.06);
+}
+.horary-step-btn:active { transform: scale(0.94); }
+
+/* Random / Compute button icon spin on click. */
+@keyframes horary-dice-spin {
+  from { transform: rotate(0); }
+  to   { transform: rotate(360deg); }
+}
+.horary-dice-spin { animation: horary-dice-spin 500ms cubic-bezier(0.4, 0, 0.2, 1); }
+
+/* Verdict hero entrance: fade + scale + ring ripple. */
+@keyframes horary-verdict-enter {
+  0%   { opacity: 0; transform: scale(0.92) translateY(6px); }
+  60%  { opacity: 1; transform: scale(1.015) translateY(0); }
+  100% { opacity: 1; transform: scale(1)     translateY(0); }
+}
+.horary-verdict-card {
+  animation: horary-verdict-enter 520ms cubic-bezier(0.2, 0.9, 0.3, 1.1) both;
+}
+
+/* Serif verdict word matching page h1 — load-bearing drama. */
+.horary-verdict-word {
+  font-family: 'DM Serif Display', serif;
+  font-weight: 400;
+  font-size: clamp(56px, 9vw, 88px);
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+/* 3-layer journey: each card fades/slides in, staggered via per-card delay. */
+@keyframes horary-layer-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.horary-layer { animation: horary-layer-enter 420ms ease both; }
+.horary-layer[data-step="1"] { animation-delay: 120ms; }
+.horary-layer[data-step="2"] { animation-delay: 260ms; }
+.horary-layer[data-step="3"] { animation-delay: 400ms; }
+
+/* Connector line between the three layer cards (horizontal flow) +
+   the animated dot that sweeps across while the verdict is settling in. */
+.horary-connector {
+  position: relative;
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    rgba(201,169,110,0) 0%,
+    rgba(201,169,110,0.35) 20%,
+    rgba(201,169,110,0.35) 80%,
+    rgba(201,169,110,0) 100%
+  );
+  min-width: 18px;
+}
+.horary-connector::after {
+  content: "";
+  position: absolute; top: 50%;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+  transform: translate(-50%, -50%);
+  animation: horary-connector-dot 2.1s ease-in-out infinite;
+}
+@keyframes horary-connector-dot {
+  0%   { left: 0%;   opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { left: 100%; opacity: 0; }
+}
+
+@media (max-width: 820px) {
+  /* Stack on mobile and hide the horizontal connector dots. */
+  .horary-journey { flex-direction: column !important; }
+  .horary-connector { display: none; }
+}
+

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import remarkGfm from "remark-gfm";
 import axios from "axios";
 import { ArrowRight, Loader2, CheckCircle, XCircle, MessageCircle, MapPin, ChevronLeft, ChevronRight, Sparkles, User, Clock, Globe2, Target, LayoutGrid, Home as HomeIcon, Hourglass, MessageSquare, Calendar, Heart, HelpCircle, Moon, Star, Sunrise, Sunset, MoonStar, Crown, TriangleAlert, Ban, CircleDashed, Sun, Briefcase, Plane, BookOpen, Stethoscope, Wallet, Car, HandHeart, Lock, Wand2, Dices, CheckCircle2, HeartPulse, Baby, Scale, Globe } from "lucide-react";
@@ -105,6 +105,10 @@ export default function Home() {
   const [transitDate, setTransitDate] = useState("");
   // Horary / Prashna state
   const [horaryNumber, setHoraryNumber] = useState<number | "">("");
+  // PR14 — horary wow pass: animated dice-spin flag on Random; counter roll
+  // target so we can briefly animate the number up to the picked value.
+  const [horaryDiceSpin, setHoraryDiceSpin] = useState(false);
+  const horaryRollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [horaryQuestion, setHoraryQuestion] = useState("");
   const [horaryTopic, setHoraryTopic] = useState("general");
   const [horaryResult, setHoraryResult] = useState<any>(null);
@@ -4138,8 +4142,8 @@ export default function Home() {
                             )}
                             value={horaryQuestion}
                             onChange={e => setHoraryQuestion(e.target.value)}
-                            rows={3}
-                            style={{ width: "100%", padding: "10px 14px", background: "var(--card)", border: `1px solid ${horaryQuestion.trim() ? "rgba(201,169,110,0.4)" : "var(--border2)"}`, borderRadius: 8, color: "var(--fg)", fontSize: 13, fontFamily: "inherit", resize: "none" as const, outline: "none", lineHeight: 1.6, boxSizing: "border-box" as const, transition: "border-color 0.2s" }}
+                            rows={5}
+                            style={{ width: "100%", padding: "12px 14px", background: "var(--card)", border: `1px solid ${horaryQuestion.trim() ? "rgba(201,169,110,0.4)" : "var(--border2)"}`, borderRadius: 8, color: "var(--fg)", fontSize: 13, fontFamily: "inherit", resize: "none" as const, outline: "none", lineHeight: 1.55, boxSizing: "border-box" as const, transition: "border-color 0.2s" }}
                           />
                           {/* Topic chips — lucide icons + en/te labels */}
                           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const, marginTop: 10 }}>
@@ -4169,42 +4173,102 @@ export default function Home() {
                           </div>
                         </div>
 
-                        {/* Number picker card */}
-                        <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 14, padding: "20px" }}>
-                          <div style={{ fontSize: 11, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 4, fontWeight: 600 }}>
+                        {/* Number picker card — the ritual moment.
+                            Big serif digit with breathing gold glow, radial halo
+                            behind it, Random rolls an animated counter, steppers
+                            are circular and feel tactile. */}
+                        <div style={{ background: "var(--surface2)", border: "0.5px solid rgba(201,169,110,0.18)", borderRadius: 14, padding: "28px 24px", textAlign: "center" as const }}>
+                          <div style={{ fontSize: 11, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6, fontWeight: 600 }}>
                             {t("Pick a number", "సంఖ్య ఎంచుకోండి")}
                           </div>
-                          <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 16 }}>
+                          <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 24, maxWidth: 380, margin: "0 auto 24px" }}>
                             {t("Close your eyes and let the first number between 1 and 249 come.", "కళ్ళు మూసుకొని మనసులో మెదిలిన సంఖ్య — 1 నుండి 249")}
                           </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: "center", marginBottom: 12 }}>
+
+                          <div style={{ display: "flex", alignItems: "center", gap: 20, justifyContent: "center", marginBottom: 22 }}>
                             <button
-                              onClick={() => setHoraryNumber(n => typeof n === "number" && n > 1 ? n - 1 : 1)}
-                              style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--card)", border: "0.5px solid var(--border2)", color: "var(--muted)", fontSize: 20, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>−</button>
-                            <div style={{ position: "relative" as const }}>
-                              <input
-                                type="number" min={1} max={249}
-                                value={horaryNumber}
-                                onChange={e => setHoraryNumber(e.target.value === "" ? "" : Math.max(1, Math.min(249, parseInt(e.target.value) || 1)))}
-                                placeholder="?"
-                                style={{ width: 100, textAlign: "center" as const, padding: "10px 0", background: "var(--card)", border: "1px solid rgba(201,169,110,0.35)", borderRadius: 10, color: horaryNumber ? "var(--accent)" : "var(--muted)", fontSize: 32, fontFamily: "inherit", fontWeight: 700, outline: "none" }}
-                              />
+                              aria-label="Decrement"
+                              className="horary-step-btn"
+                              onClick={() => setHoraryNumber(n => typeof n === "number" ? Math.max(1, n - 1) : 1)}
+                            >−</button>
+
+                            <div style={{ position: "relative" as const, display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 180, padding: "8px 24px" }}>
+                              <span className="horary-digit-halo" />
+                              <span className="horary-digit">
+                                {horaryNumber === "" ? "?" : horaryNumber}
+                              </span>
                             </div>
+
                             <button
-                              onClick={() => setHoraryNumber(n => typeof n === "number" && n < 249 ? n + 1 : n === "" ? 1 : 249)}
-                              style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--card)", border: "0.5px solid var(--border2)", color: "var(--muted)", fontSize: 20, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>+</button>
+                              aria-label="Increment"
+                              className="horary-step-btn"
+                              onClick={() => setHoraryNumber(n => typeof n === "number" ? Math.min(249, n + 1) : 1)}
+                            >+</button>
                           </div>
-                          <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+
+                          {/* Secondary row: tiny range indicator + manual override */}
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 20, fontSize: 10, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" as const }}>
+                            <span>1</span>
+                            <div style={{ width: 120, height: 2, borderRadius: 2, background: "linear-gradient(90deg, rgba(201,169,110,0.15), rgba(201,169,110,0.45), rgba(201,169,110,0.15))", position: "relative" as const }}>
+                              {typeof horaryNumber === "number" && (
+                                <div
+                                  style={{
+                                    position: "absolute" as const,
+                                    left: `${((horaryNumber - 1) / 248) * 100}%`,
+                                    top: "50%",
+                                    width: 9, height: 9, borderRadius: "50%",
+                                    background: "var(--accent)",
+                                    boxShadow: "0 0 10px rgba(201,169,110,0.8)",
+                                    transform: "translate(-50%, -50%)",
+                                    transition: "left 260ms cubic-bezier(0.2, 0.9, 0.3, 1.1)",
+                                  }}
+                                />
+                              )}
+                            </div>
+                            <span>249</span>
+                          </div>
+
+                          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" as const }}>
                             <button
-                              onClick={() => setHoraryNumber(Math.floor(Math.random() * 249) + 1)}
-                              style={{ padding: "6px 18px", background: "var(--card)", border: "0.5px solid var(--border2)", borderRadius: 8, color: "var(--muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 6 }}>
-                              <Dices size={13} strokeWidth={1.8} />
+                              onClick={() => {
+                                // Animated counter roll — sweeps through ~8
+                                // intermediate values over ~520ms, landing on
+                                // the final random pick. Feels like a dignified
+                                // tumbler, not a slot machine.
+                                if (horaryRollRef.current) clearInterval(horaryRollRef.current);
+                                setHoraryDiceSpin(true);
+                                const finalN = Math.floor(Math.random() * 249) + 1;
+                                let tick = 0;
+                                const steps = 8;
+                                horaryRollRef.current = setInterval(() => {
+                                  tick += 1;
+                                  if (tick >= steps) {
+                                    if (horaryRollRef.current) clearInterval(horaryRollRef.current);
+                                    horaryRollRef.current = null;
+                                    setHoraryNumber(finalN);
+                                    setTimeout(() => setHoraryDiceSpin(false), 200);
+                                    return;
+                                  }
+                                  setHoraryNumber(Math.floor(Math.random() * 249) + 1);
+                                }, 65);
+                              }}
+                              style={{ padding: "8px 18px", background: "var(--card)", border: "0.5px solid var(--border2)", borderRadius: 999, color: "var(--text)", fontSize: 12, cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 8, transition: "border-color 140ms, background 140ms" }}
+                              onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(201,169,110,0.45)"; e.currentTarget.style.background = "rgba(201,169,110,0.06)"; }}
+                              onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border2)"; e.currentTarget.style.background = "var(--card)"; }}
+                            >
+                              <Dices size={14} strokeWidth={1.8} className={horaryDiceSpin ? "horary-dice-spin" : undefined} />
                               {t("Random", "యాదృచ్ఛిక")}
                             </button>
+
                             <button
                               onClick={async () => {
                                 if (!horaryNumber || !horaryQuestion.trim()) return;
                                 setHoraryLoading(true);
+                                // Enforce a minimum 650ms loading state so the
+                                // reveal has a moment — an instant flip from
+                                // form to verdict feels like a page refresh,
+                                // not an oracle.
+                                const startedAt = Date.now();
                                 try {
                                   const res = await axios.post(`${API_URL}/horary/analyze`, {
                                     number: horaryNumber,
@@ -4214,12 +4278,37 @@ export default function Home() {
                                     longitude: workspaceData?.longitude || 78.4867,
                                     timezone_offset: timezoneOffset,
                                   });
+                                  const elapsed = Date.now() - startedAt;
+                                  if (elapsed < 650) {
+                                    await new Promise(r => setTimeout(r, 650 - elapsed));
+                                  }
                                   setHoraryResult(res.data);
                                 } catch { setHoraryResult(null); }
                                 setHoraryLoading(false);
                               }}
                               disabled={!horaryNumber || !horaryQuestion.trim() || horaryLoading}
-                              style={{ padding: "8px 24px", background: "var(--accent)", border: "none", borderRadius: 8, color: "#000", fontSize: 13, cursor: "pointer", fontFamily: "inherit", fontWeight: 700, opacity: (!horaryNumber || !horaryQuestion.trim()) ? 0.4 : 1, letterSpacing: "0.04em", display: "inline-flex", alignItems: "center", gap: 8 }}>
+                              style={{
+                                padding: "10px 26px",
+                                background: (!horaryNumber || !horaryQuestion.trim())
+                                  ? "rgba(201,169,110,0.15)"
+                                  : "var(--accent)",
+                                border: (!horaryNumber || !horaryQuestion.trim())
+                                  ? "0.5px solid rgba(201,169,110,0.3)"
+                                  : "0.5px solid var(--accent)",
+                                borderRadius: 999,
+                                color: (!horaryNumber || !horaryQuestion.trim()) ? "rgba(201,169,110,0.6)" : "#09090f",
+                                fontSize: 13,
+                                cursor: (!horaryNumber || !horaryQuestion.trim() || horaryLoading) ? "default" : "pointer",
+                                fontFamily: "inherit",
+                                fontWeight: 700,
+                                letterSpacing: "0.04em",
+                                display: "inline-flex", alignItems: "center", gap: 8,
+                                transition: "background 140ms, color 140ms",
+                                boxShadow: (!horaryNumber || !horaryQuestion.trim())
+                                  ? "none"
+                                  : "0 4px 20px -6px rgba(201,169,110,0.5)",
+                              }}
+                            >
                               {horaryLoading ? (
                                 <>
                                   <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
@@ -4233,6 +4322,14 @@ export default function Home() {
                               )}
                             </button>
                           </div>
+
+                          {(!horaryNumber || !horaryQuestion.trim()) && !horaryLoading && (
+                            <div style={{ marginTop: 14, fontSize: 10, color: "var(--muted)", letterSpacing: "0.06em", textTransform: "uppercase" as const }}>
+                              {!horaryQuestion.trim()
+                                ? t("Type a question first", "మొదట ప్రశ్న టైప్ చేయండి")
+                                : t("Pick or roll a number", "సంఖ్య ఎంచుకోండి లేదా రోల్ చేయండి")}
+                            </div>
+                          )}
                         </div>
 
                         {/* How KP Horary works — explainer card (ported from developv2) */}
@@ -4267,87 +4364,186 @@ export default function Home() {
                             "{horaryQuestion}" <span style={{ color: "var(--accent)", fontStyle: "normal" }}>#{r.prashna_number}</span>
                           </div>
 
-                          {/* Verdict hero — with lucide icon beside text */}
-                          <div style={{ textAlign: "center" as const, padding: "24px 16px", background: `radial-gradient(ellipse at 50% 0%, ${verdictColor}15 0%, transparent 70%), var(--surface2)`, border: `1px solid ${verdictColor}30`, borderRadius: 14, position: "relative" as const }}>
-                            <div style={{ display: "inline-flex", alignItems: "center", gap: 16, lineHeight: 1 }}>
-                              <VerdictIcon size={44} strokeWidth={1.8} color={verdictColor} />
-                              <div style={{ fontSize: 56, fontWeight: 800, color: verdictColor, lineHeight: 1, letterSpacing: "-0.02em", textShadow: `0 0 40px ${verdictColor}40` }}>
+                          {/* Verdict hero — serif word, fade+scale entrance, radial glow.
+                              This is the moment of the whole tab. */}
+                          <div
+                            className="horary-verdict-card"
+                            style={{
+                              textAlign: "center" as const,
+                              padding: "36px 20px 28px",
+                              background: `radial-gradient(ellipse at 50% 0%, ${verdictColor}22 0%, transparent 70%), var(--surface2)`,
+                              border: `1px solid ${verdictColor}40`,
+                              borderRadius: 16,
+                              position: "relative" as const,
+                              boxShadow: `0 30px 60px -30px ${verdictColor}40, 0 0 0 1px ${verdictColor}10 inset`,
+                              overflow: "hidden" as const,
+                            }}
+                          >
+                            <div style={{ display: "inline-flex", alignItems: "center", gap: 20, lineHeight: 1 }}>
+                              <VerdictIcon size={52} strokeWidth={1.6} color={verdictColor} />
+                              <div
+                                className="horary-verdict-word"
+                                style={{
+                                  color: verdictColor,
+                                  textShadow: `0 0 48px ${verdictColor}60, 0 0 96px ${verdictColor}30`,
+                                }}
+                              >
                                 {v.verdict || "MAYBE"}
                               </div>
                             </div>
-                            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 12, marginBottom: 10 }}>
-                              <span style={{ fontSize: 13, color: confColor, fontWeight: 700 }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 16, marginBottom: 12 }}>
+                              <span style={{ fontSize: 13, color: confColor, fontWeight: 700, letterSpacing: "0.1em" }}>
                                 {v.confidence === "HIGH" ? "●●●" : v.confidence === "MEDIUM" ? "●●○" : "●○○"}
                               </span>
-                              <span style={{ fontSize: 12, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" as const }}>
+                              <span style={{ fontSize: 11, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const, fontWeight: 500 }}>
                                 {v.confidence || "LOW"} {t("CONFIDENCE", "విశ్వాసం")}
                               </span>
                             </div>
                             {v.ruling_planets?.length > 0 && (
-                              <div style={{ display: "flex", gap: 5, justifyContent: "center", flexWrap: "wrap" as const, marginBottom: 10 }}>
+                              <div style={{ display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap" as const, marginBottom: 10 }}>
                                 {v.ruling_planets.map((rp: string) => (
-                                  <span key={rp} style={{ fontSize: 11, background: "rgba(201,169,110,0.1)", color: "var(--accent)", border: "0.5px solid rgba(201,169,110,0.25)", borderRadius: 20, padding: "3px 10px" }}>{rp}</span>
+                                  <span key={rp} style={{ fontSize: 11, background: "rgba(201,169,110,0.12)", color: "var(--accent)", border: "0.5px solid rgba(201,169,110,0.3)", borderRadius: 999, padding: "4px 12px", fontWeight: 500 }}>{rp}</span>
                                 ))}
                               </div>
                             )}
-                            {v.rp_confirms_csl && <span style={{ display: "inline-block", fontSize: 10, background: "rgba(52,211,153,0.12)", color: "#34d399", border: "0.5px solid rgba(52,211,153,0.25)", borderRadius: 4, padding: "2px 8px", marginRight: 4 }}>RP ✓ CSL</span>}
-                            {v.moon_supports && <span style={{ display: "inline-block", fontSize: 10, background: "rgba(201,169,110,0.12)", color: "var(--accent)", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "2px 8px" }}>Moon ✓</span>}
+                            <div style={{ display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap" as const }}>
+                              {v.rp_confirms_csl && <span style={{ fontSize: 10, background: "rgba(52,211,153,0.15)", color: "#34d399", border: "0.5px solid rgba(52,211,153,0.3)", borderRadius: 4, padding: "3px 10px", letterSpacing: "0.04em" }}>RP ✓ CSL</span>}
+                              {v.moon_supports && <span style={{ fontSize: 10, background: "rgba(201,169,110,0.15)", color: "var(--accent)", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "3px 10px", letterSpacing: "0.04em" }}>Moon ✓</span>}
+                            </div>
                             {(v.verdict_reason || v.explanation) && (
-                              <div style={{ fontSize: 11, color: "var(--muted)", fontStyle: "italic", lineHeight: 1.6, maxWidth: 400, margin: "10px auto 0" }}>{v.verdict_reason || v.explanation}</div>
+                              <div style={{ fontSize: 12, color: "var(--muted)", fontStyle: "italic", lineHeight: 1.65, maxWidth: 460, margin: "14px auto 0" }}>
+                                {v.verdict_reason || v.explanation}
+                              </div>
                             )}
                           </div>
 
-                          {/* 3-Layer Analysis — numbered step cards */}
-                          <div style={{ display: "flex", flexDirection: "column" as const, gap: 8 }}>
-                            <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 2 }}>
-                              {t("3-layer KP analysis", "3-స్థాయి KP విశ్లేషణ")}
+                          {/* 3-Layer Analysis — visual journey.
+                              Three cards laid out horizontally (stack on mobile via CSS),
+                              linked by animated connector lines. Each card has a pass/fail
+                              border tint so the logical flow is visible at a glance. */}
+                          <div>
+                            <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 10, fontWeight: 600, textAlign: "center" as const }}>
+                              {t("3-layer KP journey", "3-స్థాయి KP ప్రయాణం")}
                             </div>
-                            {[
-                              {
-                                num: "1",
-                                label: t("Lagna CSL", "లగ్న CSL"),
-                                sub:   t("Is the question fruitful?", "ప్రశ్న ఫలప్రదమా?"),
-                                body: <>
-                                  <span style={{ color: "var(--accent)", fontWeight: 600 }}>{v.lagna_csl}</span>
-                                  {" → H"}{(v.lagna_csl_significations || []).join(", H")}
-                                  <span style={{ marginLeft: 6, color: v.lagna_fruitful ? "#34d399" : "#f87171", fontSize: 11, fontWeight: 600 }}>
-                                    {v.lagna_fruitful ? `✓ ${t("Fruitful", "ఫలప్రదం")}` : `✗ ${t("Barren", "నిష్ఫలం")}`}
-                                  </span>
-                                </>
-                              },
-                              {
-                                num: "2",
-                                label: `H${v.query_house} CSL`,
-                                sub:   t("The real decision", "నిజమైన నిర్ణయం"),
-                                body: <>
-                                  <span style={{ color: "var(--accent)", fontWeight: 600 }}>{v.query_csl}</span>
-                                  {" → H"}{(v.query_csl_significations || []).join(", H")}
-                                  {v.h2_supports && <span style={{ marginLeft: 4, fontSize: 10, color: "#34d399" }}>H2✓</span>}
-                                  {v.h11_supports && <span style={{ marginLeft: 4, fontSize: 10, color: "#34d399" }}>H11✓</span>}
-                                </>
-                              },
-                              {
-                                num: "3",
-                                label: t("Ruling planets", "నియమిత గ్రహాలు"),
-                                sub:   t("Confirmation", "నిర్ధారణ"),
-                                body: <div style={{ display: "flex", gap: 5, flexWrap: "wrap" as const, marginTop: 2 }}>
-                                  {(v.ruling_planets || []).map((rp: string) => (
-                                    <span key={rp} style={{ padding: "2px 8px", borderRadius: 10, fontSize: 11, background: (v.rp_signifying_yes || []).includes(rp) ? "rgba(52,211,153,0.12)" : "var(--card)", color: (v.rp_signifying_yes || []).includes(rp) ? "#34d399" : "var(--muted)", border: rp === v.query_csl ? "0.5px solid var(--accent)" : "0.5px solid var(--border2)" }}>{rp}</span>
-                                  ))}
+                            {(() => {
+                              const layer1Pass = !!v.lagna_fruitful;
+                              const layer2Pass = (v.h2_supports || v.h11_supports) || (v.query_csl_significations || []).length > 0;
+                              const layer3Pass = (v.rp_signifying_yes || []).length > 0 || v.rp_confirms_csl;
+                              const stepColor = (pass: boolean) => pass ? "#34d399" : "#f87171";
+                              const stepBg    = (pass: boolean) => pass ? "rgba(52,211,153,0.05)" : "rgba(248,113,113,0.04)";
+                              const stepBorder = (pass: boolean) => pass ? "rgba(52,211,153,0.3)" : "rgba(248,113,113,0.25)";
+
+                              const steps = [
+                                {
+                                  num: "1",
+                                  Icon: Sparkles,
+                                  pass: layer1Pass,
+                                  label: t("Lagna CSL", "లగ్న CSL"),
+                                  sub:   t("Is the question fruitful?", "ప్రశ్న ఫలప్రదమా?"),
+                                  body: (
+                                    <div style={{ fontSize: 12 }}>
+                                      <span style={{ color: "var(--accent)", fontWeight: 600 }}>{v.lagna_csl}</span>
+                                      <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
+                                        {"→ H"}{(v.lagna_csl_significations || []).join(", H")}
+                                      </div>
+                                      <div style={{ marginTop: 6, color: stepColor(layer1Pass), fontSize: 11, fontWeight: 600 }}>
+                                        {layer1Pass ? `✓ ${t("Fruitful", "ఫలప్రదం")}` : `✗ ${t("Barren", "నిష్ఫలం")}`}
+                                      </div>
+                                    </div>
+                                  ),
+                                },
+                                {
+                                  num: "2",
+                                  Icon: HomeIcon,
+                                  pass: layer2Pass,
+                                  label: `H${v.query_house} CSL`,
+                                  sub:   t("The real decision", "నిజమైన నిర్ణయం"),
+                                  body: (
+                                    <div style={{ fontSize: 12 }}>
+                                      <span style={{ color: "var(--accent)", fontWeight: 600 }}>{v.query_csl}</span>
+                                      <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
+                                        {"→ H"}{(v.query_csl_significations || []).join(", H")}
+                                      </div>
+                                      <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" as const }}>
+                                        {v.h2_supports &&  <span style={{ fontSize: 10, color: "#34d399", background: "rgba(52,211,153,0.1)", border: "0.5px solid rgba(52,211,153,0.25)", borderRadius: 4, padding: "1px 6px" }}>H2 ✓</span>}
+                                        {v.h11_supports && <span style={{ fontSize: 10, color: "#34d399", background: "rgba(52,211,153,0.1)", border: "0.5px solid rgba(52,211,153,0.25)", borderRadius: 4, padding: "1px 6px" }}>H11 ✓</span>}
+                                      </div>
+                                    </div>
+                                  ),
+                                },
+                                {
+                                  num: "3",
+                                  Icon: Target,
+                                  pass: layer3Pass,
+                                  label: t("Ruling planets", "నియమిత గ్రహాలు"),
+                                  sub:   t("Confirmation", "నిర్ధారణ"),
+                                  body: (
+                                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" as const, marginTop: 2 }}>
+                                      {(v.ruling_planets || []).map((rp: string) => {
+                                        const ok = (v.rp_signifying_yes || []).includes(rp);
+                                        const isCsl = rp === v.query_csl;
+                                        return (
+                                          <span key={rp} style={{
+                                            padding: "2px 8px", borderRadius: 999, fontSize: 11,
+                                            background: ok ? "rgba(52,211,153,0.12)" : "var(--card)",
+                                            color: ok ? "#34d399" : "var(--muted)",
+                                            border: isCsl ? "0.5px solid var(--accent)" : "0.5px solid var(--border2)",
+                                            fontWeight: ok ? 600 : 400,
+                                          }}>{rp}</span>
+                                        );
+                                      })}
+                                    </div>
+                                  ),
+                                },
+                              ];
+
+                              return (
+                                <div className="horary-journey" style={{ display: "flex", alignItems: "stretch", gap: 0, flexWrap: "nowrap" as const }}>
+                                  {steps.map((step, i) => {
+                                    const StepIcon = step.Icon;
+                                    return (
+                                      <React.Fragment key={step.num}>
+                                        <div
+                                          className="horary-layer"
+                                          data-step={step.num}
+                                          style={{
+                                            flex: 1, minWidth: 0,
+                                            padding: "14px 14px 16px",
+                                            background: stepBg(step.pass),
+                                            border: `1px solid ${stepBorder(step.pass)}`,
+                                            borderRadius: 12,
+                                            display: "flex", flexDirection: "column" as const,
+                                            position: "relative" as const,
+                                          }}
+                                        >
+                                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                                            <div style={{
+                                              width: 32, height: 32, borderRadius: "50%",
+                                              background: `${stepColor(step.pass)}18`,
+                                              border: `1px solid ${stepColor(step.pass)}50`,
+                                              display: "flex", alignItems: "center", justifyContent: "center",
+                                              flexShrink: 0,
+                                              color: stepColor(step.pass),
+                                            }}>
+                                              <StepIcon size={15} strokeWidth={1.8} />
+                                            </div>
+                                            <div style={{ minWidth: 0 }}>
+                                              <div style={{ fontSize: 9, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const, fontWeight: 600 }}>
+                                                {t("Layer", "స్థాయి")} {step.num}
+                                              </div>
+                                              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--fg)", marginTop: 1 }}>{step.label}</div>
+                                            </div>
+                                          </div>
+                                          <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 8, fontStyle: "italic" }}>{step.sub}</div>
+                                          <div>{step.body}</div>
+                                        </div>
+                                        {i < steps.length - 1 && <div className="horary-connector" aria-hidden="true" />}
+                                      </React.Fragment>
+                                    );
+                                  })}
                                 </div>
-                              },
-                            ].map((step) => (
-                              <div key={step.num} style={{ display: "flex", gap: 12, padding: "10px 12px", background: "var(--card)", border: "0.5px solid var(--border2)", borderRadius: 10 }}>
-                                <div style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(201,169,110,0.15)", border: "1px solid rgba(201,169,110,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "var(--accent)", flexShrink: 0 }}>{step.num}</div>
-                                <div style={{ flex: 1 }}>
-                                  <div style={{ display: "flex", gap: 8, alignItems: "baseline", marginBottom: 4 }}>
-                                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--fg)" }}>{step.label}</span>
-                                    <span style={{ fontSize: 10, color: "var(--muted)" }}>{step.sub}</span>
-                                  </div>
-                                  <div style={{ fontSize: 12, color: "var(--fg)" }}>{step.body}</div>
-                                </div>
-                              </div>
-                            ))}
+                              );
+                            })()}
                           </div>
 
                           {/* Lagna info grid */}
@@ -4486,12 +4682,19 @@ export default function Home() {
               )}
             </div>
 
-            {/* Chat input */}
+            {/* Chat input (workspace-level — visible on every tab; routes to Analysis) */}
             <div style={{ borderTop: "0.5px solid var(--border)", padding: "0.75rem 1.25rem", background: "var(--surface)", display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
-              <input value={chatQ} onChange={e => setChatQ(e.target.value)} onKeyDown={e => { if (e.key === "Enter") handleWorkspaceChat(); }} placeholder="లోతైన విశ్లేషణ కోసం అడగండి..."
-                style={{ flex: 1, background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 8, padding: "9px 14px", fontSize: 13, color: "var(--text)", outline: "none", fontFamily: "inherit" }} />
+              <input
+                value={chatQ}
+                onChange={e => setChatQ(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") handleWorkspaceChat(); }}
+                placeholder={t("Ask a deeper question…", "లోతైన విశ్లేషణ కోసం అడగండి…")}
+                style={{ flex: 1, background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 8, padding: "9px 14px", fontSize: 13, color: "var(--text)", outline: "none", fontFamily: "inherit" }}
+              />
               <button onClick={handleWorkspaceChat} disabled={analysisLoading || !chatQ.trim()}
-                style={{ background: chatQ.trim() ? "var(--accent)" : "var(--surface2)", color: chatQ.trim() ? "#09090f" : "var(--muted)", border: "none", borderRadius: 8, padding: "9px 18px", fontSize: 13, cursor: chatQ.trim() ? "pointer" : "default", fontWeight: 500, fontFamily: "inherit" }}>అడగు</button>
+                style={{ background: chatQ.trim() ? "var(--accent)" : "var(--surface2)", color: chatQ.trim() ? "#09090f" : "var(--muted)", border: "none", borderRadius: 8, padding: "9px 18px", fontSize: 13, cursor: chatQ.trim() ? "pointer" : "default", fontWeight: 500, fontFamily: "inherit" }}>
+                {t("Ask", "అడగు")}
+              </button>
             </div>
           </div>
         </div>
