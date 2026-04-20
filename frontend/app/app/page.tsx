@@ -2236,7 +2236,7 @@ export default function Home() {
 
                       if (!pos) {
                         // Geolocation failed — open city selector instead of silent fallback
-                        setPcGeoError("Could not detect location. Please select your city.");
+                        setPcGeoError(t("Could not detect location. Please select your city.", "ప్రదేశం గుర్తించలేకపోయాము. దయచేసి మీ నగరం ఎంచుకోండి."));
                         setPcShowCityModal(true);
                         setPcLoading(false);
                         return;
@@ -2312,93 +2312,214 @@ export default function Home() {
                 // Auto-load on first open (or after city selection clears pcData)
                 if (!pcData && !pcLoading && !pcShowCityModal) { pcFetchLocation(); }
 
-                const weekdayHeaders = ["ఆ", "సో", "మం", "బు", "గు", "శు", "శ"];
+                // Weekday headers — lang aware. EN shows Sun-Sat, te/te_en shows Telugu shorts.
+                const weekdayHeadersEn = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+                const weekdayHeadersTe = ["ఆ", "సో", "మం", "బు", "గు", "శు", "శ"];
+                const weekdayHeaders   = lang === "en" ? weekdayHeadersEn : weekdayHeadersTe;
+
+                // Frontend mappers for values backend returns only in Telugu.
+                const AYANA_EN: Record<string, string> = {
+                  "ఉత్తరాయణం": "Uttarayana",
+                  "దక్షిణాయనం": "Dakshinayana",
+                };
+                const RUTU_EN: Record<string, string> = {
+                  "వసంత ఋతువు":   "Vasanta (Spring)",
+                  "గ్రీష్మ ఋతువు": "Grishma (Summer)",
+                  "వర్ష ఋతువు":   "Varsha (Monsoon)",
+                  "శరద్ ఋతువు":   "Sharad (Autumn)",
+                  "హేమంత ఋతువు":  "Hemanta (Pre-winter)",
+                  "శిశిర ఋతువు":  "Shishira (Winter)",
+                };
+                const SPECIAL_EN: Record<string, string> = {
+                  "పౌర్ణమి":    "Purnima",
+                  "అమావాస్య":   "Amavasya",
+                  "ఏకాదశి":    "Ekadashi",
+                };
+                const specialClassOf = (s: string | null | undefined): string => {
+                  if (!s) return "";
+                  if (s === "పౌర్ణమి" || s === "Purnima")  return "purnima";
+                  if (s === "అమావాస్య" || s === "Amavasya") return "amavasya";
+                  if (s === "ఏకాదశి"  || s === "Ekadashi") return "ekadashi";
+                  return "";
+                };
+
+                // tithi_short comes back Telugu like "శు·3" / "కృ·12" / "పౌర్ణమి"
+                // — make a small EN-mode equivalent so the calendar doesn't
+                // show Telugu when the user is in EN.
+                const tithiShortEn = (ts: string, tithiNum?: number) => {
+                  if (!ts) return "";
+                  if (ts === "పౌర్ణమి") return "Purnima";
+                  if (ts === "అమావాస్య") return "Amavasya";
+                  // శు·N → Shu·N, కృ·N → Kr·N
+                  if (ts.startsWith("శు·")) return `Shu·${ts.slice(2)}`;
+                  if (ts.startsWith("కృ·")) return `Kr·${ts.slice(2)}`;
+                  // Fallback: if tithi_num provided, build it ourselves.
+                  if (tithiNum) {
+                    const idx = ((tithiNum - 1) % 15) + 1;
+                    return tithiNum <= 15 ? `Shu·${idx}` : `Kr·${idx}`;
+                  }
+                  return ts;
+                };
+
                 const calDays = calData?.days ?? [];
                 const firstWeekday = ((calDays[0]?.weekday ?? 0) + 1) % 7; // Convert Mon=0 → Sun=0
                 const paddedDays: (any | null)[] = [...Array(firstWeekday).fill(null), ...calDays];
                 while (paddedDays.length % 7 !== 0) paddedDays.push(null);
+
+                // Formatted selected date subtitle ("Sunday, April 19, 2026")
+                const selectedIso = calSelectedDay || new Date().toISOString().slice(0, 10);
+                const selectedFmt = (() => {
+                  try {
+                    const d = new Date(selectedIso + "T00:00:00");
+                    return d.toLocaleDateString(lang === "en" ? "en-US" : "en-IN", {
+                      weekday: "long", year: "numeric", month: "long", day: "numeric",
+                    });
+                  } catch { return selectedIso; }
+                })();
+
+                // Masa header secondary — only show in non-EN modes
+                const masaHeaderSub = lang === "en"
+                  ? (calData?.masa_en ?? "")
+                  : (calData?.masa_te ?? calData?.masa_en ?? "");
 
                 return (
                 <div className="tab-content">
                   {/* Loading */}
                   {pcLoading && !pcData && (
                     <div style={{ textAlign: "center", padding: "2rem", color: "var(--muted)", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                      <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />Detecting location...
+                      <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+                      {t("Detecting location…", "ప్రదేశం గుర్తిస్తోంది…")}
                     </div>
                   )}
 
                   {pcData && (
                     <>
-                      {/* 1. Location bar — clickable to open city selector */}
-                      <div className="pc-location-bar" onClick={() => setPcShowCityModal(true)}
-                           style={{ cursor: "pointer" }}>
-                        <MapPin size={14} style={{ color: "var(--accent)" }} />
-                        <span className="pc-location-city">{pcLocationName || "Detected Location"}</span>
-                        <span style={{ fontSize: 12, color: "var(--muted)" }}>· {pcData.date}</span>
-                        {pcData.timezone_name && <span style={{ fontSize: 10, color: "var(--border2)", marginLeft: 4 }}>({pcData.timezone_name})</span>}
-                        <span className="pc-location-note" style={{ color: "var(--accent)" }}>Change ^</span>
-                      </div>
+                      {/* ── 1. Centred page hero ── */}
+                      <header className="pc2-header">
+                        <div className="pc2-loc-chip" onClick={() => setPcShowCityModal(true)}>
+                          <MapPin size={12} strokeWidth={1.8} />
+                          <span>{pcLocationName || t("Detected location", "గుర్తించిన ప్రదేశం")}</span>
+                          {pcData.timezone_name && (
+                            <span style={{ opacity: 0.6, fontSize: 10, letterSpacing: "0.04em", textTransform: "none" as const }}>
+                              ({pcData.timezone_name})
+                            </span>
+                          )}
+                        </div>
+                        <h1 className="pc2-title">
+                          {t("Panchang", "పంచాంగం")}
+                        </h1>
+                        <div className="pc2-subtitle">
+                          <span>{selectedFmt}</span>
+                          {pcData.samvatsara_te && (
+                            <>
+                              <span className="dot" />
+                              <span>Samvat {pcData.samvatsara_te}</span>
+                            </>
+                          )}
+                        </div>
+                      </header>
 
-                      {/* 2. Monthly calendar grid */}
+                      {/* ── 2. Monthly calendar ── */}
                       <div className="pc-section">
                         <div className="pc-cal-nav">
                           <button onClick={prevMonth}><ChevronLeft size={16} /></button>
                           <div style={{ textAlign: "center" }}>
                             <span className="pc-cal-title">
-                              {new Date(calMonth.year, calMonth.month - 1).toLocaleString("en-US", { month: "long", year: "numeric" })}
+                              {new Date(calMonth.year, calMonth.month - 1).toLocaleString(lang === "en" ? "en-US" : "en-IN", { month: "long", year: "numeric" })}
                             </span>
-                            {calData?.masa_te && <span className="pc-cal-subtitle">{calData.masa_te}</span>}
+                            {masaHeaderSub && <span className="pc-cal-subtitle">{masaHeaderSub}</span>}
                           </div>
                           <button onClick={nextMonth}><ChevronRight size={16} /></button>
                         </div>
                         {calLoading ? (
                           <div style={{ textAlign: "center", padding: "1.5rem", color: "var(--muted)", fontSize: 12 }}>
-                            <Loader2 size={14} style={{ animation: "spin 1s linear infinite", display: "inline-block", marginRight: 6 }} />Loading...
+                            <Loader2 size={14} style={{ animation: "spin 1s linear infinite", display: "inline-block", marginRight: 6 }} />
+                            {t("Loading…", "లోడ్ అవుతోంది…")}
                           </div>
                         ) : calDays.length > 0 && (
-                          <div className="pc-cal-grid">
-                            {weekdayHeaders.map(d => (
-                              <div key={d} className="pc-cal-weekday">{d}</div>
-                            ))}
-                            {paddedDays.map((day, idx) => {
-                              if (!day) return <div key={idx} className="pc-cal-cell empty" />;
-                              const specialClass = day.special === "పౌర్ణమి" ? "pournami" : day.special === "అమావాస్య" ? "amavasya" : day.special === "ఏకాదశి" ? "ekadasi" : "";
-                              return (
-                                <div key={day.date}
-                                  className={`pc-cal-cell${day.is_today ? " today" : ""}${calSelectedDay === day.date ? " selected" : ""}`}
-                                  onClick={() => handleDayClick(day.date)}>
-                                  <div className="pc-cal-date-row">
-                                    <span className="pc-cal-day-num">{day.day}</span>
-                                    <span className="pc-cal-moon">{day.moon_phase_icon}</span>
+                          <>
+                            <div className="pc-cal-grid">
+                              {weekdayHeaders.map((d, i) => (
+                                <div key={`${d}-${i}`} className={`pc2-cal-weekday${i === 0 ? " sun" : ""}`}>{d}</div>
+                              ))}
+                              {paddedDays.map((day, idx) => {
+                                if (!day) return <div key={idx} className="pc-cal-cell empty" />;
+                                const specialEn   = day.special ? (SPECIAL_EN[day.special] ?? day.special) : null;
+                                const specialText = lang === "en" ? specialEn : day.special;
+                                const specialClass = specialClassOf(day.special);
+                                const tithiText = lang === "en" ? tithiShortEn(day.tithi_short, day.tithi_num) : day.tithi_short;
+                                const naksText  = lang === "en"
+                                  ? (day.nakshatra_en ? day.nakshatra_en.slice(0, 4) : (day.nakshatra_short || ""))
+                                  : (day.nakshatra_short || "");
+                                const isToday    = !!day.is_today;
+                                const isSelected = calSelectedDay === day.date;
+                                return (
+                                  <div key={day.date}
+                                    className={`pc-cal-cell${isToday ? " pc2-cal-cell today" : ""}${isSelected ? " pc2-cal-cell selected" : ""}`}
+                                    onClick={() => handleDayClick(day.date)}
+                                  >
+                                    <div className="pc-cal-date-row">
+                                      <span className="pc-cal-day-num">{day.day}</span>
+                                      <span className="pc-cal-moon">{day.moon_phase_icon}</span>
+                                    </div>
+                                    <div className="pc2-cal-tithi">{tithiText}</div>
+                                    <div className="pc2-cal-nakshatra">{naksText}</div>
+                                    {specialText && <div className={`pc2-cal-special ${specialClass}`}>{specialText}</div>}
                                   </div>
-                                  <div className="pc-cal-tithi">{day.tithi_short}</div>
-                                  <div className="pc-cal-nakshatra">{day.nakshatra_short}</div>
-                                  {day.special && <div className={`pc-cal-special ${specialClass}`}>{day.special}</div>}
-                                </div>
-                              );
-                            })}
-                          </div>
+                                );
+                              })}
+                            </div>
+                            <div className="pc2-cal-legend">
+                              <span><i style={{ background: "#fbbf24" }} /> {t("Purnima / Amavasya", "పౌర్ణమి / అమావాస్య")}</span>
+                              <span><i style={{ background: "#34d399" }} /> {t("Ekadashi", "ఏకాదశి")}</span>
+                              <span><i style={{ background: "rgba(201,169,110,0.7)" }} /> {t("Today", "నేడు")}</span>
+                            </div>
+                          </>
                         )}
                       </div>
 
-                      {/* 3. Telugu identity strip */}
-                      <div className="pc-identity-strip">
-                        {[
-                          { label: "SAMVATSARA", value: pcData.samvatsara_te },
-                          { label: "AYANA", value: pcData.ayana_te },
-                          { label: "RUTU", value: pcData.rutu_te },
-                          { label: "MASA", value: pcData.masa_te },
-                        ].filter(p => p.value).map(pill => (
-                          <div key={pill.label} className="pc-identity-pill">
-                            <span className="pc-identity-label">{pill.label}</span>
-                            <span className="pc-identity-value">{pill.value}</span>
-                          </div>
-                        ))}
+                      {/* ── 3. Identity grid: Samvatsara / Ayana / Rutu / Masa ── */}
+                      <div className="pc2-identity-grid">
+                        {(() => {
+                          const ayanaEn = pcData.ayana_te ? (AYANA_EN[pcData.ayana_te] ?? pcData.ayana_te) : "";
+                          const rutuEn  = pcData.rutu_te  ? (RUTU_EN[pcData.rutu_te]   ?? pcData.rutu_te)  : "";
+                          const items = [
+                            {
+                              label: "Samvatsara",
+                              // Samvatsara names are proper Sanskrit transliterations; the
+                              // Telugu value IS the name. Show same in both modes but label
+                              // it "Samvatsara" (the English term) in EN mode.
+                              value: pcData.samvatsara_te,
+                              sub:   lang === "en" ? "60-year cycle" : "60 సంవత్సరాల చక్రం",
+                            },
+                            {
+                              label: "Ayana",
+                              value: lang === "en" ? ayanaEn : (pcData.ayana_te ?? ayanaEn),
+                              sub:   lang === "en" ? "Solar direction" : "సూర్య ప్రయాణం",
+                            },
+                            {
+                              label: "Rutu",
+                              value: lang === "en" ? rutuEn : (pcData.rutu_te ?? rutuEn),
+                              sub:   lang === "en" ? "Season" : "ఋతువు",
+                            },
+                            {
+                              label: "Masa",
+                              value: lang === "en" ? (pcData.masa_en ?? pcData.masa_te ?? "") : (pcData.masa_te ?? pcData.masa_en ?? ""),
+                              sub:   lang === "en" ? "Lunar month" : "చాంద్ర మాసం",
+                            },
+                          ].filter(x => x.value);
+                          return items.map(it => (
+                            <div key={it.label} className="pc2-identity-card">
+                              <span className="pc2-identity-card-label">{it.label}</span>
+                              <span className="pc2-identity-card-value">{it.value}</span>
+                              <span className="pc2-identity-card-sub">{it.sub}</span>
+                            </div>
+                          ));
+                        })()}
                       </div>
 
-                      {/* 4. Choghadiya Clock + Element Cards (2-column) */}
+                      {/* ── 4. Choghadiya Clock + 4 element cards ── */}
                       <div className="pc-two-col">
-                        {/* Left: Choghadiya Clock */}
                         {pcData.choghadiya && pcData.choghadiya.length > 0 && (
                           <ChoghadiyaClock
                             periods={pcData.choghadiya}
@@ -2410,187 +2531,274 @@ export default function Home() {
                             nightDurationMin={pcData.night_duration_min}
                           />
                         )}
-                        {/* Right: 2x2 Element cards */}
-                        <div className="pc-elements-grid">
-                          {/* Tithi card with moon illumination */}
-                          <div className="pc-element-card el-tithi">
-                            <div className="pc-element-icon" style={{ color: "var(--accent)" }}><Moon size={20} strokeWidth={1.6} /></div>
-                            <div className="pc-element-te">{pcData.tithi_te}</div>
-                            <div className="pc-element-en">{pcData.tithi_en}</div>
-                            {pcData.tithi_ends_at && <div className="pc-element-until">until {pcData.tithi_ends_at}</div>}
+
+                        <div className="pc2-elements-grid">
+                          {/* Tithi — primary language-aware + moon illum */}
+                          <div className="pc2-element-card el-tithi">
+                            <div className="pc2-element-head">
+                              <div className="pc2-element-icon-wrap"><Moon size={18} strokeWidth={1.6} /></div>
+                              <div className="pc2-element-meta">
+                                <div className="pc2-element-eyebrow">{t("Tithi", "తిథి")}</div>
+                                {pcData.tithi_ends_at && (
+                                  <div className="pc2-element-until-inline">{t("until", "వరకు")} {pcData.tithi_ends_at}</div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="pc2-element-primary">
+                              {lang === "en" ? (pcData.tithi_en ?? pcData.tithi_te) : (pcData.tithi_te ?? pcData.tithi_en)}
+                            </div>
+                            {lang !== "en" && pcData.tithi_en && (
+                              <div className="pc2-element-secondary">{pcData.tithi_en}</div>
+                            )}
                             {pcData.moon_illum_pct != null && (
-                              <div className="pc-moon-illum">
-                                <div className="pc-moon-illum-bar">
-                                  <div className="pc-moon-illum-fill" style={{ width: `${pcData.moon_illum_pct}%` }} />
+                              <div className="pc2-moon-illum-row">
+                                <div className="pc2-moon-illum-bar">
+                                  <div className="pc2-moon-illum-fill" style={{ width: `${pcData.moon_illum_pct}%` }} />
                                 </div>
-                                <span className="pc-moon-illum-pct">{pcData.moon_illum_pct}%</span>
+                                <span className="pc2-moon-illum-pct">{pcData.moon_illum_pct}%</span>
                               </div>
                             )}
                           </div>
-                          {/* Nakshatra card with pada */}
-                          <div className="pc-element-card el-nakshatra">
-                            <div className="pc-element-icon" style={{ color: "#fbbf24" }}><Star size={20} strokeWidth={1.6} /></div>
-                            <div className="pc-element-te">{pcData.nakshatra_te}{pcData.nakshatra_pada ? ` - ${pcData.nakshatra_pada}` : ""}</div>
-                            <div className="pc-element-en">{pcData.nakshatra_en}{pcData.nakshatra_pada ? ` (Pada ${pcData.nakshatra_pada})` : ""}</div>
-                            {pcData.nakshatra_ends_at && <div className="pc-element-until">until {pcData.nakshatra_ends_at}</div>}
+
+                          {/* Nakshatra */}
+                          <div className="pc2-element-card el-nakshatra">
+                            <div className="pc2-element-head">
+                              <div className="pc2-element-icon-wrap"><Star size={18} strokeWidth={1.6} /></div>
+                              <div className="pc2-element-meta">
+                                <div className="pc2-element-eyebrow">{t("Nakshatra", "నక్షత్రం")}</div>
+                                {pcData.nakshatra_ends_at && (
+                                  <div className="pc2-element-until-inline">{t("until", "వరకు")} {pcData.nakshatra_ends_at}</div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="pc2-element-primary">
+                              {lang === "en" ? (pcData.nakshatra_en ?? pcData.nakshatra_te) : (pcData.nakshatra_te ?? pcData.nakshatra_en)}
+                              {pcData.nakshatra_pada && <span style={{ fontSize: 14, color: "var(--muted)", marginLeft: 6, fontStyle: "italic" }}>· Pada {pcData.nakshatra_pada}</span>}
+                            </div>
+                            {lang !== "en" && pcData.nakshatra_en && (
+                              <div className="pc2-element-secondary">{pcData.nakshatra_en}</div>
+                            )}
                           </div>
-                          {/* Yoga card */}
-                          <div className="pc-element-card el-yoga">
-                            <div className="pc-element-icon" style={{ color: "#a78bfa" }}><Sparkles size={20} strokeWidth={1.6} /></div>
-                            <div className="pc-element-te">{pcData.yoga_te}</div>
-                            <div className="pc-element-en">{pcData.yoga_en}</div>
-                            {pcData.yoga_ends_at && <div className="pc-element-until">until {pcData.yoga_ends_at}</div>}
+
+                          {/* Yoga */}
+                          <div className="pc2-element-card el-yoga">
+                            <div className="pc2-element-head">
+                              <div className="pc2-element-icon-wrap"><Sparkles size={18} strokeWidth={1.6} /></div>
+                              <div className="pc2-element-meta">
+                                <div className="pc2-element-eyebrow">{t("Yoga", "యోగం")}</div>
+                                {pcData.yoga_ends_at && (
+                                  <div className="pc2-element-until-inline">{t("until", "వరకు")} {pcData.yoga_ends_at}</div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="pc2-element-primary">
+                              {lang === "en" ? (pcData.yoga_en ?? pcData.yoga_te) : (pcData.yoga_te ?? pcData.yoga_en)}
+                            </div>
+                            {lang !== "en" && pcData.yoga_en && (
+                              <div className="pc2-element-secondary">{pcData.yoga_en}</div>
+                            )}
                           </div>
-                          {/* Karana card — both karanas */}
-                          <div className="pc-element-card el-karana">
-                            <div className="pc-element-icon" style={{ color: "#34d399" }}><HandHeart size={20} strokeWidth={1.6} /></div>
-                            <div className="pc-element-te">{pcData.karana_te}</div>
-                            <div className="pc-element-en">{pcData.karana}</div>
-                            {pcData.karana_ends_at && <div className="pc-element-until">until {pcData.karana_ends_at}</div>}
+
+                          {/* Karana — note backend flips: `karana` = English, `karana_te` = Telugu */}
+                          <div className="pc2-element-card el-karana">
+                            <div className="pc2-element-head">
+                              <div className="pc2-element-icon-wrap"><HandHeart size={18} strokeWidth={1.6} /></div>
+                              <div className="pc2-element-meta">
+                                <div className="pc2-element-eyebrow">{t("Karana", "కరణం")}</div>
+                                {pcData.karana_ends_at && (
+                                  <div className="pc2-element-until-inline">{t("until", "వరకు")} {pcData.karana_ends_at}</div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="pc2-element-primary">
+                              {lang === "en" ? (pcData.karana ?? pcData.karana_te) : (pcData.karana_te ?? pcData.karana)}
+                            </div>
+                            {lang !== "en" && pcData.karana && (
+                              <div className="pc2-element-secondary">{pcData.karana}</div>
+                            )}
                             {pcData.karana2 && (
-                              <div style={{ marginTop: 4, paddingTop: 4, borderTop: "0.5px solid rgba(255,255,255,0.08)" }}>
-                                <div className="pc-element-te" style={{ fontSize: 12 }}>{pcData.karana2_te}</div>
-                                <div className="pc-element-en" style={{ fontSize: 10 }}>{pcData.karana2}</div>
+                              <div style={{ marginTop: 8, paddingTop: 8, borderTop: "0.5px solid rgba(255,255,255,0.06)", display: "flex", gap: 6, alignItems: "baseline" }}>
+                                <span style={{ fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase" as const, color: "var(--muted)", fontWeight: 600 }}>then</span>
+                                <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 15, color: "var(--text)", letterSpacing: "-0.01em" }}>
+                                  {lang === "en" ? (pcData.karana2 ?? pcData.karana2_te) : (pcData.karana2_te ?? pcData.karana2)}
+                                </span>
                               </div>
                             )}
                           </div>
                         </div>
                       </div>
 
-                      {/* 5. Current Hora — planet symbol + large lord */}
+                      {/* ── 5. Current Hora hero ── */}
                       {pcData.current_hora && (() => {
                         const HORA_SYMBOLS: Record<string, string> = {
                           Sun: "\u2609", Moon: "\u263D", Mars: "\u2642", Mercury: "\u263F",
                           Jupiter: "\u2643", Venus: "\u2640", Saturn: "\u2644"
                         };
-                        const lordColor = PLANET_COLORS[pcData.current_hora.lord] ?? "var(--accent)";
+                        const lord = pcData.current_hora.lord;
+                        const lordColor = PLANET_COLORS[lord] ?? "#c9a96e";
                         return (
-                          <div className="pc-hora-card">
-                            <div className="pc-hora-symbol" style={{ color: lordColor }}>{HORA_SYMBOLS[pcData.current_hora.lord] || "\u2609"}</div>
-                            <div>
-                              <div className="pc-hora-label">Current Hora</div>
-                              <div className="pc-hora-lord" style={{ color: lordColor }}>
-                                {pcData.current_hora.lord}
-                                {pcData.current_hora.is_auspicious && <span style={{ color: "#34d399", fontSize: 11, marginLeft: 8 }}>Auspicious</span>}
+                          <div className="pc2-hora-hero" style={{ color: lordColor }}>
+                            <div className="pc2-hora-glyph">{HORA_SYMBOLS[lord] || "\u2609"}</div>
+                            <div className="pc2-hora-body">
+                              <div className="pc2-hora-label">
+                                {t("Current Hora", "ప్రస్తుత హోర")}
+                                {pcData.current_hora.is_auspicious && (
+                                  <span className="pc2-hora-ausp" style={{ marginLeft: 8 }}>
+                                    {t("Auspicious", "శుభ")}
+                                  </span>
+                                )}
                               </div>
+                              <div className="pc2-hora-lord">{lord}</div>
                             </div>
-                            <span className="pc-hora-time">{pcData.current_hora.start} – {pcData.current_hora.end}</span>
+                            <span className="pc2-hora-time">{pcData.current_hora.start} – {pcData.current_hora.end}</span>
                           </div>
                         );
                       })()}
 
-                      {/* 6. Celestial times (2x2) + Auspicious/Inauspicious (right) */}
+                      {/* ── 6. Celestial 2×2 + Auspicious/Avoid panels ── */}
                       <div className="pc-half-grid">
-                        {/* Left: Sun & Moon times 2x2 */}
-                        <div className="pc-celestial-grid">
+                        {/* LEFT: Sun/Moon times */}
+                        <div className="pc2-celestial-grid">
                           {[
-                            { Icon: Sunrise,  color: "#fbbf24", label: "Sunrise",  time: pcData.sunrise,            warm: true  },
-                            { Icon: Sunset,   color: "#fbbf24", label: "Sunset",   time: pcData.sunset,             warm: true  },
-                            { Icon: Moon,     color: "#93c5fd", label: "Moonrise", time: pcData.moonrise || "—",    warm: false },
-                            { Icon: MoonStar, color: "#93c5fd", label: "Moonset",  time: pcData.moonset  || "—",    warm: false },
+                            { Icon: Sunrise,  color: "#fbbf24", label: t("Sunrise", "సూర్యోదయం"),   time: pcData.sunrise,             warm: true  },
+                            { Icon: Sunset,   color: "#fbbf24", label: t("Sunset", "సూర్యాస్తమయం"), time: pcData.sunset,              warm: true  },
+                            { Icon: Moon,     color: "#93c5fd", label: t("Moonrise", "చంద్రోదయం"),  time: pcData.moonrise,            warm: false },
+                            { Icon: MoonStar, color: "#93c5fd", label: t("Moonset", "చంద్రాస్తమయం"), time: pcData.moonset,             warm: false },
                           ].map(c => (
-                            <div key={c.label} className={`pc-celestial-card ${c.warm ? "warm" : "cool"}`}>
-                              <div className="pc-celestial-icon" style={{ color: c.color }}><c.Icon size={18} strokeWidth={1.6} /></div>
-                              <div className="pc-celestial-label">{c.label}</div>
-                              <div className="pc-celestial-time">{c.time}</div>
+                            <div key={c.label} className={`pc2-celestial-card ${c.warm ? "warm" : "cool"}`} style={{ color: c.color }}>
+                              <div className="pc2-celestial-icon"><c.Icon size={16} strokeWidth={1.8} /></div>
+                              <div className="pc2-celestial-body">
+                                <span className="pc2-celestial-label">{c.label}</span>
+                                <span className={`pc2-celestial-time${!c.time ? " dim" : ""}`}>
+                                  {c.time || t("no rise today", "నేడు లేదు")}
+                                </span>
+                              </div>
                             </div>
                           ))}
                         </div>
-                        {/* Right: Auspicious & Inauspicious */}
-                        <div className="pc-times-list">
-                          {/* Brahma Muhurta */}
-                          {pcData.brahma_muhurta && (
-                            <div className="pc-times-item brahma">
-                              <span className="pc-times-icon" style={{ color: "#c9a96e" }}><Sparkles size={16} strokeWidth={1.6} /></span>
-                              <div>
-                                <div className="pc-times-label">Brahma Muhurta</div>
-                                <div className="pc-times-sub">Best for meditation &amp; study</div>
+
+                        {/* RIGHT: Auspicious / Avoid panels */}
+                        <div className="pc2-times-wrap">
+                          <div className="pc2-times-panel good">
+                            <div className="pc2-times-panel-title">
+                              <Sparkles size={12} strokeWidth={2} />
+                              {t("Auspicious", "శుభ సమయాలు")}
+                            </div>
+                            {pcData.brahma_muhurta && (
+                              <div className="pc2-time-row highlight">
+                                <div className="pc2-time-row-icon" style={{ background: "rgba(201,169,110,0.15)", color: "#c9a96e" }}>
+                                  <Sparkles size={14} strokeWidth={1.8} />
+                                </div>
+                                <div className="pc2-time-row-body">
+                                  <div className="pc2-time-row-label">{t("Brahma Muhurta", "బ్రహ్మ ముహూర్తం")}</div>
+                                  <div className="pc2-time-row-sub">{t("Best for meditation & study", "ధ్యానం & అధ్యయనానికి ఉత్తమం")}</div>
+                                </div>
+                                <span className="pc2-time-row-value">{pcData.brahma_muhurta.start} – {pcData.brahma_muhurta.end}</span>
                               </div>
-                              <span className="pc-times-value">{pcData.brahma_muhurta.start} – {pcData.brahma_muhurta.end}</span>
-                            </div>
-                          )}
-                          {/* Abhijit Muhurtha */}
-                          {pcData.abhijit_muhurtha?.valid && (
-                            <div className="pc-times-item auspicious">
-                              <span className="pc-times-icon" style={{ color: "#34d399" }}><Crown size={16} strokeWidth={1.6} /></span>
-                              <div>
-                                <div className="pc-times-label">Abhijit Muhurtha</div>
-                                <div className="pc-times-sub">Universally auspicious</div>
+                            )}
+                            {pcData.abhijit_muhurtha?.valid && (
+                              <div className="pc2-time-row">
+                                <div className="pc2-time-row-icon" style={{ background: "rgba(52,211,153,0.15)", color: "#34d399" }}>
+                                  <Crown size={14} strokeWidth={1.8} />
+                                </div>
+                                <div className="pc2-time-row-body">
+                                  <div className="pc2-time-row-label">{t("Abhijit Muhurtha", "అభిజిత్ ముహూర్తం")}</div>
+                                  <div className="pc2-time-row-sub">{t("Universally auspicious", "సార్వత్రికంగా శుభ")}</div>
+                                </div>
+                                <span className="pc2-time-row-value">{pcData.abhijit_muhurtha.start} – {pcData.abhijit_muhurtha.end}</span>
                               </div>
-                              <span className="pc-times-value">{pcData.abhijit_muhurtha.start} – {pcData.abhijit_muhurtha.end}</span>
+                            )}
+                          </div>
+
+                          <div className="pc2-times-panel avoid">
+                            <div className="pc2-times-panel-title">
+                              <TriangleAlert size={12} strokeWidth={2} />
+                              {t("Avoid", "నివారించండి")}
                             </div>
-                          )}
-                          {/* Inauspicious */}
-                          <div className="pc-times-item danger">
-                            <span className="pc-times-icon" style={{ color: "#f87171" }}><TriangleAlert size={16} strokeWidth={1.6} /></span>
-                            <div><div className="pc-times-label">Rahu Kalam</div></div>
-                            <span className="pc-times-value">{pcData.rahu_kalam}</span>
-                          </div>
-                          <div className="pc-times-item warning">
-                            <span className="pc-times-icon" style={{ color: "#fbbf24" }}><Ban size={16} strokeWidth={1.6} /></span>
-                            <div><div className="pc-times-label">Yamagandam</div></div>
-                            <span className="pc-times-value">{pcData.yamagandam}</span>
-                          </div>
-                          <div className="pc-times-item purple">
-                            <span className="pc-times-icon" style={{ color: "#a78bfa" }}><CircleDashed size={16} strokeWidth={1.6} /></span>
-                            <div><div className="pc-times-label">Gulika Kalam</div></div>
-                            <span className="pc-times-value">{pcData.gulika_kalam}</span>
-                          </div>
-                          {pcData.durmuhurtha?.map((dm: any, i: number) => (
-                            <div key={i} className="pc-times-item warning">
-                              <span className="pc-times-icon" style={{ color: "#fbbf24" }}><Hourglass size={16} strokeWidth={1.6} /></span>
-                              <div><div className="pc-times-label">Durmuhurtha {i + 1}</div></div>
-                              <span className="pc-times-value">{dm.start} – {dm.end}</span>
+                            <div className="pc2-time-row">
+                              <div className="pc2-time-row-icon" style={{ background: "rgba(248,113,113,0.12)", color: "#f87171" }}>
+                                <TriangleAlert size={14} strokeWidth={1.8} />
+                              </div>
+                              <div className="pc2-time-row-body">
+                                <div className="pc2-time-row-label">Rahu Kalam</div>
+                                <div className="pc2-time-row-sub">{t("Avoid new ventures", "కొత్త పనులు నివారించండి")}</div>
+                              </div>
+                              <span className="pc2-time-row-value">{pcData.rahu_kalam}</span>
                             </div>
-                          ))}
+                            <div className="pc2-time-row">
+                              <div className="pc2-time-row-icon" style={{ background: "rgba(251,191,36,0.12)", color: "#fbbf24" }}>
+                                <Ban size={14} strokeWidth={1.8} />
+                              </div>
+                              <div className="pc2-time-row-body">
+                                <div className="pc2-time-row-label">Yamagandam</div>
+                              </div>
+                              <span className="pc2-time-row-value">{pcData.yamagandam}</span>
+                            </div>
+                            <div className="pc2-time-row">
+                              <div className="pc2-time-row-icon" style={{ background: "rgba(167,139,250,0.12)", color: "#a78bfa" }}>
+                                <CircleDashed size={14} strokeWidth={1.8} />
+                              </div>
+                              <div className="pc2-time-row-body">
+                                <div className="pc2-time-row-label">Gulika Kalam</div>
+                              </div>
+                              <span className="pc2-time-row-value">{pcData.gulika_kalam}</span>
+                            </div>
+                            {pcData.durmuhurtha?.map((dm: any, i: number) => (
+                              <div key={i} className="pc2-time-row">
+                                <div className="pc2-time-row-icon" style={{ background: "rgba(251,191,36,0.12)", color: "#fbbf24" }}>
+                                  <Hourglass size={14} strokeWidth={1.8} />
+                                </div>
+                                <div className="pc2-time-row-body">
+                                  <div className="pc2-time-row-label">{t(`Durmuhurtha ${i + 1}`, `దుర్ముహూర్తం ${i + 1}`)}</div>
+                                </div>
+                                <span className="pc2-time-row-value">{dm.start} – {dm.end}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
 
-                      {/* 7. Day & Night Choghadiya — side by side */}
+                      {/* ── 7. Day & Night Choghadiya ── */}
                       {pcData.choghadiya && pcData.choghadiya.length > 0 && (
                         <div className="pc-section">
-                          <div className="pc-section-title">Choghadiya</div>
+                          <div className="pc2-section-title">{t("Choghadiya", "చోఘడియ")}</div>
                           <div className="pc-half-grid">
-                            {/* Day */}
-                            <div>
-                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                                <span style={{ fontSize: 11, color: "#fbbf24", display: "inline-flex", alignItems: "center", gap: 5 }}><Sun size={13} strokeWidth={1.8} /> Day</span>
-                                <span style={{ fontSize: 9, color: "var(--muted)" }}>Sunrise {pcData.sunrise}</span>
+                            {([
+                              { isDay: true,  color: "#fbbf24", title: t("Day", "పగలు"),  sub: t("Sunrise", "సూర్యోదయం"), subTime: pcData.sunrise, Icon: Sun },
+                              { isDay: false, color: "#93c5fd", title: t("Night", "రాత్రి"), sub: t("Sunset", "సూర్యాస్తమయం"), subTime: pcData.sunset, Icon: Moon },
+                            ] as const).map(section => (
+                              <div key={section.isDay ? "day" : "night"}>
+                                <div className="pc2-chog-head">
+                                  <span className="pc2-chog-head-title" style={{ color: section.color }}>
+                                    <section.Icon size={13} strokeWidth={1.8} />
+                                    {section.title}
+                                  </span>
+                                  <span className="pc2-chog-head-sub">{section.sub} {section.subTime}</span>
+                                </div>
+                                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                  {pcData.choghadiya.filter((c: any) => c.is_day === section.isDay).map((c: any, i: number) => {
+                                    const qColor = c.quality === "auspicious" ? "#34d399" : c.quality === "inauspicious" ? "#f87171" : "#a78bfa";
+                                    return (
+                                      <div key={i}
+                                        className={`pc2-chog-row${c.is_current ? " is-current" : ""}`}
+                                        style={{
+                                          background: c.is_current ? `${qColor}14` : "transparent",
+                                          borderColor: c.is_current ? `${qColor}55` : "transparent",
+                                        }}>
+                                        <span className="pc2-chog-dot" style={{ background: qColor }} />
+                                        <span className="pc2-chog-name" style={{ color: c.is_current ? qColor : "var(--text)", fontWeight: c.is_current ? 700 : 500 }}>{c.name}</span>
+                                        <span className="pc2-chog-time">{c.start}–{c.end}</span>
+                                        {c.is_current && (
+                                          <span className="pc2-chog-active-badge" style={{ background: `${qColor}20`, color: qColor, border: `0.5px solid ${qColor}55` }}>
+                                            {t("ACTIVE", "ఇప్పుడు")}
+                                          </span>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
                               </div>
-                              <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                                {pcData.choghadiya.filter((c: any) => c.is_day).map((c: any, i: number) => {
-                                  const qColor = c.quality === "auspicious" ? "#34d399" : c.quality === "inauspicious" ? "#f87171" : "#a78bfa";
-                                  return (
-                                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 10px", borderRadius: 7, background: c.is_current ? `${qColor}12` : "transparent", border: `0.5px solid ${c.is_current ? qColor + "40" : "transparent"}` }}>
-                                      <span style={{ width: 7, height: 7, borderRadius: 2, flexShrink: 0, background: qColor }} />
-                                      <span style={{ fontSize: 11, fontWeight: c.is_current ? 700 : 400, color: c.is_current ? qColor : "var(--text)", minWidth: 58 }}>{c.name}</span>
-                                      <span style={{ fontSize: 10, color: "var(--muted)" }}>{c.start}–{c.end}</span>
-                                      {c.is_current && <span style={{ fontSize: 9, color: qColor, fontWeight: 700, marginLeft: "auto" }}>NOW</span>}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                            {/* Night */}
-                            <div>
-                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                                <span style={{ fontSize: 11, color: "#93c5fd", display: "inline-flex", alignItems: "center", gap: 5 }}><Moon size={13} strokeWidth={1.8} /> Night</span>
-                                <span style={{ fontSize: 9, color: "var(--muted)" }}>Sunset {pcData.sunset}</span>
-                              </div>
-                              <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                                {pcData.choghadiya.filter((c: any) => !c.is_day).map((c: any, i: number) => {
-                                  const qColor = c.quality === "auspicious" ? "#34d399" : c.quality === "inauspicious" ? "#f87171" : "#a78bfa";
-                                  return (
-                                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 10px", borderRadius: 7, background: c.is_current ? `${qColor}12` : "transparent", border: `0.5px solid ${c.is_current ? qColor + "40" : "transparent"}` }}>
-                                      <span style={{ width: 7, height: 7, borderRadius: 2, flexShrink: 0, background: qColor }} />
-                                      <span style={{ fontSize: 11, fontWeight: c.is_current ? 700 : 400, color: c.is_current ? qColor : "var(--text)", minWidth: 58 }}>{c.name}</span>
-                                      <span style={{ fontSize: 10, color: "var(--muted)" }}>{c.start}–{c.end}</span>
-                                      {c.is_current && <span style={{ fontSize: 9, color: qColor, fontWeight: 700, marginLeft: "auto" }}>NOW</span>}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
+                            ))}
                           </div>
                         </div>
                       )}
@@ -2602,13 +2810,13 @@ export default function Home() {
                     <div className="pc-city-modal-overlay" onClick={() => setPcShowCityModal(false)}>
                       <div className="pc-city-modal" onClick={e => e.stopPropagation()}>
                         <div className="pc-city-header">
-                          <span className="pc-city-title">SELECT CITY</span>
+                          <span className="pc-city-title">{t("SELECT CITY", "నగరం ఎంచుకోండి")}</span>
                           <button onClick={() => setPcShowCityModal(false)} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 18, fontFamily: "inherit" }}>&times;</button>
                         </div>
                         <input
                           className="pc-city-search"
                           type="text" value={pcCityQuery} autoFocus
-                          placeholder="Search any city..."
+                          placeholder={t("Search any city…", "ఏదైనా నగరం వెతకండి…")}
                           onChange={e => {
                             setPcCityQuery(e.target.value);
                             if (pcCitySearchRef.current) clearTimeout(pcCitySearchRef.current);
@@ -2617,15 +2825,15 @@ export default function Home() {
                         />
                         <button className="pc-city-myloc" onClick={pcTryMyLocation}>
                           <MapPin size={14} />
-                          <span>My Location</span>
-                          <span style={{ marginLeft: "auto", fontSize: 9, background: "rgba(52,211,153,0.15)", color: "#34d399", padding: "2px 6px", borderRadius: 4, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>CURRENT</span>
+                          <span>{t("My Location", "నా ప్రదేశం")}</span>
+                          <span style={{ marginLeft: "auto", fontSize: 9, background: "rgba(52,211,153,0.15)", color: "#34d399", padding: "2px 6px", borderRadius: 4, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>{t("CURRENT", "ప్రస్తుతం")}</span>
                         </button>
                         {pcGeoError && (
                           <div style={{ fontSize: 11, color: "#f87171", marginBottom: "0.5rem", padding: "6px 10px", background: "rgba(248,113,113,0.08)", borderRadius: 6 }}>{pcGeoError}</div>
                         )}
-                        {pcCitySearching && <div style={{ fontSize: 11, color: "var(--muted)", padding: "8px 0" }}>Searching...</div>}
+                        {pcCitySearching && <div style={{ fontSize: 11, color: "var(--muted)", padding: "8px 0" }}>{t("Searching…", "వెతుకుతోంది…")}</div>}
                         {pcCitySuggestions.length === 0 && !pcCitySearching && pcCityQuery.length < 2 && (
-                          <div style={{ fontSize: 11, color: "var(--muted)", padding: "8px 0" }}>Type at least 2 characters to search</div>
+                          <div style={{ fontSize: 11, color: "var(--muted)", padding: "8px 0" }}>{t("Type at least 2 characters to search", "కనీసం 2 అక్షరాలు టైప్ చేయండి")}</div>
                         )}
                         {pcCitySuggestions.map((s, i) => (
                           <button key={i} className="pc-city-result" onClick={() => pcSelectCity(s)}>

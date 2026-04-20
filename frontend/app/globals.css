@@ -611,6 +611,371 @@ textarea:focus-visible {
 .pc-hora-lord { font-size: 20px; font-weight: 700; color: var(--text); }
 .pc-hora-time { font-size: 12px; color: var(--muted); margin-left: auto; }
 
+/* ══════════════════════════════════════════════════════════════════════
+   PR16 — Panchang wow pass. All new classes under `.pc2-*` so the
+   earlier `.pc-*` styles above stay a safety net where still used.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Page header — centred title + location chip + selected-date subtitle */
+.pc2-header {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 10px; margin-bottom: 18px;
+}
+.pc2-loc-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 5px 14px; border-radius: 999px;
+  background: rgba(201,169,110,0.08);
+  border: 1px solid rgba(201,169,110,0.28);
+  color: var(--accent);
+  font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+  font-weight: 600; cursor: pointer;
+  transition: background 140ms, border-color 140ms;
+}
+.pc2-loc-chip:hover {
+  background: rgba(201,169,110,0.14);
+  border-color: rgba(201,169,110,0.55);
+}
+.pc2-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: clamp(28px, 3.6vw, 40px);
+  line-height: 1.05;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  margin: 0;
+  text-align: center;
+}
+.pc2-subtitle {
+  font-size: 13px; color: var(--muted);
+  display: inline-flex; gap: 8px; align-items: center;
+}
+.pc2-subtitle .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--border2); }
+
+/* Calendar polish ──────────────────────────────────────────────── */
+.pc2-cal-weekday {
+  text-align: center; font-size: 10px; font-weight: 600;
+  color: var(--muted); padding: 8px 0;
+  letter-spacing: 0.12em; text-transform: uppercase;
+}
+.pc2-cal-weekday.sun { color: #f87171; }
+.pc2-cal-cell.today {
+  border-color: rgba(201,169,110,0.55) !important;
+  box-shadow: 0 0 0 1px rgba(201,169,110,0.2), 0 0 18px rgba(201,169,110,0.25) !important;
+  background: rgba(201,169,110,0.05) !important;
+}
+.pc2-cal-cell.selected {
+  border-color: var(--accent) !important;
+  background: rgba(201,169,110,0.1) !important;
+  box-shadow: 0 0 0 1px rgba(201,169,110,0.15) inset;
+}
+.pc2-cal-tithi {
+  font-size: 9px; color: var(--muted); line-height: 1.2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.pc2-cal-nakshatra {
+  font-size: 9px; color: var(--muted); line-height: 1.2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.pc2-cal-special {
+  font-size: 8px; font-weight: 700; margin-top: auto; line-height: 1.2;
+}
+.pc2-cal-special.purnima { color: #fbbf24; }
+.pc2-cal-special.amavasya { color: #818cf8; }
+.pc2-cal-special.ekadashi { color: #34d399; }
+
+.pc2-cal-legend {
+  display: flex; gap: 18px; justify-content: center;
+  padding-top: 14px; margin-top: 4px;
+  border-top: 0.5px solid var(--border);
+  font-size: 10px; color: var(--muted);
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
+.pc2-cal-legend span {
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.pc2-cal-legend i {
+  display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+}
+
+/* Identity strip — Samvatsara / Ayana / Rutu / Masa */
+.pc2-identity-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: 18px 0;
+}
+@media (max-width: 680px) {
+  .pc2-identity-grid { grid-template-columns: repeat(2, 1fr); }
+}
+.pc2-identity-card {
+  padding: 11px 14px;
+  background: linear-gradient(135deg, rgba(201,169,110,0.04), rgba(201,169,110,0.01));
+  border: 0.5px solid rgba(201,169,110,0.18);
+  border-radius: 10px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.pc2-identity-card-label {
+  font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--muted); font-weight: 600;
+}
+.pc2-identity-card-value {
+  font-family: 'DM Serif Display', serif;
+  font-size: 16px; color: var(--accent);
+  line-height: 1.2; letter-spacing: -0.01em;
+}
+.pc2-identity-card-sub {
+  font-size: 10px; color: var(--muted);
+  font-style: italic;
+}
+
+/* 4 Element cards reworked — serif primary + "until HH:MM" prominent */
+.pc2-elements-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+@keyframes pc2-element-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.pc2-element-card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.018), transparent);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px;
+  padding: 16px 16px 14px;
+  display: flex; flex-direction: column; gap: 6px;
+  position: relative;
+  overflow: hidden;
+  animation: pc2-element-enter 420ms ease both;
+}
+.pc2-element-card:nth-child(1) { animation-delay: 60ms; }
+.pc2-element-card:nth-child(2) { animation-delay: 120ms; }
+.pc2-element-card:nth-child(3) { animation-delay: 180ms; }
+.pc2-element-card:nth-child(4) { animation-delay: 240ms; }
+.pc2-element-card::before {
+  content: "";
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, currentColor, transparent);
+  opacity: 0.35;
+}
+.pc2-element-card.el-tithi     { color: #a78bfa; border-color: rgba(167,139,250,0.2); }
+.pc2-element-card.el-nakshatra { color: #fbbf24; border-color: rgba(251,191,36,0.2); }
+.pc2-element-card.el-yoga      { color: #34d399; border-color: rgba(52,211,153,0.2); }
+.pc2-element-card.el-karana    { color: #60a5fa; border-color: rgba(96,165,250,0.2); }
+.pc2-element-head {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 2px;
+}
+.pc2-element-icon-wrap {
+  width: 34px; height: 34px; border-radius: 10px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  color: currentColor;
+}
+.pc2-element-meta {
+  display: flex; flex-direction: column; gap: 1px; min-width: 0;
+}
+.pc2-element-eyebrow {
+  font-size: 9px; color: var(--muted); letter-spacing: 0.15em;
+  text-transform: uppercase; font-weight: 600;
+}
+.pc2-element-until-inline {
+  font-size: 10px; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.pc2-element-primary {
+  font-family: 'DM Serif Display', serif;
+  font-size: 22px; line-height: 1.1;
+  color: var(--text); letter-spacing: -0.01em;
+  margin-top: 2px;
+}
+.pc2-element-secondary {
+  font-size: 11px; color: var(--muted);
+  font-style: italic;
+}
+.pc2-moon-illum-row {
+  display: flex; align-items: center; gap: 8px; margin-top: 8px;
+}
+.pc2-moon-illum-bar {
+  flex: 1; height: 4px; border-radius: 999px;
+  background: rgba(255,255,255,0.06); overflow: hidden;
+}
+.pc2-moon-illum-fill {
+  height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, #60a5fa, #fbbf24);
+  transition: width 420ms cubic-bezier(0.2, 0.9, 0.3, 1.1);
+}
+.pc2-moon-illum-pct {
+  font-size: 11px; color: var(--text); font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Current Hora — the hero card */
+@keyframes pc2-hora-breathe {
+  0%, 100% { text-shadow: 0 0 20px currentColor, 0 0 40px color-mix(in srgb, currentColor 35%, transparent); }
+  50%       { text-shadow: 0 0 28px currentColor, 0 0 56px color-mix(in srgb, currentColor 50%, transparent); }
+}
+.pc2-hora-hero {
+  margin: 18px 0;
+  padding: 22px 24px;
+  background: radial-gradient(ellipse at 0% 50%, color-mix(in srgb, currentColor 10%, transparent) 0%, transparent 50%), var(--surface2);
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+  border-radius: 14px;
+  display: flex; align-items: center; gap: 18px;
+  position: relative; overflow: hidden;
+  box-shadow: 0 22px 40px -24px color-mix(in srgb, currentColor 40%, transparent);
+}
+.pc2-hora-glyph {
+  font-family: 'DM Serif Display', serif;
+  font-size: 52px; line-height: 1;
+  color: currentColor;
+  animation: pc2-hora-breathe 3.6s ease-in-out infinite;
+  flex-shrink: 0;
+}
+.pc2-hora-body {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.pc2-hora-label {
+  font-size: 10px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--muted); font-weight: 600;
+}
+.pc2-hora-lord {
+  font-family: 'DM Serif Display', serif;
+  font-size: clamp(26px, 3vw, 34px); line-height: 1;
+  color: currentColor; letter-spacing: -0.02em;
+}
+.pc2-hora-time {
+  font-size: 12px; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  margin-left: auto; white-space: nowrap;
+}
+.pc2-hora-ausp {
+  font-size: 10px; padding: 2px 8px; border-radius: 999px;
+  background: rgba(52,211,153,0.15);
+  color: #34d399; border: 0.5px solid rgba(52,211,153,0.3);
+  letter-spacing: 0.04em; font-weight: 600;
+}
+
+/* Auspicious / Avoid split ─────────────────────────────────────── */
+.pc2-times-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 8px; }
+@media (max-width: 820px) { .pc2-times-wrap { grid-template-columns: 1fr; } }
+.pc2-times-panel {
+  background: var(--surface); border-radius: 12px; padding: 14px 14px 10px;
+  border: 0.5px solid var(--border);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.pc2-times-panel.good  { border-color: rgba(52,211,153,0.25); }
+.pc2-times-panel.avoid { border-color: rgba(248,113,113,0.25); }
+.pc2-times-panel-title {
+  font-size: 10px; letter-spacing: 0.12em;
+  text-transform: uppercase; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding-bottom: 8px; border-bottom: 0.5px solid var(--border);
+  margin-bottom: 2px;
+}
+.pc2-times-panel.good  .pc2-times-panel-title { color: #34d399; }
+.pc2-times-panel.avoid .pc2-times-panel-title { color: #f87171; }
+
+.pc2-time-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 9px 12px; border-radius: 10px;
+  border: 0.5px solid transparent;
+  transition: background 140ms, border-color 140ms;
+}
+.pc2-time-row:hover { background: rgba(255,255,255,0.02); }
+.pc2-time-row.highlight { background: rgba(201,169,110,0.06); border-color: rgba(201,169,110,0.2); }
+.pc2-time-row-icon {
+  width: 28px; height: 28px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.pc2-time-row-body { flex: 1; min-width: 0; }
+.pc2-time-row-label { font-size: 12px; color: var(--text); font-weight: 500; }
+.pc2-time-row-sub { font-size: 10px; color: var(--muted); margin-top: 1px; }
+.pc2-time-row-value {
+  font-family: 'DM Serif Display', serif;
+  font-size: 14px; color: var(--text);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Celestial 4-card grid — now serif times */
+.pc2-celestial-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+.pc2-celestial-card {
+  background: var(--surface); border-radius: 12px;
+  padding: 14px 12px;
+  display: flex; align-items: center; gap: 12px;
+  border: 0.5px solid var(--border);
+}
+.pc2-celestial-card.warm { background: rgba(251,191,36,0.04); border-color: rgba(251,191,36,0.15); }
+.pc2-celestial-card.cool { background: rgba(96,165,250,0.04); border-color: rgba(96,165,250,0.15); }
+.pc2-celestial-icon {
+  width: 32px; height: 32px; border-radius: 10px;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  border: 0.5px solid color-mix(in srgb, currentColor 30%, transparent);
+  display: flex; align-items: center; justify-content: center;
+  color: inherit; flex-shrink: 0;
+}
+.pc2-celestial-body { display: flex; flex-direction: column; min-width: 0; }
+.pc2-celestial-label {
+  font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--muted); font-weight: 600;
+}
+.pc2-celestial-time {
+  font-family: 'DM Serif Display', serif;
+  font-size: 19px; color: var(--text);
+  letter-spacing: -0.01em; line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+.pc2-celestial-time.dim { color: var(--muted); font-style: italic; font-size: 13px; }
+
+/* Choghadiya row polish */
+.pc2-chog-head {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+  padding-bottom: 6px; border-bottom: 0.5px solid var(--border);
+}
+.pc2-chog-head-title {
+  font-size: 11px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 6px;
+  letter-spacing: 0.08em;
+}
+.pc2-chog-head-sub { font-size: 9px; color: var(--muted); margin-left: auto; font-variant-numeric: tabular-nums; }
+
+@keyframes pc2-chog-breath {
+  0%, 100% { filter: brightness(1); }
+  50%       { filter: brightness(1.2); }
+}
+.pc2-chog-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 12px; border-radius: 8px;
+  border: 0.5px solid transparent;
+  transition: background 140ms, border-color 140ms;
+}
+.pc2-chog-row.is-current {
+  animation: pc2-chog-breath 3s ease-in-out infinite;
+}
+.pc2-chog-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.pc2-chog-name { font-size: 12px; font-weight: 500; min-width: 68px; }
+.pc2-chog-time { font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pc2-chog-active-badge {
+  margin-left: auto;
+  font-size: 8px; letter-spacing: 0.12em; font-weight: 700;
+  padding: 2px 7px; border-radius: 999px;
+}
+
+/* Section heading (reusable) */
+.pc2-section-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 18px; color: var(--text);
+  letter-spacing: -0.01em; margin: 14px 0 10px;
+}
+
 /* ── Responsive ───────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .pc-two-col { grid-template-columns: 1fr; }
