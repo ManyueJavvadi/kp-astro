@@ -1274,6 +1274,18 @@ function Footer() {
           }}
         >
           <span>© {new Date().getFullYear()} DevAstroAI</span>
+          <Link
+            href="/privacy"
+            style={{ color: "#4A6080", textDecoration: "none" }}
+          >
+            Privacy
+          </Link>
+          <Link
+            href="/terms"
+            style={{ color: "#4A6080", textDecoration: "none" }}
+          >
+            Terms
+          </Link>
           <a
             href="mailto:hello@devastroai.com"
             style={{ color: "#4A6080", textDecoration: "none" }}
