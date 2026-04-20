@@ -190,11 +190,17 @@ export default function PersonHeroBanner({
             </div>
           )}
 
-          {/* Ruling planets */}
+          {/* Ruling planets — NATAL (at birth).
+              PR A1.1b: explicitly labelled so this doesn't get confused
+              with the LIVE Horary / Muhurtha / Transit RPs (which depend
+              on the astrologer's current moment + location). */}
           {rulingPlanets.length > 0 && (
-            <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
+            <div
+              style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}
+              title="Ruling planets at the native's moment of birth. Horary/Muhurtha/Transit tabs compute RPs live — those differ."
+            >
               <span style={{ fontSize: 9, color: "#555566", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                RPs:
+                RPs @ birth:
               </span>
               {rulingPlanets.slice(0, 5).map((rp, i) => (
                 <PlanetChip key={i} planet={rp.planet} small />

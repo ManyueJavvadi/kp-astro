@@ -129,39 +129,44 @@ def _houses_ruled_by(planet_name: str, cusp_lons: list) -> list[int]:
             if SIGN_LORDS.get(get_sign(cusp_lons[i] % 360)) == planet_name]
 
 
-def _planet_significations(planet_name: str, planet_lons: dict, cusp_lons: list) -> list[int]:
+def _planet_significations_by_level(planet_name: str, planet_lons: dict, cusp_lons: list) -> dict[int, list[int]]:
     """
-    Houses signified by a planet under the KP 4-level hierarchy (strongest first):
+    KP 4-level hierarchy, returned as a map level -> houses (strongest first).
         Level 1 — star lord's occupied house
         Level 2 — own occupied house
         Level 3 — star lord's owned houses
         Level 4 — own owned houses
-
-    Returns the unique union sorted ascending. PR A1.1 adds Level 3
-    (was missing in the pre-A1.1 engine).
+    Empty lists when a level contributes nothing. Houses within each
+    level are sorted ascending; levels themselves are kept in the
+    strength order 1->4.
     """
     if planet_name not in planet_lons:
-        return []
+        return {1: [], 2: [], 3: [], 4: []}
     plon = planet_lons[planet_name]
     star_lord = get_nakshatra_and_starlord(plon).get("star_lord", "")
-
-    # Level 2 — own occupied house
     own_occupied = _get_planet_house(plon, cusp_lons)
-    # Level 1 — star lord's occupied house
     sl_occupied = (_get_planet_house(planet_lons[star_lord], cusp_lons)
                    if star_lord in planet_lons else 0)
-    # Level 3 — star lord's owned houses
     sl_owned = _houses_ruled_by(star_lord, cusp_lons) if star_lord else []
-    # Level 4 — own owned houses
     own_owned = _houses_ruled_by(planet_name, cusp_lons)
+    return {
+        1: [sl_occupied] if sl_occupied else [],
+        2: [own_occupied] if own_occupied else [],
+        3: sorted(sl_owned),
+        4: sorted(own_owned),
+    }
 
-    result = set()
-    if sl_occupied:
-        result.add(sl_occupied)
-    result.add(own_occupied)
-    result.update(sl_owned)
-    result.update(own_owned)
-    return sorted(result)
+
+def _planet_significations(planet_name: str, planet_lons: dict, cusp_lons: list) -> list[int]:
+    """
+    Flat, unique, sorted union of all 4 levels. Used by the verdict cascade
+    where we only care "does this planet signify house H, at all?".
+    """
+    by_level = _planet_significations_by_level(planet_name, planet_lons, cusp_lons)
+    flat = set()
+    for houses in by_level.values():
+        flat.update(houses)
+    return sorted(flat)
 
 
 def _compute_ruling_planets(
@@ -447,10 +452,13 @@ def analyze_horary(
     )
     moon_analysis = _moon_analysis(planet_lons, cusp_lons)
 
-    # Planet details with 4-level significations
+    # Planet details with 4-level significations.
+    # PR A1.1b: also surface `significations_by_level` so the astrologer
+    # UI can display the 4-level KP hierarchy without recomputing.
     planet_details = []
     for p_name, p_lon in planet_lons.items():
         nak_info = get_nakshatra_and_starlord(p_lon)
+        by_level = _planet_significations_by_level(p_name, planet_lons, cusp_lons)
         planet_details.append({
             "planet": p_name,
             "longitude": round(p_lon % 360, 4),
@@ -460,9 +468,35 @@ def analyze_horary(
             "sub_lord": get_sub_lord(p_lon),
             "house": _get_planet_house(p_lon, cusp_lons),
             "retrograde": planets_raw[p_name].get("retrograde", False),
-            "significations": _planet_significations(p_name, planet_lons, cusp_lons),
+            "significations": sorted({h for houses in by_level.values() for h in houses}),
+            "significations_by_level": {str(k): v for k, v in by_level.items()},
             "is_ruling_planet": p_name in ruling_planets,
         })
+
+    # PR A1.1b: for the primary topic house, build a ranked significator
+    # list — every planet that signifies the house, with its strongest
+    # level. The frontend uses this for the "Significator hierarchy" card.
+    primary_house = TOPIC_PRIMARY_HOUSE.get(topic.lower(), 1)
+    primary_house_significators: list[dict] = []
+    for p_name in planet_lons.keys():
+        by_level = _planet_significations_by_level(p_name, planet_lons, cusp_lons)
+        strongest_level = None
+        for lvl in (1, 2, 3, 4):
+            if primary_house in by_level.get(lvl, []):
+                strongest_level = lvl
+                break
+        if strongest_level is not None:
+            primary_house_significators.append({
+                "planet": p_name,
+                "strongest_level": strongest_level,
+                "levels_hit": [lvl for lvl in (1, 2, 3, 4)
+                               if primary_house in by_level.get(lvl, [])],
+                "is_ruling_planet": p_name in ruling_planets,
+            })
+    # Sort strongest first; among equal levels, RP planets bubble up.
+    primary_house_significators.sort(
+        key=lambda x: (x["strongest_level"], 0 if x["is_ruling_planet"] else 1, x["planet"])
+    )
 
     # Cusp details
     cusp_details = []
@@ -501,6 +535,8 @@ def analyze_horary(
         "moon_analysis": moon_analysis,
         "verdict": verdict,
         "topic_houses": t_houses,
+        "primary_house": primary_house,                       # NEW PR A1.1b
+        "primary_house_significators": primary_house_significators,  # NEW PR A1.1b
         "planets": planet_details,
         "cusps": cusp_details,
         "house_themes": HOUSE_THEMES,

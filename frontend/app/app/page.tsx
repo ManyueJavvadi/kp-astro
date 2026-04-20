@@ -123,6 +123,9 @@ export default function Home() {
   // PR14 — horary wow pass: animated dice-spin flag on Random; counter roll
   // target so we can briefly animate the number up to the picked value.
   const [horaryDiceSpin, setHoraryDiceSpin] = useState(false);
+  // PR A1.1b — click-to-type the big digit; Enter/blur commits, Esc cancels.
+  const [horaryDigitEditing, setHoraryDigitEditing] = useState(false);
+  const [horaryDigitDraft, setHoraryDigitDraft] = useState("");
   const horaryRollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [horaryQuestion, setHoraryQuestion] = useState("");
   const [horaryTopic, setHoraryTopic] = useState("general");
@@ -5261,11 +5264,53 @@ export default function Home() {
                               onClick={() => setHoraryNumber(n => typeof n === "number" ? Math.max(1, n - 1) : 1)}
                             >−</button>
 
-                            <div style={{ position: "relative" as const, display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 180, padding: "8px 24px" }}>
+                            {/* PR A1.1b — click to type a specific number. Digit,
+                                input, and slider all edit the same horaryNumber. */}
+                            <div
+                              style={{ position: "relative" as const, display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 180, padding: "8px 24px", cursor: "text" }}
+                              onClick={() => {
+                                if (horaryDigitEditing) return;
+                                setHoraryDigitDraft(typeof horaryNumber === "number" ? String(horaryNumber) : "");
+                                setHoraryDigitEditing(true);
+                              }}
+                              title={t("Click to type a number (1–249)", "సంఖ్య టైప్ చేయడానికి క్లిక్ చేయండి")}
+                            >
                               <span className="horary-digit-halo" />
-                              <span className="horary-digit">
-                                {horaryNumber === "" ? "?" : horaryNumber}
-                              </span>
+                              {horaryDigitEditing ? (
+                                <input
+                                  autoFocus
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
+                                  value={horaryDigitDraft}
+                                  maxLength={3}
+                                  onChange={e => setHoraryDigitDraft(e.target.value.replace(/\D/g, "").slice(0, 3))}
+                                  onBlur={() => {
+                                    const n = parseInt(horaryDigitDraft, 10);
+                                    if (!isNaN(n) && n >= 1 && n <= 249) setHoraryNumber(n);
+                                    setHoraryDigitEditing(false);
+                                    setHoraryDigitDraft("");
+                                  }}
+                                  onKeyDown={e => {
+                                    if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                                    if (e.key === "Escape") { setHoraryDigitEditing(false); setHoraryDigitDraft(""); }
+                                  }}
+                                  className="horary-digit"
+                                  style={{
+                                    background: "transparent",
+                                    border: "none",
+                                    outline: "none",
+                                    textAlign: "center",
+                                    width: "100%",
+                                    minWidth: 140,
+                                    fontFamily: "inherit",
+                                    caretColor: "var(--accent)",
+                                  }}
+                                />
+                              ) : (
+                                <span className="horary-digit">
+                                  {horaryNumber === "" ? "?" : horaryNumber}
+                                </span>
+                              )}
                             </div>
 
                             <button
@@ -5275,26 +5320,20 @@ export default function Home() {
                             >+</button>
                           </div>
 
-                          {/* Secondary row: tiny range indicator + manual override */}
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 20, fontSize: 10, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" as const }}>
-                            <span>1</span>
-                            <div style={{ width: 120, height: 2, borderRadius: 2, background: "linear-gradient(90deg, rgba(201,169,110,0.15), rgba(201,169,110,0.45), rgba(201,169,110,0.15))", position: "relative" as const }}>
-                              {typeof horaryNumber === "number" && (
-                                <div
-                                  style={{
-                                    position: "absolute" as const,
-                                    left: `${((horaryNumber - 1) / 248) * 100}%`,
-                                    top: "50%",
-                                    width: 9, height: 9, borderRadius: "50%",
-                                    background: "var(--accent)",
-                                    boxShadow: "0 0 10px rgba(201,169,110,0.8)",
-                                    transform: "translate(-50%, -50%)",
-                                    transition: "left 260ms cubic-bezier(0.2, 0.9, 0.3, 1.1)",
-                                  }}
-                                />
-                              )}
-                            </div>
-                            <span>249</span>
+                          {/* PR A1.1b — real draggable slider (was decorative). */}
+                          <div className="horary-slider-row">
+                            <span className="horary-slider-end">1</span>
+                            <input
+                              type="range"
+                              min={1}
+                              max={249}
+                              step={1}
+                              value={typeof horaryNumber === "number" ? horaryNumber : 1}
+                              onChange={e => setHoraryNumber(parseInt(e.target.value, 10))}
+                              className="horary-slider"
+                              aria-label={t("Prashna number slider", "ప్రశ్న సంఖ్య స్లైడర్")}
+                            />
+                            <span className="horary-slider-end">249</span>
                           </div>
 
                           <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" as const }}>
@@ -5505,6 +5544,48 @@ export default function Home() {
                                 {v.moon_supports && <span style={{ fontSize: 10, background: "rgba(52,211,153,0.15)", color: "#34d399", border: "0.5px solid rgba(52,211,153,0.3)", borderRadius: 4, padding: "3px 10px", letterSpacing: "0.04em" }}>Moon ✓</span>}
                               </div>
                             )}
+
+                            {/* PR A1.1b — Topic chip + favorable/denial house
+                                pills. Astrologer sees exactly which topic was
+                                judged and which of its houses actually got hit
+                                by the Layer-2 CSL's significations. */}
+                            <div style={{ marginTop: 14, paddingTop: 14, borderTop: `0.5px solid ${verdictColor}20`, display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
+                              <span className="horary-topic-chip">
+                                <span className="chip-label">{t("Topic", "విషయం")}</span>
+                                <span style={{ textTransform: "capitalize" as const }}>{r.topic}</span>
+                                <span className="chip-label">· H{r.primary_house}</span>
+                              </span>
+                              {(v.yes_houses && v.yes_houses.length > 0) && (() => {
+                                const hitYes = new Set<number>(v.yes_houses_activated || []);
+                                const hitNo  = new Set<number>(v.no_houses_activated || []);
+                                return (
+                                  <>
+                                    <div style={{ fontSize: 9, color: "var(--muted)", letterSpacing: "0.14em", textTransform: "uppercase" as const, fontWeight: 600 }}>
+                                      {t("Favorable houses · hit / missed", "అనుకూల భావాలు · సాధించినవి / మిస్ అయినవి")}
+                                    </div>
+                                    <div className="horary-house-strip">
+                                      {v.yes_houses.map((h: number) => (
+                                        <span key={`yh-${h}`} className={`horary-house-pill ${hitYes.has(h) ? "is-hit" : "is-missed"}`}>
+                                          H{h} {hitYes.has(h) ? "✓" : "·"}
+                                        </span>
+                                      ))}
+                                    </div>
+                                    {hitNo.size > 0 && (
+                                      <>
+                                        <div style={{ fontSize: 9, color: "var(--muted)", letterSpacing: "0.14em", textTransform: "uppercase" as const, fontWeight: 600, marginTop: 4 }}>
+                                          {t("Denial houses · activated", "నిరాకరణ భావాలు · క్రియాశీలం")}
+                                        </div>
+                                        <div className="horary-house-strip">
+                                          {Array.from(hitNo).sort((a, b) => a - b).map(h => (
+                                            <span key={`nh-${h}`} className="horary-house-pill is-denial-hit">H{h}</span>
+                                          ))}
+                                        </div>
+                                      </>
+                                    )}
+                                  </>
+                                );
+                              })()}
+                            </div>
                             {(v.verdict_reason || v.explanation) && (
                               <div style={{ marginTop: 14, paddingTop: 14, borderTop: `0.5px solid ${verdictColor}20`, maxWidth: 480, marginLeft: "auto", marginRight: "auto" }}>
                                 <div style={{ fontSize: 9, color: "var(--muted)", letterSpacing: "0.14em", textTransform: "uppercase" as const, fontWeight: 600, marginBottom: 6 }}>
@@ -5564,9 +5645,50 @@ export default function Home() {
                                       <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
                                         {"→ H"}{(v.query_csl_significations || []).join(", H")}
                                       </div>
+                                      {/* PR A1.1b — H2/H11 "supporting gates".
+                                          Show BOTH states: supported (green) and
+                                          non-supporting (muted grey). A red cross
+                                          reads like an engine error; "gate" +
+                                          muted state clarifies it's informational. */}
                                       <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" as const }}>
-                                        {v.h2_supports &&  <span style={{ fontSize: 10, color: "#34d399", background: "rgba(52,211,153,0.1)", border: "0.5px solid rgba(52,211,153,0.25)", borderRadius: 4, padding: "1px 6px" }}>H2 ✓</span>}
-                                        {v.h11_supports && <span style={{ fontSize: 10, color: "#34d399", background: "rgba(52,211,153,0.1)", border: "0.5px solid rgba(52,211,153,0.25)", borderRadius: 4, padding: "1px 6px" }}>H11 ✓</span>}
+                                        <span
+                                          title={v.h2_supports
+                                            ? t("H2 gate supports fulfillment", "H2 ద్వారం నెరవేర్పుకు మద్దతు")
+                                            : t("H2 gate doesn't signify topic houses this time", "H2 ద్వారం ఈసారి లక్ష్య భావాలను సూచించదు")
+                                          }
+                                          style={{
+                                            fontSize: 10,
+                                            color: v.h2_supports ? "#34d399" : "var(--muted)",
+                                            background: v.h2_supports ? "rgba(52,211,153,0.1)" : "rgba(255,255,255,0.02)",
+                                            border: v.h2_supports
+                                              ? "0.5px solid rgba(52,211,153,0.25)"
+                                              : "0.5px solid var(--border)",
+                                            borderRadius: 4,
+                                            padding: "1px 6px",
+                                            opacity: v.h2_supports ? 1 : 0.65,
+                                          }}
+                                        >
+                                          H2 {t("gate", "ద్వారం")} {v.h2_supports ? "✓" : "·"}
+                                        </span>
+                                        <span
+                                          title={v.h11_supports
+                                            ? t("H11 gate supports fulfillment", "H11 ద్వారం నెరవేర్పుకు మద్దతు")
+                                            : t("H11 gate doesn't signify topic houses this time", "H11 ద్వారం ఈసారి లక్ష్య భావాలను సూచించదు")
+                                          }
+                                          style={{
+                                            fontSize: 10,
+                                            color: v.h11_supports ? "#34d399" : "var(--muted)",
+                                            background: v.h11_supports ? "rgba(52,211,153,0.1)" : "rgba(255,255,255,0.02)",
+                                            border: v.h11_supports
+                                              ? "0.5px solid rgba(52,211,153,0.25)"
+                                              : "0.5px solid var(--border)",
+                                            borderRadius: 4,
+                                            padding: "1px 6px",
+                                            opacity: v.h11_supports ? 1 : 0.65,
+                                          }}
+                                        >
+                                          H11 {t("gate", "ద్వారం")} {v.h11_supports ? "✓" : "·"}
+                                        </span>
                                       </div>
                                     </div>
                                   ),
@@ -5679,6 +5801,58 @@ export default function Home() {
                               ));
                             })()}
                           </div>
+
+                          {/* PR A1.1b — Significator hierarchy for the primary topic house.
+                              Shows every planet that signifies the house, labelled with the
+                              strongest KP level (1 = star lord's occupied house → 4 = own owned).
+                              This is the astrologer-depth cue — they can scan "who carries the
+                              house" at a glance, with RP planets highlighted. */}
+                          {(r.primary_house_significators || []).length > 0 && (
+                            <div className="horary-sig-card">
+                              <div>
+                                <div className="horary-sig-eyebrow">
+                                  {t("Significator hierarchy", "సూచక శ్రేణి")}
+                                </div>
+                                <div className="horary-sig-title">
+                                  {t(`Who carries H${r.primary_house}?`, `H${r.primary_house}ను ఎవరు పాలిస్తున్నారు?`)}
+                                </div>
+                                <div className="horary-sig-sub">
+                                  {t(
+                                    "Strongest KP level reached for the topic's primary cusp. L1 = star lord's occupied house · L2 = own occupied · L3 = star lord's owned · L4 = own owned.",
+                                    "విషయపు ప్రధాన కస్ప్ కోసం చేరిన అత్యంత బలమైన KP స్థాయి. L1 = నక్షత్రాధిపతి ఉన్న భావం · L2 = స్వయం ఉన్న భావం · L3 = నక్షత్రాధిపతి ఆధీనం · L4 = స్వయం ఆధీనం."
+                                  )}
+                                </div>
+                              </div>
+                              {r.primary_house_significators.map((sig: { planet: string; strongest_level: number; levels_hit: number[]; is_ruling_planet: boolean }) => (
+                                <div key={sig.planet} className={`horary-sig-row${sig.is_ruling_planet ? " is-rp" : ""}`}>
+                                  <span className="horary-sig-planet" style={{ color: PLANET_COLORS[sig.planet] ?? "var(--text)" }}>
+                                    {sig.planet}
+                                  </span>
+                                  <span className="horary-sig-levels">
+                                    {sig.levels_hit.map(lvl => (
+                                      <span key={lvl} className={`horary-sig-level L${lvl}`}>L{lvl}</span>
+                                    ))}
+                                  </span>
+                                  {sig.is_ruling_planet && <span className="horary-sig-rp-mark">RP</span>}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {(r.primary_house_significators || []).length === 0 && (
+                            <div className="horary-sig-card">
+                              <div>
+                                <div className="horary-sig-eyebrow">
+                                  {t("Significator hierarchy", "సూచక శ్రేణి")}
+                                </div>
+                                <div className="horary-sig-title">
+                                  {t(`Who carries H${r.primary_house}?`, `H${r.primary_house}ను ఎవరు పాలిస్తున్నారు?`)}
+                                </div>
+                              </div>
+                              <div className="horary-sig-empty">
+                                {t("No planet in this chart signifies this house at any KP level — an unusual configuration worth flagging.", "ఈ చార్ట్‌లో ఏ గ్రహం ఈ భావాన్ని KP స్థాయిలలో సూచించదు — అసాధారణ వ్యవస్థ.")}
+                              </div>
+                            </div>
+                          )}
 
                           {/* Planet table — alternating rows + left accent for ruling planets */}
                           <div style={{ overflowX: "auto" as const }}>
@@ -5799,7 +5973,11 @@ export default function Home() {
               )}
             </div>
 
-            {/* Chat input (workspace-level — visible on every tab; routes to Analysis) */}
+            {/* Chat input (workspace-level — visible on every tab except
+                Horary, where it would misleadingly route to Analysis AI
+                which doesn't know about the horary verdict. PR A1.1b hides
+                it on Horary; per-tab Ask AI will replace it in a later PR. */}
+            {activeTab !== "horary" && (
             <div style={{ borderTop: "0.5px solid var(--border)", padding: "0.75rem 1.25rem", background: "var(--surface)", display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
               <input
                 value={chatQ}
@@ -5813,6 +5991,7 @@ export default function Home() {
                 {t("Ask", "అడగు")}
               </button>
             </div>
+            )}
           </div>
         </div>
         </div>
