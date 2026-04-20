@@ -163,23 +163,54 @@ export default function Home() {
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [analysisMessages]);
 
-  // PR22 — session auto-restore.
+  // PR22 / PR24 — session auto-restore, but ONLY on actual page reload.
+  //
   // Mobile browsers (iOS Safari especially) can reload the page when the
   // user pulls down aggressively. Without persistence, all in-memory
   // chart state is lost and the user has to re-enter their birth
-  // details. We continuously snapshot the active session + the saved
-  // sessions list to localStorage and hydrate on mount.
+  // details. We continuously snapshot the active session to localStorage.
+  //
+  // PR24: the restore should NOT fire when the user intentionally
+  // navigates to /app (clicking "Open the app" from landing, typing
+  // the URL, back/forward). It should only fire when the navigation
+  // type is "reload" — otherwise the user's intent to start fresh gets
+  // overridden by a stale chart reopening.
+  //
+  // savedSessions[] is still hydrated always — the list is useful in
+  // every scenario (astrologer pickers etc.).
   const hydratedRef = useRef(false);
   useEffect(() => {
     if (hydratedRef.current) return;
     hydratedRef.current = true;
     if (typeof window === "undefined") return;
+
+    // Was this load a reload (vs. a navigation)?
+    let isReload = false;
     try {
+      const navEntries = performance.getEntriesByType("navigation") as PerformanceNavigationTiming[];
+      if (navEntries.length > 0) {
+        isReload = navEntries[0].type === "reload";
+      } else {
+        // Fallback for older browsers.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const legacy = (performance as any).navigation;
+        if (legacy?.type === 1) isReload = true; // TYPE_RELOAD
+      }
+    } catch { /* performance API unavailable — treat as navigate */ }
+
+    try {
+      // Always hydrate savedSessions — useful in any scenario.
       const rawSessions = window.localStorage.getItem("devastroai:savedSessions");
       if (rawSessions) {
         const parsed = JSON.parse(rawSessions) as ChartSession[];
         if (Array.isArray(parsed) && parsed.length > 0) setSavedSessions(parsed);
       }
+
+      // Only restore the ACTIVE chart on reload. On fresh navigation
+      // (link click, new tab, URL typed) start clean so the user lands
+      // on the onboarding form as expected.
+      if (!isReload) return;
+
       const rawSnap = window.localStorage.getItem("devastroai:lastSnapshot");
       const savedMode = window.localStorage.getItem("devastroai:mode");
       if (rawSnap) {
