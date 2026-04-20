@@ -2407,4 +2407,139 @@ textarea:focus-visible {
 .match-result-stack > :nth-child(5) { animation-delay: 200ms; }
 .match-result-stack > :nth-child(n+6) { animation-delay: 230ms; }
 
+/* Match step wizard — mirrors muhurtha-stepper but 2-node for match
+   (People → Verdict). Always visible so the user knows what step
+   they're on and can click back to reselect the partner. */
+.match-stepper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 4px 18px;
+  margin-bottom: 4px;
+}
+.match-stepper-node {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  min-width: 80px;
+  cursor: default;
+}
+.match-stepper-node[data-clickable="true"] { cursor: pointer; }
+.match-stepper-dot {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'DM Serif Display', serif;
+  font-size: 14px; font-weight: 400;
+  letter-spacing: -0.02em;
+  border: 1px solid var(--border2);
+  background: var(--card);
+  color: var(--muted);
+  transition: background 200ms, border-color 200ms, color 200ms, box-shadow 200ms;
+}
+.match-stepper-node.is-done .match-stepper-dot {
+  background: rgba(52,211,153,0.12);
+  border-color: rgba(52,211,153,0.5);
+  color: #34d399;
+}
+.match-stepper-node.is-current .match-stepper-dot {
+  background: rgba(201,169,110,0.14);
+  border-color: rgba(201,169,110,0.6);
+  color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(201,169,110,0.08), 0 0 18px rgba(201,169,110,0.35);
+}
+.match-stepper-label {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.match-stepper-node.is-current .match-stepper-label { color: var(--accent); }
+.match-stepper-node.is-done    .match-stepper-label { color: #34d399; }
+.match-stepper-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(201,169,110,0) 0%, rgba(201,169,110,0.25) 20%, rgba(201,169,110,0.25) 80%, rgba(201,169,110,0) 100%);
+  min-width: 28px;
+  margin-top: -18px;
+  position: relative;
+}
+.match-stepper-line.is-active::after {
+  content: "";
+  position: absolute; top: 50%; left: 50%;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+  transform: translate(-50%, -50%);
+}
+
+/* Match result sub-tab pills (Overall / Charts / KP / Timing / Risks / AI). */
+.match-subtab-bar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px 0 4px;
+  margin: 4px 0 2px;
+  border-bottom: 0.5px solid var(--border);
+  padding-bottom: 14px;
+}
+.match-subtab-pill {
+  padding: 7px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 140ms;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.match-subtab-pill:hover {
+  color: var(--accent);
+  border-color: rgba(201,169,110,0.3);
+}
+.match-subtab-pill.is-active {
+  background: rgba(201,169,110,0.12);
+  border-color: rgba(201,169,110,0.55);
+  color: var(--accent);
+  font-weight: 600;
+}
+.match-subtab-pill .count {
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.06);
+  color: var(--muted);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+.match-subtab-pill.is-active .count {
+  background: rgba(201,169,110,0.2);
+  color: var(--accent);
+}
+
+/* Fade-in wrapper for sub-tab content on switch. */
+@keyframes match-subtab-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.match-subtab-pane {
+  animation: match-subtab-enter 260ms ease both;
+  display: flex; flex-direction: column;
+  gap: 14px;
+}
+
+@media (max-width: 640px) {
+  .match-stepper-label { font-size: 9px; }
+  .match-stepper-node { min-width: 60px; }
+  .match-subtab-pill { padding: 6px 12px; font-size: 11px; }
+}
+
 

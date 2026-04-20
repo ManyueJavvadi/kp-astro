@@ -91,6 +91,9 @@ export default function Home() {
   const [matchChatQ, setMatchChatQ] = useState("");
   const [matchShowAI, setMatchShowAI] = useState(false);
   const [matchAnalysisLang, setMatchAnalysisLang] = useState<"english"|"telugu_english">("telugu_english");
+  // Which sub-tab is visible in the Match Results stage. Defaults to
+  // "overall" on every fresh result. Reset whenever matchResults clears.
+  const [matchSubTab, setMatchSubTab] = useState<"overall"|"charts"|"kp"|"timing"|"risks"|"ai">("overall");
   const [matchHouse1, setMatchHouse1] = useState<number | null>(null);
   const [matchHouse2, setMatchHouse2] = useState<number | null>(null);
   // Significators grid toggle
@@ -3808,6 +3811,52 @@ export default function Home() {
                     </p>
                   </header>
 
+                  {/* Step wizard — always visible. People → Verdict. Same
+                      pattern as Muhurtha's stepper so the user always knows
+                      where they are in the flow. Backward-click enabled from
+                      results back to selection. */}
+                  {(() => {
+                    const hasVerdict = !!matchResults?.overall_verdict && !matchResults?.__error;
+                    const steps = [
+                      { n: 1, label: t("People", "వ్యక్తులు") },
+                      { n: 2, label: t("Verdict", "ఫలితం") },
+                    ];
+                    const currentStep = hasVerdict || matchLoading ? 2 : 1;
+                    return (
+                      <div className="match-stepper" aria-label="Match wizard">
+                        {steps.map((s, i) => {
+                          const isDone    = currentStep > s.n;
+                          const isCurrent = currentStep === s.n;
+                          const canJump   = isDone && s.n === 1;
+                          const cls = `match-stepper-node${isDone ? " is-done" : ""}${isCurrent ? " is-current" : ""}`;
+                          return (
+                            <React.Fragment key={s.n}>
+                              <div
+                                className={cls}
+                                data-clickable={canJump ? "true" : "false"}
+                                onClick={() => {
+                                  if (!canJump) return;
+                                  // Back to People: preserve p2 but drop results
+                                  const prevP2 = matchResults?.__p2;
+                                  setMatchResults(prevP2 ? { __p2: prevP2 } : null);
+                                  setMatchHouse1(null); setMatchHouse2(null);
+                                  setMatchAnalysisMessages([]);
+                                  setMatchSubTab("overall");
+                                }}
+                              >
+                                <span className="match-stepper-dot">{isDone ? "✓" : s.n}</span>
+                                <span className="match-stepper-label">{s.label}</span>
+                              </div>
+                              {i < steps.length - 1 && (
+                                <span className={`match-stepper-line${currentStep > s.n ? " is-active" : ""}`} aria-hidden="true" />
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+
                   {/* Selection step — SPLIT LAYOUT */}
                   {!matchLoading && (!matchResults || !matchResults.overall_verdict) && !matchResults?.__error && (
                     <div style={{ display: "flex", flexDirection: "column" as const, gap: "1rem" }}>
@@ -4036,6 +4085,7 @@ export default function Home() {
                           // has weight, same pattern as horary PR14.
                           const elapsed = Date.now() - startedAt;
                           if (elapsed < 650) await new Promise(r => setTimeout(r, 650 - elapsed));
+                          setMatchSubTab("overall");
                           setMatchResults({ ...res.data, __p2: prevP2 });
                         } catch {
                           const elapsed = Date.now() - startedAt;
@@ -4146,6 +4196,43 @@ export default function Home() {
                           </div>
                         </div>
 
+                        {/* Sub-tab bar — breaks the big result wall into scannable
+                            sections. Same pill pattern as Houses sub-tabs. */}
+                        {(() => {
+                          const subtabs = [
+                            { id: "overall", en: "Overall",   te: "మొత్తం" },
+                            { id: "charts",  en: "Charts",    te: "చార్టులు" },
+                            { id: "kp",      en: "KP",        te: "KP" },
+                            { id: "timing",  en: "Timing",    te: "సమయం" },
+                            { id: "risks",   en: "Risks",     te: "ప్రమాదాలు" },
+                            { id: "ai",      en: "AI",        te: "AI" },
+                          ] as const;
+                          return (
+                            <div className="match-subtab-bar">
+                              {subtabs.map(st => {
+                                const active = matchSubTab === st.id;
+                                const label = lang === "en" ? st.en : st.te;
+                                return (
+                                  <button
+                                    key={st.id}
+                                    onClick={() => setMatchSubTab(st.id as typeof matchSubTab)}
+                                    className={`match-subtab-pill${active ? " is-active" : ""}`}
+                                  >
+                                    <span>{label}</span>
+                                    {lang === "te_en" && active && st.en !== st.te && (
+                                      <span className="count">{st.en}</span>
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          );
+                        })()}
+
+                        {/* ══════ CHARTS pane ══════ */}
+                        {matchSubTab === "charts" && (
+                        <div className="match-subtab-pane">
+
                         {/* ═══ KUNDALI CHARTS — Side by Side ═══ */}
                         {(r.chart1_data || r.chart2_data) && (
                           <div className="match-section-grid">
@@ -4184,6 +4271,13 @@ export default function Home() {
                             ))}
                           </div>
                         )}
+
+                        </div>
+                        )}
+
+                        {/* ══════ KP pane ══════ */}
+                        {matchSubTab === "kp" && (
+                        <div className="match-subtab-pane">
 
                         {/* ═══ KP Marriage Promise ═══ */}
                         <div className="match-section">
@@ -4325,6 +4419,13 @@ export default function Home() {
                           </div>
                         </div>
 
+                        </div>
+                        )}
+
+                        {/* ══════ TIMING pane ══════ */}
+                        {matchSubTab === "timing" && (
+                        <div className="match-subtab-pane">
+
                         {/* ═══ CURRENT DBA ═══ */}
                         {(r.dba_chart1 || r.dba_chart2) && (
                           <div className="match-section">
@@ -4364,6 +4465,13 @@ export default function Home() {
                           </div>
                         )}
 
+                        </div>
+                        )}
+
+                        {/* ══════ RISKS pane (first part) ══════ */}
+                        {matchSubTab === "risks" && (
+                        <div className="match-subtab-pane">
+
                         {/* ═══ KUJA DOSHA + MOON ═══ */}
                         <div className="match-section-grid">
                           <div className="match-section" style={{ padding: "12px 14px" }}>
@@ -4400,6 +4508,13 @@ export default function Home() {
                           </div>
                         </div>
 
+                        </div>
+                        )}
+
+                        {/* ══════ TIMING pane (D9 Navamsa) ══════ */}
+                        {matchSubTab === "timing" && (
+                        <div className="match-subtab-pane">
+
                         {/* ═══ D9 NAVAMSA ═══ */}
                         {(r.d9_chart1 || r.d9_chart2) && (
                           <div className="match-section">
@@ -4428,6 +4543,13 @@ export default function Home() {
                             </div>
                           </div>
                         )}
+
+                        </div>
+                        )}
+
+                        {/* ══════ RISKS pane (second part: 5th CSL + Separation) ══════ */}
+                        {matchSubTab === "risks" && (
+                        <div className="match-subtab-pane">
 
                         {/* ═══ 5th CSL + SEPARATION RISK ═══ */}
                         <div className="match-section-grid">
@@ -4463,6 +4585,13 @@ export default function Home() {
                             ))}
                           </div>
                         </div>
+
+                        </div>
+                        )}
+
+                        {/* ══════ OVERALL pane (Ashtakoota score anchor) ══════ */}
+                        {matchSubTab === "overall" && (
+                        <div className="match-subtab-pane">
 
                         {/* ═══ ASHTAKOOTA — 36 Gun ═══ */}
                         <div className="match-section">
@@ -4508,6 +4637,13 @@ export default function Home() {
                             )}
                           </div>
                         </div>
+
+                        </div>
+                        )}
+
+                        {/* ══════ AI pane ══════ */}
+                        {matchSubTab === "ai" && (
+                        <div className="match-subtab-pane">
 
                         {/* ═══ AI DEEP ANALYSIS ═══ */}
                         <div className="match-ai-section">
@@ -4583,6 +4719,9 @@ export default function Home() {
                             </button>
                           </div>
                         </div>
+
+                        </div>
+                        )}{/* close AI pane */}
 
                       </div>
                     );
