@@ -2642,37 +2642,106 @@ export default function Home() {
 
               {/* MUHURTHA */}
               {activeTab === "muhurtha" && (
-                <div className="tab-content" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                <div className="tab-content" style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: 960 }}>
+                  {/* Page hero — sets the "this is an oracle" tone consistent with
+                      Horary (PR13/14) and Houses (PR11). Always visible above the
+                      wizard regardless of step. */}
+                  <header style={{ marginBottom: 4 }}>
+                    <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6, fontWeight: 600 }}>
+                      {t("Auspicious Timing", "శుభ ముహూర్తం")}
+                    </div>
+                    <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 28, margin: 0, lineHeight: 1.15, color: "var(--text)", letterSpacing: "-0.01em" }}>
+                      {t("Muhurtha finder", "ముహూర్తం కనుగొను")}
+                    </h1>
+                    <p style={{ fontSize: 13, color: "var(--muted)", margin: "6px 0 0", maxWidth: 620, lineHeight: 1.55 }}>
+                      {t(
+                        "Scans every 4 minutes of your date range. Scores each Lagna Sub-Lord against event-specific house requirements plus Badhaka, Moon SL, and Panchang.",
+                        "మీ ఎంచుకున్న తేదీల పరిధిని ప్రతి 4 నిమిషాలకు స్కాన్ చేస్తుంది. ప్రతి లగ్న సబ్‌లార్డ్‌ని ఈవెంట్‌కి తగిన భావాలు + బాధక + చంద్ర SL + పంచాంగంతో స్కోర్ చేస్తుంది."
+                      )}
+                    </p>
+                  </header>
+
+                  {/* Step wizard — always visible so the user knows which step
+                      they're on and which are complete. Going back is
+                      click-enabled on completed steps (no jumping forward). */}
+                  {(() => {
+                    const wizardSteps = [
+                      { n: 1, label: t("Event", "ఈవెంట్") },
+                      { n: 2, label: t("Dates", "తేదీలు") },
+                      { n: 3, label: t("Results", "ఫలితాలు") },
+                    ];
+                    return (
+                      <div className="muhurtha-stepper" aria-label="Muhurtha wizard">
+                        {wizardSteps.map((s, i) => {
+                          const isDone    = mStep > s.n;
+                          const isCurrent = mStep === s.n;
+                          const canJump   = isDone && s.n < mStep; // backwards only
+                          const cls = `muhurtha-stepper-node${isDone ? " is-done" : ""}${isCurrent ? " is-current" : ""}`;
+                          return (
+                            <React.Fragment key={s.n}>
+                              <div
+                                className={cls}
+                                data-clickable={canJump ? "true" : "false"}
+                                onClick={() => { if (canJump) { setMStep(s.n as 1 | 2 | 3); if (s.n < 3) { setMResults(null); setMExpandedWindow(null); setMSelectedDate(null); setMAiMessages([]); } } }}
+                              >
+                                <span className="muhurtha-stepper-dot">{isDone ? "✓" : s.n}</span>
+                                <span className="muhurtha-stepper-label">{s.label}</span>
+                              </div>
+                              {i < wizardSteps.length - 1 && (
+                                <span className={`muhurtha-stepper-line${mStep > s.n ? " is-active" : ""}`} aria-hidden="true" />
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+
                   {/* Step 1 — Event type + Participants */}
                   {mStep === 1 && (
                     <div>
-                      <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: "0.75rem" }}>ఏ సందర్భానికి ముహూర్తం?</div>
+                      <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: "0.75rem" }}>
+                        {t("What occasion is this for?", "ఏ సందర్భానికి ముహూర్తం?")}
+                      </div>
                       {/* Free-form event type input */}
                       <input
                         type="text"
-                        placeholder="సందర్భం టైప్ చేయండి (e.g. vehicle delivery, marriage...)"
+                        placeholder={t(
+                          "Type an occasion (e.g. vehicle delivery, marriage…)",
+                          "సందర్భం టైప్ చేయండి (e.g. vehicle delivery, marriage…)"
+                        )}
                         value={mEventType}
                         onChange={e => setMEventType(e.target.value)}
                         style={{ width: "100%", padding: "10px 14px", background: "var(--card)", border: `0.5px solid ${mEventType ? "var(--accent)" : "var(--border2)"}`, borderRadius: 8, color: "var(--fg)", fontSize: 13, fontFamily: "inherit", marginBottom: 10, outline: "none" }}
                       />
-                      {/* Event type icon card grid */}
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, marginBottom: "1.25rem" }}>
+                      <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8, marginTop: 4 }}>
+                        {t("Or pick from KP canon", "లేదా KP గ్రంధం నుండి ఎంచుకోండి")}
+                      </div>
+                      {/* Event type icon card grid — hover reveal shows KP meaning */}
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: "1.5rem" }}>
                         {[
-                          { Icon: HandHeart,  te: "వివాహం",       en: "Marriage" },
-                          { Icon: Briefcase,  te: "వ్యాపారం",     en: "Business Opening" },
-                          { Icon: HomeIcon,   te: "గృహప్రవేశం",   en: "House Warming" },
-                          { Icon: Plane,      te: "ప్రయాణం",      en: "Travel" },
-                          { Icon: BookOpen,   te: "విద్య",         en: "Education" },
-                          { Icon: Stethoscope, te: "వైద్యం",        en: "Medical / Surgery" },
-                          { Icon: Wallet,     te: "పెట్టుబడి",    en: "Investment" },
-                          { Icon: Car,        te: "వాహనం",         en: "Vehicle Delivery" },
+                          { Icon: HandHeart,   te: "వివాహం",     en: "Marriage",         meaning: t("H7 cusp · Venus karaka · Jupiter aspect",   "H7 కస్ప్ · శుక్ర కారక · గురు దృష్టి") },
+                          { Icon: Briefcase,   te: "వ్యాపారం",   en: "Business Opening", meaning: t("H10 · H11 gains · Mercury or Jupiter SL",    "H10 · H11 లాభ · బుధ/గురు SL") },
+                          { Icon: HomeIcon,    te: "గృహప్రవేశం", en: "House Warming",    meaning: t("H4 cusp · Moon sign · Taurus/Cancer favor", "H4 కస్ప్ · చంద్ర రాశి · వృషభ/కర్కాటక") },
+                          { Icon: Plane,       te: "ప్రయాణం",    en: "Travel",           meaning: t("H3 short / H9 long · Mercury SL",           "H3 చిన్నది · H9 దూరం · బుధ SL") },
+                          { Icon: BookOpen,    te: "విద్య",      en: "Education",        meaning: t("H4 schooling · H5 intellect · Jupiter SL",  "H4 విద్య · H5 బుద్ధి · గురు SL") },
+                          { Icon: Stethoscope, te: "వైద్యం",     en: "Medical / Surgery", meaning: t("Avoid H8/H12 CSL · Moon strong · no vishti","H8/H12 CSL నివారించండి · చంద్ర బలం · విష్టి లేకుండా") },
+                          { Icon: Wallet,      te: "పెట్టుబడి",  en: "Investment",       meaning: t("H11 gains · Jupiter or Venus SL · shukla",  "H11 లాభ · గురు/శుక్ర SL · శుక్లపక్ష") },
+                          { Icon: Car,         te: "వాహనం",      en: "Vehicle Delivery", meaning: t("H4 vehicles · Venus karaka · sthira lagna", "H4 వాహనం · శుక్ర కారక · స్థిర లగ్న") },
                         ].map(item => {
                           const active = mEventType === item.en;
                           const ItemIcon = item.Icon;
                           return (
-                            <button key={item.en} onClick={() => setMEventType(item.en)} style={{ padding: "10px 6px", background: active ? "rgba(201,169,110,0.12)" : "var(--card)", border: `1px solid ${active ? "rgba(201,169,110,0.55)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, cursor: "pointer", fontFamily: "inherit", display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 6, transition: "all 0.15s" }}>
-                              <ItemIcon size={20} strokeWidth={1.6} color={active ? "var(--accent)" : "var(--muted)"} />
-                              <span style={{ fontSize: 10, color: active ? "var(--accent)" : "var(--muted)", fontWeight: active ? 600 : 400, textAlign: "center" as const, lineHeight: 1.2 }}>{lang === "en" ? item.en : item.te}</span>
+                            <button
+                              key={item.en}
+                              onClick={() => setMEventType(item.en)}
+                              className={`muhurtha-event-card${active ? " is-active" : ""}`}
+                            >
+                              <ItemIcon size={22} strokeWidth={1.6} color={active ? "var(--accent)" : "currentColor"} />
+                              <span style={{ fontSize: 11, fontWeight: active ? 600 : 500, textAlign: "center" as const, lineHeight: 1.25 }}>
+                                {lang === "en" ? item.en : item.te}
+                              </span>
+                              <span className="muhurtha-event-meaning">{item.meaning}</span>
                             </button>
                           );
                         })}
@@ -2681,7 +2750,7 @@ export default function Home() {
                       {/* Participants panel */}
                       <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem", marginBottom: "1rem" }}>
                         <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.625rem" }}>
-                          పాల్గొనేవారు — Participants <span style={{ color: "var(--border2)", fontStyle: "normal" }}>(ఐచ్ఛికం / Optional)</span>
+                          {t("Participants", "పాల్గొనేవారు")} <span style={{ color: "var(--border2)", fontStyle: "normal" }}>({t("optional", "ఐచ్ఛికం")})</span>
                         </div>
                         {/* Participants chips */}
                         <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 6, marginBottom: "0.625rem" }}>
@@ -2711,7 +2780,7 @@ export default function Home() {
                                   if (found) { setMParticipants(prev => [...prev, found]); e.target.value = ""; }
                                 }} defaultValue=""
                                   style={{ width: "100%", background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "7px 10px", fontSize: 12, color: "var(--muted)", outline: "none", cursor: "pointer", fontFamily: "inherit" }}>
-                                  <option value="" disabled>+ సేవ్ చేసిన చార్ట్ నుండి జోడించు</option>
+                                  <option value="" disabled>+ {t("Add from saved charts", "సేవ్ చేసిన చార్ట్ నుండి జోడించు")}</option>
                                   {savedSessions.filter(s => !mParticipants.find(p => p.id === s.id)).map(s => (
                                     <option key={s.id} value={s.id}>{s.name || s.birthDetails.name}</option>
                                   ))}
@@ -2720,7 +2789,7 @@ export default function Home() {
                             )}
                             <button onClick={() => setMShowAddParticipant(true)}
                               style={{ padding: "7px 12px", background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, color: "var(--muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" as const }}>
-                              + కొత్తగా
+                              + {t("New", "కొత్తగా")}
                             </button>
                           </div>
                         )}
@@ -2728,7 +2797,7 @@ export default function Home() {
                         {/* Inline mini-form for new participant */}
                         {mShowAddParticipant && (
                           <div style={{ display: "flex", flexDirection: "column" as const, gap: 7 }}>
-                            <input placeholder="పేరు / Name" value={mNewP.name} onChange={e => setMNewP(p => ({ ...p, name: e.target.value }))}
+                            <input placeholder={t("Full name", "పూర్తి పేరు")} value={mNewP.name} onChange={e => setMNewP(p => ({ ...p, name: e.target.value }))}
                               style={{ background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "7px 10px", fontSize: 12, color: "var(--text)", outline: "none" }} />
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
                               <input placeholder="DD/MM/YYYY" value={mNewP.date} onChange={e => handleMNewPDateChange(e.target.value)} maxLength={10}
@@ -2744,7 +2813,7 @@ export default function Home() {
                             </div>
                             {/* Place search */}
                             <div style={{ position: "relative" as const }}>
-                              <input placeholder="పుట్టిన ఊరు / Place of Birth" value={mNewP.place} onChange={e => handleMNewPPlaceChange(e.target.value)}
+                              <input placeholder={t("Place of birth", "పుట్టిన ఊరు")} value={mNewP.place} onChange={e => handleMNewPPlaceChange(e.target.value)}
                                 style={{ width: "100%", background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "7px 10px", fontSize: 12, color: "var(--text)", outline: "none", boxSizing: "border-box" as const }} />
                               {mNewPPlaceStatus === "searching" && <div style={{ position: "absolute", right: 10, top: 8, fontSize: 10, color: "var(--muted)" }}>...</div>}
                               {mNewPPlaceSugg.length > 0 && (
@@ -2773,7 +2842,7 @@ export default function Home() {
                               {(["male","female"] as const).map(g => (
                                 <button key={g} onClick={() => setMNewP(p => ({ ...p, gender: g }))}
                                   style={{ flex: 1, padding: "6px", borderRadius: 6, cursor: "pointer", border: `0.5px solid ${mNewP.gender === g ? "var(--accent)" : "var(--border2)"}`, background: mNewP.gender === g ? "rgba(201,169,110,0.1)" : "var(--surface)", color: mNewP.gender === g ? "var(--accent)" : "var(--muted)", fontSize: 12, fontFamily: "inherit" }}>
-                                  {g === "male" ? "♂ Male" : "♀ Female"}
+                                  {g === "male" ? `♂ ${t("Male", "పురుషుడు")}` : `♀ ${t("Female", "స్త్రీ")}`}
                                 </button>
                               ))}
                             </div>
@@ -2792,11 +2861,11 @@ export default function Home() {
                                 setMNewPPlaceSugg([]); setMNewPPlaceStatus("idle");
                                 setMShowAddParticipant(false);
                               }} style={{ flex: 1, padding: "7px", background: "var(--accent)", border: "none", borderRadius: 6, color: "#09090f", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
-                                జోడించు
+                                {t("Add", "జోడించు")}
                               </button>
                               <button onClick={() => { setMShowAddParticipant(false); setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "", timezone_offset: 5.5 }); setMNewPPlaceSugg([]); }}
                                 style={{ padding: "7px 12px", background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, color: "var(--muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
-                                రద్దు
+                                {t("Cancel", "రద్దు")}
                               </button>
                             </div>
                           </div>
@@ -2804,8 +2873,8 @@ export default function Home() {
                       </div>
 
                       <button onClick={() => setMStep(2)} disabled={!mEventType}
-                        style={{ width: "100%", padding: "12px", background: mEventType ? "var(--accent)" : "var(--surface2)", color: mEventType ? "#09090f" : "var(--muted)", border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: mEventType ? "pointer" : "default", fontFamily: "inherit", transition: "all 0.2s" }}>
-                        తేదీలు ఎంచుకోండి →
+                        style={{ width: "100%", padding: "12px", background: mEventType ? "var(--accent)" : "rgba(201,169,110,0.15)", color: mEventType ? "#09090f" : "rgba(201,169,110,0.6)", border: mEventType ? "0.5px solid var(--accent)" : "0.5px solid rgba(201,169,110,0.3)", borderRadius: 999, fontSize: 13, fontWeight: 700, letterSpacing: "0.04em", cursor: mEventType ? "pointer" : "default", fontFamily: "inherit", transition: "all 0.2s", boxShadow: mEventType ? "0 4px 20px -6px rgba(201,169,110,0.5)" : "none" }}>
+                        {t("Pick dates", "తేదీలు ఎంచుకోండి")} →
                       </button>
                     </div>
                   )}
@@ -2815,25 +2884,27 @@ export default function Home() {
                     <div>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "0.75rem" }}>
                         <button onClick={() => setMStep(1)} style={{ background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 18, padding: 0 }}>←</button>
-                        <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>ఏ తేదీలు చూడాలి?</div>
+                        <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>
+                          {t("Which dates should we scan?", "ఏ తేదీలు చూడాలి?")}
+                        </div>
                       </div>
                       {/* Event location section */}
                       <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem", marginBottom: "1rem" }}>
                         <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.625rem", display: "inline-flex", alignItems: "center", gap: 5 }}>
-                          <MapPin size={11} strokeWidth={1.8} /> Event Location
+                          <MapPin size={11} strokeWidth={1.8} /> {t("Event location", "ఈవెంట్ ప్రదేశం")}
                         </div>
                         <div style={{ display: "flex", gap: 6, marginBottom: mEventLocMode === "different" ? 10 : 0 }}>
                           {(["same","different"] as const).map(mode => (
                             <button key={mode} onClick={() => { setMEventLocMode(mode); if(mode==="same") setMEventLoc(null); }}
                               style={{ flex: 1, padding: "8px 6px", background: mEventLocMode === mode ? "rgba(201,169,110,0.12)" : "var(--card)", border: `0.5px solid ${mEventLocMode === mode ? "rgba(201,169,110,0.55)" : "var(--border2)"}`, borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontSize: 11, color: mEventLocMode === mode ? "var(--accent)" : "var(--muted)", fontWeight: mEventLocMode === mode ? 600 : 400, transition: "all 0.15s", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-                              {mode === "same" ? (<><HomeIcon size={12} strokeWidth={1.8} /> Same as birth</>) : (<><MapPin size={12} strokeWidth={1.8} /> Different location</>)}
+                              {mode === "same" ? (<><HomeIcon size={12} strokeWidth={1.8} /> {t("Same as birth", "పుట్టినచోట")}</>) : (<><MapPin size={12} strokeWidth={1.8} /> {t("Different location", "వేరే ప్రదేశం")}</>)}
                             </button>
                           ))}
                         </div>
                         {mEventLocMode === "different" && (
                           <div style={{ position: "relative" as const }}>
                             <input
-                              placeholder="Search event location..."
+                              placeholder={t("Search event location…", "ఈవెంట్ ప్రదేశం వెతకండి…")}
                               defaultValue={mEventLoc?.place || ""}
                               onChange={e => handleMEventLocSearch(e.target.value)}
                               style={{ width: "100%", background: "var(--card)", border: `0.5px solid ${mEventLoc ? "var(--accent)" : "var(--border2)"}`, borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "var(--text)", outline: "none", boxSizing: "border-box" as const }}
@@ -2861,25 +2932,29 @@ export default function Home() {
                       {/* Participant summary if any */}
                       {mParticipants.length > 0 && (
                         <div style={{ padding: "6px 10px", background: "rgba(201,169,110,0.06)", border: "0.5px solid rgba(201,169,110,0.2)", borderRadius: 6, marginBottom: "0.875rem", fontSize: 11, color: "var(--muted)" }}>
-                          పాల్గొనేవారు: {mParticipants.map(p => <span key={p.id} style={{ color: "var(--accent)", marginRight: 6 }}>{p.name || p.birthDetails.name}</span>)}
+                          {t("Participants", "పాల్గొనేవారు")}: {mParticipants.map(p => <span key={p.id} style={{ color: "var(--accent)", marginRight: 6 }}>{p.name || p.birthDetails.name}</span>)}
                         </div>
                       )}
                       {/* Quick picks */}
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: "1rem" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: "1rem" }}>
                         {[
-                          { label: "ఈ వారం", en: "This week", days: 7 },
-                          { label: "వచ్చే వారం", en: "Next week", days: 14 },
-                          { label: "ఈ నెల", en: "This month", days: 30 },
-                          { label: "వచ్చే నెల", en: "Next month", days: 60 },
+                          { en: "This week",  te: "ఈ వారం",    days: 7 },
+                          { en: "Next week",  te: "వచ్చే వారం", days: 14 },
+                          { en: "This month", te: "ఈ నెల",     days: 30 },
+                          { en: "Next month", te: "వచ్చే నెల",  days: 60 },
                         ].map(q => {
                           const s = new Date(); s.setDate(s.getDate() + (q.days === 14 ? 7 : 0));
                           const e = new Date(); e.setDate(e.getDate() + q.days);
                           const fmt = (d: Date) => d.toISOString().split("T")[0];
+                          const active = mDateStart === fmt(s) && mDateEnd === fmt(e);
+                          const label = lang === "en" ? q.en : q.te;
                           return (
-                            <button key={q.label} onClick={() => { setMDateStart(fmt(s)); setMDateEnd(fmt(e)); }}
-                              style={{ padding: "0.75rem", background: "var(--surface2)", border: `0.5px solid ${mDateStart === fmt(s) ? "var(--accent)" : "var(--border)"}`, borderRadius: 8, cursor: "pointer", color: mDateStart === fmt(s) ? "var(--accent)" : "var(--text)", fontSize: 13, fontFamily: "inherit", transition: "all 0.2s" }}>
-                              <div>{q.label}</div>
-                              <div style={{ fontSize: 9, color: "var(--muted)", marginTop: 2 }}>{q.en}</div>
+                            <button key={q.en} onClick={() => { setMDateStart(fmt(s)); setMDateEnd(fmt(e)); }}
+                              style={{ padding: "10px 8px", background: active ? "rgba(201,169,110,0.12)" : "var(--card)", border: `0.5px solid ${active ? "rgba(201,169,110,0.5)" : "var(--border2)"}`, borderRadius: 999, cursor: "pointer", color: active ? "var(--accent)" : "var(--text)", fontSize: 12, fontFamily: "inherit", fontWeight: active ? 600 : 400, transition: "all 160ms", textAlign: "center" as const }}
+                              onMouseEnter={e2 => { if (!active) { e2.currentTarget.style.borderColor = "rgba(201,169,110,0.35)"; e2.currentTarget.style.background = "rgba(201,169,110,0.04)"; } }}
+                              onMouseLeave={e2 => { if (!active) { e2.currentTarget.style.borderColor = "var(--border2)"; e2.currentTarget.style.background = "var(--card)"; } }}
+                            >
+                              {label}
                             </button>
                           );
                         })}
@@ -2887,12 +2962,16 @@ export default function Home() {
                       {/* Custom date range */}
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: "1rem" }}>
                         <div>
-                          <div style={{ fontSize: 9, color: "var(--muted)", marginBottom: 4 }}>నుండి (From)</div>
+                          <div style={{ fontSize: 9, color: "var(--muted)", marginBottom: 4, letterSpacing: "0.08em", textTransform: "uppercase" as const }}>
+                            {t("From", "నుండి")}
+                          </div>
                           <input type="date" value={mDateStart} onChange={e => setMDateStart(e.target.value)}
                             style={{ width: "100%", background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "8px 10px", fontSize: 12, color: "var(--text)", outline: "none" }} />
                         </div>
                         <div>
-                          <div style={{ fontSize: 9, color: "var(--muted)", marginBottom: 4 }}>వరకు (To)</div>
+                          <div style={{ fontSize: 9, color: "var(--muted)", marginBottom: 4, letterSpacing: "0.08em", textTransform: "uppercase" as const }}>
+                            {t("To", "వరకు")}
+                          </div>
                           <input type="date" value={mDateEnd} onChange={e => setMDateEnd(e.target.value)}
                             style={{ width: "100%", background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "8px 10px", fontSize: 12, color: "var(--text)", outline: "none" }} />
                         </div>
@@ -2916,8 +2995,18 @@ export default function Home() {
                         } catch { setMResults(null); }
                         setMLoading(false);
                       }} disabled={!mDateStart || !mDateEnd || mLoading}
-                        style={{ width: "100%", padding: "12px", background: mDateStart && mDateEnd ? "var(--accent)" : "var(--surface2)", color: mDateStart && mDateEnd ? "#09090f" : "var(--muted)", border: "none", borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: mDateStart && mDateEnd ? "pointer" : "default", fontFamily: "inherit" }}>
-                        ముహూర్తాలు వెతకండి →
+                        style={{
+                          width: "100%", padding: "12px",
+                          background: mDateStart && mDateEnd ? "var(--accent)" : "rgba(201,169,110,0.15)",
+                          color:      mDateStart && mDateEnd ? "#09090f"     : "rgba(201,169,110,0.6)",
+                          border:     mDateStart && mDateEnd ? "0.5px solid var(--accent)" : "0.5px solid rgba(201,169,110,0.3)",
+                          borderRadius: 999, fontSize: 13, fontWeight: 700, letterSpacing: "0.04em",
+                          cursor: mDateStart && mDateEnd ? "pointer" : "default", fontFamily: "inherit",
+                          boxShadow: mDateStart && mDateEnd ? "0 4px 20px -6px rgba(201,169,110,0.5)" : "none",
+                          display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
+                        }}>
+                        <Target size={14} strokeWidth={1.8} />
+                        {t("Find auspicious windows", "ముహూర్తాలు వెతకండి")}
                       </button>
                     </div>
                   )}
@@ -2928,14 +3017,14 @@ export default function Home() {
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "1rem" }}>
                         <button onClick={() => { setMStep(2); setMResults(null); }} style={{ background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 18, padding: 0 }}>←</button>
                         <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>
-                          {mEventType.replace("_", " ").toUpperCase()} ముహూర్తాలు · {mDateStart} → {mDateEnd}
+                          {mEventType.replace("_", " ").toUpperCase()} · {mDateStart} → {mDateEnd}
                         </div>
                       </div>
 
                       {mLoading && (
                         <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--muted)", padding: "2rem", justifyContent: "center" }}>
                           <div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid var(--accent)", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
-                          గ్రహ స్థితులు లెక్కిస్తున్నాం...
+                          {t("Calculating planetary positions…", "గ్రహ స్థితులు లెక్కిస్తున్నాం…")}
                         </div>
                       )}
 
@@ -2969,62 +3058,77 @@ export default function Home() {
                             });
                             setMAiMessages(prev => [...prev, { q: questionText, a: res.data.answer, isTopic }]);
                           } catch {
-                            setMAiMessages(prev => [...prev, { q: questionText, a: "విశ్లేషణ లోడ్ చేయడంలో సమస్య. మళ్ళీ ప్రయత్నించండి.", isTopic }]);
+                            setMAiMessages(prev => [...prev, { q: questionText, a: t("Could not load analysis. Please try again.", "విశ్లేషణ లోడ్ చేయడంలో సమస్య. మళ్ళీ ప్రయత్నించండి."), isTopic }]);
                           }
                           setMAiLoading(false);
                         };
 
+                        const maxScore = allWindows.reduce((m: number, w: any) => Math.max(m, w.score || 0), 0) || 1;
+
                         return (
                         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
 
-                          {/* ── A. SUMMARY BANNER ── */}
-                          <div className="muhurtha-summary-banner">
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                              <div>
-                                <div style={{ fontSize: 18, fontWeight: 600, color: "var(--accent)", fontFamily: "'DM Serif Display', serif", marginBottom: 4, display: "inline-flex", alignItems: "center", gap: 10 }}>
-                                  {(() => {
-                                    const BannerIcon = eventIcon[mEventType] || Sparkles;
-                                    return <BannerIcon size={20} strokeWidth={1.6} />;
-                                  })()}
-                                  {mEventType.replace("_", " ").toUpperCase()} ముహూర్తాలు
+                          {/* ── BEST WINDOW — serif hero reveal ── */}
+                          {bestWindow && (
+                            <div className="muhurtha-best-hero">
+                              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" as const }}>
+                                <div style={{ minWidth: 0, flex: 1 }}>
+                                  <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.12em", textTransform: "uppercase" as const, fontWeight: 600, marginBottom: 8, display: "inline-flex", alignItems: "center", gap: 7 }}>
+                                    <Sparkles size={12} strokeWidth={1.8} />
+                                    {t("Best window", "ఉత్తమ సమయం")}
+                                  </div>
+                                  <div className="muhurtha-best-date">{bestWindow.date_display}</div>
+                                  <div className="muhurtha-best-time" style={{ marginTop: 4 }}>
+                                    {bestWindow.start_time} – {bestWindow.end_time}
+                                  </div>
+                                  <div style={{ display: "flex", gap: 14, marginTop: 14, flexWrap: "wrap" as const, fontSize: 11 }}>
+                                    <span style={{ color: "var(--muted)" }}>Lagna: <span style={{ color: "var(--text)", fontWeight: 500 }}>{bestWindow.lagna}</span></span>
+                                    <span style={{ color: "var(--muted)" }}>SL: <span style={{ color: "var(--accent2)", fontWeight: 500 }}>{bestWindow.lagna_sublord}</span></span>
+                                    {bestWindow.moon_nakshatra && <span style={{ color: "var(--muted)" }}>Moon: <span style={{ color: "var(--text)" }}>{bestWindow.moon_nakshatra}</span></span>}
+                                  </div>
                                 </div>
-                                <div style={{ fontSize: 12, color: "var(--muted)" }}>
-                                  {mDateStart} → {mDateEnd} {mResults.participants_loaded?.length > 0 && `· ${mResults.participants_loaded.length} participants`}
+                                <div style={{ textAlign: "center" as const, flexShrink: 0 }}>
+                                  <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 48, fontWeight: 400, color: qualityColor(bestWindow.quality), lineHeight: 1, letterSpacing: "-0.02em", textShadow: `0 0 32px ${qualityColor(bestWindow.quality)}50` }}>
+                                    {bestWindow.score}
+                                  </div>
+                                  <div style={{ fontSize: 11, color: qualityColor(bestWindow.quality), letterSpacing: "0.1em", textTransform: "uppercase" as const, fontWeight: 600, marginTop: 4 }}>
+                                    {qualityStars(bestWindow.quality)} {bestWindow.quality}
+                                  </div>
                                 </div>
                               </div>
-                              <div style={{ fontSize: 11, color: "var(--muted)", background: "var(--surface2)", padding: "4px 10px", borderRadius: 6, border: "0.5px solid var(--border)" }}>
-                                {allWindows.length} windows found
+                              <div style={{ display: "flex", gap: 12, marginTop: 14, fontSize: 10, color: "var(--muted)", alignItems: "center" }}>
+                                {(() => {
+                                  const BannerIcon = eventIcon[mEventType] || Sparkles;
+                                  return (
+                                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                      <BannerIcon size={14} strokeWidth={1.8} color="var(--accent)" />
+                                      <span style={{ textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "var(--accent)", fontWeight: 500 }}>{mEventType.replace("_", " ")}</span>
+                                    </span>
+                                  );
+                                })()}
+                                <span>·</span>
+                                <span>{mDateStart} → {mDateEnd}</span>
+                                {mResults.participants_loaded?.length > 0 && <><span>·</span><span>{mResults.participants_loaded.length} {t("participants", "పాల్గొనేవారు")}</span></>}
+                                <span>·</span>
+                                <span>{allWindows.length} {t("windows", "సమయాలు")}</span>
                               </div>
                             </div>
-                            {bestWindow && (
-                              <div style={{ marginTop: "0.75rem", padding: "0.75rem 1rem", background: "rgba(201,169,110,0.06)", borderRadius: 8, border: "0.5px solid rgba(201,169,110,0.2)" }}>
-                                <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 4 }}>BEST WINDOW</div>
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                  <div>
-                                    <span style={{ fontSize: 15, fontWeight: 600, color: "var(--accent)" }}>{bestWindow.date_display}</span>
-                                    <span style={{ fontSize: 14, color: "var(--text)", marginLeft: 10 }}>{bestWindow.start_time}–{bestWindow.end_time}</span>
-                                  </div>
-                                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                    <span style={{ fontSize: 12, color: "var(--muted)" }}>Lagna: <span style={{ color: "var(--text)" }}>{bestWindow.lagna}</span></span>
-                                    <span style={{ fontSize: 12, color: "var(--muted)" }}>SL: <span style={{ color: "var(--accent2)" }}>{bestWindow.lagna_sublord}</span></span>
-                                    <span style={{ fontSize: 13, fontWeight: 600, color: qualityColor(bestWindow.quality), padding: "2px 8px", borderRadius: 4, background: qualityBg(bestWindow.quality) }}>{bestWindow.score} {bestWindow.quality}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
+                          )}
 
                           {/* ── Nearby Better Alert ── */}
                           {mResults.nearby_better && (
-                            <div style={{ padding: "0.75rem 1rem", background: "rgba(251,191,36,0.08)", border: "0.5px solid rgba(251,191,36,0.3)", borderRadius: 8 }}>
-                              <div style={{ fontSize: 11, color: "#fbbf24", fontWeight: 500, marginBottom: 4 }}>
-                                మీరు ఎంచుకున్న తేదీల దగ్గర మంచి ముహూర్తం ఉంది
-                              </div>
-                              <div style={{ fontSize: 12, color: "var(--text)" }}>
-                                {mResults.nearby_better.date_display} — Score: {mResults.nearby_better.score} ({mResults.nearby_better.quality})
-                              </div>
-                              <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
-                                {mResults.nearby_better.start_time}–{mResults.nearby_better.end_time} · Lagna: {mResults.nearby_better.lagna} · SL: {mResults.nearby_better.lagna_sublord}
+                            <div style={{ padding: "0.875rem 1rem", background: "rgba(251,191,36,0.08)", border: "0.5px solid rgba(251,191,36,0.3)", borderRadius: 10, display: "flex", alignItems: "center", gap: 12 }}>
+                              <TriangleAlert size={16} strokeWidth={1.8} color="#fbbf24" style={{ flexShrink: 0 }} />
+                              <div style={{ minWidth: 0, flex: 1 }}>
+                                <div style={{ fontSize: 11, color: "#fbbf24", fontWeight: 600, marginBottom: 3, letterSpacing: "0.04em" }}>
+                                  {t("Better window nearby", "మీరు ఎంచుకున్న తేదీల దగ్గర మంచి ముహూర్తం ఉంది")}
+                                </div>
+                                <div style={{ fontSize: 12, color: "var(--text)" }}>
+                                  {mResults.nearby_better.date_display} · {mResults.nearby_better.start_time}–{mResults.nearby_better.end_time}
+                                </div>
+                                <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 1 }}>
+                                  Score {mResults.nearby_better.score} ({mResults.nearby_better.quality}) · Lagna {mResults.nearby_better.lagna} · SL {mResults.nearby_better.lagna_sublord}
+                                </div>
                               </div>
                             </div>
                           )}
@@ -3049,10 +3153,15 @@ export default function Home() {
                             </div>
                           )}
 
-                          {/* ── C. EXPANDABLE WINDOW CARDS ── */}
+                          {/* ── C. RANKED LEADERBOARD ── */}
+                          {filteredWindows.length > 0 && (
+                            <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginTop: 4, marginBottom: -4, fontWeight: 500 }}>
+                              {filteredWindows.length} {t(filteredWindows.length === 1 ? "window · ranked by score" : "windows · ranked by score", filteredWindows.length === 1 ? "సమయం · స్కోర్ వరుసలో" : "సమయాలు · స్కోర్ వరుసలో")}
+                            </div>
+                          )}
                           {filteredWindows.length === 0 && (
-                            <div style={{ textAlign: "center" as const, padding: "2rem", color: "var(--muted)", fontSize: 13 }}>
-                              ఈ తేదీల్లో మంచి ముహూర్తాలు కనపడలేదు. వేరే తేదీలు చూడండి.
+                            <div style={{ textAlign: "center" as const, padding: "2.5rem 1rem", color: "var(--muted)", fontSize: 13, background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 12 }}>
+                              {t("No strong muhurtha windows in this range. Try a longer range or different dates.", "ఈ తేదీల్లో మంచి ముహూర్తాలు కనపడలేదు. ఎక్కువ తేదీల పరిధి ప్రయత్నించండి.")}
                             </div>
                           )}
 
@@ -3060,25 +3169,49 @@ export default function Home() {
                             const isExpanded = mExpandedWindow === i;
                             const bc = w.badhaka_check || {};
                             const pang = w.panchang || {};
+                            const rank = i + 1;
+                            const rankClass =
+                              rank === 1 ? "muhurtha-rank-1" :
+                              rank === 2 ? "muhurtha-rank-2" :
+                              rank === 3 ? "muhurtha-rank-3" : "muhurtha-rank-other";
+                            const scorePct = Math.max(6, Math.min(100, Math.round(((w.score || 0) / maxScore) * 100)));
+                            const qC = qualityColor(w.quality);
                             return (
                             <div key={i} className={`muhurtha-card muhurtha-card-${(w.quality || "fair").toLowerCase()}`}
                               style={{ border: `0.5px solid ${qualityBorder(w.quality)}` }}>
                               {/* Collapsed header — always visible */}
                               <div onClick={() => setMExpandedWindow(isExpanded ? null : i)} style={{ cursor: "pointer", padding: "0.875rem 1rem" }}>
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                                  <div>
-                                    <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 2 }}>{w.date_display}</div>
-                                    <div style={{ fontSize: 18, fontWeight: 600, color: qualityColor(w.quality), fontFamily: "'DM Serif Display', serif" }}>
+                                <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+                                  {/* Rank medallion */}
+                                  <div className={`muhurtha-rank ${rankClass}`}>{rank}</div>
+
+                                  {/* Main info */}
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>{w.date_display}</div>
+                                    <div style={{ fontSize: 18, fontWeight: 400, color: qC, fontFamily: "'DM Serif Display', serif", letterSpacing: "-0.01em", lineHeight: 1.1 }}>
                                       {w.start_time} – {w.end_time}
                                     </div>
-                                    <div style={{ display: "flex", gap: 8, marginTop: 4, fontSize: 11, flexWrap: "wrap" as const }}>
+                                    <div style={{ display: "flex", gap: 10, marginTop: 4, fontSize: 11, flexWrap: "wrap" as const }}>
                                       <span style={{ color: "var(--muted)" }}>Lagna: <span style={{ color: "var(--text)" }}>{w.lagna}</span></span>
                                       <span style={{ color: "var(--muted)" }}>SL: <span style={{ color: "var(--accent2)" }}>{w.lagna_sublord}</span></span>
-                                      <span style={{ color: "var(--muted)" }}>Moon: <span style={{ color: "var(--text)" }}>{w.moon_nakshatra || "—"}</span></span>
+                                      {w.moon_nakshatra && <span style={{ color: "var(--muted)" }}>Moon: <span style={{ color: "var(--text)" }}>{w.moon_nakshatra}</span></span>}
+                                    </div>
+                                    {/* Score bar — gold breathes for #1 */}
+                                    <div className="muhurtha-score-bar">
+                                      <div
+                                        className={`muhurtha-score-bar-fill${rank === 1 ? " is-top" : ""}`}
+                                        style={{
+                                          width: `${scorePct}%`,
+                                          background: `linear-gradient(90deg, ${qC}66 0%, ${qC} 100%)`,
+                                          boxShadow: rank === 1 ? `0 0 10px ${qC}60` : "none",
+                                        }}
+                                      />
                                     </div>
                                   </div>
-                                  <div style={{ textAlign: "right" as const, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-                                    <div style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, background: qualityBg(w.quality), color: qualityColor(w.quality), border: `0.5px solid ${qualityBorder(w.quality)}`, fontWeight: 500 }}>
+
+                                  {/* Right block */}
+                                  <div style={{ textAlign: "right" as const, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5, flexShrink: 0 }}>
+                                    <div style={{ fontSize: 13, padding: "4px 12px", borderRadius: 999, background: qualityBg(w.quality), color: qC, border: `0.5px solid ${qualityBorder(w.quality)}`, fontWeight: 600, letterSpacing: "0.03em" }}>
                                       {qualityStars(w.quality)} {w.score}
                                     </div>
                                     <div style={{ display: "flex", gap: 4, flexWrap: "wrap" as const, justifyContent: "flex-end" }}>
@@ -3086,23 +3219,22 @@ export default function Home() {
                                       {w.event_cusp_confirms !== undefined && <span className={`muhurtha-badge ${w.event_cusp_confirms ? "pass" : "neutral"}`}>{w.event_cusp_confirms ? "✓" : "–"} Event CSL</span>}
                                       {w.moon_sl_favorable !== undefined && <span className={`muhurtha-badge ${w.moon_sl_favorable ? "pass" : "neutral"}`}>{w.moon_sl_favorable ? "✓" : "–"} Moon SL</span>}
                                     </div>
-                                    {/* Participant badges */}
                                     {w.resonating_with && w.resonating_with.length > 0 && (
-                                      <div style={{ display: "flex", gap: 3, flexWrap: "wrap" as const }}>
+                                      <div style={{ display: "flex", gap: 3, flexWrap: "wrap" as const, justifyContent: "flex-end" }}>
                                         {w.resonating_with.map((name: string, j: number) => (
-                                          <span key={j} style={{ fontSize: 9, padding: "1px 6px", background: "rgba(74,222,128,0.1)", border: "0.5px solid rgba(74,222,128,0.25)", borderRadius: 10, color: "#4ade80" }}>{name}</span>
+                                          <span key={j} style={{ fontSize: 9, padding: "1px 7px", background: "rgba(74,222,128,0.1)", border: "0.5px solid rgba(74,222,128,0.25)", borderRadius: 999, color: "#4ade80" }}>{name}</span>
                                         ))}
                                       </div>
                                     )}
                                     {(w.in_rahu_kalam || w.is_vishti) && (
-                                      <div style={{ fontSize: 9, color: "#f87171" }}>
-                                        {w.in_rahu_kalam && "Rahu Kalam  "}{w.is_vishti && "Vishti"}
+                                      <div style={{ fontSize: 9, color: "#f87171", letterSpacing: "0.04em", textTransform: "uppercase" as const, textDecoration: "line-through", textDecorationColor: "#f8717166" }}>
+                                        {w.in_rahu_kalam && "Rahu Kalam"}{w.in_rahu_kalam && w.is_vishti && " · "}{w.is_vishti && "Vishti"}
                                       </div>
                                     )}
                                   </div>
                                 </div>
-                                <div style={{ textAlign: "center" as const, marginTop: 6, fontSize: 10, color: "var(--muted)", opacity: 0.6 }}>
-                                  {isExpanded ? "▲ Collapse details" : "▼ Click for KP details"}
+                                <div style={{ textAlign: "center" as const, marginTop: 8, fontSize: 10, color: "var(--muted)", opacity: 0.55, letterSpacing: "0.06em" }}>
+                                  {isExpanded ? `▲ ${t("Collapse details", "వివరాలు దాచు")}` : `▼ ${t("Click for KP details", "KP వివరాల కోసం నొక్కండి")}`}
                                 </div>
                               </div>
 
@@ -3112,124 +3244,128 @@ export default function Home() {
                                   <div className="muhurtha-kp-grid">
                                     {/* Panel 1: KP Analysis */}
                                     <div className="muhurtha-detail-panel">
-                                      <div className="muhurtha-panel-title">KP Analysis</div>
+                                      <div className="muhurtha-panel-title">{t("KP Analysis", "KP విశ్లేషణ")}</div>
                                       <div className="muhurtha-detail-row">
-                                        <span>Lagna Sub Lord</span>
+                                        <span>{t("Lagna Sub Lord", "లగ్న సబ్ లార్డ్")}</span>
                                         <span style={{ color: "var(--accent2)" }}>{w.lagna_sublord}</span>
                                       </div>
                                       <div className="muhurtha-detail-row">
-                                        <span>Lagna Star Lord</span>
+                                        <span>{t("Lagna Star Lord", "లగ్న స్టార్ లార్డ్")}</span>
                                         <span>{w.lagna_star_lord}</span>
                                       </div>
                                       <div className="muhurtha-detail-row">
-                                        <span>Signified Houses</span>
+                                        <span>{t("Signified houses", "సూచిత భావాలు")}</span>
                                         <span style={{ color: "var(--accent)" }}>{(w.signified_houses || []).join(", ")}</span>
                                       </div>
                                       <div className="muhurtha-detail-row">
-                                        <span>Sign Type</span>
+                                        <span>{t("Sign type", "రాశి రకం")}</span>
                                         <span>{w.lagna_sign_type || "—"}</span>
                                       </div>
                                       <div className="muhurtha-detail-row">
                                         <span>Badhaka (H{bc.badhaka_house})</span>
-                                        <span className={bc.passed ? "muhurtha-pass" : "muhurtha-fail"}>{bc.passed ? "PASS" : "FAIL"}{bc.badhaka_hit ? " (Badhaka hit)" : ""}{bc.maraka_hit ? " (Maraka hit)" : ""}</span>
+                                        <span className={bc.passed ? "muhurtha-pass" : "muhurtha-fail"}>
+                                          {bc.passed ? t("PASS", "సరే") : t("FAIL", "విఫలం")}
+                                          {bc.badhaka_hit ? ` (${t("Badhaka hit", "బాధక హిట్")})` : ""}
+                                          {bc.maraka_hit ? ` (${t("Maraka hit", "మారక హిట్")})` : ""}
+                                        </span>
                                       </div>
                                       <div className="muhurtha-detail-row">
-                                        <span>Event Cusp CSL</span>
+                                        <span>{t("Event cusp CSL", "ఈవెంట్ కస్ప్ CSL")}</span>
                                         <span>{w.event_cusp_csl || "—"} → H{(w.event_cusp_houses || []).join(",")}</span>
                                       </div>
                                       <div className="muhurtha-detail-row">
-                                        <span>Event Cusp Confirms</span>
-                                        <span className={w.event_cusp_confirms ? "muhurtha-pass" : "muhurtha-neutral"}>{w.event_cusp_confirms ? "YES" : "NO"}</span>
+                                        <span>{t("Event cusp confirms", "ఈవెంట్ కస్ప్ నిర్ధారిస్తుంది")}</span>
+                                        <span className={w.event_cusp_confirms ? "muhurtha-pass" : "muhurtha-neutral"}>{w.event_cusp_confirms ? t("YES", "అవును") : t("NO", "కాదు")}</span>
                                       </div>
                                       <div className="muhurtha-detail-row">
                                         <span>H11 CSL</span>
                                         <span>{w.h11_csl || "—"} → H{(w.h11_houses || []).join(",")}</span>
                                       </div>
                                       <div className="muhurtha-detail-row">
-                                        <span>H11 Confirms</span>
-                                        <span className={w.h11_confirms ? "muhurtha-pass" : "muhurtha-neutral"}>{w.h11_confirms ? "YES" : "NO"}</span>
+                                        <span>{t("H11 confirms", "H11 నిర్ధారిస్తుంది")}</span>
+                                        <span className={w.h11_confirms ? "muhurtha-pass" : "muhurtha-neutral"}>{w.h11_confirms ? t("YES", "అవును") : t("NO", "కాదు")}</span>
                                       </div>
                                     </div>
 
                                     {/* Panel 2: Panchang */}
                                     <div className="muhurtha-detail-panel">
-                                      <div className="muhurtha-panel-title">Panchang</div>
+                                      <div className="muhurtha-panel-title">{t("Panchang", "పంచాంగం")}</div>
                                       <div className="muhurtha-detail-row">
-                                        <span>Tithi</span>
+                                        <span>{t("Tithi", "తిథి")}</span>
                                         <span>{pang.tithi || "—"} ({pang.tithi_num || ""})</span>
                                       </div>
                                       <div className="muhurtha-detail-row">
-                                        <span>Paksha</span>
+                                        <span>{t("Paksha", "పక్షం")}</span>
                                         <span>{pang.paksha || "—"}</span>
                                       </div>
                                       <div className="muhurtha-detail-row">
-                                        <span>Nakshatra</span>
+                                        <span>{t("Nakshatra", "నక్షత్రం")}</span>
                                         <span>{pang.nakshatra || "—"}</span>
                                       </div>
                                       <div className="muhurtha-detail-row">
-                                        <span>Yoga</span>
+                                        <span>{t("Yoga", "యోగం")}</span>
                                         <span>{pang.yoga || "—"}</span>
                                       </div>
                                       <div className="muhurtha-detail-row">
-                                        <span>Vara (Day)</span>
+                                        <span>{t("Weekday", "వారం")}</span>
                                         <span>{pang.vara || "—"}</span>
                                       </div>
                                     </div>
 
                                     {/* Panel 3: Moon & Timing */}
                                     <div className="muhurtha-detail-panel">
-                                      <div className="muhurtha-panel-title">Moon & Timing</div>
+                                      <div className="muhurtha-panel-title">{t("Moon & timing", "చంద్ర & సమయం")}</div>
                                       <div className="muhurtha-detail-row">
-                                        <span>Moon Sign</span>
+                                        <span>{t("Moon sign", "చంద్ర రాశి")}</span>
                                         <span>{w.moon_sign || "—"}</span>
                                       </div>
                                       <div className="muhurtha-detail-row">
-                                        <span>Moon Nakshatra</span>
+                                        <span>{t("Moon nakshatra", "చంద్ర నక్షత్రం")}</span>
                                         <span>{w.moon_nakshatra || "—"}</span>
                                       </div>
                                       <div className="muhurtha-detail-row">
-                                        <span>Moon Star Lord</span>
+                                        <span>{t("Moon star lord", "చంద్ర స్టార్ లార్డ్")}</span>
                                         <span style={{ color: "var(--accent2)" }}>{w.moon_star_lord || "—"}</span>
                                       </div>
                                       <div className="muhurtha-detail-row">
-                                        <span>Moon Sub Lord</span>
+                                        <span>{t("Moon sub lord", "చంద్ర సబ్ లార్డ్")}</span>
                                         <span>{w.moon_sub_lord || "—"}</span>
                                       </div>
                                       <div className="muhurtha-detail-row">
-                                        <span>Moon SL Favorable</span>
-                                        <span className={w.moon_sl_favorable ? "muhurtha-pass" : "muhurtha-neutral"}>{w.moon_sl_favorable ? "YES" : "NO"}</span>
+                                        <span>{t("Moon SL favorable", "చంద్ర SL అనుకూలం")}</span>
+                                        <span className={w.moon_sl_favorable ? "muhurtha-pass" : "muhurtha-neutral"}>{w.moon_sl_favorable ? t("YES", "అవును") : t("NO", "కాదు")}</span>
                                       </div>
                                     </div>
 
                                     {/* Panel 4: Status */}
                                     <div className="muhurtha-detail-panel">
-                                      <div className="muhurtha-panel-title">Status</div>
+                                      <div className="muhurtha-panel-title">{t("Status", "స్థితి")}</div>
                                       <div className="muhurtha-detail-row">
-                                        <span>Score</span>
+                                        <span>{t("Score", "స్కోర్")}</span>
                                         <span style={{ color: qualityColor(w.quality), fontWeight: 600 }}>{w.score} ({w.quality})</span>
                                       </div>
                                       <div className="muhurtha-detail-row">
-                                        <span>Base Score</span>
+                                        <span>{t("Base score", "ఆధార స్కోర్")}</span>
                                         <span>{w.base_score}</span>
                                       </div>
                                       <div className="muhurtha-detail-row">
                                         <span>Rahu Kalam</span>
-                                        <span className={w.in_rahu_kalam ? "muhurtha-fail" : "muhurtha-pass"}>{w.in_rahu_kalam ? "IN RAHU KALAM" : "Clear"}</span>
+                                        <span className={w.in_rahu_kalam ? "muhurtha-fail" : "muhurtha-pass"}>{w.in_rahu_kalam ? t("IN RAHU KALAM", "రాహు కాలంలో") : t("Clear", "లేదు")}</span>
                                       </div>
                                       <div className="muhurtha-detail-row">
-                                        <span>Vishti Karana</span>
-                                        <span className={w.is_vishti ? "muhurtha-fail" : "muhurtha-pass"}>{w.is_vishti ? "VISHTI" : "Clear"}</span>
+                                        <span>{t("Vishti karana", "విష్టి కరణం")}</span>
+                                        <span className={w.is_vishti ? "muhurtha-fail" : "muhurtha-pass"}>{w.is_vishti ? "VISHTI" : t("Clear", "లేదు")}</span>
                                       </div>
                                       {mParticipants.length > 0 && (
                                         <>
                                           <div className="muhurtha-detail-row">
-                                            <span>Participant Resonance</span>
+                                            <span>{t("Participant resonance", "పాల్గొనేవారి ప్రతిధ్వని")}</span>
                                             <span>{w.participant_resonance}/{mParticipants.length}</span>
                                           </div>
                                           {(w.resonating_with || []).map((name: string, j: number) => (
                                             <div key={j} className="muhurtha-detail-row">
                                               <span style={{ paddingLeft: 8 }}>{name}</span>
-                                              <span style={{ color: "#4ade80", fontSize: 10 }}>RP Match</span>
+                                              <span style={{ color: "#4ade80", fontSize: 10 }}>{t("RP match", "RP సరిపోలిక")}</span>
                                             </div>
                                           ))}
                                         </>
@@ -3244,22 +3380,23 @@ export default function Home() {
 
                           {/* ── D. AI ANALYSIS SECTION ── */}
                           <div className="muhurtha-ai-section">
-                            <div style={{ fontSize: 11, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.75rem", fontWeight: 500 }}>
-                              AI Muhurtha Analysis
+                            <div style={{ fontSize: 11, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.75rem", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 7 }}>
+                              <Sparkles size={12} strokeWidth={1.8} />
+                              {t("AI muhurtha analysis", "AI ముహూర్తం విశ్లేషణ")}
                             </div>
 
                             {/* Topic pills */}
                             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const, marginBottom: "1rem" }}>
                               {[
-                                { label: "Best Muhurtha", q: "Which is the single best muhurtha and why? Explain the KP reasoning in detail." },
-                                { label: "Why this time?", q: "Explain why the top-scored window is the best choice, covering all KP factors — Lagna SL, Badhaka, Event Cusp CSL, H11, Moon, and Panchang." },
-                                { label: "Compare top 3", q: "Compare the top 3 muhurtha windows side by side — pros and cons of each using KP analysis." },
-                                { label: "Alternatives", q: "What if the top windows don't work schedule-wise? What alternatives exist and what compromises would be made?" },
-                                { label: "Remedies", q: "What remedies or precautions should be taken if using a less-than-excellent muhurtha window?" },
+                                { labelEn: "Best muhurtha",  labelTe: "ఉత్తమ ముహూర్తం",  q: "Which is the single best muhurtha and why? Explain the KP reasoning in detail." },
+                                { labelEn: "Why this time?", labelTe: "ఎందుకు ఈ సమయం?", q: "Explain why the top-scored window is the best choice, covering all KP factors — Lagna SL, Badhaka, Event Cusp CSL, H11, Moon, and Panchang." },
+                                { labelEn: "Compare top 3",  labelTe: "మొదటి 3 పోల్చండి", q: "Compare the top 3 muhurtha windows side by side — pros and cons of each using KP analysis." },
+                                { labelEn: "Alternatives",   labelTe: "ప్రత్యామ్నాయాలు",  q: "What if the top windows don't work schedule-wise? What alternatives exist and what compromises would be made?" },
+                                { labelEn: "Remedies",       labelTe: "పరిహారాలు",        q: "What remedies or precautions should be taken if using a less-than-excellent muhurtha window?" },
                               ].map((pill, idx) => (
                                 <button key={idx} onClick={() => handleMuhurthaAiAsk(pill.q, true)} disabled={mAiLoading}
                                   className="muhurtha-ai-pill">
-                                  {pill.label}
+                                  {lang === "en" ? pill.labelEn : pill.labelTe}
                                 </button>
                               ))}
                             </div>
@@ -3270,7 +3407,7 @@ export default function Home() {
                                 {mAiMessages.map((msg, idx) => (
                                   <div key={idx}>
                                     <div style={{ fontSize: 11, color: "var(--accent)", marginBottom: 4, fontWeight: 500 }}>
-                                      {msg.isTopic ? `📌 ${msg.q}` : `Q: ${msg.q}`}
+                                      {msg.isTopic ? msg.q : `${t("Q", "ప్ర")}: ${msg.q}`}
                                     </div>
                                     <div style={{ background: "var(--surface2)", borderRadius: 10, padding: "1rem", border: "0.5px solid var(--border)" }}>
                                       <div className="markdown-body"><ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.a}</ReactMarkdown></div>
@@ -3284,7 +3421,7 @@ export default function Home() {
                             {mAiLoading && (
                               <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--muted)", fontSize: 12, padding: "0.75rem 0" }}>
                                 <div style={{ width: 12, height: 12, borderRadius: "50%", border: "2px solid var(--accent)", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
-                                ముహూర్తం విశ్లేషిస్తున్నాం...
+                                {t("Analyzing muhurtha…", "ముహూర్తం విశ్లేషిస్తున్నాం…")}
                               </div>
                             )}
 
@@ -3292,11 +3429,11 @@ export default function Home() {
                             <div style={{ display: "flex", gap: 8 }}>
                               <input value={mAiQuestion} onChange={e => setMAiQuestion(e.target.value)}
                                 onKeyDown={e => e.key === "Enter" && handleMuhurthaAiAsk(mAiQuestion)}
-                                placeholder="ముహూర్తం గురించి ప్రశ్న అడగండి..."
+                                placeholder={t("Ask a question about the muhurtha…", "ముహూర్తం గురించి ప్రశ్న అడగండి…")}
                                 style={{ flex: 1, background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "var(--text)", outline: "none", fontFamily: "inherit" }} />
                               <button onClick={() => handleMuhurthaAiAsk(mAiQuestion)} disabled={mAiLoading || !mAiQuestion.trim()}
                                 style={{ background: mAiQuestion.trim() ? "var(--accent)" : "var(--surface2)", color: mAiQuestion.trim() ? "#09090f" : "var(--muted)", border: "none", borderRadius: 8, padding: "10px 18px", fontSize: 13, fontWeight: 500, cursor: mAiQuestion.trim() ? "pointer" : "default", fontFamily: "inherit" }}>
-                                Ask
+                                {t("Ask", "అడగు")}
                               </button>
                             </div>
                           </div>
@@ -3304,7 +3441,7 @@ export default function Home() {
                           {/* Search different dates */}
                           <button onClick={() => { setMStep(2); setMResults(null); setMExpandedWindow(null); setMSelectedDate(null); setMAiMessages([]); }}
                             style={{ padding: "10px", background: "transparent", border: "0.5px solid var(--border2)", borderRadius: 8, color: "var(--muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
-                            వేరే తేదీలు వెతకండి →
+                            {t("Search different dates", "వేరే తేదీలు వెతకండి")} →
                           </button>
                         </div>
                         );
@@ -3312,7 +3449,7 @@ export default function Home() {
 
                       {!mLoading && !mResults && (
                         <div style={{ textAlign: "center" as const, padding: "2rem", color: "#f87171", fontSize: 13 }}>
-                          ముహూర్తాలు లోడ్ చేయడంలో సమస్య. మళ్ళీ ప్రయత్నించండి.
+                          {t("Could not load muhurthas. Please try again.", "ముహూర్తాలు లోడ్ చేయడంలో సమస్య. మళ్ళీ ప్రయత్నించండి.")}
                         </div>
                       )}
                     </div>
