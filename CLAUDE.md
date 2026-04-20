@@ -206,6 +206,23 @@ The Person-1/Person-2 card grid uses `.match-people-grid` (extracted from
 | PR23 | Reverted overscroll-behavior (broke iOS scroll) + manual-separator-pads-zero for masked inputs |
 | PR24 | (reverted) Restore-only-on-reload gate + this CLAUDE.md |
 | PR25 | Reverted the localStorage session auto-restore entirely; kept masked-input helpers + CLAUDE.md + synced match houses + match mobile grid |
+| PR26 | `/privacy` + `/terms` legal pages + LegalShell component + landing footer links. Closed Track A. |
+
+---
+
+## CURRENT TRACK — Track A.1 (backend accuracy audit)
+
+Track A is **closed** as of 2026-04-20. The active track is **A.1 — KP engine accuracy**.
+
+- Full scope + process + PR queue documented in `.claude/BACKLOG.md` under `## Track A.1 — Backend KP accuracy audit`.
+- Research docs live in `.claude/research/{tool}-audit.md` (created per-tool; directory does not exist yet — create it with the first audit).
+- Order: Horary → Panchang → Transit → Muhurtha → Match. No skipping.
+- Every tool is TWO PRs: (1) research audit markdown only, user approves; (2) engine fixes with pytest golden + reference tests.
+- **Analysis tab is still "don't touch directly" but backend changes CAN ripple into it** — user approved this trade-off. Every accuracy PR must include an Analysis regression note.
+- **No backend tests exist.** First accuracy PR establishes the pytest harness.
+- **Ayanamsa audit is the first check** on every tool. KP uses KP-Ayanamsa, NOT Lahiri.
+- **Ruling Planets = current time + astrologer's current location** (not natal). May require client-side geolocation plumbing.
+- **Pace is user-controlled.** No deadlines.
 
 ---
 

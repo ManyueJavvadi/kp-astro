@@ -167,6 +167,95 @@ Before starting each PR: **read the developv2 reference file first** (per Pre-PR
 
 **Analysis tab = permanently skipped** per user: *"Analysis tab is perfect, don't touch."*
 
+**Track A status as of 2026-04-20**: COMPLETE. PR13–PR26 all shipped to develop. Mobile CommandOrb + swipe-dismiss + masked inputs + legal pages all in production. Next track is A.1 below.
+
+---
+
+## Track A.1 — Backend KP accuracy audit (current track)
+
+Opened 2026-04-20 at user's request. First track to touch backend logic.
+
+**North Star**: astrologer-grade correctness in every tool without regressing Analysis. User's quote: *"we shd increase the performance but not decrease at any cost."*
+
+### Why this track exists
+- User's dad is a practicing KP astrologer and uses the app. His feedback + user's own observation: Panchang is "mostly wrong", Ruling Planets logic across Horary / Muhurtha feels off (suspicion: we're using natal-chart derived RPs instead of live-moment RPs), Match engine reasoning isn't clearly astrologer-valuable, Transit isn't obviously based on current time + current location.
+- Analysis tab remains the gold-standard reference. Whatever the KP engine feeds into Analysis is what makes Analysis feel accurate — so fixing underlying engine bugs *improves* Analysis, it doesn't degrade it (user-approved trade-off).
+
+### Scope — the 5 tools, in this order
+1. **Horary** (start here — smallest scope, rule-dense, best verification target)
+2. **Panchang** (external website cross-reference available)
+3. **Transit** (current time + current location verification)
+4. **Muhurtha** (RP logic audit especially)
+5. **Match** (engine + reasoning audit, highest interpretive component)
+
+### Process (per tool)
+
+Every tool goes through the same four phases. No tool skips a phase.
+
+1. **Research** — deep read of KP textbooks + web + free tools.
+   - Primary source: Krishnamurti "A Handbook of Astrology — KP Reader I & II"
+   - Secondary: Kanak Bosmia, Chandrakant Bhatt, Sepharial (comparison) for horary; K.S. Krishnamurti panchang methodology for panchang; Tin Win's "Advanced KP" for match rules
+   - Web: Parasara.com, kp-ezine archives, KP Council India, astrovidhi
+   - Deliverable: `.claude/research/{tool}-audit.md` containing:
+     - What KP canonically says (with source citations)
+     - What our code does (line-by-line, no omissions)
+     - Gap analysis table (our-behavior vs canonical-behavior)
+     - Proposed fix list with severity tags (critical / significant / minor)
+     - Known verification cases (textbook example with expected output)
+
+2. **Audit approval** — user reviews the `{tool}-audit.md` doc. No code yet. User says go / tweak / skip-this-item.
+
+3. **Implementation PR** (numbered PR A1.x) — per-tool fix PR:
+   - Golden snapshot test captured BEFORE any change (pin current behavior)
+   - Fixes applied in service file
+   - Reference test case from the audit doc added to the test harness
+   - Diff report: what changed between golden and new output
+   - No UI changes unless the fix strictly requires it
+   - Analysis regression check: same natal chart through Analysis before/after → surface any AI output deltas to user for explicit approval
+
+4. **User verification** — user runs the fixed tool against his reference sources (external sites for Panchang, dad's feedback for others). Approval unblocks the next tool.
+
+### Constraints
+
+- **DO NOT touch the Analysis tab input path except as required** — `backend/app/services/kp_chart.py` is load-bearing. If a core-chart bug is found, fix it (user approved), but flag it in the PR.
+- **NO new features without research justification** — if the research surfaces a genuinely valuable missing piece (e.g. Vimshottari-based horary timing, Bhavartha Ratnakara rules for match), propose it; user will approve case by case.
+- **NO speed-running** — user stance: *"later slowly my dad will give feedback when he gives we will correct them no hurry but i trust you"*.
+- **NO backend tests exist today** (confirmed via `find backend -name "test_*.py"` → all hits are from venv, zero project tests). Every accuracy PR introduces pytest with at minimum: golden snapshot for the chart under test, reference snapshot for the expected output, simple diff-based assertion. This is our regression guard for Analysis too.
+
+### Decisions locked 2026-04-20
+
+- ✅ Start with Horary
+- ✅ Ruling Planets = user's current time + astrologer's current location (not natal) — dad confirmed this is canonical KP; may require client-side geolocation plumbing in the API contract
+- ✅ Fix core `kp_chart.py` bugs if found, even if they ripple into Analysis
+- ✅ New feature additions allowed if research justifies them
+- ✅ User's father gives async feedback, not real-time verification oracle
+- ✅ Panchang verification via external websites (user to share list)
+- ✅ No commercial KP software required (free JHora may be installed later for second-opinion checks)
+- ✅ Golden-snapshot test harness before every PR
+- ✅ User controls pace, no deadline
+
+### PR queue
+
+| PR | Scope | First deliverable |
+|---|---|---|
+| **A1.0** | Horary research audit | `.claude/research/horary-audit.md` (no code) |
+| A1.1 | Horary engine accuracy fixes | `backend/app/services/horary_engine.py` + pytest golden + reference case |
+| A1.2 | Panchang research audit | `.claude/research/panchang-audit.md` |
+| A1.3 | Panchang engine accuracy fixes | `backend/app/services/panchangam_engine.py` + tests |
+| A1.4 | Transit research audit | `.claude/research/transit-audit.md` |
+| A1.5 | Transit engine accuracy fixes | `backend/app/services/transit_engine.py` + tests |
+| A1.6 | Muhurtha research audit | `.claude/research/muhurtha-audit.md` |
+| A1.7 | Muhurtha engine accuracy fixes | `backend/app/services/muhurtha_engine.py` + tests |
+| A1.8 | Match research audit | `.claude/research/match-audit.md` |
+| A1.9 | Match engine accuracy fixes | `backend/app/services/match_engine.py` + tests |
+| A1.10 | Cross-tab regression sweep | Verify Analysis output unchanged (or approved-changed) across all natal charts in the test harness |
+
+Each audit PR is pure markdown — zero code risk. Each accuracy PR is small, focused, testable, revertible. Same small-PR discipline as Track A.
+
+### Research directory
+
+New at `.claude/research/`. Created when the first audit doc is written. One markdown file per tool. Not committed to main docs (`CLAUDE.md` / `BACKLOG.md`) but linked from BACKLOG's PR queue rows.
+
 ---
 
 ## Track B — queued (starts only after PR20 ships clean)
