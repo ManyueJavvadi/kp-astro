@@ -11,6 +11,7 @@ import { theme, styles as uiStyles } from "@/lib/theme";
 import { useLanguage } from "@/lib/i18n";
 import CommandOrb from "./components/CommandOrb";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { formatMaskedDate, formatMaskedTime } from "./lib/maskedInput";
 import SouthIndianChart from "./components/SouthIndianChart";
 import DashaTimeline from "./components/DashaTimeline";
 import PanchangamCard from "./components/PanchangamCard";
@@ -97,8 +98,9 @@ export default function Home() {
   // Which sub-tab is visible in the Match Results stage. Defaults to
   // "overall" on every fresh result. Reset whenever matchResults clears.
   const [matchSubTab, setMatchSubTab] = useState<"overall"|"charts"|"kp"|"timing"|"risks"|"ai">("overall");
-  const [matchHouse1, setMatchHouse1] = useState<number | null>(null);
-  const [matchHouse2, setMatchHouse2] = useState<number | null>(null);
+  // PR22 — single shared house selection across both match charts so tapping
+  // a house on Person 1 also expands the same house on Person 2.
+  const [matchHouseShared, setMatchHouseShared] = useState<number | null>(null);
   // Significators grid toggle
   const [showSigGrid, setShowSigGrid] = useState(false);
   // PDF export state
@@ -160,6 +162,78 @@ export default function Home() {
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [analysisMessages]);
+
+  // PR22 — session auto-restore.
+  // Mobile browsers (iOS Safari especially) can reload the page when the
+  // user pulls down aggressively. Without persistence, all in-memory
+  // chart state is lost and the user has to re-enter their birth
+  // details. We continuously snapshot the active session + the saved
+  // sessions list to localStorage and hydrate on mount.
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    if (hydratedRef.current) return;
+    hydratedRef.current = true;
+    if (typeof window === "undefined") return;
+    try {
+      const rawSessions = window.localStorage.getItem("devastroai:savedSessions");
+      if (rawSessions) {
+        const parsed = JSON.parse(rawSessions) as ChartSession[];
+        if (Array.isArray(parsed) && parsed.length > 0) setSavedSessions(parsed);
+      }
+      const rawSnap = window.localStorage.getItem("devastroai:lastSnapshot");
+      const savedMode = window.localStorage.getItem("devastroai:mode");
+      if (rawSnap) {
+        const snap = JSON.parse(rawSnap) as ChartSession;
+        if (snap?.workspaceData && snap?.birthDetails) {
+          setCurrentSessionId(snap.id);
+          setBirthDetails(snap.birthDetails);
+          setWorkspaceData(snap.workspaceData);
+          setAnalysisMessages(snap.analysisMessages ?? []);
+          setActiveTopic(snap.activeTopic ?? "");
+          setSelectedHouse(snap.selectedHouse ?? null);
+          setChatQ(snap.chatQ ?? "");
+          setAnalysisLang(snap.analysisLang ?? "english");
+          setActiveTab(snap.activeTab ?? "chart");
+          if (snap.birthDetails.timezone_offset != null) setTimezoneOffset(snap.birthDetails.timezone_offset);
+          if (savedMode === "astrologer" || savedMode === "user") setMode(savedMode as "user" | "astrologer");
+          setSetupDone(true);
+        }
+      }
+    } catch {
+      // localStorage blocked / corrupt JSON — fall through to onboarding.
+    }
+  }, []);
+
+  // Persist saved sessions list whenever it changes.
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    try {
+      window.localStorage.setItem("devastroai:savedSessions", JSON.stringify(savedSessions));
+    } catch { /* ignore */ }
+  }, [savedSessions]);
+
+  // Persist current snapshot whenever key state changes (debounced via
+  // microtask — fine because we only read on load).
+  useEffect(() => {
+    if (!hydratedRef.current || !setupDone || !workspaceData) return;
+    try {
+      const snap = {
+        id: currentSessionId || Date.now().toString(),
+        name: workspaceData.name,
+        birthDetails: { ...birthDetails, timezone_offset: timezoneOffset },
+        workspaceData,
+        analysisMessages,
+        activeTopic,
+        selectedHouse,
+        chatQ,
+        analysisLang,
+        activeTab,
+      };
+      window.localStorage.setItem("devastroai:lastSnapshot", JSON.stringify(snap));
+      window.localStorage.setItem("devastroai:mode", mode);
+    } catch { /* quota exceeded — chart data can be large */ }
+  }, [setupDone, workspaceData, birthDetails, timezoneOffset, analysisMessages, activeTopic, selectedHouse, chatQ, analysisLang, activeTab, mode, currentSessionId]);
+
   // Load quick insights when analysis tab opens
   useEffect(() => { if (activeTab === "analysis" && workspaceData) { loadQuickInsights(); } }, [activeTab, workspaceData]);
 
@@ -293,56 +367,19 @@ export default function Home() {
     setPlaceStatus("found"); setManualCoords(false);
   };
 
+  // PR22 — masked date/time handlers now use shared helpers that respect
+  // delete direction so Backspace works naturally across the separator.
   const handleDateChange = (val: string) => {
-    let v = val.replace(/\D/g, "");
-    if (v.length >= 2) {
-      const dd = Math.min(31, Math.max(1, parseInt(v.slice(0, 2)) || 1));
-      v = String(dd).padStart(2, "0") + "/" + v.slice(2);
-    }
-    if (v.length >= 5) {
-      const mm = Math.min(12, Math.max(1, parseInt(v.slice(3, 5)) || 1));
-      v = v.slice(0, 3) + String(mm).padStart(2, "0") + "/" + v.slice(5);
-    }
-    setBirthDetails(prev => ({ ...prev, date: v.slice(0, 10) }));
+    setBirthDetails(prev => ({ ...prev, date: formatMaskedDate(val, prev.date || "") }));
   };
-
   const handleTimeChange = (val: string) => {
-    let v = val.replace(/\D/g, "");
-    if (v.length >= 2) {
-      const hh = Math.min(12, Math.max(1, parseInt(v.slice(0, 2)) || 1));
-      v = String(hh).padStart(2, "0") + ":" + v.slice(2);
-    }
-    if (v.length >= 5) {
-      const mm = Math.min(59, parseInt(v.slice(3, 5)) || 0);
-      v = v.slice(0, 3) + String(mm).padStart(2, "0");
-    }
-    setBirthDetails(prev => ({ ...prev, time: v.slice(0, 5) }));
+    setBirthDetails(prev => ({ ...prev, time: formatMaskedTime(val, prev.time || "") }));
   };
-
   const handleMNewPDateChange = (val: string) => {
-    let v = val.replace(/\D/g, "");
-    if (v.length >= 2) {
-      const dd = Math.min(31, Math.max(1, parseInt(v.slice(0, 2)) || 1));
-      v = String(dd).padStart(2, "0") + "/" + v.slice(2);
-    }
-    if (v.length >= 5) {
-      const mm = Math.min(12, Math.max(1, parseInt(v.slice(3, 5)) || 1));
-      v = v.slice(0, 3) + String(mm).padStart(2, "0") + "/" + v.slice(5);
-    }
-    setMNewP(p => ({ ...p, date: v.slice(0, 10) }));
+    setMNewP(p => ({ ...p, date: formatMaskedDate(val, p.date || "") }));
   };
-
   const handleMNewPTimeChange = (val: string) => {
-    let v = val.replace(/\D/g, "");
-    if (v.length >= 2) {
-      const hh = Math.min(12, Math.max(1, parseInt(v.slice(0, 2)) || 1));
-      v = String(hh).padStart(2, "0") + ":" + v.slice(2);
-    }
-    if (v.length >= 5) {
-      const mm = Math.min(59, parseInt(v.slice(3, 5)) || 0);
-      v = v.slice(0, 3) + String(mm).padStart(2, "0");
-    }
-    setMNewP(p => ({ ...p, time: v.slice(0, 5) }));
+    setMNewP(p => ({ ...p, time: formatMaskedTime(val, p.time || "") }));
   };
 
   const getTime24 = () => {
@@ -4259,7 +4296,7 @@ export default function Home() {
                                   // Back to People: preserve p2 but drop results
                                   const prevP2 = matchResults?.__p2;
                                   setMatchResults(prevP2 ? { __p2: prevP2 } : null);
-                                  setMatchHouse1(null); setMatchHouse2(null);
+                                  setMatchHouseShared(null);
                                   setMatchAnalysisMessages([]);
                                   setMatchSubTab("overall");
                                 }}
@@ -4281,7 +4318,7 @@ export default function Home() {
                   {!matchLoading && (!matchResults || !matchResults.overall_verdict) && !matchResults?.__error && (
                     <div style={{ display: "flex", flexDirection: "column" as const, gap: "1rem" }}>
 
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                      <div className="match-people-grid">
 
                         {/* Person 1 — always current chart */}
                         <div className="match-person-card is-p1">
@@ -4492,7 +4529,7 @@ export default function Home() {
                       <button onClick={async () => {
                         const p2 = matchResults?.__p2;
                         if (!matchPerson1 || !p2) return;
-                        setMatchLoading(true); setMatchHouse1(null); setMatchHouse2(null);
+                        setMatchLoading(true); setMatchHouseShared(null);
                         const prevP2 = p2;
                         setMatchResults(null);
                         const startedAt = Date.now();
@@ -4549,7 +4586,7 @@ export default function Home() {
                     return (
                       <div className="match-result-stack" style={{ display: "flex", flexDirection: "column" as const, gap: "0.875rem" }}>
                         {/* Back pill */}
-                        <button onClick={() => { setMatchResults({ __p2: r.__p2 }); setMatchHouse1(null); setMatchHouse2(null); setMatchAnalysisMessages([]); }}
+                        <button onClick={() => { setMatchResults({ __p2: r.__p2 }); setMatchHouseShared(null); setMatchAnalysisMessages([]); }}
                           className="match-back-btn">
                           ← {t("Pick a different person", "వేరే వ్యక్తి ఎంచుకోండి")}
                         </button>
@@ -4657,8 +4694,8 @@ export default function Home() {
                         {(r.chart1_data || r.chart2_data) && (
                           <div className="match-section-grid">
                             {[
-                              { chart: r.chart1_data, name: r.person1?.name, isP1: true,  house: matchHouse1, setHouse: setMatchHouse1, rp: kp?.ruling_planets_chart1 },
-                              { chart: r.chart2_data, name: r.person2?.name, isP1: false, house: matchHouse2, setHouse: setMatchHouse2, rp: kp?.ruling_planets_chart2 },
+                              { chart: r.chart1_data, name: r.person1?.name, isP1: true,  house: matchHouseShared, setHouse: setMatchHouseShared, rp: kp?.ruling_planets_chart1 },
+                              { chart: r.chart2_data, name: r.person2?.name, isP1: false, house: matchHouseShared, setHouse: setMatchHouseShared, rp: kp?.ruling_planets_chart2 },
                             ].map((it, i) => (
                               <div key={i} className="match-section" style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 8, padding: "14px" }}>
                                 <div className="match-section-title" style={{ alignSelf: "flex-start", color: it.isP1 ? "var(--accent)" : "#93c5fd" }}>

@@ -33,6 +33,10 @@ html, body {
   font-family: 'DM Sans', sans-serif;
   min-height: 100vh;
   overflow-x: hidden;
+  /* PR22 — prevent iOS Safari / Android Chrome pull-to-refresh from
+     reloading the app when the user swipes down aggressively inside a
+     sheet or near the top of the viewport. Loses in-memory state. */
+  overscroll-behavior-y: contain;
 }
 
 input, textarea, select, button {
@@ -3693,6 +3697,13 @@ textarea:focus-visible {
    (Major per-tab responsive rules already shipped with each tab's
    wow-pass PR. These are the last-mile polish.)
    ═══════════════════════════════════════════════════════════════ */
+/* Match tab — Person 1 / Person 2 selection grid. */
+.match-people-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
 @media (max-width: 819px) {
   /* Chart hero banner: stack. */
   .person-hero { flex-direction: column !important; align-items: flex-start !important; }
@@ -3702,5 +3713,18 @@ textarea:focus-visible {
   .house-panel-drag-zone { display: flex !important; }
   .house-panel-header { cursor: grab; }
   .house-panel-header:active { cursor: grabbing; }
+
+  /* PR22 — match tab fixes.
+     Side-by-side P1 / P2 cards cramp inline forms (Person 2's new-
+     participant form overflows, gender pills truncate to "Fem"). Stack
+     vertically so each card gets full width. */
+  .match-people-grid { grid-template-columns: 1fr !important; }
+  /* Stepper: keep horizontal flow but compact sizes. */
+  .match-stepper { gap: 8px; padding: 10px 2px 12px; }
+  /* D9 + chart grids drop to 1 col. */
+  .match-section-grid { grid-template-columns: 1fr !important; }
+  /* Inline participant form inputs fill full width. */
+  .muhurtha-participant-form .pf-gender-grid { grid-template-columns: 1fr 1fr !important; }
+  .muhurtha-participant-form { padding: 12px !important; }
 }
 
