@@ -16,6 +16,8 @@ import ClinicalFlagsStrip from "./components/ClinicalFlagsStrip";
 import HoraryMoonCard from "./components/HoraryMoonCard";
 import HoraryCuspsAccordion from "./components/HoraryCuspsAccordion";
 import HoraryFourLevelAccordion from "./components/HoraryFourLevelAccordion";
+import HorarySubLordChains from "./components/HorarySubLordChains";
+import HoraryRpDashaStrip from "./components/HoraryRpDashaStrip";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useLiveLocation } from "@/hooks/useLiveLocation";
 import { formatMaskedDate, formatMaskedTime } from "./lib/maskedInput";
@@ -5639,6 +5641,17 @@ export default function Home() {
                             <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 10, fontWeight: 600, textAlign: "center" as const }}>
                               {t("3-layer KP journey", "3-స్థాయి KP ప్రయాణం")}
                             </div>
+                            {/* PR A1.1e — when the Prashna Lagna CSL equals the primary-house CSL,
+                                Layer 1 and Layer 2 necessarily show identical data. Flag this so the
+                                astrologer doesn't mistake the visual repeat for a display glitch. */}
+                            {v.lagna_csl && v.query_csl && v.lagna_csl === v.query_csl && (
+                              <div style={{ fontSize: 11, color: "var(--muted)", textAlign: "center" as const, marginBottom: 10, fontStyle: "italic" as const, maxWidth: 520, marginLeft: "auto", marginRight: "auto", lineHeight: 1.5 }}>
+                                {t(
+                                  `Note: the Lagna CSL and the H${r.primary_house} CSL are the same planet (${v.lagna_csl}). Layers 1 and 2 display identical data for this chart.`,
+                                  `గమనిక: లగ్న CSL మరియు H${r.primary_house} CSL ఒకే గ్రహం (${v.lagna_csl}). ఈ చార్ట్‌లో లేయర్ 1 మరియు 2 ఒకే డేటాను చూపిస్తాయి.`
+                                )}
+                              </div>
+                            )}
                             {(() => {
                               const layer1Pass = !!v.lagna_fruitful;
                               const layer2Pass = (v.h2_supports || v.h11_supports) || (v.query_csl_significations || []).length > 0;
@@ -5801,96 +5814,86 @@ export default function Home() {
                             })()}
                           </div>
 
-                          {/* Lagna info grid — Favorable Houses rendered as
-                              house chips to match the planet table visual style. */}
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                            {(() => {
-                              type Entry = { label: string; val: React.ReactNode };
-                              const entries: Entry[] = [
-                                { label: t("Prashna number", "ప్రశ్న సంఖ్య"),     val: `#${r.prashna_number}` },
-                                { label: t("Lagna sign", "లగ్న రాశి"),            val: `${r.lagna?.sign} ${r.lagna?.longitude?.toFixed(2)}°` },
-                                { label: t("Lagna nakshatra", "లగ్న నక్షత్రం"),   val: r.lagna?.nakshatra },
-                                { label: t("Lagna star lord", "లగ్న స్టార్‌లార్డ్"), val: r.lagna?.star_lord },
-                                { label: t("Lagna sub lord", "లగ్న సబ్‌లార్డ్"),   val: r.lagna?.sub_lord },
-                                {
-                                  label: t("Favorable houses", "అనుకూల భావాలు"),
-                                  val: (
-                                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" as const, marginTop: 1 }}>
-                                      {(v.yes_houses || []).length === 0
-                                        ? <span style={{ color: "var(--muted)" }}>—</span>
-                                        : (v.yes_houses || []).map((h: number) => (
-                                            <span key={h} style={{ background: "rgba(201,169,110,0.15)", color: "var(--accent)", border: "0.5px solid rgba(201,169,110,0.3)", padding: "1px 7px", borderRadius: 8, fontSize: 10, fontWeight: 600, letterSpacing: "0.02em" }}>H{h}</span>
-                                          ))
-                                      }
-                                    </div>
-                                  ),
-                                },
-                              ];
-                              return entries.map(e => (
-                                <div key={e.label} style={{ padding: "7px 10px", background: "var(--card)", border: "0.5px solid var(--border2)", borderRadius: 6 }}>
-                                  <div style={{ fontSize: 9, color: "var(--accent)", marginBottom: 2 }}>{e.label}</div>
-                                  <div style={{ fontSize: 12, color: "var(--fg)", fontWeight: 500 }}>{e.val}</div>
-                                </div>
-                              ));
-                            })()}
+                          {/* PR A1.1e — compact chart identity strip.
+                              Replaces the 6-cell fields grid (which duplicated info already
+                              visible in the topic chip, "Who carries" accordion, and clinical
+                              flags). One line, mono font, tuck under 3-layer journey. */}
+                          <div className="horary-identity-strip">
+                            <span className="horary-identity-cell">
+                              <span className="horary-identity-k">#</span>
+                              <span className="horary-identity-v">{r.prashna_number}</span>
+                            </span>
+                            <span className="horary-identity-dot">·</span>
+                            <span className="horary-identity-cell">
+                              <span className="horary-identity-k">Lagna</span>
+                              <span className="horary-identity-v">{r.lagna?.sign} {r.lagna?.longitude?.toFixed(2)}°</span>
+                            </span>
+                            <span className="horary-identity-dot">·</span>
+                            <span className="horary-identity-cell">
+                              <span className="horary-identity-k">Nak</span>
+                              <span className="horary-identity-v">{r.lagna?.nakshatra}</span>
+                            </span>
+                            <span className="horary-identity-dot">·</span>
+                            <span className="horary-identity-cell">
+                              <span className="horary-identity-k">Star</span>
+                              <span className="horary-identity-v" style={{ color: PLANET_COLORS[r.lagna?.star_lord] ?? "var(--accent)" }}>{r.lagna?.star_lord}</span>
+                            </span>
+                            <span className="horary-identity-dot">·</span>
+                            <span className="horary-identity-cell">
+                              <span className="horary-identity-k">Sub</span>
+                              <span className="horary-identity-v" style={{ color: PLANET_COLORS[r.lagna?.sub_lord] ?? "var(--accent)", fontWeight: 600 }}>{r.lagna?.sub_lord}</span>
+                            </span>
                           </div>
 
-                          {/* PR A1.1b — Significator hierarchy for the primary topic house.
-                              Shows every planet that signifies the house, labelled with the
-                              strongest KP level (1 = star lord's occupied house → 4 = own owned).
-                              This is the astrologer-depth cue — they can scan "who carries the
-                              house" at a glance, with RP planets highlighted. */}
-                          {(r.primary_house_significators || []).length > 0 && (
-                            <div className="horary-sig-card">
-                              <div>
-                                <div className="horary-sig-eyebrow">
-                                  {t("Significator hierarchy", "సూచక శ్రేణి")}
-                                </div>
-                                <div className="horary-sig-title">
-                                  {t(`Who carries H${r.primary_house}?`, `H${r.primary_house}ను ఎవరు పాలిస్తున్నారు?`)}
-                                </div>
-                                <div className="horary-sig-sub">
-                                  {t(
-                                    "Strongest KP level reached for the topic's primary cusp. L1 = star lord's occupied house · L2 = own occupied · L3 = star lord's owned · L4 = own owned.",
-                                    "విషయపు ప్రధాన కస్ప్ కోసం చేరిన అత్యంత బలమైన KP స్థాయి. L1 = నక్షత్రాధిపతి ఉన్న భావం · L2 = స్వయం ఉన్న భావం · L3 = నక్షత్రాధిపతి ఆధీనం · L4 = స్వయం ఆధీనం."
-                                  )}
-                                </div>
-                              </div>
-                              {r.primary_house_significators.map((sig: { planet: string; strongest_level: number; levels_hit: number[]; is_ruling_planet: boolean }) => (
-                                <div key={sig.planet} className={`horary-sig-row${sig.is_ruling_planet ? " is-rp" : ""}`}>
-                                  <span className="horary-sig-planet" style={{ color: PLANET_COLORS[sig.planet] ?? "var(--text)" }}>
-                                    {sig.planet}
-                                  </span>
-                                  <span className="horary-sig-levels">
-                                    {sig.levels_hit.map(lvl => (
-                                      <span key={lvl} className={`horary-sig-level L${lvl}`}>L{lvl}</span>
-                                    ))}
-                                  </span>
-                                  {sig.is_ruling_planet && <span className="horary-sig-rp-mark">RP</span>}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          {(r.primary_house_significators || []).length === 0 && (
-                            <div className="horary-sig-card">
-                              <div>
-                                <div className="horary-sig-eyebrow">
-                                  {t("Significator hierarchy", "సూచక శ్రేణి")}
-                                </div>
-                                <div className="horary-sig-title">
-                                  {t(`Who carries H${r.primary_house}?`, `H${r.primary_house}ను ఎవరు పాలిస్తున్నారు?`)}
-                                </div>
-                              </div>
-                              <div className="horary-sig-empty">
-                                {t("No planet in this chart signifies this house at any KP level — an unusual configuration worth flagging.", "ఈ చార్ట్‌లో ఏ గ్రహం ఈ భావాన్ని KP స్థాయిలలో సూచించదు — అసాధారణ వ్యవస్థ.")}
-                              </div>
-                            </div>
-                          )}
+                          {/* PR A1.1e — removed the standalone "Who carries H{primary}?"
+                              card. The 4-level accordion (below) defaults to the primary
+                              house and shows the same information plus the ability to
+                              check any other house. Eliminates duplicate display. */}
 
                           {/* PR A1.1d — Clinical indicators strip (astrologer's 5-second scan) */}
                           {Array.isArray(r.clinical_flags) && r.clinical_flags.length > 0 && (
                             <ClinicalFlagsStrip flags={r.clinical_flags} />
                           )}
+
+                          {/* PR A1.1e — South Indian Prashna chart (visual).
+                              Reuses SouthIndianChart; horary cusps[] already has the
+                              same shape the natal workspace uses (cusp_longitude field). */}
+                          {Array.isArray(r.planets) && Array.isArray(r.cusps) && r.cusps.length === 12 && (
+                            <div className="horary-chart-card">
+                              <div className="horary-chart-head">
+                                <div className="horary-chart-eyebrow">Prashna chart · South Indian</div>
+                                <div className="horary-chart-sub">
+                                  Lagna at the chosen prashna number; houses laid out with the astrologer&apos;s lat/lon via Placidus.
+                                </div>
+                              </div>
+                              <div className="horary-chart-wrap">
+                                <SouthIndianChart
+                                  planets={r.planets.map((p: Record<string, unknown>) => ({ ...p, house: String(p.house) }))}
+                                  cusps={r.cusps.map((c: Record<string, unknown>) => ({ ...c, cusp_longitude: c.longitude, house_num: c.house, sign_en: c.sign }))}
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {/* PR A1.1e — Sub-lord chains for Lagna / Moon / primary CSL */}
+                          <HorarySubLordChains
+                            planets={r.planets ?? []}
+                            lagna={r.lagna}
+                            moon={r.moon_analysis}
+                            primaryCsl={v.query_csl}
+                            primaryHouse={r.primary_house}
+                          />
+
+                          {/* PR A1.1e — RP × Vimshottari dasha timing strip.
+                              Joins the horary RPs with the native's dasha tree to surface
+                              WHEN each RP is active in the querent's life. */}
+                          <HoraryRpDashaStrip
+                            rulingPlanets={r.ruling_planets ?? []}
+                            rpSignifyingYes={v.rp_signifying_yes ?? []}
+                            dashas={workspaceData?.dashas ?? []}
+                            antardashas={workspaceData?.antardashas ?? []}
+                            pratyantardashas={workspaceData?.pratyantardashas ?? []}
+                          />
 
                           {/* PR A1.1d — Moon analysis (chief significator of the mind) */}
                           {r.moon_analysis && <HoraryMoonCard moon={r.moon_analysis} />}

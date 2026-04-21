@@ -179,6 +179,75 @@ def test_clinical_flags_tones_in_valid_set():
             assert f["tone"] in ("green", "yellow", "red")
 
 
+def test_all_signification_houses_in_range_1_to_12():
+    """PR A1.1e Bug-3 guard: no engine output should ever contain H<1 or H>12."""
+    for n in (1, 7, 42, 100, 148, 168, 200, 249):
+        r = analyze_horary(number=n, question="t", topic="career", **FIXED_KWARGS)
+        for p in r["planets"]:
+            for lvl, houses in p["significations_by_level"].items():
+                for h in houses:
+                    assert 1 <= h <= 12, (
+                        f"Bad house number {h} at planet={p['planet']} L{lvl} (n={n})"
+                    )
+            for h in p["significations"]:
+                assert 1 <= h <= 12
+        for c in r["cusps"]:
+            for h in (c.get("sub_lord_significations") or []):
+                assert 1 <= h <= 12
+
+
+def test_topic_aware_lagna_self_obstruction_career_excludes_h6():
+    """
+    PR A1.1e Bug-1: for a career question H6 is a FAVORABLE house
+    (service). The lagna_csl_self_obstruction flag should never fire
+    on H6 for career topic. (If Lagna CSL signifies H6 only, no flag.)
+    """
+    for n in range(1, 250, 7):
+        r = analyze_horary(number=n, question="t", topic="career", **FIXED_KWARGS)
+        for f in r["clinical_flags"]:
+            if f["code"] == "lagna_csl_self_obstruction":
+                # When the flag fires, it should name a topic NO-house.
+                # Career no_houses: {5, 8, 12}. Label must reference one of those.
+                label = f["label"]
+                assert any(f"H{h}" in label for h in (5, 8, 12)), (
+                    f"self-obstruction fired with label '{label}' on career "
+                    f"topic but didn't reference a career denial house"
+                )
+
+
+def test_node_inheritance_sign_lord():
+    """
+    PR A1.1e Bug-2: when Rahu occupies a sign whose lord is a distinct
+    planet X, Rahu's L3 significations should include X's occupied house
+    and X's owned houses.
+    """
+    from app.services.horary_engine import (
+        _planet_significations_by_level, SIGN_LORDS, _get_planet_house,
+        _houses_ruled_by,
+    )
+    from app.services.chart_engine import get_sign
+
+    r = analyze_horary(number=42, question="t", topic="general", **FIXED_KWARGS)
+    planet_lons = {p["planet"]: p["longitude"] for p in r["planets"]}
+    cusp_lons = [c["longitude"] for c in r["cusps"]]
+    rahu_lon = planet_lons["Rahu"]
+    sign_lord = SIGN_LORDS.get(get_sign(rahu_lon % 360), "")
+    if sign_lord and sign_lord != "Rahu" and sign_lord in planet_lons:
+        rahu_map = _planet_significations_by_level("Rahu", planet_lons, cusp_lons)
+        expected_occ = _get_planet_house(planet_lons[sign_lord], cusp_lons)
+        expected_owned = set(_houses_ruled_by(sign_lord, cusp_lons))
+        # Sign-lord contributions should appear at L3 for the node.
+        assert expected_occ in rahu_map[3] or expected_occ == 0, (
+            f"Rahu didn't inherit sign lord {sign_lord}'s occupied house "
+            f"H{expected_occ} at L3. Got L3={rahu_map[3]}"
+        )
+        for h in expected_owned:
+            assert h in rahu_map[3], (
+                f"Rahu didn't inherit sign lord {sign_lord}'s owned house "
+                f"H{h} at L3. Got L3={rahu_map[3]}"
+            )
+
+
 def test_placidus_cusps_not_equal_house():
     """
     Pre-A1.1 used equal-house (cusps 30° apart). Post-A1.1 uses Placidus,

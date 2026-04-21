@@ -129,6 +129,16 @@ def _houses_ruled_by(planet_name: str, cusp_lons: list) -> list[int]:
             if SIGN_LORDS.get(get_sign(cusp_lons[i] % 360)) == planet_name]
 
 
+def _clamp_houses(houses: list[int]) -> list[int]:
+    """
+    PR A1.1e Bug-3 guard: all significations must be in [1, 12]. Silently
+    drop any value outside that range — should never happen after upstream
+    fixes, but this prevents a bad house number from reaching the UI and
+    rendering as 'H13'. Deduplicates and sorts.
+    """
+    return sorted({h for h in houses if isinstance(h, int) and 1 <= h <= 12})
+
+
 def _planet_significations_by_level(planet_name: str, planet_lons: dict, cusp_lons: list) -> dict[int, list[int]]:
     """
     KP 4-level hierarchy, returned as a map level -> houses (strongest first).
@@ -136,9 +146,21 @@ def _planet_significations_by_level(planet_name: str, planet_lons: dict, cusp_lo
         Level 2 — own occupied house
         Level 3 — star lord's owned houses
         Level 4 — own owned houses
-    Empty lists when a level contributes nothing. Houses within each
-    level are sorted ascending; levels themselves are kept in the
-    strength order 1->4.
+
+    PR A1.1e Bug-2: for Rahu/Ketu, KP canonical rule says nodes INHERIT
+    the significations of:
+      (a) any other planet occupying the SAME nakshatra as the node
+          (i.e., conjoining in the node's own nakshatra), AND
+      (b) the sign lord of the sign the node occupies.
+    This inheritance folds into the same 4-level map proportionally:
+      - Conjoining planet's Level 1/2 significations contribute at the
+        same levels to the node's map.
+      - Sign-lord's Level 1/2/3/4 significations contribute as Level 3/4
+        inheritance for the node (nodes don't have true ownership of
+        a sign; their sign-lord inheritance is weaker than their own
+        placement, which is already captured by Levels 1/2).
+
+    Returns {1: [...], 2: [...], 3: [...], 4: [...]}, every value in [1,12].
     """
     if planet_name not in planet_lons:
         return {1: [], 2: [], 3: [], 4: []}
@@ -149,12 +171,45 @@ def _planet_significations_by_level(planet_name: str, planet_lons: dict, cusp_lo
                    if star_lord in planet_lons else 0)
     sl_owned = _houses_ruled_by(star_lord, cusp_lons) if star_lord else []
     own_owned = _houses_ruled_by(planet_name, cusp_lons)
-    return {
+
+    result: dict[int, list[int]] = {
         1: [sl_occupied] if sl_occupied else [],
         2: [own_occupied] if own_occupied else [],
-        3: sorted(sl_owned),
-        4: sorted(own_owned),
+        3: list(sl_owned),
+        4: list(own_owned),
     }
+
+    # Node inheritance (Rahu / Ketu) — canonical KP rule per KSK Reader I.
+    if planet_name in ("Rahu", "Ketu"):
+        # (a) Conjoining planet in the node's own nakshatra.
+        # Find any other planet sharing the node's nakshatra index.
+        node_nak_idx = get_nakshatra_and_starlord(plon).get("nakshatra_index", -1)
+        for other, other_lon in planet_lons.items():
+            if other in (planet_name, "Rahu", "Ketu"):
+                continue
+            other_nak_idx = get_nakshatra_and_starlord(other_lon).get("nakshatra_index", -1)
+            if other_nak_idx == node_nak_idx:
+                # Fold the other planet's Level 1/2 into the node at the same
+                # level — this is a direct inheritance of "the planet the
+                # node is sitting on top of".
+                other_map = _planet_significations_by_level(other, planet_lons, cusp_lons)
+                result[1].extend(other_map[1])
+                result[2].extend(other_map[2])
+
+        # (b) Sign lord of the node's sign.
+        node_sign_lord = SIGN_LORDS.get(get_sign(plon % 360), "")
+        if node_sign_lord and node_sign_lord != planet_name and node_sign_lord in planet_lons:
+            # Sign-lord inheritance is weaker than direct placement — treat
+            # it as Level 3 (moderate). This matches classical KP ordering
+            # where "signified via sign lord" is not as strong as own
+            # occupation or own star lord.
+            sl_occ = _get_planet_house(planet_lons[node_sign_lord], cusp_lons)
+            if sl_occ:
+                result[3].append(sl_occ)
+            result[3].extend(_houses_ruled_by(node_sign_lord, cusp_lons))
+
+    # Normalize every level: in-range, unique, sorted.
+    return {lvl: _clamp_houses(houses) for lvl, houses in result.items()}
 
 
 def _planet_significations(planet_name: str, planet_lons: dict, cusp_lons: list) -> list[int]:
@@ -374,21 +429,24 @@ def _compute_clinical_flags(
             ),
         })
 
-    # === Layer 1 yellow: Lagna CSL self-obstruction (signifies 6/8/12 of its own) ===
-    # KP practitioners weigh 6/8/12 significations of the Lagna CSL as a
-    # "barrier" flavor — the person's own mindset/karma pulls against the matter.
-    lagna_malefic_own = sorted(lagna_sigs & {6, 8, 12})
-    if lagna_malefic_own:
+    # === Layer 1 yellow: Lagna CSL self-obstruction (topic-specific) ===
+    # PR A1.1e Bug-1: classic 6/8/12 is a *generic* dustana; for a specific
+    # topic the actual obstruction houses are the TOPIC's no_houses. For
+    # career, H5/H8/H12; for marriage, H1/H6/H10; etc. We flag only when
+    # the Lagna CSL's significations overlap the topic-specific denial set.
+    lagna_denial = sorted(lagna_sigs & no_houses)
+    if lagna_denial:
         flags.append({
             "tone": "yellow",
             "code": "lagna_csl_self_obstruction",
-            "label": f"Lagna CSL also signifies H{', H'.join(str(h) for h in lagna_malefic_own)}",
+            "label": f"Lagna CSL also signifies denial house{'s' if len(lagna_denial) > 1 else ''} H{', H'.join(str(h) for h in lagna_denial)}",
             "detail": (
-                f"{lagna_sub} (Lagna CSL) signifies the dustana house"
-                f"{'s' if len(lagna_malefic_own) > 1 else ''} "
-                f"{lagna_malefic_own}. Classical KP treats this as a subtle "
-                f"obstruction — the querent's own context (debts, obstacles, loss) "
-                f"may work against the matter even when other factors align."
+                f"{lagna_sub} (Lagna CSL) signifies the topic's denial house"
+                f"{'s' if len(lagna_denial) > 1 else ''} "
+                f"{lagna_denial}. Classical KP treats this as a subtle "
+                f"obstruction — the querent's own mindset or context pulls "
+                f"against the matter even when other factors align. Denial "
+                f"houses for this topic: H{', H'.join(str(h) for h in sorted(no_houses))}."
             ),
         })
 

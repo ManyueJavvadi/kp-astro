@@ -4335,3 +4335,158 @@ textarea:focus-visible {
   .horary-cusps-table th,
   .horary-cusps-table td { padding: 5px 6px; }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   PR A1.1e — identity strip, Prashna chart card, sub-lord chains,
+   RP × dasha timing strip.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Compact chart identity strip (replaces fields grid) */
+.horary-identity-strip {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.02);
+  border: 0.5px solid var(--border);
+  border-radius: 8px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--text);
+}
+.horary-identity-cell { display: inline-flex; align-items: baseline; gap: 4px; }
+.horary-identity-k {
+  font-size: 9px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--muted);
+  font-weight: 600;
+}
+.horary-identity-v { font-size: 11.5px; color: var(--text); font-weight: 500; }
+.horary-identity-dot { opacity: 0.4; margin: 0 2px; }
+
+/* Prashna chart card (reuses SouthIndianChart) */
+.horary-chart-card {
+  background: var(--surface2);
+  border: 0.5px solid rgba(201,169,110,0.15);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 10px;
+  align-items: center;
+}
+.horary-chart-head {
+  display: flex; flex-direction: column; gap: 2px; text-align: left;
+  align-self: flex-start; width: 100%;
+}
+.horary-chart-eyebrow {
+  font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--accent); font-weight: 700;
+}
+.horary-chart-sub { font-size: 11px; color: var(--muted); line-height: 1.5; }
+.horary-chart-wrap {
+  display: flex; justify-content: center; width: 100%;
+}
+
+/* Sub-lord chains card */
+.horary-chains-card {
+  background: var(--surface2);
+  border: 0.5px solid rgba(201,169,110,0.15);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.horary-chains-head { display: flex; flex-direction: column; gap: 2px; }
+.horary-chains-eyebrow {
+  font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--accent); font-weight: 700;
+}
+.horary-chains-sub { font-size: 11px; color: var(--muted); line-height: 1.5; }
+.horary-chains-list { display: flex; flex-direction: column; gap: 6px; }
+.horary-chain-row {
+  display: grid; grid-template-columns: 140px 1fr; align-items: center;
+  gap: 12px; padding: 8px 12px;
+  background: var(--card); border: 0.5px solid var(--border); border-radius: 10px;
+}
+.horary-chain-label {
+  font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--muted); font-weight: 700;
+}
+.horary-chain-flow { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.horary-chain-node {
+  display: inline-flex; flex-direction: column; align-items: flex-start;
+  padding: 4px 10px; border-radius: 8px;
+  background: rgba(255,255,255,0.02); border: 0.5px solid var(--border);
+  min-width: 56px;
+}
+.horary-chain-name { font-size: 13px; font-weight: 600; line-height: 1.1; }
+.horary-chain-note { font-size: 9px; color: var(--muted); margin-top: 1px; letter-spacing: 0.04em; }
+.horary-chain-arrow { color: var(--muted); flex-shrink: 0; }
+
+/* RP × dasha timing strip */
+.horary-rp-dasha-card {
+  background: var(--surface2);
+  border: 0.5px solid rgba(201,169,110,0.15);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.horary-rp-dasha-head { display: flex; flex-direction: column; gap: 2px; }
+.horary-rp-dasha-eyebrow {
+  font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--accent); font-weight: 700;
+}
+.horary-rp-dasha-sub { font-size: 11px; color: var(--muted); line-height: 1.5; max-width: 640px; }
+.horary-rp-dasha-sub strong { color: var(--text); font-weight: 600; }
+
+.horary-rp-dasha-rows { display: flex; flex-direction: column; gap: 5px; }
+.horary-rp-dasha-row {
+  display: grid; grid-template-columns: 90px 1fr; align-items: center;
+  gap: 10px; padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--card);
+  border: 0.5px solid var(--border);
+}
+.horary-rp-dasha-row.signifies-topic {
+  border-color: rgba(201,169,110,0.3);
+  background: rgba(201,169,110,0.05);
+}
+.horary-rp-dasha-planet {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 13px; font-weight: 600;
+}
+.horary-rp-dasha-star { color: var(--accent); font-size: 11px; margin-left: 2px; }
+.horary-rp-dasha-cells {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+.horary-rp-dasha-cell {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 7px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px; color: var(--muted);
+  border-radius: 6px;
+  border: 0.5px solid var(--border);
+  white-space: nowrap;
+}
+.horary-rp-dasha-cell.is-current {
+  background: rgba(52,211,153,0.08);
+  border-color: rgba(52,211,153,0.3);
+  color: #34d399;
+}
+.horary-rp-dasha-cell.is-empty { opacity: 0.45; }
+.horary-rp-dasha-tag {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.04em;
+  padding: 1px 5px; border-radius: 4px;
+  background: rgba(201,169,110,0.14); color: var(--accent);
+}
+.horary-rp-dasha-arrow { opacity: 0.55; margin: 0 2px; }
+.horary-rp-dasha-none { color: var(--muted); }
+.horary-rp-dasha-now {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.08em;
+  padding: 1px 5px; border-radius: 4px;
+  background: #34d399; color: #0b0b10;
+}
+
+@media (max-width: 720px) {
+  .horary-chain-row { grid-template-columns: 1fr; gap: 4px; }
+  .horary-rp-dasha-row { grid-template-columns: 1fr; gap: 6px; }
+  .horary-rp-dasha-cells { grid-template-columns: 1fr; }
+  .horary-identity-strip { font-size: 10.5px; }
+}
