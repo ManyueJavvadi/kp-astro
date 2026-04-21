@@ -12,6 +12,10 @@ import { useLanguage } from "@/lib/i18n";
 import CommandOrb from "./components/CommandOrb";
 import LiveLocationPill from "./components/LiveLocationPill";
 import RPContextStrip from "./components/RPContextStrip";
+import ClinicalFlagsStrip from "./components/ClinicalFlagsStrip";
+import HoraryMoonCard from "./components/HoraryMoonCard";
+import HoraryCuspsAccordion from "./components/HoraryCuspsAccordion";
+import HoraryFourLevelAccordion from "./components/HoraryFourLevelAccordion";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useLiveLocation } from "@/hooks/useLiveLocation";
 import { formatMaskedDate, formatMaskedTime } from "./lib/maskedInput";
@@ -5881,6 +5885,28 @@ export default function Home() {
                                 {t("No planet in this chart signifies this house at any KP level — an unusual configuration worth flagging.", "ఈ చార్ట్‌లో ఏ గ్రహం ఈ భావాన్ని KP స్థాయిలలో సూచించదు — అసాధారణ వ్యవస్థ.")}
                               </div>
                             </div>
+                          )}
+
+                          {/* PR A1.1d — Clinical indicators strip (astrologer's 5-second scan) */}
+                          {Array.isArray(r.clinical_flags) && r.clinical_flags.length > 0 && (
+                            <ClinicalFlagsStrip flags={r.clinical_flags} />
+                          )}
+
+                          {/* PR A1.1d — Moon analysis (chief significator of the mind) */}
+                          {r.moon_analysis && <HoraryMoonCard moon={r.moon_analysis} />}
+
+                          {/* PR A1.1d — 4-level significator accordion (any house lookup) */}
+                          {Array.isArray(r.planets) && (
+                            <HoraryFourLevelAccordion
+                              planets={r.planets}
+                              rulingPlanets={r.ruling_planets ?? []}
+                              defaultHouse={r.primary_house ?? 1}
+                            />
+                          )}
+
+                          {/* PR A1.1d — Full 12-cusps CSL chain (collapsed by default) */}
+                          {Array.isArray(r.cusps) && r.cusps.length > 0 && (
+                            <HoraryCuspsAccordion cusps={r.cusps} />
                           )}
 
                           {/* Planet table — alternating rows + left accent for ruling planets */}

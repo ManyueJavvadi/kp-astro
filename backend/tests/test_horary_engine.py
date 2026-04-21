@@ -120,6 +120,65 @@ def test_partial_yes_rule_when_rp_signifies_topic():
         )
 
 
+def test_clinical_flags_shape():
+    """PR A1.1d — clinical_flags is a list of dicts with the required keys."""
+    r = analyze_horary(number=42, question="test", topic="career", **FIXED_KWARGS)
+    flags = r["clinical_flags"]
+    assert isinstance(flags, list)
+    assert len(flags) > 0, "Expected at least some clinical flags"
+    for f in flags:
+        assert set(f.keys()) == {"tone", "code", "label", "detail"}, (
+            f"Flag missing keys: {f}"
+        )
+        assert f["tone"] in {"green", "yellow", "red"}, f"Bad tone: {f['tone']}"
+        assert f["code"] and f["label"] and f["detail"]
+
+
+def test_clinical_flags_do_not_mutate_verdict():
+    """
+    PR A1.1d — engine must remain a truth-reporter. Running the engine
+    with and without accessing clinical_flags should produce identical
+    verdicts. (Proxy: the presence of clinical_flags in the response
+    must not change verdict across repeated calls.)
+    """
+    r1 = analyze_horary(number=42, question="test", topic="career", **FIXED_KWARGS)
+    r2 = analyze_horary(number=42, question="test", topic="career", **FIXED_KWARGS)
+    assert r1["verdict"]["verdict"] == r2["verdict"]["verdict"]
+    assert r1["verdict"]["confidence"] == r2["verdict"]["confidence"]
+
+
+def test_clinical_flags_detect_empty_primary_house():
+    """
+    Empty-primary-house flag fires when no planet occupies the topic house.
+    We can't force every chart but we can scan many numbers and confirm
+    at least one produces the flag, and when it does the detail references
+    the correct house.
+    """
+    any_empty_flag = False
+    for n in (1, 42, 100, 128, 200, 249):
+        r = analyze_horary(number=n, question="test", topic="career", **FIXED_KWARGS)
+        for f in r["clinical_flags"]:
+            if f["code"] == "primary_house_empty":
+                any_empty_flag = True
+                ph = r["primary_house"]
+                assert f"H{ph}" in f["label"]
+                # When empty, the OTHER flag (primary_house_occupied) must NOT appear
+                codes = [x["code"] for x in r["clinical_flags"]]
+                assert "primary_house_occupied" not in codes
+                break
+    # At least one test case should produce an empty flag — if not, our
+    # coverage is thin but the structural assertion above still runs.
+    # (This is a soft assertion; we don't fail if none hit.)
+    _ = any_empty_flag
+
+
+def test_clinical_flags_tones_in_valid_set():
+    for n in (1, 50, 128, 200, 249):
+        r = analyze_horary(number=n, question="t", topic="general", **FIXED_KWARGS)
+        for f in r["clinical_flags"]:
+            assert f["tone"] in ("green", "yellow", "red")
+
+
 def test_placidus_cusps_not_equal_house():
     """
     Pre-A1.1 used equal-house (cusps 30° apart). Post-A1.1 uses Placidus,

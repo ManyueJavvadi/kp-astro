@@ -327,6 +327,220 @@ def _csl_layer_analysis(csl: str, house_num: int, yes_houses: set, no_houses: se
     }
 
 
+def _compute_clinical_flags(
+    topic: str,
+    lagna_sub: str,
+    primary_house: int,
+    query_csl: str,
+    yes_houses: set[int],
+    no_houses: set[int],
+    planet_lons: dict,
+    cusp_lons: list,
+    ruling_planets: list[str],
+    rp_context: dict,
+    planets_raw: dict,
+    primary_house_significators: list[dict],
+) -> list[dict]:
+    """
+    PR A1.1d — compute curated clinical indicators the astrologer scans in 5 seconds.
+
+    This function DOES NOT mutate the verdict. It only surfaces facts an
+    experienced KP astrologer would notice at a glance but our Layer 1/2/3
+    cascade doesn't explicitly call out. Each flag has:
+      tone: "green" | "yellow" | "red"  (UI color hint)
+      code: stable machine identifier
+      label: short one-line text for the astrologer
+      detail: longer explanation for tooltip / expandable view
+
+    Every rule here comes from `.claude/research/horary-audit.md` and
+    `backend/app/kp_knowledge/horary.md`. Dad will sign off on each
+    individually; if a rule turns out wrong we just tweak or delete
+    this function — verdict is untouched.
+    """
+    flags: list[dict] = []
+
+    # === Layer 1 green: Lagna CSL fruitful ===
+    lagna_sigs = set(_planet_significations(lagna_sub, planet_lons, cusp_lons))
+    lagna_yes_hits = sorted(lagna_sigs & yes_houses)
+    if lagna_yes_hits:
+        flags.append({
+            "tone": "green",
+            "code": "lagna_csl_fruitful",
+            "label": f"Lagna CSL {lagna_sub} is fruitful",
+            "detail": (
+                f"The Lagna sub-lord {lagna_sub} signifies favorable houses "
+                f"{lagna_yes_hits} — the question itself carries real potential. "
+                f"A barren Lagna CSL would have stopped the analysis at Layer 1."
+            ),
+        })
+
+    # === Layer 1 yellow: Lagna CSL self-obstruction (signifies 6/8/12 of its own) ===
+    # KP practitioners weigh 6/8/12 significations of the Lagna CSL as a
+    # "barrier" flavor — the person's own mindset/karma pulls against the matter.
+    lagna_malefic_own = sorted(lagna_sigs & {6, 8, 12})
+    if lagna_malefic_own:
+        flags.append({
+            "tone": "yellow",
+            "code": "lagna_csl_self_obstruction",
+            "label": f"Lagna CSL also signifies H{', H'.join(str(h) for h in lagna_malefic_own)}",
+            "detail": (
+                f"{lagna_sub} (Lagna CSL) signifies the dustana house"
+                f"{'s' if len(lagna_malefic_own) > 1 else ''} "
+                f"{lagna_malefic_own}. Classical KP treats this as a subtle "
+                f"obstruction — the querent's own context (debts, obstacles, loss) "
+                f"may work against the matter even when other factors align."
+            ),
+        })
+
+    # === Primary topic house empty? ===
+    # Count planets occupying the primary house.
+    primary_occupants = [
+        p for p in planet_lons.keys()
+        if _get_planet_house(planet_lons[p], cusp_lons) == primary_house
+    ]
+    if not primary_occupants:
+        flags.append({
+            "tone": "yellow",
+            "code": "primary_house_empty",
+            "label": f"H{primary_house} is empty — weak direct promise",
+            "detail": (
+                f"No planet occupies H{primary_house} (the topic's primary house). "
+                f"Classical KP: an empty primary house means the matter has to "
+                f"manifest through indirect significators (L3/L4) rather than direct "
+                f"occupancy — typically slower, less certain, and more conditional."
+            ),
+        })
+    else:
+        flags.append({
+            "tone": "green",
+            "code": "primary_house_occupied",
+            "label": f"H{primary_house} occupied by {', '.join(primary_occupants)}",
+            "detail": (
+                f"Direct occupancy of the primary house is the strongest form of "
+                f"significator placement in KP (Level 2). "
+                f"{', '.join(primary_occupants)} occup{'ies' if len(primary_occupants) == 1 else 'y'} H{primary_house} — "
+                f"a solid foundation for manifestation."
+            ),
+        })
+
+    # === Significator-without-RP-support check ===
+    # Among planets carrying the primary house, how many are Ruling Planets?
+    rp_set = set(ruling_planets)
+    sigs_with_rp = [s for s in primary_house_significators if s["planet"] in rp_set]
+    sigs_without_rp = [s for s in primary_house_significators if s["planet"] not in rp_set]
+    if primary_house_significators and not sigs_with_rp:
+        names = ", ".join(s["planet"] for s in primary_house_significators)
+        flags.append({
+            "tone": "yellow",
+            "code": "sigs_lack_rp_support",
+            "label": f"H{primary_house} significators carry no RP support",
+            "detail": (
+                f"H{primary_house} is signified by {names}, but NONE of them appear in "
+                f"the current Ruling Planets. KSK: a significator that isn't also a "
+                f"Ruling Planet at the query moment tends to produce weak or "
+                f"delayed results — the timing window hasn't arrived yet."
+            ),
+        })
+    elif sigs_with_rp:
+        rp_names = ", ".join(s["planet"] for s in sigs_with_rp)
+        flags.append({
+            "tone": "green",
+            "code": "sigs_with_rp_support",
+            "label": f"H{primary_house} has RP-backed significators: {rp_names}",
+            "detail": (
+                f"{rp_names} both signify H{primary_house} AND appear in the "
+                f"current Ruling Planets — the strongest possible timing signal. "
+                f"Expect results during the dasha/bhukti of these planets."
+            ),
+        })
+
+    # === Primary-CSL ∈ RPs? ===
+    if query_csl in rp_set:
+        freq = len(rp_context.get("planet_slots", {}).get(query_csl, []))
+        flags.append({
+            "tone": "green",
+            "code": "csl_is_rp",
+            "label": f"Primary-house CSL {query_csl} is an RP ({freq}/7 slots)",
+            "detail": (
+                f"The Layer-2 gate ({query_csl}, CSL of H{primary_house}) is "
+                f"simultaneously a Ruling Planet filling {freq} of 7 slots. This is "
+                f"the canonical confirmation signal — KP's highest-confidence "
+                f"\"yes the moment is ripe\" indicator."
+            ),
+        })
+
+    # === Primary-CSL signifies ANY topic house? ===
+    csl_sigs = set(_planet_significations(query_csl, planet_lons, cusp_lons))
+    csl_yes = sorted(csl_sigs & yes_houses)
+    csl_no  = sorted(csl_sigs & no_houses)
+    if csl_yes and not csl_no:
+        flags.append({
+            "tone": "green",
+            "code": "csl_clean_positive",
+            "label": f"H{primary_house} CSL signifies only favorable houses {csl_yes}",
+            "detail": (
+                f"{query_csl}'s significations overlap ONLY the yes-set — no "
+                f"contamination from denial houses. Classical KP clean YES signal."
+            ),
+        })
+    elif csl_yes and csl_no:
+        flags.append({
+            "tone": "yellow",
+            "code": "csl_mixed",
+            "label": f"H{primary_house} CSL signifies yes {csl_yes} AND no {csl_no}",
+            "detail": (
+                f"{query_csl} signifies both sides of the topic. The yes-houses "
+                f"provide potential; the no-houses provide conditions/obstacles. "
+                f"Exactly the CONDITIONAL verdict pattern."
+            ),
+        })
+    elif csl_no and not csl_yes:
+        flags.append({
+            "tone": "red",
+            "code": "csl_clean_negative",
+            "label": f"H{primary_house} CSL signifies only denial houses {csl_no}",
+            "detail": (
+                f"{query_csl} touches only the no-set — classical NO signal, "
+                f"independent of the Lagna or RP support."
+            ),
+        })
+
+    # === Retrograde primary-house CSL? ===
+    # Retrograde significators in KP indicate delays or "revisiting" energy.
+    if query_csl in planets_raw and planets_raw[query_csl].get("retrograde"):
+        flags.append({
+            "tone": "yellow",
+            "code": "csl_retrograde",
+            "label": f"{query_csl} (H{primary_house} CSL) is retrograde",
+            "detail": (
+                f"A retrograde primary-house CSL in KP indicates delays, revisits, "
+                f"or an outcome that comes through a second attempt / re-negotiation "
+                f"rather than a direct path."
+            ),
+        })
+
+    # === Strongest RP also signifies the topic? ===
+    strongest = rp_context.get("strongest", [])
+    strong_topic_support = [
+        p for p in strongest
+        if set(_planet_significations(p, planet_lons, cusp_lons)) & yes_houses
+    ]
+    if strong_topic_support:
+        names = ", ".join(strong_topic_support)
+        flags.append({
+            "tone": "green",
+            "code": "strongest_rp_supports_topic",
+            "label": f"Strongest RP{'s' if len(strong_topic_support) > 1 else ''} {names} signify the topic",
+            "detail": (
+                f"{names} fill 2+ slots of the current RP set AND signify favorable "
+                f"houses. KSK's timing priority: dasha/bhukti of these planets "
+                f"deliver results with the highest probability."
+            ),
+        })
+
+    return flags
+
+
 def _kp_verdict(
     lagna_sub: str, topic: str, planet_lons: dict, cusp_lons: list,
     ruling_planets: list, moon_analysis: dict,
@@ -589,6 +803,24 @@ def analyze_horary(
 
     t_houses = TOPIC_HOUSES.get(topic.lower(), TOPIC_HOUSES["general"])
 
+    # PR A1.1d — clinical-indicator set; purely presentational, does NOT
+    # modify verdict. Engine stays as a truth-reporter; clinical judgement
+    # is a separate decision-support layer alongside it.
+    clinical_flags = _compute_clinical_flags(
+        topic=topic,
+        lagna_sub=lagna_sub,
+        primary_house=primary_house,
+        query_csl=verdict.get("query_csl", ""),
+        yes_houses=set(t_houses["yes"]),
+        no_houses=set(t_houses["no"]),
+        planet_lons=planet_lons,
+        cusp_lons=cusp_lons,
+        ruling_planets=ruling_planets,
+        rp_context=rp_context,
+        planets_raw=planets_raw,
+        primary_house_significators=primary_house_significators,
+    )
+
     return {
         "prashna_number": number,
         "question": question,
@@ -603,12 +835,13 @@ def analyze_horary(
             "sub_entry": sub_entry,
         },
         "ruling_planets": ruling_planets,
-        "rp_context": rp_context,  # NEW — for "Computed for: X" display
+        "rp_context": rp_context,
         "moon_analysis": moon_analysis,
         "verdict": verdict,
         "topic_houses": t_houses,
-        "primary_house": primary_house,                       # NEW PR A1.1b
-        "primary_house_significators": primary_house_significators,  # NEW PR A1.1b
+        "primary_house": primary_house,
+        "primary_house_significators": primary_house_significators,
+        "clinical_flags": clinical_flags,  # NEW PR A1.1d
         "planets": planet_details,
         "cusps": cusp_details,
         "house_themes": HOUSE_THEMES,

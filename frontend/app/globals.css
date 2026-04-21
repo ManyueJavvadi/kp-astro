@@ -4110,3 +4110,228 @@ textarea:focus-visible {
   .rp-context-row { grid-template-columns: 72px 30px 1fr; }
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   PR A1.1d — Horary astrologer-complete presentation pack.
+   New components: ClinicalFlagsStrip, HoraryMoonCard,
+   HoraryCuspsAccordion, HoraryFourLevelAccordion + retrograde glyph.
+   All purely presentational — verdict engine untouched.
+   ═══════════════════════════════════════════════════════════════ */
+
+.clinical-flags-card,
+.horary-moon-card,
+.horary-cusps-card,
+.horary-fourlevel-card {
+  background: var(--surface2);
+  border: 0.5px solid rgba(201,169,110,0.15);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Clinical flags strip */
+.clinical-flags-head {
+  display: flex; flex-direction: column; gap: 2px;
+}
+.clinical-flags-eyebrow {
+  font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--accent); font-weight: 700;
+}
+.clinical-flags-sub {
+  font-size: 11px; color: var(--muted); line-height: 1.5;
+  max-width: 640px;
+}
+.clinical-flags-list {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.clinical-flag-row {
+  display: grid;
+  grid-template-columns: 20px 1fr 14px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  text-align: left;
+  background: rgba(255,255,255,0.02);
+  border: 0.5px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  transition: border-color 140ms, background 140ms;
+}
+.clinical-flag-row:hover { border-color: rgba(201,169,110,0.25); }
+.clinical-flag-row.tone-green  { border-left: 3px solid #34d399; }
+.clinical-flag-row.tone-yellow { border-left: 3px solid #fbbf24; }
+.clinical-flag-row.tone-red    { border-left: 3px solid #f87171; }
+.clinical-flag-row.is-open {
+  background: rgba(201,169,110,0.04);
+  border-color: rgba(201,169,110,0.3);
+}
+.clinical-flag-dot {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%;
+}
+.clinical-flag-dot.tone-green  { color: #34d399; background: rgba(52,211,153,0.12); }
+.clinical-flag-dot.tone-yellow { color: #fbbf24; background: rgba(251,191,36,0.12); }
+.clinical-flag-dot.tone-red    { color: #f87171; background: rgba(248,113,113,0.12); }
+.clinical-flag-label {
+  color: var(--text);
+  font-weight: 500;
+}
+.clinical-flag-chev {
+  color: var(--muted);
+  transition: transform 180ms;
+}
+.clinical-flag-chev.is-open { transform: rotate(180deg); }
+.clinical-flag-detail {
+  grid-column: 1 / -1;
+  margin-top: 6px;
+  padding: 8px 10px 2px;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.55;
+  border-top: 0.5px dashed var(--border);
+}
+
+/* Horary Moon card */
+.horary-moon-head { display: flex; flex-direction: column; gap: 2px; }
+.horary-moon-eyebrow {
+  font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--accent); font-weight: 700;
+}
+.horary-moon-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 17px; color: var(--text); line-height: 1.2;
+}
+.horary-moon-nak  { color: var(--muted); font-size: 14px; font-weight: normal; }
+.horary-moon-house { color: var(--accent); font-size: 13px; font-weight: 500; margin-left: 2px; }
+.horary-moon-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.horary-moon-cell {
+  padding: 12px; background: var(--card); border-radius: 10px;
+  border: 0.5px solid var(--border);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.horary-moon-cell-label {
+  font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--muted); font-weight: 700;
+}
+.horary-moon-cell-planet {
+  font-family: 'DM Serif Display', serif; font-size: 20px;
+  line-height: 1.1;
+}
+.horary-moon-cell-sub { font-size: 10.5px; color: var(--muted); margin-top: 3px; }
+.horary-moon-cell-sigs { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+.horary-moon-sig-pill {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 2px 8px; border-radius: 999px;
+  background: rgba(201,169,110,0.12);
+  border: 0.5px solid rgba(201,169,110,0.3);
+  color: var(--accent); font-size: 10.5px; font-weight: 600;
+}
+.horary-moon-sig-empty { color: var(--muted); font-size: 10.5px; }
+
+/* Cusps + 4-level accordions share toggle styles */
+.horary-cusps-toggle,
+.horary-fourlevel-toggle {
+  display: flex; justify-content: space-between; align-items: center;
+  background: transparent; border: none; color: var(--text);
+  cursor: pointer; padding: 4px 0; font-family: inherit;
+  font-size: 11px; letter-spacing: 0.1em;
+}
+.horary-cusps-eyebrow,
+.horary-fourlevel-eyebrow {
+  font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--accent); font-weight: 700;
+}
+.horary-cusps-chev,
+.horary-fourlevel-chev { color: var(--muted); font-size: 13px; }
+.horary-cusps-body,
+.horary-fourlevel-body {
+  display: flex; flex-direction: column; gap: 10px;
+  padding-top: 8px;
+  border-top: 0.5px dashed var(--border);
+}
+.horary-cusps-sub,
+.horary-fourlevel-sub {
+  font-size: 11px; color: var(--muted); line-height: 1.5;
+}
+
+.horary-cusps-tablewrap { overflow-x: auto; }
+.horary-cusps-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.horary-cusps-table th,
+.horary-cusps-table td {
+  padding: 6px 10px; text-align: left;
+  border-bottom: 0.5px solid var(--border);
+}
+.horary-cusps-table th {
+  font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--muted); font-weight: 600;
+}
+.horary-cusps-table td.num {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  color: var(--muted);
+}
+.horary-cusps-table tbody tr:hover { background: rgba(201,169,110,0.04); }
+
+.horary-fourlevel-housebar { display: flex; flex-wrap: wrap; gap: 4px; }
+.horary-fourlevel-house {
+  padding: 4px 9px; border-radius: 999px;
+  border: 0.5px solid var(--border2);
+  background: transparent; color: var(--muted);
+  font-size: 10.5px; font-family: inherit; cursor: pointer;
+  font-weight: 600; letter-spacing: 0.04em;
+  transition: all 140ms;
+}
+.horary-fourlevel-house:hover { color: var(--accent); border-color: rgba(201,169,110,0.3); }
+.horary-fourlevel-house.is-active {
+  color: var(--accent); background: rgba(201,169,110,0.12);
+  border-color: rgba(201,169,110,0.5);
+}
+.horary-fourlevel-rows { display: flex; flex-direction: column; gap: 4px; }
+.horary-fourlevel-row {
+  display: grid; grid-template-columns: 120px 1fr auto; align-items: center;
+  gap: 10px; padding: 7px 10px;
+  border-radius: 8px; background: rgba(255,255,255,0.02);
+  border: 0.5px solid var(--border);
+}
+.horary-fourlevel-row.is-rp {
+  border-color: rgba(201,169,110,0.3);
+  background: rgba(201,169,110,0.05);
+}
+.horary-fourlevel-planet { font-size: 13px; font-weight: 600; }
+.horary-fourlevel-levels { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.horary-fourlevel-level {
+  padding: 2px 7px; border-radius: 4px; border: 0.5px solid;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+  font-family: inherit;
+}
+.horary-fourlevel-level.L1 { color: #34d399; border-color: rgba(52,211,153,0.45); background: rgba(52,211,153,0.08); }
+.horary-fourlevel-level.L2 { color: #93c5fd; border-color: rgba(147,197,253,0.4);  background: rgba(147,197,253,0.08); }
+.horary-fourlevel-level.L3 { color: #fbbf24; border-color: rgba(251,191,36,0.4);   background: rgba(251,191,36,0.08); }
+.horary-fourlevel-level.L4 { color: var(--muted); border-color: var(--border2); background: rgba(255,255,255,0.02); }
+.horary-fourlevel-rp {
+  font-size: 9px; letter-spacing: 0.08em;
+  padding: 2px 6px; border-radius: 4px;
+  background: rgba(201,169,110,0.2); color: var(--accent); font-weight: 700;
+}
+.horary-fourlevel-empty {
+  font-size: 11px; color: var(--muted); text-align: center;
+  padding: 12px; font-style: italic;
+}
+
+/* Retrograde glyph on planet table */
+.horary-retrograde-mark {
+  color: #f87171; font-weight: 700;
+  margin-left: 4px; font-size: 11px;
+}
+
+@media (max-width: 720px) {
+  .horary-moon-grid { grid-template-columns: 1fr; }
+  .horary-fourlevel-row { grid-template-columns: 80px 1fr auto; }
+  .horary-cusps-table { font-size: 10.5px; }
+  .horary-cusps-table th,
+  .horary-cusps-table td { padding: 5px 6px; }
+}
