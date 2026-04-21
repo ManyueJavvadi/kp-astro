@@ -765,6 +765,13 @@ textarea:focus-visible {
 .pc2-element-card.el-tithi     { color: #a78bfa; border-color: rgba(167,139,250,0.2); }
 .pc2-element-card.el-nakshatra { color: #fbbf24; border-color: rgba(251,191,36,0.2); }
 .pc2-element-card.el-yoga      { color: #34d399; border-color: rgba(52,211,153,0.2); }
+/* PR A1.2b — malefic yoga override (Vishkambha, Atiganda, Shula, Ganda,
+   Vyaghata, Vajra, Vyatipata, Parigha, Vaidhriti). */
+.pc2-element-card.el-yoga.is-malefic {
+  color: #f87171;
+  border-color: rgba(248,113,113,0.3);
+  background: linear-gradient(180deg, rgba(248,113,113,0.04), transparent);
+}
 .pc2-element-card.el-karana    { color: #60a5fa; border-color: rgba(96,165,250,0.2); }
 .pc2-element-head {
   display: flex; align-items: center; gap: 10px;

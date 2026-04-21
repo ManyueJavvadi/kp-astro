@@ -2875,6 +2875,13 @@ export default function Home() {
                               ({pcData.timezone_name})
                             </span>
                           )}
+                          {/* PR A1.2b — show lat/lon for transparency. Astrologer can verify
+                              the engine is computing for the right point. */}
+                          {pcDetectedCoords && (
+                            <span style={{ opacity: 0.55, fontSize: 10, fontFamily: "'JetBrains Mono', ui-monospace, monospace", letterSpacing: 0, textTransform: "none" as const }}>
+                              {pcDetectedCoords.lat.toFixed(2)}°, {pcDetectedCoords.lon.toFixed(2)}°
+                            </span>
+                          )}
                         </div>
                         <h1 className="pc2-title">
                           {t("Panchang", "పంచాంగం")}
@@ -3063,12 +3070,25 @@ export default function Home() {
                             )}
                           </div>
 
-                          {/* Yoga */}
-                          <div className="pc2-element-card el-yoga">
+                          {/* Yoga — PR A1.2b: tint based on yoga_quality
+                              from backend so malefic yogas (Atiganda etc.) show
+                              red instead of inheriting the generic green pill. */}
+                          <div className={`pc2-element-card el-yoga${pcData.yoga_quality === "inauspicious" ? " is-malefic" : ""}`}>
                             <div className="pc2-element-head">
-                              <div className="pc2-element-icon-wrap"><Sparkles size={18} strokeWidth={1.6} /></div>
+                              <div className="pc2-element-icon-wrap">
+                                {pcData.yoga_quality === "inauspicious"
+                                  ? <TriangleAlert size={18} strokeWidth={1.6} />
+                                  : <Sparkles size={18} strokeWidth={1.6} />}
+                              </div>
                               <div className="pc2-element-meta">
-                                <div className="pc2-element-eyebrow">{t("Yoga", "యోగం")}</div>
+                                <div className="pc2-element-eyebrow">
+                                  {t("Yoga", "యోగం")}
+                                  {pcData.yoga_quality === "inauspicious" && (
+                                    <span style={{ marginLeft: 6, fontSize: 9, color: "#f87171", letterSpacing: "0.08em" }}>
+                                      · {t("INAUSPICIOUS", "అశుభ")}
+                                    </span>
+                                  )}
+                                </div>
                                 {pcData.yoga_ends_at && (
                                   <div className="pc2-element-until-inline">{t("until", "వరకు")} {pcData.yoga_ends_at}</div>
                                 )}
@@ -6093,10 +6113,11 @@ export default function Home() {
             </div>
 
             {/* Chat input (workspace-level — visible on every tab except
-                Horary, where it would misleadingly route to Analysis AI
-                which doesn't know about the horary verdict. PR A1.1b hides
-                it on Horary; per-tab Ask AI will replace it in a later PR. */}
-            {activeTab !== "horary" && (
+                Horary and Panchang, where it would misleadingly route to
+                Analysis AI which doesn't know about those tabs' data.
+                PR A1.1b hid it on Horary, PR A1.2b extends to Panchang.
+                Per-tab Ask AI will replace it in a future PR. */}
+            {activeTab !== "horary" && activeTab !== "panchang" && (
             <div style={{ borderTop: "0.5px solid var(--border)", padding: "0.75rem 1.25rem", background: "var(--surface)", display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
               <input
                 value={chatQ}

@@ -138,3 +138,54 @@ def test_samvatsara_response_has_full_richness():
     for key in ("en", "te", "meaning", "cycle_year", "cycle_index"):
         assert key in s, f"missing key: {key}"
     assert s["te"] != "" and s["en"] != "" and s["meaning"] != ""
+
+
+# ───────── PR A1.2b regression guards ─────────
+
+def test_calendar_endpoint_returns_30_or_31_days():
+    """
+    PR A1.2b regression guard for the `dt is not defined` NameError that
+    was throwing 500 on every /calendar call. Frontend silently set
+    calData=null and the calendar grid disappeared.
+    """
+    from app.routers.panchangam import get_monthly_calendar, CalendarRequest
+    result = get_monthly_calendar(CalendarRequest(
+        latitude=43.6532, longitude=-79.5832, year=2026, month=4
+    ))
+    assert "days" in result
+    assert len(result["days"]) == 30  # April has 30 days
+    # Each day must have a weekday integer (0-6, Mon..Sun per Python convention)
+    for d in result["days"]:
+        assert "weekday" in d
+        assert isinstance(d["weekday"], int) and 0 <= d["weekday"] <= 6
+
+
+def test_yoga_quality_classification():
+    """The 9 papa yogas must be flagged inauspicious; rest auspicious."""
+    from app.routers.panchangam import YOGA_QUALITY
+    malefic = {
+        "Vishkambha", "Atiganda", "Shula", "Ganda", "Vyaghata",
+        "Vajra", "Vyatipata", "Parigha", "Vaidhriti",
+    }
+    for name in malefic:
+        assert YOGA_QUALITY[name] == "inauspicious", f"{name} should be malefic"
+    auspicious_sample = ("Priti", "Ayushman", "Saubhagya", "Siddhi", "Brahma")
+    for name in auspicious_sample:
+        assert YOGA_QUALITY[name] == "auspicious", f"{name} should be auspicious"
+
+
+def test_durmuhurtha_tuesday_no_longer_overlaps_abhijit():
+    """
+    Tuesday was [4, 7] before PR A1.2b. Slot 7 = Abhijit Muhurta which
+    is auspicious. Fixed to [4, 8].
+
+    Note: Friday legitimately has slot 7 in some Hora Shastra traditions
+    (Friday's Abhijit is contested). We only assert the specific
+    historical bug — that Tuesday no longer pollutes its slot list with
+    Abhijit. Other weekdays will be revisited with dad's reference.
+    """
+    from app.routers.panchangam import DURMUHURTHA_SLOTS
+    assert 7 not in DURMUHURTHA_SLOTS[1], (
+        "Tuesday Durmuhurtha must not include slot 7 (Abhijit). "
+        "Pre-A1.2b regression."
+    )

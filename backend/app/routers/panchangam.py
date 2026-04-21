@@ -59,21 +59,70 @@ YOGA_EN = [
     "Siddha", "Sadhya", "Shubha", "Shukla", "Brahma",
     "Indra", "Vaidhriti"
 ]
+
+# PR A1.2b — yoga quality classification per classical Muhurtha texts.
+# The 9 "papa" (malefic) yogas are well-documented: Vishkambha, Atiganda,
+# Shula, Ganda, Vyaghata, Vajra, Vyatipata, Parigha, Vaidhriti.
+# Everything else is auspicious (subha) by convention.
+YOGA_QUALITY = {
+    "Vishkambha": "inauspicious",  # # 0
+    "Priti":      "auspicious",
+    "Ayushman":   "auspicious",
+    "Saubhagya":  "auspicious",
+    "Shobhana":   "auspicious",
+    "Atiganda":   "inauspicious",  # # 5
+    "Sukarma":    "auspicious",
+    "Dhriti":     "auspicious",
+    "Shula":      "inauspicious",  # # 8
+    "Ganda":      "inauspicious",  # # 9
+    "Vriddhi":    "auspicious",
+    "Dhruva":     "auspicious",
+    "Vyaghata":   "inauspicious",  # # 12
+    "Harshana":   "auspicious",
+    "Vajra":      "inauspicious",  # # 14
+    "Siddhi":     "auspicious",
+    "Vyatipata":  "inauspicious",  # # 16
+    "Variyan":    "auspicious",
+    "Parigha":    "inauspicious",  # # 18
+    "Shiva":      "auspicious",
+    "Siddha":     "auspicious",
+    "Sadhya":     "auspicious",
+    "Shubha":     "auspicious",
+    "Shukla":     "auspicious",
+    "Brahma":     "auspicious",
+    "Indra":      "auspicious",
+    "Vaidhriti":  "inauspicious",  # # 26
+}
 DAY_EN = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
 RAHU_KALAM_SLOTS  = {0: 1, 1: 6, 2: 4, 3: 5, 4: 3, 5: 2, 6: 7}
 YAMAGANDAM_SLOTS  = {0: 4, 1: 3, 2: 2, 3: 1, 4: 0, 5: 6, 6: 5}
 GULIKA_SLOTS      = {0: 6, 1: 5, 2: 4, 3: 3, 4: 2, 5: 1, 6: 0}
 
-# Durmuhurtha: two 1/15-day (1 muhurta) slots per weekday (0-indexed from sunrise)
+# Durmuhurtha: 1/15-day (1 muhurta) slots per weekday (0-indexed from sunrise).
+#
+# PR A1.2b — slot 7 is Abhijit Muhurtha which is universally auspicious
+# (except some say on Wednesday). It cannot be a durmuhurtha. Tuesday's
+# slot was [4, 7] which overlapped Abhijit. Fixed per Hora Shastra:
+#
+#   Sunday    13th, 14th  (0-idx [12, 13])
+#   Monday    12th, 13th  (0-idx [11, 12])
+#   Tuesday    5th,  9th  (0-idx  [4,  8])
+#   Wednesday  6th, 10th  (0-idx  [5,  9])
+#   Thursday   6th, 10th  (0-idx  [5,  9])
+#   Friday     8th,  9th  (0-idx  [7,  8])  — Abhijit said to overlap on Friday
+#   Saturday   1st,  2nd  (0-idx  [0,  1])
+#
+# Some traditions disagree on Friday's slots; will be re-verified with
+# user's father's almanac in PR A1.2c if he flags any Friday case.
 DURMUHURTHA_SLOTS = {
-    0: [6, 7],   # Monday
-    1: [4, 7],   # Tuesday
-    2: [5, 7],   # Wednesday
-    3: [5, 7],   # Thursday
-    4: [2, 7],   # Friday
-    5: [7, 8],   # Saturday
-    6: [2, 6],   # Sunday
+    0: [11, 12],  # Monday
+    1: [ 4,  8],  # Tuesday  (was [4, 7] — slot 7 is Abhijit)
+    2: [ 5,  9],  # Wednesday
+    3: [ 5,  9],  # Thursday
+    4: [ 7,  8],  # Friday
+    5: [ 0,  1],  # Saturday
+    6: [12, 13],  # Sunday
 }
 
 CHARA_KARANAS_EN = ["Bava", "Balava", "Kaulava", "Taitula", "Garija", "Vanija", "Vishti"]
@@ -837,6 +886,9 @@ def get_location_panchangam(req: PanchangamLocationRequest):
         "nakshatra_pada": nakshatra_pada,
         "nakshatra_ends_at": jd_to_local_time_str(nakshatra_ends_jd, tz_offset) if nakshatra_ends_jd else None,
         "yoga_en":       YOGA_EN[yoga_num],
+        # PR A1.2b — yoga quality so the UI can color malefic yogas red
+        # (was always shown with the same green icon previously).
+        "yoga_quality":  YOGA_QUALITY.get(YOGA_EN[yoga_num], "auspicious"),
         "yoga_ends_at":  jd_to_local_time_str(yoga_ends_jd, tz_offset) if yoga_ends_jd else None,
         "karana":        karana_pair["karana1"],
         "karana2":       karana_pair["karana2"],
@@ -959,7 +1011,10 @@ def get_monthly_calendar(req: CalendarRequest):
         elif tithi_num == 30: moon_phase = "new"
         elif tithi_num > 15:  moon_phase = "waning"
 
-        weekday = dt.weekday()
+        # PR A1.2b — was `dt.weekday()` referencing a stale name from
+        # before A1.2a renamed the loop variable. Use the local_d we
+        # actually have in scope.
+        weekday = local_d.weekday()
 
         result.append({
             "date":          date_str,
