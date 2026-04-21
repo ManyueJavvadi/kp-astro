@@ -4418,6 +4418,21 @@ textarea:focus-visible {
 .horary-chain-name { font-size: 13px; font-weight: 600; line-height: 1.1; }
 .horary-chain-note { font-size: 9px; color: var(--muted); margin-top: 1px; letter-spacing: 0.04em; }
 .horary-chain-arrow { color: var(--muted); flex-shrink: 0; }
+.horary-chain-row.is-collapsed {
+  border-color: rgba(251,191,36,0.3);
+  background: rgba(251,191,36,0.04);
+}
+.horary-chain-collapsed {
+  font-size: 10px;
+  color: #fbbf24;
+  font-style: italic;
+  letter-spacing: 0.02em;
+  padding: 2px 8px;
+  background: rgba(251,191,36,0.1);
+  border: 0.5px solid rgba(251,191,36,0.3);
+  border-radius: 999px;
+  margin-left: 4px;
+}
 
 /* RP × dasha timing strip */
 .horary-rp-dasha-card {

@@ -215,6 +215,20 @@ def test_topic_aware_lagna_self_obstruction_career_excludes_h6():
                 )
 
 
+def test_cusps_response_always_has_all_12_houses():
+    """
+    PR A1.1f — guard against ever returning fewer than 12 cusps.
+    The UI cusps accordion displays 1..12 in order; a missing entry
+    would cause a gap in the table.
+    """
+    for n in (1, 10, 42, 148, 249):
+        r = analyze_horary(number=n, question="t", topic="general", **FIXED_KWARGS)
+        houses = [c["house"] for c in r["cusps"]]
+        assert houses == list(range(1, 13)), (
+            f"Cusps not contiguous 1..12 for n={n}: got {houses}"
+        )
+
+
 def test_node_inheritance_sign_lord():
     """
     PR A1.1e Bug-2: when Rahu occupies a sign whose lord is a distinct

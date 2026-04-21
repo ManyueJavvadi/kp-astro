@@ -191,9 +191,10 @@ export default function PersonHeroBanner({
           )}
 
           {/* Ruling planets — NATAL (at birth).
-              PR A1.1b: explicitly labelled so this doesn't get confused
-              with the LIVE Horary / Muhurtha / Transit RPs (which depend
-              on the astrologer's current moment + location). */}
+              PR A1.1f — now driven by the unified 7-slot engine. Chips
+              for the unique planets + freq badge "N/7" + gold star on
+              "strongest" (>=2 slots). Matches the Horary tab's RP
+              treatment so astrologers see the same methodology on both. */}
           {rulingPlanets.length > 0 && (
             <div
               style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}
@@ -202,9 +203,36 @@ export default function PersonHeroBanner({
               <span style={{ fontSize: 9, color: "#555566", textTransform: "uppercase", letterSpacing: "0.06em" }}>
                 RPs @ birth:
               </span>
-              {rulingPlanets.slice(0, 5).map((rp, i) => (
-                <PlanetChip key={i} planet={rp.planet} small />
-              ))}
+              {(() => {
+                // 7-slot data if present (rp_context.planet_slots / strongest);
+                // falls back to legacy all_en list on older responses.
+                const ctx = (rpData && !Array.isArray(rpData)) ? rpData.rp_context : null;
+                const planetSlots: Record<string, string[]> = ctx?.planet_slots ?? {};
+                const strongest: string[] = ctx?.strongest ?? [];
+                return rulingPlanets.slice(0, 7).map((rp, i) => {
+                  const freq = planetSlots[rp.planet]?.length ?? 0;
+                  const isStrong = strongest.includes(rp.planet);
+                  return (
+                    <span
+                      key={i}
+                      title={freq > 0
+                        ? (isStrong
+                            ? `${rp.planet} — ${freq}/7 slots · strongest natal RP`
+                            : `${rp.planet} — ${freq}/7 slots`)
+                        : rp.planet}
+                      style={{ display: "inline-flex", alignItems: "center", gap: 3 }}
+                    >
+                      <PlanetChip planet={rp.planet} small />
+                      {isStrong && <span style={{ color: "#c9a96e", fontSize: 9 }}>★</span>}
+                      {freq > 0 && (
+                        <span style={{ fontSize: 8, color: "rgba(201,169,110,0.6)", fontWeight: 600 }}>
+                          {freq}/7
+                        </span>
+                      )}
+                    </span>
+                  );
+                });
+              })()}
             </div>
           )}
         </div>

@@ -359,34 +359,39 @@ def get_ruling_planets(
     timezone_offset: float,
 ) -> dict:
     """
-    Calculate the 5 canonical KP Ruling Planets at the present moment at
-    the astrologer's current location.
+    PR A1.1f — unified 7-slot KP Ruling Planets system.
 
-    PR A1.1 fix: previously used lat=0, lon=0 (middle of Atlantic!) for
-    the Lagna calculation and used UTC weekday — both wrong. Now requires
-    the caller's lat/lon/tz and uses the caller's local weekday.
+    Previously this function returned 5 RPs (Day + Lagna Sign/Star +
+    Moon Sign/Star). Horary was upgraded to 7 slots in A1.1c and matched
+    ksrinivas.com's mainstream methodology. But the natal workspace
+    (Analysis / Chart / Prediction) kept calling this 5-slot version,
+    creating an inconsistency where the same chart had different RPs
+    depending on which tab surfaced them.
 
-    The 5 RPs (order preserved, duplicates removed):
-        1. Day Lord       — weekday in LOCAL time at latitude/longitude
-        2. Lagna Sign Lord — sign lord of the real ascendant now
-        3. Lagna Star Lord — nakshatra lord of the real ascendant now
-        4. Moon Sign Lord  — sign lord of Moon's sidereal longitude now
-        5. Moon Star Lord  — nakshatra lord of Moon's sidereal longitude
+    A1.1f: this function now returns the 7 canonical slots (adds Lagna
+    Sub Lord and Moon Sub Lord) AND the full rp_context block
+    (slot_assignments / planet_slots / strongest / rp_system) that
+    Horary's engine produces. Back-compat keys (ruling_planets list,
+    day_lord, *_sign_lord, *_star_lord, query_time) are retained.
 
-    Returns an extended dict (NOT breaking — all existing keys retained)
-    plus a new ``rp_context`` object describing the location + moment that
-    was used, for display purposes (frontend shows "(Computed for: X)").
+    The 7 slots:
+      1. Day Lord        — weekday in LOCAL time
+      2. Asc Sign Lord   — sign lord of the actual ascendant now
+      3. Asc Star Lord   — nakshatra lord of the actual ascendant
+      4. Asc Sub Lord    — KP sub lord of the actual ascendant
+      5. Moon Sign Lord  — sign lord of Moon's sidereal sign
+      6. Moon Star Lord  — nakshatra lord of Moon
+      7. Moon Sub Lord   — KP sub lord of Moon
+
+    Ranking: planets filling more slots bubble to the top (ties broken
+    by earliest slot index, then name). Strongest = planets in 2+ slots.
     """
     import swisseph as swe
     from datetime import datetime, timedelta, timezone as dt_tz
 
-    # Current UTC moment — never trust client-supplied time. Server's
-    # clock is the single source of truth for "now" in KP.
     utc_now = datetime.now(dt_tz.utc)
     local_now = utc_now + timedelta(hours=timezone_offset)
 
-    # Julian day for the actual UTC moment (not rounded to the minute —
-    # KP timing cares about the second when we're near a nakshatra boundary)
     jd_now = swe.julday(
         utc_now.year, utc_now.month, utc_now.day,
         utc_now.hour + utc_now.minute / 60 + utc_now.second / 3600,
@@ -394,32 +399,51 @@ def get_ruling_planets(
 
     swe.set_sid_mode(swe.SIDM_KRISHNAMURTI_VP291)
 
-    # 1. Day lord — LOCAL weekday (astrologer's perceived day)
+    # 1. Day lord — local weekday
     day_lord = DAY_LORDS[local_now.weekday()]
 
-    # 2+3. Actual ascendant at the astrologer's lat/lon — Placidus, sidereal
+    # 2-4. Actual ascendant at astrologer's lat/lon — Placidus, sidereal
     _, ascmc = swe.houses_ex(jd_now, latitude, longitude, b'P', swe.FLG_SIDEREAL)
     lagna_longitude = ascmc[0]
     lagna_sign_lord = get_sign_lord(lagna_longitude)
     lagna_star_lord = get_nakshatra_and_starlord(lagna_longitude)["star_lord"]
+    lagna_sub_lord  = get_sub_lord(lagna_longitude)
 
-    # 4+5. Current Moon
+    # 5-7. Current Moon
     moon_result, _ = swe.calc_ut(jd_now, swe.MOON, swe.FLG_SIDEREAL)
     moon_longitude = moon_result[0]
     moon_sign_lord = get_sign_lord(moon_longitude)
     moon_star_lord = get_nakshatra_and_starlord(moon_longitude)["star_lord"]
+    moon_sub_lord  = get_sub_lord(moon_longitude)
 
-    # Collect unique ruling planets preserving order of encounter.
-    ruling_planets = list(dict.fromkeys([
-        day_lord,
-        lagna_sign_lord,
-        lagna_star_lord,
-        moon_sign_lord,
-        moon_star_lord,
-    ]))
+    # 7-slot canonical ordering — same as horary_engine's order.
+    slot_assignments = [
+        {"slot": "Day Lord",       "planet": day_lord},
+        {"slot": "Asc Sign Lord",  "planet": lagna_sign_lord},
+        {"slot": "Asc Star Lord",  "planet": lagna_star_lord},
+        {"slot": "Asc Sub Lord",   "planet": lagna_sub_lord},
+        {"slot": "Moon Sign Lord", "planet": moon_sign_lord},
+        {"slot": "Moon Star Lord", "planet": moon_star_lord},
+        {"slot": "Moon Sub Lord",  "planet": moon_sub_lord},
+    ]
+    planet_slots: dict[str, list[str]] = {}
+    for a in slot_assignments:
+        if not a["planet"]:
+            continue
+        planet_slots.setdefault(a["planet"], []).append(a["slot"])
+
+    def _rank_key(p: str) -> tuple:
+        slots = planet_slots[p]
+        first_slot_idx = min(
+            i for i, a in enumerate(slot_assignments) if a["planet"] == p
+        )
+        return (-len(slots), first_slot_idx, p)
+
+    ruling_planets = sorted(planet_slots.keys(), key=_rank_key)
+    strongest = [p for p in ruling_planets if len(planet_slots[p]) >= 2]
 
     return {
-        # Back-compat keys retained
+        # Back-compat keys retained — zero callers need to change.
         "query_time": local_now.strftime("%Y-%m-%d %H:%M"),
         "day_lord": day_lord,
         "lagna_sign_lord": lagna_sign_lord,
@@ -428,8 +452,7 @@ def get_ruling_planets(
         "moon_star_lord": moon_star_lord,
         "ruling_planets": ruling_planets,
 
-        # NEW — context the frontend can render in muted grey so the
-        # astrologer can verify which location + moment drove the RPs.
+        # Unified rp_context — same shape as horary_engine emits.
         "rp_context": {
             "latitude": round(latitude, 4),
             "longitude": round(longitude, 4),
@@ -437,8 +460,20 @@ def get_ruling_planets(
             "local_datetime": local_now.strftime("%Y-%m-%d %H:%M:%S"),
             "utc_datetime": utc_now.strftime("%Y-%m-%d %H:%M:%S UTC"),
             "weekday": local_now.strftime("%A"),
-            "lagna_longitude": round(lagna_longitude, 4),
+            "day_lord": day_lord,
+            "actual_lagna_longitude": round(lagna_longitude, 4),
+            "actual_lagna_sign": get_sign(lagna_longitude),
+            "lagna_sign_lord": lagna_sign_lord,
+            "lagna_star_lord": lagna_star_lord,
+            "lagna_sub_lord":  lagna_sub_lord,
             "moon_longitude": round(moon_longitude, 4),
+            "moon_sign_lord": moon_sign_lord,
+            "moon_star_lord": moon_star_lord,
+            "moon_sub_lord":  moon_sub_lord,
+            "slot_assignments":     slot_assignments,
+            "planet_slots":         planet_slots,
+            "strongest":            strongest,
+            "rp_system":            "7-slot (KSK extended)",
         },
     }
 

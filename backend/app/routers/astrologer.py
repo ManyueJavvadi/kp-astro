@@ -351,6 +351,9 @@ def get_workspace(request: WorkspaceRequest):
         "all_en": ruling_planets.get("ruling_planets", []),
         "all_te": [get_planet_telugu(p) for p in ruling_planets.get("ruling_planets", [])],
         "query_time": ruling_planets.get("query_time", ""),
+        # PR A1.1f — unified 7-slot context. Frontend reads this to render
+        # the same "RP context" strip Horary uses.
+        "rp_context": ruling_planets.get("rp_context", {}),
     }
 
     birth_dt = datetime.strptime(f"{request.date} {request.time}", "%Y-%m-%d %H:%M")

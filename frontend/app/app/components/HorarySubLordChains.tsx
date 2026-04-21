@@ -97,18 +97,31 @@ export default function HorarySubLordChains({ planets, lagna, moon, primaryCsl, 
         </div>
       </div>
       <div className="horary-chains-list">
-        {chains.map(c => (
-          <div key={c.title} className="horary-chain-row">
-            <span className="horary-chain-label">{c.title}</span>
-            <span className="horary-chain-flow">
-              {chainLink(c.node, c.color, c.context || undefined)}
-              <ArrowRight size={11} className="horary-chain-arrow" />
-              {chainLink(c.star, PLANET_COLORS[c.star] ?? "var(--text)", "Star Lord")}
-              <ArrowRight size={11} className="horary-chain-arrow" />
-              {chainLink(c.sub, PLANET_COLORS[c.sub] ?? "var(--accent)", "Sub Lord · carries the verdict")}
-            </span>
-          </div>
-        ))}
+        {chains.map(c => {
+          // PR A1.1f — flag collapsed chain: when star lord == sub lord,
+          // the entire cascade simplifies to a single planet's influence
+          // at the given position. Astrologer's shorthand: "fully ruled
+          // by X". Worth explicitly noting so the visual repetition
+          // doesn't read as a rendering glitch.
+          const isCollapsed = c.star && c.sub && c.star === c.sub;
+          return (
+            <div key={c.title} className={`horary-chain-row${isCollapsed ? " is-collapsed" : ""}`}>
+              <span className="horary-chain-label">{c.title}</span>
+              <span className="horary-chain-flow">
+                {chainLink(c.node, c.color, c.context || undefined)}
+                <ArrowRight size={11} className="horary-chain-arrow" />
+                {chainLink(c.star, PLANET_COLORS[c.star] ?? "var(--text)", "Star Lord")}
+                <ArrowRight size={11} className="horary-chain-arrow" />
+                {chainLink(c.sub, PLANET_COLORS[c.sub] ?? "var(--accent)", "Sub Lord · carries the verdict")}
+                {isCollapsed && (
+                  <span className="horary-chain-collapsed" title="Star lord and sub lord are the same planet — the entire chain is governed by this one planet.">
+                    fully ruled by {c.sub}
+                  </span>
+                )}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
