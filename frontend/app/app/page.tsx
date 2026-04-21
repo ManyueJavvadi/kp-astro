@@ -2771,10 +2771,27 @@ export default function Home() {
                   "దుర్మతి": "Durmati",         "దుందుభి": "Dundubhi",         "రుధిరోద్గారి": "Rudhirodgari",
                   "రక్తాక్షి": "Raktakshi",     "క్రోధన": "Krodhana",          "అక్షయ": "Akshaya",
                 };
+                // PR A1.2a — backend now sends samvatsara_en directly; prefer
+                // it over the frontend lookup. Falls back to the local map for
+                // cached/older responses.
                 const samvatsaraValue = (teName: string | null | undefined): string => {
                   if (!teName) return "";
-                  if (lang === "en") return SAMVATSARA_EN[teName] ?? teName;
+                  if (lang === "en") {
+                    return (pcData?.samvatsara_en as string | undefined)
+                      ?? SAMVATSARA_EN[teName] ?? teName;
+                  }
                   return teName;
+                };
+                // Returns "Parabhava · the defeat / reversal of established order" for tooltips.
+                const samvatsaraSubtitle = (): string => {
+                  const en = pcData?.samvatsara_en as string | undefined;
+                  const meaning = pcData?.samvatsara_meaning as string | undefined;
+                  const cycle = pcData?.samvatsara_cycle as number | undefined;
+                  if (!en) return "";
+                  const parts = [];
+                  if (cycle != null) parts.push(`#${cycle}/60`);
+                  if (meaning) parts.push(meaning);
+                  return parts.join(" · ");
                 };
                 const RUTU_EN: Record<string, string> = {
                   "వసంత ఋతువు":   "Vasanta (Spring)",
@@ -2867,10 +2884,23 @@ export default function Home() {
                           {pcData.samvatsara_te && (
                             <>
                               <span className="dot" />
-                              <span>Samvat {samvatsaraValue(pcData.samvatsara_te)}</span>
+                              <span title={samvatsaraSubtitle()}>
+                                Samvat {samvatsaraValue(pcData.samvatsara_te)}
+                                {pcData?.samvatsara_cycle != null && (
+                                  <span style={{ color: "var(--muted)", marginLeft: 6, fontSize: 11 }}>
+                                    #{pcData.samvatsara_cycle}/60
+                                  </span>
+                                )}
+                              </span>
                             </>
                           )}
                         </div>
+                        {/* PR A1.2a — show meaning underneath as muted explainer */}
+                        {pcData?.samvatsara_meaning && (
+                          <div style={{ fontSize: 11, color: "var(--muted)", fontStyle: "italic", marginTop: 4 }}>
+                            “{pcData.samvatsara_meaning}”
+                          </div>
+                        )}
                       </header>
 
                       {/* ── 2. Monthly calendar ── */}

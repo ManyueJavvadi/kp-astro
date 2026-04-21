@@ -16,7 +16,7 @@ Accuracy fixes (Phase 3):
 
 from fastapi import APIRouter
 from pydantic import BaseModel
-from datetime import datetime, timedelta, date as date_type
+from datetime import datetime, timedelta, timezone, date as date_type
 import calendar as calendar_module
 from typing import Optional, List
 import math
@@ -127,37 +127,41 @@ def jd_to_local_time_short(jd: float, tz_offset: float) -> str:
 
 def _dt_to_jd(dt: datetime) -> float:
     """Convert a datetime (UTC or timezone-aware) to Julian Day."""
-    # Strip timezone to get UTC components
     if dt.tzinfo is not None:
-        from datetime import timezone
         dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
-    hour_frac = dt.hour + dt.minute / 60.0 + dt.second / 3600.0
+    hour_frac = dt.hour + dt.minute / 60.0 + dt.second / 3600.0 + dt.microsecond / 3_600_000_000.0
     return swe.julday(dt.year, dt.month, dt.day, hour_frac)
 
 
-def get_sunrise_sunset_jd(date_jd: float, lat: float, lon: float) -> tuple:
+def get_sunrise_sunset_jd(local_date: date_type, lat: float, lon: float,
+                          tz_offset: float) -> tuple:
     """
     Sunrise/sunset using astral library (NOAA algorithm).
     Returns (sunrise_jd, sunset_jd) in Julian Day (UT).
+
+    PR A1.2a — signature changed. Previously took a JD argument and
+    round-tripped it through unix_seconds math, which produced a float
+    drift that silently shifted `target_date` back by a day for many
+    timezones. Now takes the location's LOCAL date directly plus the
+    timezone offset. Passes tzinfo to astral so it anchors the whole
+    sunrise-to-sunset window to the astrologer's civil day.
+
     Falls back to pyswisseph if astral fails (polar regions).
     """
     try:
-        # Convert JD to date for astral
-        unix_seconds = (date_jd - 2440588.5) * 86400
-        dt_utc = datetime(1970, 1, 1) + timedelta(seconds=unix_seconds)
-        target_date = dt_utc.date()
-
+        loc_tz = timezone(timedelta(hours=tz_offset))
         loc = LocationInfo(latitude=lat, longitude=lon)
-        s = astral_sun(loc.observer, date=target_date)
-        sunrise_jd = _dt_to_jd(s["sunrise"])
-        sunset_jd = _dt_to_jd(s["sunset"])
-        return sunrise_jd, sunset_jd
+        s = astral_sun(loc.observer, date=local_date, tzinfo=loc_tz)
+        return _dt_to_jd(s["sunrise"]), _dt_to_jd(s["sunset"])
     except Exception:
-        # Fallback to pyswisseph for polar regions or edge cases
+        # Polar-region fallback via Swiss Ephemeris.
         geopos = (lon, lat, 0.0)
+        # Anchor the search at noon UTC on the local date.
+        ref_jd = swe.julday(local_date.year, local_date.month, local_date.day,
+                            12.0 - tz_offset)
         try:
             _, tret = swe.rise_trans(
-                date_jd - 0.5, swe.SUN, b"", 0,
+                ref_jd - 0.5, swe.SUN, b"", 0,
                 swe.CALC_RISE, geopos, 1013.25, 10.0
             )
             sunrise_jd = tret[1]
@@ -168,20 +172,27 @@ def get_sunrise_sunset_jd(date_jd: float, lat: float, lon: float) -> tuple:
             sunset_jd = tret2[1]
             return sunrise_jd, sunset_jd
         except Exception:
-            return date_jd - 0.25, date_jd + 0.25
+            return ref_jd - 0.25, ref_jd + 0.25
 
 
-def get_next_sunrise_jd(sunset_jd: float, lat: float, lon: float) -> float:
-    """Get the next sunrise JD after a given sunset JD (for proportional hora)."""
+def get_next_sunrise_jd(local_date: date_type, lat: float, lon: float,
+                        tz_offset: float) -> float:
+    """Next-day sunrise (for proportional hora).
+
+    PR A1.2a — signature changed to accept local_date directly (same
+    rationale as get_sunrise_sunset_jd). Caller passes the NEXT local
+    date (today + 1) so we don't have to re-derive it from a JD.
+    """
     try:
-        unix_seconds = (sunset_jd - 2440588.5) * 86400
-        dt_utc = datetime(1970, 1, 1) + timedelta(seconds=unix_seconds)
-        next_date = (dt_utc + timedelta(days=1)).date()
+        loc_tz = timezone(timedelta(hours=tz_offset))
         loc = LocationInfo(latitude=lat, longitude=lon)
-        s = astral_sun(loc.observer, date=next_date)
+        s = astral_sun(loc.observer, date=local_date, tzinfo=loc_tz)
         return _dt_to_jd(s["sunrise"])
     except Exception:
-        return sunset_jd + 0.5
+        # Fallback: approximate 24h after noon of the requested local date.
+        ref_jd = swe.julday(local_date.year, local_date.month, local_date.day,
+                            12.0 - tz_offset)
+        return ref_jd + 0.25
 
 
 def _extract_rise_jd(tret, ref_jd: float) -> Optional[float]:
@@ -366,13 +377,19 @@ def build_choghadiya(sunrise_jd: float, sunset_jd: float, weekday: int,
 
 def build_hora_sequence(sunrise_jd: float, sunset_jd: float, weekday: int,
                          tz_offset: float, now_jd: float,
-                         lat: float, lon: float) -> list:
+                         lat: float, lon: float,
+                         local_date: date_type) -> list:
     """
     24 proportional planetary hours: 12 day + 12 night.
     Day hora = (sunset-sunrise)/12. Night hora = (next_sunrise-sunset)/12.
     (NOT fixed 1-hour slots — those are wrong for any non-equinox location.)
+
+    PR A1.2a — local_date is now a required parameter so we can derive
+    tomorrow's date deterministically without round-tripping sunset_jd.
     """
-    next_sunrise_jd = get_next_sunrise_jd(sunset_jd, lat, lon)
+    next_sunrise_jd = get_next_sunrise_jd(
+        local_date + timedelta(days=1), lat, lon, tz_offset,
+    )
     day_dur   = (sunset_jd        - sunrise_jd)   / 12.0
     night_dur = (next_sunrise_jd  - sunset_jd)    / 12.0
     start_idx = DAY_HORA_START[weekday]
@@ -470,10 +487,132 @@ def get_vara_telugu(weekday: int) -> str:
     return DAYS_TELUGU.get(en_name, en_name)
 
 
+# PR A1.2a — canonical 60-year Samvatsara cycle.
+# Index 0 = Prabhava. Anchored on the year 1867 = Prabhava (universally
+# agreed; same anchor on DrikPanchang, Wikipedia, every Telugu almanac).
+# 1867 + 60n is always Prabhava: 1867, 1927, 1987, 2047 etc.
+SAMVATSARA_NAMES_EN = [
+    "Prabhava", "Vibhava", "Shukla", "Pramodhoota", "Prajapati",
+    "Angirasa", "Srimukha", "Bhava", "Yuva", "Dhatru",
+    "Ishvara", "Bahudhanya", "Pramadhi", "Vikrama", "Vrisha",
+    "Chitrabhanu", "Svabhanu", "Tarana", "Parthiva", "Vyaya",
+    "Sarvajit", "Sarvadhari", "Virodhi", "Vikrithi", "Khara",
+    "Nandana", "Vijaya", "Jaya", "Manmatha", "Durmukhi",
+    "Hevilambi", "Vilambi", "Vikari", "Sharvari", "Plava",
+    "Shubhakrit", "Shobhakrit", "Krodhi", "Vishwavasu", "Parabhava",
+    "Plavanga", "Kilaka", "Saumya", "Sadharana", "Virodhikruth",
+    "Paridhavi", "Pramadicha", "Ananda", "Rakshasa", "Nala",
+    "Pingala", "Kalayukti", "Siddharthi", "Raudra", "Durmati",
+    "Dundubhi", "Rudhirodgari", "Raktakshi", "Krodhana", "Akshaya",
+]
+
+# Short English meaning per name — useful context for the astrologer
+# alongside the Telugu/Sanskrit name.
+SAMVATSARA_MEANINGS_EN = {
+    "Prabhava":      "the originator / new beginnings",
+    "Vibhava":       "expansion / prosperity",
+    "Shukla":        "the bright / pure",
+    "Pramodhoota":   "delight / joy",
+    "Prajapati":     "lord of beings",
+    "Angirasa":      "fiery / sage Angiras",
+    "Srimukha":      "the auspicious face",
+    "Bhava":         "existence / becoming",
+    "Yuva":          "youth / vitality",
+    "Dhatru":        "the supporter / creator",
+    "Ishvara":       "the supreme / ruler",
+    "Bahudhanya":    "abundant grain / prosperity",
+    "Pramadhi":      "the destroyer / intoxicated",
+    "Vikrama":       "valor / heroic",
+    "Vrisha":        "righteousness / bull (dharma)",
+    "Chitrabhanu":   "of varied splendor",
+    "Svabhanu":      "self-luminous",
+    "Tarana":        "the deliverer",
+    "Parthiva":      "earthly / royal",
+    "Vyaya":         "expense / loss",
+    "Sarvajit":      "all-conquering",
+    "Sarvadhari":    "all-supporting",
+    "Virodhi":       "the opposer",
+    "Vikrithi":      "transformation / disturbance",
+    "Khara":         "harsh / difficult",
+    "Nandana":       "the delight-giver",
+    "Vijaya":        "victory",
+    "Jaya":          "triumph",
+    "Manmatha":      "passion / Cupid",
+    "Durmukhi":      "of unfortunate face",
+    "Hevilambi":     "delayed / slow",
+    "Vilambi":       "slow-moving",
+    "Vikari":        "afflicted / distressed",
+    "Sharvari":      "the night",
+    "Plava":         "carrying away / flood",
+    "Shubhakrit":    "doer of good",
+    "Shobhakrit":    "doer of beauty",
+    "Krodhi":        "the angry",
+    "Vishwavasu":    "wealth of the universe",
+    "Parabhava":     "defeat / reversal of established order",
+    "Plavanga":      "the leaping / monkey",
+    "Kilaka":        "the pillar / pivotal",
+    "Saumya":        "gentle / pleasant",
+    "Sadharana":     "ordinary / common",
+    "Virodhikruth":  "the doer of opposition",
+    "Paridhavi":     "the one who runs around",
+    "Pramadicha":    "intoxicating / negligent",
+    "Ananda":        "bliss / joy",
+    "Rakshasa":      "the demonic / fierce",
+    "Nala":          "stalk / king Nala",
+    "Pingala":       "tawny / reddish brown",
+    "Kalayukti":     "joined with time / war strategy",
+    "Siddharthi":    "the one who attains goals",
+    "Raudra":        "fierce / Rudra-like",
+    "Durmati":       "evil-minded",
+    "Dundubhi":      "the war-drum",
+    "Rudhirodgari":  "blood-spilling",
+    "Raktakshi":     "red-eyed",
+    "Krodhana":      "the wrathful",
+    "Akshaya":       "imperishable / inexhaustible",
+}
+
+
+def get_samvatsara_for_date(local_date: date_type) -> dict:
+    """
+    PR A1.2a — return Samvatsara info for a given LOCAL date.
+
+    The Telugu/Tamil samvatsara year switches at Ugadi (Chaitra Shukla
+    Pratipada), which falls in March or April depending on the lunar
+    month. Calling this with year alone (as the old engine did) was wrong
+    for the entire Jan-Apr window — for example "Jan 2026" should still
+    return the previous year's name (Vishwavasu) until Ugadi 2026
+    arrives (~Mar 19), at which point it becomes Parabhava.
+
+    Returns dict:
+        te:            Telugu name
+        en:            English transliteration
+        meaning:       Short English meaning
+        cycle_index:   0-based position in the 60-year cycle
+        cycle_year:    1-based "Year N of 60"
+    """
+    year = local_date.year
+    # Ugadi occurs around Mar 19 - Apr 14 depending on the year. For a
+    # robust label-only purpose, treat anything before Mar 20 as the
+    # previous samvatsara. Astrologers needing minute-precise transition
+    # should consult the tithi (Chaitra Shukla 1).
+    if local_date.month < 3 or (local_date.month == 3 and local_date.day < 20):
+        year -= 1
+    idx = (year - 1867) % 60
+    name_en = SAMVATSARA_NAMES_EN[idx]
+    return {
+        "te": TELUGU_YEARS[idx] if idx < len(TELUGU_YEARS) else "",
+        "en": name_en,
+        "meaning": SAMVATSARA_MEANINGS_EN.get(name_en, ""),
+        "cycle_index": idx,
+        "cycle_year": idx + 1,
+    }
+
+
+# Back-compat shim. Existing callers `get_samvatsara(year)` still work
+# but now route through a fixed-March-15 date stub. New code should use
+# get_samvatsara_for_date with a real date.
 def get_samvatsara(year: int) -> str:
-    """60-year cycle samvatsara name in Telugu."""
-    idx = (year + 3101 - 1) % 60
-    return TELUGU_YEARS[idx] if idx < len(TELUGU_YEARS) else ""
+    return get_samvatsara_for_date(date_type(year, 6, 15))["te"]
 
 
 def get_ayana(sun_lon: float) -> str:
@@ -569,25 +708,34 @@ def get_location_panchangam(req: PanchangamLocationRequest):
     # Resolve ACTUAL timezone from coordinates (ignore browser offset)
     tz_offset, tz_name = resolve_timezone(req.latitude, req.longitude)
 
-    # Resolve target date in location's local time
+    # PR A1.2a — resolve target date in the LOCATION's local time and
+    # pass it directly to sunrise/sunset calculation. Previously we
+    # round-tripped a "noon UTC" JD through unix_seconds math to extract
+    # a date, which silently shifted the date backwards by up to 24h in
+    # many timezones (root cause of user-reported sunrise/sunset bug).
     if req.date:
-        target = datetime.strptime(req.date, "%Y-%m-%d")
+        local_target = datetime.strptime(req.date, "%Y-%m-%d").date()
     else:
-        utc_now = datetime.utcnow()
-        target = (utc_now + timedelta(hours=tz_offset)).replace(
-            hour=12, minute=0, second=0, microsecond=0)
+        utc_now = datetime.now(timezone.utc)
+        local_target = (utc_now + timedelta(hours=tz_offset)).date()
 
-    # Julian Day at noon on target date (UTC) — used only for sunrise search window
-    jd_noon = swe.julday(target.year, target.month, target.day,
+    # `target` (datetime) kept for downstream uses that still need it.
+    target = datetime.combine(local_target, datetime.min.time()).replace(hour=12)
+
+    # Julian Day at noon local on target date (UT) — used for search anchors
+    # and intra-day computations. Noon UTC on local_date minus tz_offset.
+    jd_noon = swe.julday(local_target.year, local_target.month, local_target.day,
                           12.0 - tz_offset)
 
     # Current moment as JD (UT)
-    _now = datetime.utcnow()
+    _now = datetime.now(timezone.utc)
     now_jd = swe.julday(_now.year, _now.month, _now.day,
                          _now.hour + _now.minute / 60.0 + _now.second / 3600.0)
 
-    # ── Sunrise / Sunset ──────────────────────────────────────────
-    sunrise_jd, sunset_jd = get_sunrise_sunset_jd(jd_noon, req.latitude, req.longitude)
+    # ── Sunrise / Sunset (now anchored on local date + timezone) ──────
+    sunrise_jd, sunset_jd = get_sunrise_sunset_jd(
+        local_target, req.latitude, req.longitude, tz_offset,
+    )
 
     # ── Planet positions AT SUNRISE (traditional rule) ─────────────
     moon_lon = swe.calc_ut(sunrise_jd, swe.MOON, _CALC_FLAGS)[0][0]
@@ -631,10 +779,24 @@ def get_location_panchangam(req: PanchangamLocationRequest):
     brahma_end_jd   = sunrise_jd - 48.0 / (24 * 60)
 
     # ── Transition times (binary search) ────────────────────────────
-    search_end = sunrise_jd + 1.1  # search until ~1 day ahead
-    tithi_ends_jd     = find_transition_jd(sunrise_jd, search_end, _moon_tithi_num)
-    nakshatra_ends_jd = find_transition_jd(sunrise_jd, search_end, _moon_nak_num)
-    yoga_ends_jd      = find_transition_jd(sunrise_jd, search_end, _yoga_num)
+    # PR A1.2a — start search 24h BEFORE sunrise so transitions that
+    # happened in the wee hours but still affect today's panchang are
+    # caught. Previously the search started at sunrise, which silently
+    # returned None when the transition occurred just before sunrise
+    # → frontend showed "no end time" for tithi/nakshatra/yoga.
+    search_start = sunrise_jd - 1.0
+    search_end   = sunrise_jd + 1.1
+    tithi_ends_jd     = find_transition_jd(search_start, search_end, _moon_tithi_num)
+    nakshatra_ends_jd = find_transition_jd(search_start, search_end, _moon_nak_num)
+    yoga_ends_jd      = find_transition_jd(search_start, search_end, _yoga_num)
+    # If a transition was found BEFORE sunrise, look forward for the NEXT
+    # one (because that earlier transition is "yesterday's tithi ending").
+    if tithi_ends_jd is not None and tithi_ends_jd < sunrise_jd:
+        tithi_ends_jd     = find_transition_jd(sunrise_jd, search_end, _moon_tithi_num)
+    if nakshatra_ends_jd is not None and nakshatra_ends_jd < sunrise_jd:
+        nakshatra_ends_jd = find_transition_jd(sunrise_jd, search_end, _moon_nak_num)
+    if yoga_ends_jd is not None and yoga_ends_jd < sunrise_jd:
+        yoga_ends_jd      = find_transition_jd(sunrise_jd, search_end, _yoga_num)
 
     # ── Karana pair ──────────────────────────────────────────────────
     karana_pair = get_karana_pair(moon_lon, sun_lon, sunrise_jd, tz_offset)
@@ -643,7 +805,8 @@ def get_location_panchangam(req: PanchangamLocationRequest):
     choghadiya    = build_choghadiya(sunrise_jd, sunset_jd, weekday, tz_offset, now_jd)
     hora_sequence = build_hora_sequence(sunrise_jd, sunset_jd, weekday,
                                          tz_offset, now_jd,
-                                         req.latitude, req.longitude)
+                                         req.latitude, req.longitude,
+                                         local_target)
     current_hora  = next((h for h in hora_sequence if h["is_current"]), hora_sequence[0])
 
     # ── Moon/Sun Rashi (sign) ────────────────────────────────────────
@@ -654,7 +817,10 @@ def get_location_panchangam(req: PanchangamLocationRequest):
     moonrise_jd, moonset_jd = get_moonrise_moonset_jd(jd_noon, req.latitude, req.longitude)
 
     # ── Telugu identity: Samvatsara, Ayana, Masa, Rutu ──────────────
-    samvatsara_te = get_samvatsara(target.year)
+    # PR A1.2a — use the date-aware samvatsara function so the year name
+    # respects the Ugadi cutoff (March/April) instead of switching at Jan 1.
+    samvatsara = get_samvatsara_for_date(local_target)
+    samvatsara_te = samvatsara["te"]
     ayana_te      = get_ayana(sun_lon)
     masa_en, masa_te, rutu_te = get_masa_rutu(sun_sign)
 
@@ -683,7 +849,11 @@ def get_location_panchangam(req: PanchangamLocationRequest):
         "karana_te":     get_karana_telugu(karana_pair["karana1"]),
         "karana2_te":    get_karana_telugu(karana_pair["karana2"]),
         # Telugu identity
-        "samvatsara_te": samvatsara_te,
+        "samvatsara_te":      samvatsara_te,
+        # PR A1.2a — richer samvatsara fields (used by the new compact display)
+        "samvatsara_en":      samvatsara["en"],
+        "samvatsara_meaning": samvatsara["meaning"],
+        "samvatsara_cycle":   samvatsara["cycle_year"],
         "ayana_te":      ayana_te,
         "masa_en":       masa_en,
         "masa_te":       masa_te,
@@ -743,21 +913,23 @@ def get_monthly_calendar(req: CalendarRequest):
     tz_offset, tz_name = resolve_timezone(
         req.latitude, req.longitude, datetime(req.year, req.month, 15))
 
-    today_utc = datetime.utcnow() + timedelta(hours=tz_offset)
-    today_str = today_utc.strftime("%Y-%m-%d")
+    today_local = (datetime.now(timezone.utc) + timedelta(hours=tz_offset)).date()
+    today_str = today_local.strftime("%Y-%m-%d")
 
     days_in_month = calendar_module.monthrange(req.year, req.month)[1]
     result = []
 
     for day in range(1, days_in_month + 1):
-        dt = datetime(req.year, req.month, day)
-        date_str = dt.strftime("%Y-%m-%d")
+        local_d = date_type(req.year, req.month, day)
+        date_str = local_d.strftime("%Y-%m-%d")
 
         # Julian Day at noon local → UT (used as search window center)
         jd_noon = swe.julday(req.year, req.month, day, 12.0 - tz_offset)
 
-        # True sunrise for this day (astral-based, same as /location endpoint)
-        sunrise_jd, sunset_jd = get_sunrise_sunset_jd(jd_noon, req.latitude, req.longitude)
+        # PR A1.2a — pass local_date directly so date math is unambiguous.
+        sunrise_jd, sunset_jd = get_sunrise_sunset_jd(
+            local_d, req.latitude, req.longitude, tz_offset,
+        )
         sunrise_str = jd_to_local_time_str(sunrise_jd, tz_offset)
         sunset_str  = jd_to_local_time_str(sunset_jd, tz_offset)
 
@@ -771,9 +943,15 @@ def get_monthly_calendar(req: CalendarRequest):
         nakshatra_pada = int((moon_lon % (360 / 27)) / (360 / 108)) + 1
         yoga_num  = int(((sun_lon + moon_lon) % 360) / (360 / 27)) % 27
 
-        # Tithi/Nakshatra transition times
-        tithi_ends_jd     = find_transition_jd(sunrise_jd, sunrise_jd + 1.1, _moon_tithi_num)
-        nakshatra_ends_jd = find_transition_jd(sunrise_jd, sunrise_jd + 1.1, _moon_nak_num)
+        # PR A1.2a — same expanded search window as /location.
+        cal_search_start = sunrise_jd - 1.0
+        cal_search_end   = sunrise_jd + 1.1
+        tithi_ends_jd     = find_transition_jd(cal_search_start, cal_search_end, _moon_tithi_num)
+        nakshatra_ends_jd = find_transition_jd(cal_search_start, cal_search_end, _moon_nak_num)
+        if tithi_ends_jd is not None and tithi_ends_jd < sunrise_jd:
+            tithi_ends_jd     = find_transition_jd(sunrise_jd, cal_search_end, _moon_tithi_num)
+        if nakshatra_ends_jd is not None and nakshatra_ends_jd < sunrise_jd:
+            nakshatra_ends_jd = find_transition_jd(sunrise_jd, cal_search_end, _moon_nak_num)
 
         # Moon phase
         moon_phase = "waxing"
@@ -817,13 +995,17 @@ def get_monthly_calendar(req: CalendarRequest):
     )[0][0]
     month_sun_sign = SIGN_NAMES[int((first_sun_lon % 360) / 30)]
     masa_en, masa_te, _ = get_masa_rutu(month_sun_sign)
-    samvatsara_te = get_samvatsara(req.year)
+    # PR A1.2a — date-aware samvatsara (mid-month is a safe label anchor).
+    samvatsara = get_samvatsara_for_date(date_type(req.year, req.month, 15))
 
     return {
         "year": req.year, "month": req.month, "days": result,
         "timezone_offset": tz_offset,
         "timezone_name": tz_name,
-        "samvatsara_te": samvatsara_te,
+        "samvatsara_te":      samvatsara["te"],
+        "samvatsara_en":      samvatsara["en"],
+        "samvatsara_meaning": samvatsara["meaning"],
+        "samvatsara_cycle":   samvatsara["cycle_year"],
         "masa_te": masa_te,
         "masa_en": masa_en,
         "sun_sign_te": SIGNS_TELUGU.get(month_sun_sign, month_sun_sign),
