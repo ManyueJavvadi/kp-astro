@@ -38,12 +38,15 @@ export default function SouthIndianChart({ planets, cusps, onHouseClick, selecte
               {(lang === "en" ? cusp?.sign_en : (cusp?.sign_te ?? cusp?.sign_en ?? ""))?.slice(0, 4) || ""}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1 }}>
-              {hp.map((p: any) => (
-                <div key={p.planet_en} title={`${p.planet_en} | ${p.nakshatra_en} | ${p.degree_in_sign.toFixed(1)}° | Star: ${p.star_lord_en} | Sub: ${p.sub_lord_en}`} style={{ display: "flex", alignItems: "center", gap: 2 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: PLANET_COLORS[p.planet_en] || "#888" }}>{p.planet_short}{p.retrograde ? "℞" : ""}</span>
-                  <span style={{ fontSize: 7, color: `${PLANET_COLORS[p.planet_en]}80` }}>{p.degree_in_sign.toFixed(0)}°</span>
-                </div>
-              ))}
+              {hp.map((p: any) => {
+                const deg = typeof p.degree_in_sign === "number" ? p.degree_in_sign : 0;
+                return (
+                  <div key={p.planet_en} title={`${p.planet_en} | ${p.nakshatra_en ?? ""} | ${deg.toFixed(1)}° | Star: ${p.star_lord_en ?? ""} | Sub: ${p.sub_lord_en ?? ""}`} style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: PLANET_COLORS[p.planet_en] || "#888" }}>{p.planet_short}{p.retrograde ? "℞" : ""}</span>
+                    <span style={{ fontSize: 7, color: `${PLANET_COLORS[p.planet_en]}80` }}>{deg.toFixed(0)}°</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         );

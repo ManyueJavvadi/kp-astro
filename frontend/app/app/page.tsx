@@ -5856,24 +5856,55 @@ export default function Home() {
                           )}
 
                           {/* PR A1.1e — South Indian Prashna chart (visual).
-                              Reuses SouthIndianChart; horary cusps[] already has the
-                              same shape the natal workspace uses (cusp_longitude field). */}
-                          {Array.isArray(r.planets) && Array.isArray(r.cusps) && r.cusps.length === 12 && (
-                            <div className="horary-chart-card">
-                              <div className="horary-chart-head">
-                                <div className="horary-chart-eyebrow">Prashna chart · South Indian</div>
-                                <div className="horary-chart-sub">
-                                  Lagna at the chosen prashna number; houses laid out with the astrologer&apos;s lat/lon via Placidus.
+                              Hotfix after the first A1.1e ship: SouthIndianChart reads
+                              `p.degree_in_sign.toFixed(1)` / `p.planet_en` / `p.planet_short`
+                              without optional chaining. Horary response uses a shorter shape
+                              (planet / longitude / sign) so we adapt every field the chart
+                              touches. Without this adapter the page throws
+                              "Cannot read properties of undefined (reading 'toFixed')". */}
+                          {Array.isArray(r.planets) && Array.isArray(r.cusps) && r.cusps.length === 12 && (() => {
+                            const adaptPlanet = (p: Record<string, unknown>) => {
+                              const planetEn = String(p.planet ?? "");
+                              const lon = typeof p.longitude === "number" ? p.longitude : 0;
+                              return {
+                                ...p,
+                                planet_en: planetEn,
+                                planet_short: planetEn.slice(0, 2),
+                                degree_in_sign: lon % 30,
+                                sign_en: p.sign,
+                                nakshatra_en: p.nakshatra,
+                                star_lord_en: p.star_lord,
+                                sub_lord_en: p.sub_lord,
+                                house: String(p.house ?? ""),
+                              };
+                            };
+                            const adaptCusp = (c: Record<string, unknown>) => {
+                              const lon = typeof c.longitude === "number" ? c.longitude : 0;
+                              return {
+                                ...c,
+                                cusp_longitude: lon,
+                                house_num: c.house,
+                                sign_en: c.sign,
+                                degree_in_sign: lon % 30,
+                              };
+                            };
+                            return (
+                              <div className="horary-chart-card">
+                                <div className="horary-chart-head">
+                                  <div className="horary-chart-eyebrow">Prashna chart · South Indian</div>
+                                  <div className="horary-chart-sub">
+                                    Lagna at the chosen prashna number; houses laid out with the astrologer&apos;s lat/lon via Placidus.
+                                  </div>
+                                </div>
+                                <div className="horary-chart-wrap">
+                                  <SouthIndianChart
+                                    planets={r.planets.map(adaptPlanet)}
+                                    cusps={r.cusps.map(adaptCusp)}
+                                  />
                                 </div>
                               </div>
-                              <div className="horary-chart-wrap">
-                                <SouthIndianChart
-                                  planets={r.planets.map((p: Record<string, unknown>) => ({ ...p, house: String(p.house) }))}
-                                  cusps={r.cusps.map((c: Record<string, unknown>) => ({ ...c, cusp_longitude: c.longitude, house_num: c.house, sign_en: c.sign }))}
-                                />
-                              </div>
-                            </div>
-                          )}
+                            );
+                          })()}
 
                           {/* PR A1.1e — Sub-lord chains for Lagna / Moon / primary CSL */}
                           <HorarySubLordChains
