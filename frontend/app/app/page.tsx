@@ -2847,6 +2847,39 @@ export default function Home() {
                     });
                   } catch { return selectedIso; }
                 })();
+                // PR A1.2c — viewing future/past date logic. The current-hora
+                // card and any "right now" choghadiya highlighting only make
+                // sense when the selected date IS today; for any other date
+                // we hide live-only displays and surface a "Back to today"
+                // button so the astrologer can return in one click.
+                const todayIso = new Date().toISOString().slice(0, 10);
+                const isViewingToday = selectedIso === todayIso;
+                const goToToday = () => {
+                  setCalSelectedDay(null);
+                  if (pcDetectedCoords) {
+                    setPcLoading(true);
+                    axios.post(`${API_URL}/panchangam/location`, {
+                      latitude: pcDetectedCoords.lat,
+                      longitude: pcDetectedCoords.lon,
+                      timezone_offset: pcDetectedCoords.tz,
+                    }).then(r => setPcData(r.data)).catch(() => {}).finally(() => setPcLoading(false));
+                  }
+                };
+                // Quick-jump strip: today + next 6 days. Lets the astrologer
+                // scrub a week ahead without scrolling the calendar grid.
+                const next7Days = (() => {
+                  const out: { iso: string; weekday: string; day: number }[] = [];
+                  for (let i = 0; i < 7; i++) {
+                    const d = new Date();
+                    d.setDate(d.getDate() + i);
+                    out.push({
+                      iso: d.toISOString().slice(0, 10),
+                      weekday: d.toLocaleDateString(lang === "en" ? "en-US" : "en-IN", { weekday: "short" }),
+                      day: d.getDate(),
+                    });
+                  }
+                  return out;
+                })();
 
                 // Masa header secondary — only show in non-EN modes
                 const masaHeaderSub = lang === "en"
@@ -2908,6 +2941,50 @@ export default function Home() {
                             “{pcData.samvatsara_meaning}”
                           </div>
                         )}
+                        {/* PR A1.2c — viewing-future banner + Back to today.
+                            All values below (sunrise/sunset, kalams, choghadiya,
+                            durmuhurtha, varjyam) are computed for the SELECTED
+                            date, not "right now". Make that explicit so the
+                            astrologer doesn't mistake them for live values. */}
+                        {!isViewingToday && (
+                          <div className="pc2-future-banner">
+                            <span>
+                              {t(
+                                "All values below are computed for this selected date — not live now.",
+                                "క్రింది అన్ని విలువలు ఎంచుకున్న తేదీ కోసం లెక్కించబడ్డాయి — ఇప్పటి ప్రత్యక్ష విలువలు కావు."
+                              )}
+                            </span>
+                            <button onClick={goToToday} className="pc2-back-today-btn">
+                              ← {t("Back to today", "నేటికి వెళ్ళండి")}
+                            </button>
+                          </div>
+                        )}
+                        {/* PR A1.2c — quick-jump strip: today + next 6 days. */}
+                        <div className="pc2-quickjump-strip" role="tablist">
+                          {next7Days.map((d) => {
+                            const isActive = selectedIso === d.iso;
+                            const isToday = d.iso === todayIso;
+                            return (
+                              <button
+                                key={d.iso}
+                                role="tab"
+                                aria-selected={isActive}
+                                onClick={() => {
+                                  if (isToday) {
+                                    goToToday();
+                                  } else {
+                                    handleDayClick(d.iso);
+                                  }
+                                }}
+                                className={`pc2-quickjump-day${isActive ? " is-active" : ""}${isToday ? " is-today" : ""}`}
+                              >
+                                <span className="pc2-quickjump-weekday">{d.weekday}</span>
+                                <span className="pc2-quickjump-num">{d.day}</span>
+                                {isToday && <span className="pc2-quickjump-marker">●</span>}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </header>
 
                       {/* ── 2. Monthly calendar ── */}
@@ -3151,8 +3228,11 @@ export default function Home() {
                         </div>
                       </div>
 
-                      {/* ── 5. Current Hora hero ── */}
-                      {pcData.current_hora && (() => {
+                      {/* ── 5. Current Hora hero ──
+                          PR A1.2c: hora changes every ~1 hour and is intrinsically
+                          a "right now" concept. Hide when viewing any non-today
+                          date because the value is meaningless out of context. */}
+                      {pcData.current_hora && isViewingToday && (() => {
                         const HORA_SYMBOLS: Record<string, string> = {
                           Sun: "\u2609", Moon: "\u263D", Mars: "\u2642", Mercury: "\u263F",
                           Jupiter: "\u2643", Venus: "\u2640", Saturn: "\u2644"
