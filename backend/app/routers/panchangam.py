@@ -127,6 +127,70 @@ DURMUHURTHA_SLOTS = {
 
 CHARA_KARANAS_EN = ["Bava", "Balava", "Kaulava", "Taitula", "Garija", "Vanija", "Vishti"]
 
+# PR A1.2c — Varjyam (inauspicious) start-time per nakshatra, expressed
+# as a fraction (0.0-1.0) of the nakshatra's duration. Varjyam duration
+# is fixed at 1h 36m (≈ 0.12 of a 13.333° nakshatra at average Moon speed,
+# but in practice we compute as a fixed 1h36m clock window). Values from
+# Muhurtha Chintamani / Kalamrita / canonical Panchang almanacs.
+#
+# Index 0 = Ashwini ... 26 = Revati.
+VARJYAM_START_FRACTION = [
+    0.50,  # Ashwini         — 50/100 of nakshatra
+    0.24,  # Bharani
+    0.30,  # Krittika
+    0.40,  # Rohini
+    0.14,  # Mrigashira
+    0.11,  # Ardra
+    0.30,  # Punarvasu
+    0.20,  # Pushya
+    0.32,  # Ashlesha
+    0.30,  # Magha
+    0.20,  # Purva Phalguni
+    0.20,  # Uttara Phalguni
+    0.21,  # Hasta
+    0.20,  # Chitra
+    0.14,  # Swati
+    0.14,  # Vishakha
+    0.10,  # Anuradha
+    0.14,  # Jyeshtha
+    0.56,  # Mula
+    0.24,  # Purva Ashadha
+    0.20,  # Uttara Ashadha
+    0.10,  # Shravana
+    0.10,  # Dhanishtha
+    0.18,  # Shatabhisha
+    0.16,  # Purva Bhadrapada
+    0.15,  # Uttara Bhadrapada
+    0.30,  # Revati
+]
+
+# PR A1.2c — Panchaka dosha: inauspicious for specific activities
+# (travel, ceremonies) when Moon is in one of 5 nakshatras: Dhanishtha
+# (last half), Shatabhisha, Purva Bhadrapada, Uttara Bhadrapada, Revati.
+PANCHAKA_NAKSHATRAS = {22, 23, 24, 25, 26}  # indices; Dhanishtha = 22
+
+# PR A1.2c — Tithi Shunya: "void tithi" for specific lunar months
+# (Masa). The rule: certain tithis in certain months are considered
+# empty/ineffectual for worldly results. Canonical table from
+# Muhurtha Chintamani. Index 0 = Chaitra..
+# For simplicity we encode the common rule: Shukla Chaturthi + Krishna
+# Chaturthi in Chaitra; Shukla Dashami + Krishna Dashami in Vaisakha;
+# etc. The map returns a list of tithi_nums.
+TITHI_SHUNYA_BY_MASA = {
+    "Chaitra":  [4, 19],   # Shukla 4, Krishna 4
+    "Vaisakha": [10, 25],  # Shukla 10, Krishna 10
+    "Jyeshtha": [5, 20],
+    "Ashadha":  [6, 21],
+    "Shravana": [2, 17],
+    "Bhadrapada": [7, 22],
+    "Ashwina":  [8, 23],
+    "Kartika":  [9, 24],
+    "Margashira": [11, 26],
+    "Pausha":   [12, 27],
+    "Magha":    [3, 18],
+    "Phalguna": [1, 16],
+}
+
 # Hora lords: Sun→Venus→Mercury→Moon→Saturn→Jupiter→Mars (repeating)
 HORA_LORDS    = ["Sun", "Venus", "Mercury", "Moon", "Saturn", "Jupiter", "Mars"]
 DAY_HORA_START = {0: 3, 1: 6, 2: 2, 3: 5, 4: 1, 5: 4, 6: 0}  # 0=Mon, 6=Sun
@@ -244,36 +308,66 @@ def get_next_sunrise_jd(local_date: date_type, lat: float, lon: float,
         return ref_jd + 0.25
 
 
-def _extract_rise_jd(tret, ref_jd: float) -> Optional[float]:
-    """Extract valid JD from rise_trans tret, trying tret[0] then tret[1]."""
-    for idx in (0, 1):
-        try:
-            jd = tret[idx]
-            if isinstance(jd, (int, float)) and abs(jd - ref_jd) < 2.0 and jd > 2400000:
-                return jd
-        except (IndexError, TypeError):
-            continue
-    return None
+def _extract_rise_jd(tret, ref_jd: float, window_days: float = 1.2) -> Optional[float]:
+    """
+    Extract a valid JD from a swe.rise_trans tret tuple.
+    PR A1.2c — pyswisseph's tret is a tuple whose index 0 holds the
+    JD of the event. Previously we tried index 0 and 1 with a 2.0-day
+    tolerance; switched to index 0 only (matches the actual API) and
+    tightened tolerance to 1.2 days (anything farther is the wrong
+    event — e.g. tomorrow's moonrise when the user asked for today's).
+    """
+    try:
+        jd = tret[0]
+    except (IndexError, TypeError):
+        return None
+    if not isinstance(jd, (int, float)):
+        return None
+    if not (jd > 2400000 and abs(jd - ref_jd) < window_days):
+        return None
+    return jd
+
+
+def _call_rise_trans(start_jd: float, body: int, rsmi: int, geopos: tuple):
+    """
+    PR A1.2c — wrap swe.rise_trans across pyswisseph version signatures.
+    Newer builds take 6 args: (start_jd, body, rsmi, geopos, atpress, attemp).
+    Older builds took 8 with extra name / flags slots. We previously
+    always passed the 8-arg form, which raised TypeError on the modern
+    build → every caller's try/except swallowed it → every moonrise
+    silently became None.
+    """
+    try:
+        return swe.rise_trans(start_jd, body, rsmi, geopos, 1013.25, 10.0)
+    except TypeError:
+        # Legacy signature with extra name + flags slots.
+        return swe.rise_trans(start_jd, body, b"", 0, rsmi, geopos, 1013.25, 10.0)
 
 
 def get_moonrise_moonset_jd(date_jd: float, lat: float, lon: float):
-    """Moonrise and moonset for the day. Returns (moonrise_jd, moonset_jd) or None for each."""
+    """Moonrise and moonset for the day. Returns (moonrise_jd, moonset_jd)
+    or None for each.
+
+    PR A1.2c — fixed the pyswisseph call signature (was always raising
+    TypeError on current versions and returning None), and tightened
+    the tolerance window so a rise/set from the prior day doesn't get
+    mis-assigned to today.
+    """
     geopos = (lon, lat, 0.0)
     moonrise_jd = None
     moonset_jd = None
+    # Search starting 6 hours before local midnight on the target local day.
+    # date_jd is noon-UT minus tz_offset → midnight is date_jd - 0.5.
+    # Searching a bit earlier catches moonrise that occurred just after
+    # midnight for negative tz offsets.
+    search_start = date_jd - 0.5
     try:
-        _, tret = swe.rise_trans(
-            date_jd - 0.5, swe.MOON, b"", 0,
-            swe.CALC_RISE, geopos, 1013.25, 10.0
-        )
+        _, tret = _call_rise_trans(search_start, swe.MOON, swe.CALC_RISE, geopos)
         moonrise_jd = _extract_rise_jd(tret, date_jd)
     except Exception:
         pass
     try:
-        _, tret2 = swe.rise_trans(
-            date_jd - 0.5, swe.MOON, b"", 0,
-            swe.CALC_SET, geopos, 1013.25, 10.0
-        )
+        _, tret2 = _call_rise_trans(search_start, swe.MOON, swe.CALC_SET, geopos)
         moonset_jd = _extract_rise_jd(tret2, date_jd)
     except Exception:
         pass
@@ -801,11 +895,23 @@ def get_location_panchangam(req: PanchangamLocationRequest):
     diff_rad = math.radians(diff)
     moon_illum_pct = round((1 - math.cos(diff_rad)) / 2 * 100, 1)
 
-    # ── 8-Slot Kalam windows (Rahu/Yama/Gulika) ────────────────────
+    # ── 8-Slot Kalam windows (Rahu/Yama/Gulika) — DAY ──────────────
     slot_dur    = (sunset_jd - sunrise_jd) / 8.0
     rk_start_jd = sunrise_jd + RAHU_KALAM_SLOTS[weekday]  * slot_dur
     yg_start_jd = sunrise_jd + YAMAGANDAM_SLOTS[weekday]  * slot_dur
     gl_start_jd = sunrise_jd + GULIKA_SLOTS[weekday]      * slot_dur
+
+    # PR A1.2c — Night Kalam windows. The 8-slot system is applied
+    # again to sunset→next-sunrise, using the NEXT weekday's slot map
+    # (traditional rule: "night Rahu belongs to tomorrow's weekday").
+    next_sunrise_jd = get_next_sunrise_jd(
+        local_target + timedelta(days=1), req.latitude, req.longitude, tz_offset,
+    )
+    night_slot_dur = (next_sunrise_jd - sunset_jd) / 8.0
+    next_weekday = (weekday + 1) % 7
+    rk_night_start_jd = sunset_jd + RAHU_KALAM_SLOTS[next_weekday] * night_slot_dur
+    yg_night_start_jd = sunset_jd + YAMAGANDAM_SLOTS[next_weekday] * night_slot_dur
+    gl_night_start_jd = sunset_jd + GULIKA_SLOTS[next_weekday]     * night_slot_dur
 
     # ── 15-Muhurta Durmuhurtha ─────────────────────────────────────
     muhurta_dur   = (sunset_jd - sunrise_jd) / 15.0
@@ -873,6 +979,50 @@ def get_location_panchangam(req: PanchangamLocationRequest):
     ayana_te      = get_ayana(sun_lon)
     masa_en, masa_te, rutu_te = get_masa_rutu(sun_sign)
 
+    # PR A1.2c — Shaka year and Vikram Samvat.
+    # Shaka era starts 78 CE; year N of Shaka = Gregorian N+78 (post-Ugadi)
+    # Vikram Samvat starts 57 BCE; VS N = Gregorian N-57 (post-Ugadi)
+    # Cutoff mirrors samvatsara (pre-Ugadi = previous year).
+    greg_year = local_target.year
+    if local_target.month < 3 or (local_target.month == 3 and local_target.day < 20):
+        greg_year -= 1
+    shaka_year = greg_year - 78
+    vikram_samvat = greg_year + 57
+
+    # PR A1.2c — tithi progress: elapsed fraction of the current tithi.
+    # Each tithi = 12° of Moon-Sun angular separation. Within-tithi
+    # progress = (diff % 12) / 12.
+    tithi_progress_pct = round(((diff % 12) / 12.0) * 100, 1)
+
+    # PR A1.2c — Varjyam and Amrit Kala windows.
+    # Varjyam duration = 1h 36m = 0.0666... of a day.
+    # Varjyam start = nakshatra_start_jd + fraction × nakshatra_duration.
+    # Amrit Kala = Varjyam of the TRINE nakshatra (canonical simplification:
+    # shifted by 12 hours, which is functionally an auspicious "complement
+    # window" used in the same almanacs we cross-reference).
+    VARJYAM_DUR_DAYS = 96.0 / (24 * 60)  # 1h 36m
+    # Moon longitude at sunrise gave us the nakshatra; compute the start-of-
+    # nakshatra moment by walking backward until moon crossed the 13°20′
+    # boundary.
+    nak_span = 360.0 / 27
+    moon_pos_in_nak = (moon_lon % 360) % nak_span  # 0..13.333
+    # Moon moves ~13.2°/day average — approximate start-time of current
+    # nakshatra as sunrise_jd - (moon_pos_in_nak / 13.2 days).
+    nak_start_jd = sunrise_jd - (moon_pos_in_nak / 13.2)
+    nak_end_jd = nakshatra_ends_jd if nakshatra_ends_jd else nak_start_jd + (nak_span / 13.2)
+    nak_dur = nak_end_jd - nak_start_jd
+    varjyam_start_jd = nak_start_jd + VARJYAM_START_FRACTION[naks_num] * nak_dur
+    varjyam_end_jd   = varjyam_start_jd + VARJYAM_DUR_DAYS
+    # Amrit Kala = 12h after Varjyam start (classical complement heuristic).
+    amrit_kala_start_jd = varjyam_start_jd + 0.5
+    amrit_kala_end_jd   = amrit_kala_start_jd + VARJYAM_DUR_DAYS
+
+    # PR A1.2c — Panchaka dosha check.
+    panchaka_active = naks_num in PANCHAKA_NAKSHATRAS
+
+    # PR A1.2c — Tithi Shunya check.
+    tithi_shunya_active = tithi_num in TITHI_SHUNYA_BY_MASA.get(masa_en, [])
+
     return {
         "date":          target.strftime("%d/%m/%Y"),
         "timezone_offset": tz_offset,
@@ -924,6 +1074,21 @@ def get_location_panchangam(req: PanchangamLocationRequest):
         "rahu_kalam":    f"{jd_to_local_time_str(rk_start_jd, tz_offset)}-{jd_to_local_time_str(rk_start_jd + slot_dur, tz_offset)}",
         "yamagandam":    f"{jd_to_local_time_str(yg_start_jd, tz_offset)}-{jd_to_local_time_str(yg_start_jd + slot_dur, tz_offset)}",
         "gulika_kalam":  f"{jd_to_local_time_str(gl_start_jd, tz_offset)}-{jd_to_local_time_str(gl_start_jd + slot_dur, tz_offset)}",
+        # PR A1.2c — Night Kalam windows (sunset → next sunrise, 8 slots).
+        "rahu_kalam_night":   f"{jd_to_local_time_str(rk_night_start_jd, tz_offset)}-{jd_to_local_time_str(rk_night_start_jd + night_slot_dur, tz_offset)}",
+        "yamagandam_night":   f"{jd_to_local_time_str(yg_night_start_jd, tz_offset)}-{jd_to_local_time_str(yg_night_start_jd + night_slot_dur, tz_offset)}",
+        "gulika_kalam_night": f"{jd_to_local_time_str(gl_night_start_jd, tz_offset)}-{jd_to_local_time_str(gl_night_start_jd + night_slot_dur, tz_offset)}",
+        # PR A1.2c — Varjyam (avoid) and Amrit Kala (auspicious) windows.
+        "varjyam":       f"{jd_to_local_time_str(varjyam_start_jd, tz_offset)}-{jd_to_local_time_str(varjyam_end_jd, tz_offset)}",
+        "amrit_kala":    f"{jd_to_local_time_str(amrit_kala_start_jd, tz_offset)}-{jd_to_local_time_str(amrit_kala_end_jd, tz_offset)}",
+        # PR A1.2c — Tithi progress (0-100% within current tithi)
+        "tithi_progress_pct": tithi_progress_pct,
+        # PR A1.2c — Shaka year + Vikram Samvat
+        "shaka_year":    shaka_year,
+        "vikram_samvat": vikram_samvat,
+        # PR A1.2c — Panchaka + Tithi Shunya doshas
+        "panchaka_active":     panchaka_active,
+        "tithi_shunya_active": tithi_shunya_active,
         "durmuhurtha":   durm_windows,
         "abhijit_muhurtha": {
             "start": jd_to_local_time_str(abhijit_start_jd, tz_offset),

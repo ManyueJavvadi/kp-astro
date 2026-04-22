@@ -2997,6 +2997,17 @@ export default function Home() {
                               value: lang === "en" ? (pcData.masa_en ?? pcData.masa_te ?? "") : (pcData.masa_te ?? pcData.masa_en ?? ""),
                               sub:   lang === "en" ? "Lunar month" : "చాంద్ర మాసం",
                             },
+                            // PR A1.2c — Shaka year + Vikram Samvat era markers.
+                            {
+                              label: "Shaka",
+                              value: pcData.shaka_year ? String(pcData.shaka_year) : "",
+                              sub:   lang === "en" ? "Shaka era" : "శక సంవత్సరం",
+                            },
+                            {
+                              label: "Vikram",
+                              value: pcData.vikram_samvat ? String(pcData.vikram_samvat) : "",
+                              sub:   lang === "en" ? "Vikram Samvat" : "విక్రమ సంవత్",
+                            },
                           ].filter(x => x.value);
                           return items.map(it => (
                             <div key={it.label} className="pc2-identity-card">
@@ -3040,12 +3051,21 @@ export default function Home() {
                             {lang !== "en" && pcData.tithi_en && (
                               <div className="pc2-element-secondary">{pcData.tithi_en}</div>
                             )}
-                            {pcData.moon_illum_pct != null && (
-                              <div className="pc2-moon-illum-row">
+                            {/* PR A1.2c — was showing moon_illum_pct labeled as
+                                tithi-progress; corrected to actual tithi-elapsed
+                                fraction. Moon illumination retained as smaller
+                                muted line. */}
+                            {pcData.tithi_progress_pct != null && (
+                              <div className="pc2-moon-illum-row" title={`${pcData.tithi_progress_pct}% of current tithi elapsed`}>
                                 <div className="pc2-moon-illum-bar">
-                                  <div className="pc2-moon-illum-fill" style={{ width: `${pcData.moon_illum_pct}%` }} />
+                                  <div className="pc2-moon-illum-fill" style={{ width: `${pcData.tithi_progress_pct}%` }} />
                                 </div>
-                                <span className="pc2-moon-illum-pct">{pcData.moon_illum_pct}%</span>
+                                <span className="pc2-moon-illum-pct">{pcData.tithi_progress_pct}%</span>
+                              </div>
+                            )}
+                            {pcData.moon_illum_pct != null && (
+                              <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 4, opacity: 0.7 }}>
+                                {t(`Moon ${pcData.moon_illum_pct}% illuminated`, `చంద్రుడు ${pcData.moon_illum_pct}% ప్రకాశవంతం`)}
                               </div>
                             )}
                           </div>
@@ -3211,6 +3231,19 @@ export default function Home() {
                                 <span className="pc2-time-row-value">{pcData.abhijit_muhurtha.start} – {pcData.abhijit_muhurtha.end}</span>
                               </div>
                             )}
+                            {/* PR A1.2c — Amrit Kala (auspicious 1h36m window from Moon's nakshatra). */}
+                            {pcData.amrit_kala && (
+                              <div className="pc2-time-row">
+                                <div className="pc2-time-row-icon" style={{ background: "rgba(74,222,128,0.15)", color: "#4ade80" }}>
+                                  <Sparkles size={14} strokeWidth={1.8} />
+                                </div>
+                                <div className="pc2-time-row-body">
+                                  <div className="pc2-time-row-label">{t("Amrit Kala", "అమృత కాలం")}</div>
+                                  <div className="pc2-time-row-sub">{t("Highly auspicious nakshatra-derived window", "నక్షత్రం నుండి అత్యంత శుభ సమయం")}</div>
+                                </div>
+                                <span className="pc2-time-row-value">{pcData.amrit_kala}</span>
+                              </div>
+                            )}
                           </div>
 
                           <div className="pc2-times-panel avoid">
@@ -3257,6 +3290,71 @@ export default function Home() {
                                 <span className="pc2-time-row-value">{dm.start} – {dm.end}</span>
                               </div>
                             ))}
+                            {/* PR A1.2c — Varjyam (avoid 1h36m window from Moon's nakshatra). */}
+                            {pcData.varjyam && (
+                              <div className="pc2-time-row">
+                                <div className="pc2-time-row-icon" style={{ background: "rgba(248,113,113,0.12)", color: "#f87171" }}>
+                                  <Ban size={14} strokeWidth={1.8} />
+                                </div>
+                                <div className="pc2-time-row-body">
+                                  <div className="pc2-time-row-label">{t("Varjyam", "వర్జ్యం")}</div>
+                                  <div className="pc2-time-row-sub">{t("Avoid important actions", "ముఖ్యమైన పనులు నివారించండి")}</div>
+                                </div>
+                                <span className="pc2-time-row-value">{pcData.varjyam}</span>
+                              </div>
+                            )}
+                            {/* PR A1.2c — Night Rahu/Yama/Gulika (less commonly used but valuable). */}
+                            {pcData.rahu_kalam_night && (
+                              <details style={{ marginTop: 8 }}>
+                                <summary style={{ cursor: "pointer", fontSize: 11, color: "var(--muted)", letterSpacing: "0.04em" }}>
+                                  {t("▸ Night kalam windows (sunset → next sunrise)", "▸ రాత్రి కాలం (సూర్యాస్తం → తదుపరి సూర్యోదయం)")}
+                                </summary>
+                                <div className="pc2-time-row" style={{ marginTop: 4 }}>
+                                  <div className="pc2-time-row-icon" style={{ background: "rgba(248,113,113,0.08)", color: "#f87171" }}>
+                                    <TriangleAlert size={14} strokeWidth={1.8} />
+                                  </div>
+                                  <div className="pc2-time-row-body">
+                                    <div className="pc2-time-row-label">{t("Night Rahu Kalam", "రాత్రి రాహుకాలం")}</div>
+                                  </div>
+                                  <span className="pc2-time-row-value">{pcData.rahu_kalam_night}</span>
+                                </div>
+                                <div className="pc2-time-row">
+                                  <div className="pc2-time-row-icon" style={{ background: "rgba(251,191,36,0.08)", color: "#fbbf24" }}>
+                                    <Ban size={14} strokeWidth={1.8} />
+                                  </div>
+                                  <div className="pc2-time-row-body">
+                                    <div className="pc2-time-row-label">{t("Night Yamagandam", "రాత్రి యమగండం")}</div>
+                                  </div>
+                                  <span className="pc2-time-row-value">{pcData.yamagandam_night}</span>
+                                </div>
+                                <div className="pc2-time-row">
+                                  <div className="pc2-time-row-icon" style={{ background: "rgba(167,139,250,0.08)", color: "#a78bfa" }}>
+                                    <CircleDashed size={14} strokeWidth={1.8} />
+                                  </div>
+                                  <div className="pc2-time-row-body">
+                                    <div className="pc2-time-row-label">{t("Night Gulika", "రాత్రి గులిక")}</div>
+                                  </div>
+                                  <span className="pc2-time-row-value">{pcData.gulika_kalam_night}</span>
+                                </div>
+                              </details>
+                            )}
+                            {/* PR A1.2c — Panchaka + Tithi Shunya doshas (advisory tags). */}
+                            {(pcData.panchaka_active || pcData.tithi_shunya_active) && (
+                              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                                {pcData.panchaka_active && (
+                                  <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 999, background: "rgba(248,113,113,0.12)", color: "#f87171", border: "0.5px solid rgba(248,113,113,0.3)", letterSpacing: "0.04em" }}
+                                    title={t("Moon in one of the 5 Panchaka nakshatras (Dhanishtha 2nd half through Revati). Avoid travel, ceremonies.", "")}>
+                                    {t("PANCHAKA DOSHA", "పంచక దోషం")}
+                                  </span>
+                                )}
+                                {pcData.tithi_shunya_active && (
+                                  <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 999, background: "rgba(251,191,36,0.12)", color: "#fbbf24", border: "0.5px solid rgba(251,191,36,0.3)", letterSpacing: "0.04em" }}
+                                    title={t("Tithi shunya (void) for this lunar month. Activities yield reduced or no result.", "")}>
+                                    {t("TITHI SHUNYA", "తిథి శూన్యం")}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
