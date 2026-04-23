@@ -954,7 +954,16 @@ def find_muhurtha_windows(
             d = datetime.strptime(w["date"], "%Y-%m-%d")
             return d < start_dt or d > end_dt
 
-        nearby_only = [w for w in nearby_merged if outside_range(w)]
+        # PR A2.2b.1 — nearby_better must also filter out hard-rejected
+        # windows (outside practical hours, Lagna CSL denial hit, etc.).
+        # Without this, the engine can claim "better window nearby" for
+        # e.g. a 19:44 vehicle purchase — soft-flagged for being past
+        # the 19:00 practical-hours cutoff, yet surfaced as a top
+        # recommendation. Bug surfaced in real-world test 2026-04-23.
+        nearby_only = [
+            w for w in nearby_merged
+            if outside_range(w) and not w.get("hard_rejected_for")
+        ]
         if nearby_only and nearby_only[0]["score"] > best_selected_score + 20:
             nearby_better = nearby_only[0]
             nearby_better["event_location_used"] = event_location_different
