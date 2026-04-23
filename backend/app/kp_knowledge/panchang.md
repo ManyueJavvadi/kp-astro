@@ -93,6 +93,123 @@ Gulika slots    (Mon=6, Tue=5, Wed=4, Thu=3, Fri=2, Sat=1, Sun=0)
 | **Amrit Kala** | Derived from Moon's nakshatra; ~96 minutes per day | ~96 min |
 | **Choghadiya: Amrit/Shubh/Labh** | 7 segments per half-day with quality labels | varies |
 
+## Panchaka Dosha (PR A1.2d)
+
+When the Moon transits **nakshatras 22-26** (Dhanishta — last half —
+through Revati), the condition called **Panchaka** activates. Classical
+rule: avoid the following event classes regardless of other Panchang
+quality:
+
+- Marriage (vivaha)
+- House-warming (griha pravesh)
+- Travel (yatra)
+- Vehicle purchase (vahana kraya)
+- New business / large-venture start
+
+### The five sub-types (by weekday)
+
+Panchaka's flavor depends on the weekday. When Panchaka is active AND
+a specific weekday matches, one of five named sub-types activates.
+
+| Sub-type | Weekday | Additionally blocks | Rationale |
+|---|---|---|---|
+| **Mrityu** | Saturday | **All auspicious events absolutely** | Death-like energy; Saturn (weekday lord) amplifies Panchaka malefic-ness |
+| **Agni** | Tuesday | Welding, cooking-starts, fireworks, electrical work | Mars (fire) weekday + Panchaka = fire mishap |
+| **Roga** | Sunday | Surgery, hospital admissions, medical procedures | Sun (vitality) weakened by Panchaka = illness |
+| **Raja** | Monday | Legal filings, government-office visits, coronation | Moon (public image) + Panchaka = authority conflict |
+| **Chora** | Thursday | Money-movement, vault access, safe deposit, valuables travel | Jupiter (wealth) + Panchaka = theft |
+
+On Wednesday and Friday, Panchaka is active but unnamed (generic
+avoid — the five universally-blocked events in the list above).
+
+### API fields emitted (PR A1.2d)
+
+- `panchaka_active: bool` — True when Moon in nak 22-26
+- `panchaka_subtype: str | null` — "Mrityu" / "Agni" / "Roga" / "Raja" /
+  "Chora" when weekday matches; null otherwise (generic Panchaka)
+- `panchaka_blocks: list[str]` — event-type keys blocked at this moment
+
+### KP practitioner override
+
+KP (KSK school) sometimes overrides Panchaka when the Lagna Sub Lord
+STRONGLY signifies the event's primary houses and the event is NOT in
+the universal-block list. Classical Muhurtha Chintamani does not permit
+this override — practitioners weigh the two traditions contextually.
+
+## Tithi Shunya (void tithis per masa)
+
+Certain tithis in certain lunar months have no astral support —
+"void". Avoid these tithis for **auspicious starts of any kind**
+regardless of other Panchang quality.
+
+| Masa (lunar month) | Void tithis | Common western overlap |
+|---|---|---|
+| Chaitra | Shukla 4, Krishna 4 (tithi 4, 19) | Mar-Apr |
+| Vaisakha | Shukla 10, Krishna 10 (10, 25) | Apr-May |
+| Jyeshtha | Shukla 5, Krishna 5 (5, 20) | May-Jun |
+| Ashadha | Shukla 6, Krishna 6 (6, 21) | Jun-Jul |
+| Shravana | Shukla 2, Krishna 2 (2, 17) | Jul-Aug |
+| Bhadrapada | Shukla 7, Krishna 7 (7, 22) | Aug-Sep |
+| Ashwina | Shukla 8, Krishna 8 (8, 23) | Sep-Oct |
+| Kartika | Shukla 9, Krishna 9 (9, 24) | Oct-Nov |
+| Margashira | Shukla 11, Krishna 11 (11, 26) | Nov-Dec |
+| Pausha | Shukla 12, Krishna 12 (12, 27) | Dec-Jan |
+| Magha | Shukla 3, Krishna 3 (3, 18) | Jan-Feb |
+| Phalguna | Shukla 1, Krishna 1 (1, 16) | Feb-Mar |
+
+Events affected by Tithi Shunya (any auspicious start):
+- Marriage
+- Griha pravesha
+- Business launch
+- Vehicle purchase
+- Foundation/construction start
+- Annaprashana / naming / upanayana
+- Vidyarambha (starting education)
+
+**Exception**: routine operations and non-auspicious necessities
+(medical surgery decided by doctor, travel booked months ago, etc.)
+are not blocked — Tithi Shunya applies to **choosing to start
+something new**, not to ongoing obligations.
+
+### API field emitted
+
+- `tithi_shunya_active: bool` — True when today's tithi is the void
+  tithi for the current masa
+
+## Visha Ghatika (poison window)
+
+A 5-ghati (120-min) toxic window per nakshatra, different per
+nakshatra. Starting anything (signing, travel, important action)
+during Visha Ghatika is classically dangerous. **Different from
+Varjyam** (which is a separate 96-min avoid window, already computed
+by our engine).
+
+Visha Ghatika timing depends on the specific nakshatra; a classical
+table exists. We do NOT currently compute or emit a Visha Ghatika
+window in the API — reserved for a follow-up PR. The AI should
+acknowledge Visha Ghatika conceptually when asked but not fabricate
+specific ghati numbers.
+
+## Nakshatra Pada quality
+
+Each of the 27 nakshatras is divided into 4 **padas** of 3°20' each
+(so the nakshatra's total 13°20' = 4 padas). Pada corresponds to one
+of the 12 Navamsa signs, changing the nakshatra's internal flavour.
+
+General pada notes (not currently scored by the engine; AI may
+mention when relevant):
+- **Pada 1** — start of nakshatra; energy not fully "settled" yet;
+  avoid for events requiring permanence
+- **Pada 2** — stable; good for most events
+- **Pada 3** — peak nakshatra strength; usually strongest for
+  fixed-outcome events (installation, coronation)
+- **Pada 4** — end of nakshatra energy; avoid for auspicious starts
+  (especially for Gandanta nakshatras — Ashlesha, Jyeshtha, Revati —
+  whose pada 4 is a classical "junction" and carries extra weight)
+
+### API field already emitted
+- `nakshatra_pada: int` (1-4) — informational; not scored
+
 ## The 60-year Samvatsara cycle
 
 The Hindu year-name cycle has 60 entries, anchored on **Prabhava** (year

@@ -169,6 +169,34 @@ VARJYAM_START_FRACTION = [
 # (last half), Shatabhisha, Purva Bhadrapada, Uttara Bhadrapada, Revati.
 PANCHAKA_NAKSHATRAS = {22, 23, 24, 25, 26}  # indices; Dhanishtha = 22
 
+# PR A1.2d — Panchaka sub-type classification by weekday.
+# Classical Muhurtha Chintamani rule: when Moon is in a Panchaka
+# nakshatra AND a specific weekday coincides, one of five sub-types
+# activates, each blocking a different activity class. Other weekdays
+# still carry generic Panchaka (avoid new starts, travel, ceremonies)
+# but without a named sub-type.
+# Weekday indices: 0=Mon, 1=Tue, 2=Wed, 3=Thu, 4=Fri, 5=Sat, 6=Sun.
+PANCHAKA_SUBTYPE_BY_WEEKDAY = {
+    0: "Raja",    # Monday — authority, govt/legal dealings blocked
+    1: "Agni",    # Tuesday — fire, cooking, welding, electrical blocked
+    3: "Chora",   # Thursday — theft, money-movement, vault access blocked
+    5: "Mrityu",  # Saturday — death-like outcomes; all auspicious blocked
+    6: "Roga",    # Sunday — illness; surgery, hospital visits blocked
+    # Wed + Fri — Panchaka active but unnamed (generic avoid)
+}
+
+# PR A1.2d — Events most commonly blocked by any Panchaka (regardless of
+# sub-type, per Muhurtha Chintamani vivaha-griha-yatra-vahana-dhanya
+# rule). The astrologer overrides in practice only when Lagna CSL is
+# very clean AND the event is not in this list.
+PANCHAKA_UNIVERSALLY_BLOCKED_EVENTS = [
+    "marriage",        # vivaha
+    "house_warming",   # griha pravesh
+    "travel",          # yatra
+    "vehicle",         # vahana kraya
+    "business",        # new venture (classical dhanya sangraha analogue)
+]
+
 # PR A1.2c — Tithi Shunya: "void tithi" for specific lunar months
 # (Masa). The rule: certain tithis in certain months are considered
 # empty/ineffectual for worldly results. Canonical table from
@@ -1020,6 +1048,31 @@ def get_location_panchangam(req: PanchangamLocationRequest):
     # PR A1.2c — Panchaka dosha check.
     panchaka_active = naks_num in PANCHAKA_NAKSHATRAS
 
+    # PR A1.2d — Panchaka sub-type classification (weekday-based).
+    # When Panchaka is active AND weekday matches, a named sub-type
+    # activates that specifically blocks certain activity classes.
+    panchaka_subtype = None
+    panchaka_blocks = []
+    if panchaka_active:
+        panchaka_subtype = PANCHAKA_SUBTYPE_BY_WEEKDAY.get(weekday)
+        # Both universally-blocked events AND the sub-type's own class
+        panchaka_blocks = list(PANCHAKA_UNIVERSALLY_BLOCKED_EVENTS)
+        if panchaka_subtype == "Raja":
+            panchaka_blocks.append("legal")
+        elif panchaka_subtype == "Agni":
+            # Agni is already covered by the universal "travel/vahana"
+            # blocks; add cooking/fire-adjacent events explicitly.
+            panchaka_blocks.append("welding/electrical/fire-work")
+        elif panchaka_subtype == "Chora":
+            panchaka_blocks.append("investment")
+            panchaka_blocks.append("vault/safe-deposit")
+        elif panchaka_subtype == "Mrityu":
+            # Mrityu Panchaka — avoid ALL auspicious events.
+            # The universal list already covers the main ones.
+            pass
+        elif panchaka_subtype == "Roga":
+            panchaka_blocks.append("medical")
+
     # PR A1.2c — Tithi Shunya check.
     tithi_shunya_active = tithi_num in TITHI_SHUNYA_BY_MASA.get(masa_en, [])
 
@@ -1088,6 +1141,9 @@ def get_location_panchangam(req: PanchangamLocationRequest):
         "vikram_samvat": vikram_samvat,
         # PR A1.2c — Panchaka + Tithi Shunya doshas
         "panchaka_active":     panchaka_active,
+        # PR A1.2d — Panchaka sub-type + event-block list
+        "panchaka_subtype":    panchaka_subtype,
+        "panchaka_blocks":     panchaka_blocks,
         "tithi_shunya_active": tithi_shunya_active,
         "durmuhurtha":   durm_windows,
         "abhijit_muhurtha": {
