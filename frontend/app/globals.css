@@ -535,7 +535,7 @@ textarea:focus-visible {
 .pc-identity-value { font-weight: 600; color: var(--accent); }
 
 /* ── Layout utilities ─────────────────────────────────────────── */
-.pc-two-col { display: grid; grid-template-columns: 220px 1fr; gap: 20px; align-items: start; margin: 16px 0; }
+/* .pc-two-col removed with Choghadiya donut (PR A1.2c-final). */
 .pc-half-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
 
 /* ── Four element cards (2x2 paired with clock) ──────────────── */
@@ -1100,7 +1100,6 @@ textarea:focus-visible {
 
 /* ── Responsive ───────────────────────────────────────────────── */
 @media (max-width: 640px) {
-  .pc-two-col { grid-template-columns: 1fr; }
   .pc-half-grid { grid-template-columns: 1fr; }
   .pc-elements-grid { grid-template-columns: repeat(2, 1fr); }
   .pc-celestial-grid { grid-template-columns: repeat(2, 1fr); }

@@ -31,7 +31,6 @@ import HouseOverviewGrid from "./components/workspace/HouseOverviewGrid";
 import CSLChainView from "./components/workspace/CSLChainView";
 import PersonHeroBanner from "./components/workspace/PersonHeroBanner";
 import DashaStrip from "./components/workspace/DashaStrip";
-import ChoghadiyaClock from "./components/panchang/ChoghadiyaClock";
 import type { PlaceSuggestion, BirthDetails, Message, ChartSession } from "./types";
 import type { WorkspaceData } from "./types/workspace";
 
@@ -3096,21 +3095,12 @@ export default function Home() {
                         })()}
                       </div>
 
-                      {/* ── 4. Choghadiya Clock + 4 element cards ── */}
-                      <div className="pc-two-col">
-                        {pcData.choghadiya && pcData.choghadiya.length > 0 && (
-                          <ChoghadiyaClock
-                            periods={pcData.choghadiya}
-                            sunrise={pcData.sunrise}
-                            sunset={pcData.sunset}
-                            showDay={true}
-                            nowLocalTime={pcData.now_local_time}
-                            dayDurationMin={pcData.day_duration_min}
-                            nightDurationMin={pcData.night_duration_min}
-                          />
-                        )}
-
-                        <div className="pc2-elements-grid">
+                      {/* ── 4. Tithi / Nakshatra / Yoga / Karana element cards ── */}
+                      {/* PR A1.2c-final: Choghadiya donut removed — the "now"
+                          needle made it misleading on non-today dates and the
+                          textual choghadiya list below carries the same data
+                          more legibly. */}
+                      <div className="pc2-elements-grid">
                           {/* Tithi — primary language-aware + moon illum */}
                           <div className="pc2-element-card el-tithi">
                             <div className="pc2-element-head">
@@ -3226,7 +3216,6 @@ export default function Home() {
                             )}
                           </div>
                         </div>
-                      </div>
 
                       {/* ── 5. Current Hora hero ──
                           PR A1.2c: hora changes every ~1 hour and is intrinsically
