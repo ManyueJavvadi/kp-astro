@@ -18,6 +18,42 @@ KNOWLEDGE_DIR = os.path.join(os.path.dirname(__file__), "..", "knowledge")
 # docs in .claude/research/.
 KP_KNOWLEDGE_DIR = os.path.join(os.path.dirname(__file__), "..", "kp_knowledge")
 
+# PR A2.2a.1 — module-level KB cache. The KB files are ~24 KB each;
+# re-reading them on every LLM request wastes time. Load once at first
+# use, cache in-memory. Safe because these files are immutable at
+# runtime (only change on deploy, which restarts the process).
+_KB_CACHE: dict = {}
+
+def _load_kb(name: str) -> str:
+    """Load a Markdown KB from backend/app/kp_knowledge/ with legacy
+    .txt fallback, caching the result in-memory."""
+    if name in _KB_CACHE:
+        return _KB_CACHE[name]
+    content = ""
+    # Primary: structured Markdown in kp_knowledge/
+    md_path = os.path.join(KP_KNOWLEDGE_DIR, f"{name}.md")
+    try:
+        with open(md_path, "r", encoding="utf-8") as f:
+            content = f.read()
+    except Exception:
+        pass
+    # Fallback: legacy .txt files (the old KNOWLEDGE_DIR path is
+    # miswired; try both the expected location and the actual location).
+    if not content:
+        for legacy in (
+            os.path.join(KNOWLEDGE_DIR, f"{name}.txt"),
+            os.path.join(os.path.dirname(__file__), "..", "..", "knowledge", f"{name}.txt"),
+        ):
+            try:
+                with open(legacy, "r", encoding="utf-8") as f:
+                    content = f.read()
+                if content:
+                    break
+            except Exception:
+                continue
+    _KB_CACHE[name] = content
+    return content
+
 TOPIC_TO_FILE = {
     "marriage": "marriage.txt",
     "job": "job.txt",
@@ -1053,32 +1089,15 @@ def get_muhurtha_prediction(muhurtha_data: dict, question: str, history: list = 
     PR A2.2a — KB source: backend/app/kp_knowledge/muhurtha.md (primary),
     backend/knowledge/muhurtha.txt (fallback). The .md KB is
     comprehensive (13 sections incl. Panchanga Shuddhi, doshas,
-    per-event playbooks, multi-chart KPDP rules); the .txt is kept
-    on disk for rollback.
+    per-event playbooks, multi-chart KPDP rules).
+
+    PR A2.2a.1 — KB served from module-level cache (see _load_kb);
+    system prompt marked for Anthropic ephemeral prompt caching
+    (5-minute cache → subsequent calls within that window see
+    ~85% faster processing on cached tokens + ~90% token cost
+    discount). Critical for "Compare top 3" and multi-turn flows.
     """
-    knowledge = ""
-    # Primary: structured Markdown KB.
-    md_path = os.path.join(KP_KNOWLEDGE_DIR, "muhurtha.md")
-    try:
-        with open(md_path, "r", encoding="utf-8") as f:
-            knowledge = f.read()
-    except Exception:
-        pass
-    # Fallback: legacy .txt (note: the old KNOWLEDGE_DIR path is
-    # historically miswired — see commit log. We try both the legacy
-    # expected location and the actual location where .txt files live.)
-    if not knowledge:
-        for legacy in (
-            os.path.join(KNOWLEDGE_DIR, "muhurtha.txt"),
-            os.path.join(os.path.dirname(__file__), "..", "..", "knowledge", "muhurtha.txt"),
-        ):
-            try:
-                with open(legacy, "r", encoding="utf-8") as f:
-                    knowledge = f.read()
-                if knowledge:
-                    break
-            except Exception:
-                continue
+    knowledge = _load_kb("muhurtha")
 
     muhurtha_summary = format_muhurtha_for_llm(muhurtha_data)
 
@@ -1124,11 +1143,22 @@ QUESTION: {question}
 Analyze the muhurtha windows above and answer the question. Reference specific window data, planet positions, and house significations."""
     })
 
+    # PR A2.2a.1 — prompt caching: the system prompt (KB + rules) is
+    # identical across all calls for a given KB version. Mark it as
+    # ephemeral so Anthropic caches it for 5 minutes — subsequent
+    # "Compare top 3", "Alternatives", etc. calls get cache-hit
+    # responses (~85% faster on cached tokens, ~90% token cost off).
     message = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=4000,
         temperature=0,
-        system=system_prompt,
+        system=[
+            {
+                "type": "text",
+                "text": system_prompt,
+                "cache_control": {"type": "ephemeral"},
+            }
+        ],
         messages=messages,
     )
     return message.content[0].text

@@ -278,6 +278,73 @@ No code changes. Pure KB upgrade. Deliverable: `muhurtha.md` + new
 
 **Size**: ~600-800 lines. Read by LLM system prompt. 1 day's work.
 
+### Screenshot findings (2026-04-22 vehicle-delivery run) — add to A2.2b scope
+
+Real-world test: user ran Muhurtha finder for Vehicle Delivery,
+2026-04-25 → 2026-05-23, 1 participant. Engine surfaced these bugs:
+
+1. **Ranked a 1 AM window as #1** (Score 185, May 11, 01:04-01:16).
+   The AI analysis itself said "practical గా రాత్రి 1 AM window useless"
+   and "Showroom/dealer ఉండరు." The engine's scoring rewards KP + Panchang
+   without any time-of-day practicality filter.
+   → **Fix**: add per-event practical-hours filter. Vehicle = 09:00-19:00
+   local (dealer hours); business-opening = 06:00-22:00; griha-pravesh =
+   06:00-20:00; surgery = 06:00-22:00; travel = anytime; marriage =
+   anytime (Indian evening muhurthas normal). Outside-hours windows get
+   −60 penalty (not outright rejection — dad may know an override).
+
+2. **12-minute windows surfaced as top results**. Missing the window by
+   8 min means missing the muhurtha entirely. Merging today is
+   "≤8 min gap, same SL" which can leave very short windows.
+   → **Fix**: floor window duration at 15 min; if a qualified SL run is
+   shorter, widen by including adjacent ± 4-min slots whose score is
+   within 10 points. Never present a < 12-min window.
+
+3. **Event Cusp CSL penalty is too soft**. Window #1's Event Cusp CSL
+   (Jupiter → H2,H5,H8) included H8 (accidents/loss for vehicle) yet
+   the window still scored 185. Current engine gives +15 bonus only
+   when event CSL *confirms*; it doesn't penalize when event CSL
+   signifies denial houses.
+   → **Fix**: asymmetric scoring. Event CSL signifies primary/supporting
+   = +15; signifies denial = −25 (vehicle in H8 is textbook "accident
+   ahead"); no signal either way = 0.
+
+4. **H11 CSL penalty equally soft**. Window #1's H11 CSL (Venus →
+   H5,H7,H12) included H12 (loss/theft). Currently scored 0.
+   → **Fix**: H11 CSL signifies denial = −20.
+
+5. **Moon-nakshatra class mismatch for event**. Window #4 used Ardra
+   (Tikshna class) for a vehicle purchase; classical rule says Chara
+   class (Swati, Punarvasu, Shravana, Dhanishta, Shatabhisha) for
+   vehicles. Engine doesn't weight nakshatra by event-class. The
+   KB §3.2 has the full taxonomy; engine must consume it.
+   → **Fix**: per-event nakshatra-class table. Moon's nakshatra class
+   matches event's preferred class = +12. Mismatch or Ugra/Tikshna
+   for non-surgery event = −15.
+
+6. **Ardra / Tikshna energy wasn't penalized for vehicle**. Tikshna is
+   great for surgery (§9.5 KB) but poor for permanence-oriented events
+   like vehicle purchase. Needs the same per-event table as §5.
+
+7. **Tuesday not penalized for vehicle** (Tue = Mars = accident-prone).
+   Engine still gave standard weekday score. KB §3.4 has the correct
+   per-event weekday table; engine doesn't consume it.
+   → **Fix**: consume the per-event weekday map already in the KB.
+
+8. **Tithi = Navami (Krishna paksha) scored high**. Nanda-Rikta tithis
+   (4, 9, 14) are classically inauspicious for auspicious starts
+   (especially Krishna Navami). Engine scored standard tithi bonus.
+   → **Fix**: add Rikta-Nanda penalty tier in tithi scoring.
+
+9. **All 15 windows have identical RP Resonance 1/1**. Either the
+   participant's natal RPs are too broad (matches everything) or the
+   RP extraction is undercounting moment-side RPs. Needs audit in
+   A2.2b (where we rewrite the participant evaluation layer anyway).
+
+These 9 items all land in A2.2b scope. Together they will stop the engine
+from recommending 1 AM vehicle purchases and will give the astrologer
+classical-correct rankings.
+
 ### PR A2.2b — Per-participant evaluation layer
 
 In `muhurtha_engine.py`, add `_evaluate_participant(window, participant)`
