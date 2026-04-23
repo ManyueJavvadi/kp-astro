@@ -226,6 +226,77 @@ def _compute_chandrabala(birth_moon_sign_idx: int, current_moon_lon: float) -> T
     return position, (position in good_positions)
 
 
+# PR A2.2c — per-participant evaluation ──────────────────────────
+
+def _is_chandrashtamam(birth_moon_sign_idx: int, current_moon_lon: float) -> bool:
+    """True when the current Moon is in the 8th rashi from the native's
+    natal Moon — classical "chandrashtamam" hard filter (KB §8.1).
+    """
+    current_sign = int((current_moon_lon % 360) / 30.0)  # 0-11
+    # 8th from natal: (natal + 7) % 12 (0-indexed)
+    return current_sign == (birth_moon_sign_idx + 7) % 12
+
+
+def _is_janma_tara(birth_nakshatra_idx: int, current_moon_lon: float) -> bool:
+    """True when the current Moon is in the native's own janma nakshatra
+    (Tara = 1 in the 9-cycle). Classical hard filter (KB §8.1).
+    """
+    current_nak = int((current_moon_lon % 360) / (360.0 / 27))
+    return current_nak == birth_nakshatra_idx
+
+
+def _evaluate_participant(
+    name: str,
+    natal_moon: dict,
+    current_moon_lon: float,
+) -> dict:
+    """Compute per-participant findings for a single candidate moment.
+
+    KB §8.1 hard filters: Chandrashtamam, Janma Tara.
+    KB §8.2 soft signals: Tarabala class, Chandrabala.
+
+    Returns a dict the scan loop aggregates into the window's
+    per_participant list and hard_rejected_for list.
+    """
+    birth_nak_idx = natal_moon.get("moon_nakshatra_idx", 0)
+    birth_sign_idx = natal_moon.get("moon_sign_idx", 0)
+
+    chandrashtamam = _is_chandrashtamam(birth_sign_idx, current_moon_lon)
+    janma_tara = _is_janma_tara(birth_nak_idx, current_moon_lon)
+    tara_num, tara_name, tara_good = _compute_tara_bala(birth_nak_idx, current_moon_lon)
+    cb_pos, cb_good = _compute_chandrabala(birth_sign_idx, current_moon_lon)
+
+    # Soft score contribution (KB §8.2 weights, modest per-participant)
+    soft = 0
+    if tara_good:
+        soft += 12
+    else:
+        soft -= 8
+    if cb_good:
+        soft += 6
+    else:
+        soft -= 6
+
+    hard_rejected_for = []
+    if chandrashtamam:
+        hard_rejected_for.append(f"{name}: Chandrashtamam")
+    if janma_tara:
+        hard_rejected_for.append(f"{name}: Janma Tara")
+
+    return {
+        "name": name,
+        "chandrashtamam": chandrashtamam,
+        "janma_tara": janma_tara,
+        "tara_bala_num": tara_num,
+        "tara_bala_name": tara_name,
+        "tara_bala_good": tara_good,
+        "chandrabala_num": cb_pos,
+        "chandrabala_good": cb_good,
+        "soft_score": soft,
+        "hard_rejected_for": hard_rejected_for,
+    }
+
+
 def _get_natal_moon_data(participant: dict) -> dict:
     """Get natal Moon nakshatra index (0-26) and sign index (0-11) from participant."""
     swe.set_sid_mode(swe.SIDM_KRISHNAMURTI_VP291)
@@ -489,26 +560,36 @@ def _scan_date_range(
         elif vara in BAD_VARA:
             base_score -= 15
 
-        # ── Tara Bala (primary participant) ───────────────────────
+        # ── PR A2.2c — per-participant evaluation ─────────────────
+        # For each participant (not just primary), compute classical
+        # §8.1 hard filters + §8.2 soft signals. A window is
+        # hard-rejected if ANY participant has Chandrashtamam OR
+        # Janma Tara active. Soft score sums across participants
+        # (average-preserving but scales with participant count).
+        per_participant = []
+        participant_hard_rejects = []
+        participant_soft_total = 0
+        # Legacy single-participant fields kept for UI back-compat
         tara_num, tara_name, tara_good = 0, "", True
         chandrabala_good = True
-        if participant_natal_moon:
-            # Use first/primary participant
-            _, natal_data = participant_natal_moon[0]
-            tara_num, tara_name, tara_good = _compute_tara_bala(
-                natal_data["moon_nakshatra_idx"], moon_lon
+
+        for name, natal_data in participant_natal_moon:
+            p_eval = _evaluate_participant(name, natal_data, moon_lon)
+            per_participant.append(p_eval)
+            participant_soft_total += p_eval["soft_score"]
+            if p_eval["hard_rejected_for"]:
+                participant_hard_rejects.extend(p_eval["hard_rejected_for"])
+
+        # Primary-participant legacy fields (first in list; UI chips)
+        if per_participant:
+            p0 = per_participant[0]
+            tara_num, tara_name, tara_good = (
+                p0["tara_bala_num"], p0["tara_bala_name"], p0["tara_bala_good"]
             )
-            _, chandrabala_good = _compute_chandrabala(
-                natal_data["moon_sign_idx"], moon_lon
-            )
-            if tara_good:
-                base_score += 25
-            else:
-                base_score -= 20
-            if chandrabala_good:
-                base_score += 15
-            else:
-                base_score -= 15
+            chandrabala_good = p0["chandrabala_good"]
+
+        # Apply per-participant soft total to base_score
+        base_score += participant_soft_total
 
         # ── Hora lord scoring ──────────────────────────────────────
         hora_lord = _get_hora_lord(jd, sunrise_jd, sunset_jd, vara)
@@ -632,6 +713,11 @@ def _scan_date_range(
             badhaka_penalty = -25
         else:
             badhaka_penalty = 0
+
+        # (5) PR A2.2c — per-participant hard filters (§8.1).
+        #     Chandrashtamam or Janma Tara on ANY participant → reject.
+        if participant_hard_rejects:
+            hard_rejected_for.extend(participant_hard_rejects)
 
         # ── PR A2.2b: NEW SOFT SCORING PENALTIES / BONUSES ─────────
 
@@ -778,6 +864,9 @@ def _scan_date_range(
                 "vara_event_approved": vara in preferred_varas,
                 "vara_event_avoided":  vara in avoid_varas,
                 "lagna_type_event_preferred": sign_type in preferred_lagna_types,
+                # PR A2.2c — per-participant evaluation (KB §8.1, §8.2)
+                "per_participant":   per_participant,
+                "participant_soft_total": participant_soft_total,
             })
 
         current += timedelta(minutes=4)
@@ -839,8 +928,11 @@ def _merge_windows(raw: list) -> list:
             # Inherit new fields from highest-score slice
             if w["score"] > cur["score"]:
                 for f in ("in_abhijit", "tara_bala", "tara_bala_name", "tara_bala_good",
-                          "chandrabala_good", "hora_lord", "hora_auspicious", "lagna_lord_retrograde"):
-                    cur[f] = w[f]
+                          "chandrabala_good", "hora_lord", "hora_auspicious", "lagna_lord_retrograde",
+                          # PR A2.2c — per-participant snapshot belongs to the strongest slice
+                          "per_participant", "participant_soft_total"):
+                    if f in w:
+                        cur[f] = w[f]
             cur["quality"] = _quality(cur["score"])
         else:
             merged.append(cur)
@@ -968,12 +1060,47 @@ def find_muhurtha_windows(
             nearby_better = nearby_only[0]
             nearby_better["event_location_used"] = event_location_different
 
+    # PR A2.2c — extend-window logic (KB §8.5).
+    # If nothing in the client's range passes hard filters, scan forward
+    # up to 30 days for the next qualifying window. Classical practice:
+    # "no qualifying muhurtha exists in your range; the next one is in
+    # N days. Recommend waiting." (User's dad's exact workflow.)
+    extend_suggestion = None
+    if not selected_windows:
+        extend_start = end_dt + timedelta(days=1)
+        extend_end = end_dt + timedelta(days=30)
+        extend_raw = _scan_date_range(
+            extend_start, extend_end, classified_event,
+            e_lat, e_lon, e_tz,
+            participant_rps, participant_natal_moon,
+        )
+        extend_merged = _merge_windows(extend_raw)
+        extend_passed = [w for w in extend_merged if not w.get("hard_rejected_for")]
+        extend_passed.sort(key=lambda w: w["score"], reverse=True)
+        if extend_passed:
+            first = extend_passed[0]
+            first_date = datetime.strptime(first["date"], "%Y-%m-%d")
+            first["event_location_used"] = event_location_different
+            extend_suggestion = {
+                "window": first,
+                "days_from_range_end": (first_date - end_dt).days,
+                "blocking_reasons": (
+                    # Summarize why the client's range had nothing.
+                    # Collect reason frequencies across soft-flagged
+                    # windows so the astrologer can tell the client
+                    # "your range fails for these reasons".
+                    _summarize_reasons(soft_flagged_windows)
+                    if soft_flagged_windows else []
+                ),
+            }
+
     return {
         "windows":              selected_windows[:15],
         "soft_flagged_windows": soft_flagged_windows[:15],  # PR A2.2b
         "date_windows":         date_windows,
         "best_window":          selected_windows[0] if selected_windows else None,
         "nearby_better":        nearby_better,
+        "extend_suggestion":    extend_suggestion,          # PR A2.2c
         "event_type":           classified_event,
         "event_label":          event_type,
         "searched_range":       {"start": date_start, "end": date_end},
@@ -984,3 +1111,21 @@ def find_muhurtha_windows(
         "passed_count":         len(selected_windows),
         "soft_flagged_count":   len(soft_flagged_windows),
     }
+
+
+def _summarize_reasons(soft_flagged: list) -> list:
+    """PR A2.2c — aggregate rejection reasons across soft-flagged
+    windows so the extend-suggestion banner can say WHY the client's
+    range had nothing (e.g., "All windows outside practical hours" or
+    "Chandrashtamam blocks participant X from Apr 25 - May 2").
+
+    Returns a list of {"reason": str, "count": int} sorted by count
+    descending, top 5.
+    """
+    counter: dict = {}
+    for w in soft_flagged:
+        for r in w.get("hard_rejected_for", []):
+            counter[r] = counter.get(r, 0) + 1
+    out = [{"reason": r, "count": c} for r, c in counter.items()]
+    out.sort(key=lambda x: x["count"], reverse=True)
+    return out[:5]
