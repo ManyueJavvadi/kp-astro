@@ -4409,6 +4409,37 @@ export default function Home() {
                                         <span>{t("Vishti karana", "విష్టి కరణం")}</span>
                                         <span className={w.is_vishti ? "muhurtha-fail" : "muhurtha-pass"}>{w.is_vishti ? "VISHTI" : t("Clear", "లేదు")}</span>
                                       </div>
+                                      {/* PR A2.2e — classical dosha flags */}
+                                      {w.venus_combust && (
+                                        <div className="muhurtha-detail-row">
+                                          <span>{t("Venus combust", "శుక్ర అస్త")}</span>
+                                          <span className="muhurtha-fail">{t("SHUKRA ASTA", "శుక్ర అస్త")}</span>
+                                        </div>
+                                      )}
+                                      {w.jupiter_combust && (
+                                        <div className="muhurtha-detail-row">
+                                          <span>{t("Jupiter combust", "గురు అస్త")}</span>
+                                          <span className="muhurtha-fail">{t("GURU ASTA", "గురు అస్త")}</span>
+                                        </div>
+                                      )}
+                                      {w.solar_month_blocked && (
+                                        <div className="muhurtha-detail-row">
+                                          <span>{t("Solar month", "సౌర మాసం")}</span>
+                                          <span className="muhurtha-fail">{t("BLOCKED (vivaha)", "నిషేధం (వివాహ)")}</span>
+                                        </div>
+                                      )}
+                                      {w.kartari_active && (
+                                        <div className="muhurtha-detail-row">
+                                          <span>{t("Kartari dosha", "కర్తరి దోషం")}</span>
+                                          <span className="muhurtha-fail">{t("ACTIVE", "చురుకు")}</span>
+                                        </div>
+                                      )}
+                                      {w.ekargala_active && (
+                                        <div className="muhurtha-detail-row">
+                                          <span>{t("Ekargala dosha", "ఏకార్గల దోషం")}</span>
+                                          <span className="muhurtha-fail">{t("ACTIVE", "చురుకు")}</span>
+                                        </div>
+                                      )}
                                       {mParticipants.length > 0 && (
                                         <>
                                           <div className="muhurtha-detail-row">

@@ -954,6 +954,74 @@ def _scan_date_range(
         elif preferred_lagna_types:  # strict mismatch only when a preference exists
             lagna_type_bonus = -5
 
+        # ── PR A2.2e: classical dosha checks ────────────────────────
+
+        # (A) Venus/Jupiter combustion — classical hard-block for
+        # vivaha (marriage). Combustion thresholds per Brihat Samhita:
+        # Venus ≤ 9°, Jupiter ≤ 11°. Applies only to marriage event.
+        venus_combust = False
+        jupiter_combust = False
+        if event_type == "marriage":
+            venus_lon = planets.get("Venus", {}).get("longitude", 0)
+            jupiter_lon = planets.get("Jupiter", {}).get("longitude", 0)
+            venus_sun_sep = min(abs(venus_lon - sun_lon), 360 - abs(venus_lon - sun_lon))
+            jup_sun_sep = min(abs(jupiter_lon - sun_lon), 360 - abs(jupiter_lon - sun_lon))
+            venus_combust = venus_sun_sep <= 9.0
+            jupiter_combust = jup_sun_sep <= 11.0
+            if venus_combust:
+                hard_rejected_for.append("Venus combust (Shukra asta — no vivaha)")
+            if jupiter_combust:
+                hard_rejected_for.append("Jupiter combust (Guru asta — no vivaha)")
+
+        # (B) Solar-month rule for vivaha. Classical: marriage allowed
+        # only when Sun transits Mesha / Vrishabha / Mithuna /
+        # Vrischika / Makara / Kumbha (sign indices 0, 1, 2, 7, 9, 10).
+        # Blocks Cancer, Leo, Virgo, Libra, Sagittarius, Pisces.
+        solar_month_blocked = False
+        if event_type == "marriage":
+            sun_sign_idx = int((sun_lon % 360) / 30.0)
+            ALLOWED_SUN_SIGNS_MARRIAGE = {0, 1, 2, 7, 9, 10}
+            if sun_sign_idx not in ALLOWED_SUN_SIGNS_MARRIAGE:
+                solar_month_blocked = True
+                BLOCKED_SIGN_NAMES = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo",
+                                       "Libra","Scorpio","Sagittarius","Capricorn",
+                                       "Aquarius","Pisces"]
+                hard_rejected_for.append(
+                    f"Sun in {BLOCKED_SIGN_NAMES[sun_sign_idx]} (vivaha blocked — not in allowed 6 signs)"
+                )
+
+        # (C) Kartari dosha — malefics flanking the muhurtha Lagna
+        # (i.e., malefic in 12th AND malefic in 2nd from Lagna).
+        # Classical KP: this "scissor" cuts the event. Soft penalty
+        # rather than hard reject in modern practice; KB §4.6 says
+        # avoid, so we apply a meaningful soft hit.
+        kartari_active = False
+        MALEFICS = {"Sun", "Saturn", "Mars", "Rahu", "Ketu"}
+        # Occupants of H2 (sign at lagna_lon + 30°) and H12 (sign at lagna_lon - 30°)
+        lagna_sign_idx = int((lagna_lon % 360) / 30.0)
+        h2_sign_idx = (lagna_sign_idx + 1) % 12
+        h12_sign_idx = (lagna_sign_idx - 1) % 12
+        h2_has_malefic = False
+        h12_has_malefic = False
+        for pname, pdata in planets.items():
+            if pname not in MALEFICS:
+                continue
+            p_sign_idx = int((pdata.get("longitude", 0) % 360) / 30.0)
+            if p_sign_idx == h2_sign_idx:
+                h2_has_malefic = True
+            if p_sign_idx == h12_sign_idx:
+                h12_has_malefic = True
+        kartari_active = h2_has_malefic and h12_has_malefic
+        kartari_penalty = -25 if kartari_active else 0
+
+        # (D) Ekargala dosha — Sun and Moon in the same sign
+        # (most intense on Amavasya). Blocks auspicious starts.
+        # Soft penalty per KB §4.7.
+        sun_sign_idx_here = int((sun_lon % 360) / 30.0)
+        moon_sign_idx_here = int((moon_lon % 360) / 30.0)
+        ekargala_active = sun_sign_idx_here == moon_sign_idx_here
+        ekargala_penalty = -20 if ekargala_active else 0
+
         # ── PR A2.2b: assemble effective_score with all new signals ──
         effective_score = (
             base_score
@@ -968,6 +1036,8 @@ def _scan_date_range(
             + nak_bonus
             + per_event_vara_bonus
             + lagna_type_bonus
+            + kartari_penalty        # PR A2.2e
+            + ekargala_penalty       # PR A2.2e
         )
         if in_rk:   effective_score -= 50
         if in_yg:   effective_score -= 60
@@ -1047,6 +1117,12 @@ def _scan_date_range(
                 # PR A2.2c — per-participant evaluation (KB §8.1, §8.2)
                 "per_participant":   per_participant,
                 "participant_soft_total": participant_soft_total,
+                # PR A2.2e — classical dosha flags
+                "venus_combust":     venus_combust,
+                "jupiter_combust":   jupiter_combust,
+                "solar_month_blocked": solar_month_blocked,
+                "kartari_active":    kartari_active,
+                "ekargala_active":   ekargala_active,
             })
 
         current += timedelta(minutes=4)
