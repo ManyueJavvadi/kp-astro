@@ -3899,12 +3899,31 @@ export default function Home() {
                         )}
                       </div>
 
-                      {/* Participant summary if any */}
-                      {mParticipants.length > 0 && (
-                        <div style={{ padding: "6px 10px", background: "rgba(201,169,110,0.06)", border: "0.5px solid rgba(201,169,110,0.2)", borderRadius: 6, marginBottom: "0.875rem", fontSize: 11, color: "var(--muted)" }}>
-                          {t("Participants", "పాల్గొనేవారు")}: {mParticipants.map(p => <span key={p.id} style={{ color: "var(--accent)", marginRight: 6 }}>{p.name || p.birthDetails.name}</span>)}
-                        </div>
-                      )}
+                      {/* Participant summary — PR A2.2d.1: always show the
+                          primary chart holder explicitly. Previous version only
+                          listed additional participants (mParticipants), making
+                          it look like the client's own chart was excluded.
+                          Now always shows "primary · others" so the astrologer
+                          confirms their main chart is included in the scan. */}
+                      <div style={{ padding: "6px 10px", background: "rgba(201,169,110,0.06)", border: "0.5px solid rgba(201,169,110,0.2)", borderRadius: 6, marginBottom: "0.875rem", fontSize: 11, color: "var(--muted)", display: "flex", flexWrap: "wrap" as const, gap: 4, alignItems: "center" }}>
+                        <span>{t("For", "కోసం")}:</span>
+                        <span style={{ color: "var(--accent)" }}>
+                          {workspaceData?.name || birthDetails?.name || t("primary chart", "ప్రధాన చార్ట్")}
+                        </span>
+                        <span style={{ fontSize: 9, padding: "1px 6px", background: "rgba(201,169,110,0.14)", color: "var(--accent)", borderRadius: 4, letterSpacing: "0.04em", fontWeight: 600 }}>
+                          {t("PRIMARY", "ప్రధాన")}
+                        </span>
+                        {mParticipants.length > 0 && (
+                          <>
+                            <span style={{ color: "var(--border2)", margin: "0 4px" }}>+</span>
+                            {mParticipants.map((p, i) => (
+                              <span key={p.id} style={{ color: "var(--accent)", marginRight: i < mParticipants.length - 1 ? 6 : 0 }}>
+                                {p.name || p.birthDetails.name}
+                              </span>
+                            ))}
+                          </>
+                        )}
+                      </div>
                       {/* Quick picks */}
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: "1rem" }}>
                         {[
