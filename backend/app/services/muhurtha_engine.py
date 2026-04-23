@@ -245,10 +245,129 @@ def _is_janma_tara(birth_nakshatra_idx: int, current_moon_lon: float) -> bool:
     return current_nak == birth_nakshatra_idx
 
 
+# ── PR A2.2c.2 — natal Badhakesh/Marakesh + dasha context ────────
+
+# Sign lords (reused below; defined further down but declared here
+# via a lazy import to avoid forward-reference issues).
+_SIGN_LORDS_FALLBACK = {
+    "Aries": "Mars", "Taurus": "Venus", "Gemini": "Mercury", "Cancer": "Moon",
+    "Leo": "Sun",    "Virgo": "Mercury","Libra": "Venus",  "Scorpio": "Mars",
+    "Sagittarius": "Jupiter", "Capricorn": "Saturn",
+    "Aquarius": "Saturn", "Pisces": "Jupiter",
+}
+
+# Standard zodiac order for "Nth sign from Lagna" math
+_SIGN_ORDER = [
+    "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
+    "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces",
+]
+
+
+def _natal_badhakesh_marakesh(participant: dict) -> dict:
+    """KB §8.1 hard-filter inputs per participant:
+       - Badhakesh = lord of the Badhaka house from natal Lagna
+         (movable → 11th, fixed → 9th, dual → 7th from Lagna).
+       - Marakesh = lords of the 2nd AND 7th houses from natal Lagna
+         (classical marakasthanas).
+
+    Returns {"badhakesh": "Saturn", "marakesh": {"Venus", "Mars"}, "lagna_sign": "Libra"}.
+    On error (bad natal data), returns empty sets so the DBA check
+    no-ops — better than blocking all windows for a data issue.
+    """
+    try:
+        jd = date_time_to_julian(
+            participant["date"], participant["time"],
+            participant.get("timezone_offset", 5.5),
+        )
+        swe.set_sid_mode(swe.SIDM_KRISHNAMURTI_VP291)
+        cusps, _ = swe.houses_ex(
+            jd, participant["latitude"], participant["longitude"],
+            b'P', swe.FLG_SIDEREAL,
+        )
+        lagna_lon = cusps[0] % 360
+        lagna_sign = get_sign(lagna_lon)
+        sign_type = SIGN_TYPES.get(lagna_sign, "Movable")
+        badhaka_house_num = BADHAKA_HOUSE[sign_type]  # 11/9/7
+
+        # Lagna sign index in _SIGN_ORDER
+        li = _SIGN_ORDER.index(lagna_sign)
+        badhaka_sign = _SIGN_ORDER[(li + badhaka_house_num - 1) % 12]
+        maraka_sign_2 = _SIGN_ORDER[(li + 1) % 12]    # 2nd sign
+        maraka_sign_7 = _SIGN_ORDER[(li + 6) % 12]    # 7th sign
+
+        badhakesh = _SIGN_LORDS_FALLBACK.get(badhaka_sign)
+        marakesh = {
+            _SIGN_LORDS_FALLBACK.get(maraka_sign_2),
+            _SIGN_LORDS_FALLBACK.get(maraka_sign_7),
+        }
+        marakesh.discard(None)
+
+        return {
+            "badhakesh": badhakesh,
+            "marakesh": marakesh,
+            "lagna_sign": lagna_sign,
+            "lagna_sign_type": sign_type,
+            "badhaka_house": badhaka_house_num,
+        }
+    except Exception:
+        return {"badhakesh": None, "marakesh": set(), "lagna_sign": None,
+                "lagna_sign_type": None, "badhaka_house": None}
+
+
+def _natal_dasha_list(participant: dict) -> list:
+    """Returns the full Vimshottari Mahadasha list for a participant
+    (9 entries covering ~120 years from birth). Calls the existing
+    chart_engine.calculate_dashas helper.
+
+    Returns [] on error so the DBA check no-ops rather than blocking.
+    """
+    try:
+        from app.services.chart_engine import calculate_dashas, get_planet_positions
+        jd = date_time_to_julian(
+            participant["date"], participant["time"],
+            participant.get("timezone_offset", 5.5),
+        )
+        moon_lon = get_planet_positions(jd).get("Moon", {}).get("longitude", 0)
+        return calculate_dashas(
+            participant["date"], participant["time"], moon_lon,
+            participant.get("timezone_offset", 5.5),
+        )
+    except Exception:
+        return []
+
+
+def _dasha_lords_at(
+    dashas: list,
+    target_date_str: str,
+) -> Tuple[Optional[str], Optional[str]]:
+    """Given a participant's dasha list and a target YYYY-MM-DD string,
+    return (mahadasha_lord, antardasha_lord) active on that date.
+    Returns (None, None) if no match.
+    """
+    if not dashas or not target_date_str:
+        return (None, None)
+    try:
+        from app.services.chart_engine import calculate_antardashas
+        for md in dashas:
+            if md["start"] <= target_date_str <= md["end"]:
+                ads = calculate_antardashas(md)
+                for ad in ads:
+                    if ad["start"] <= target_date_str <= ad["end"]:
+                        return (md["lord"], ad["antardasha_lord"])
+                return (md["lord"], None)
+        return (None, None)
+    except Exception:
+        return (None, None)
+
+
 def _evaluate_participant(
     name: str,
     natal_moon: dict,
     current_moon_lon: float,
+    *,
+    natal_bm: dict = None,   # from _natal_badhakesh_marakesh
+    dashas: list = None,     # from _natal_dasha_list
+    target_date_str: str = None,
 ) -> dict:
     """Compute per-participant findings for a single candidate moment.
 
@@ -283,6 +402,36 @@ def _evaluate_participant(
     if janma_tara:
         hard_rejected_for.append(f"{name}: Janma Tara")
 
+    # ── PR A2.2c.2: Current DBA + Badhakesh/Marakesh check ──
+    # Classical KP rule (KB §8.1): auspicious events must NOT start
+    # when the native's current Mahadasha or Antardasha lord is their
+    # natal Badhakesh (obstruction lord) or Marakesh (death-bringer
+    # lord). Such periods indicate structural opposition to new
+    # beginnings.
+    current_md = None
+    current_ad = None
+    badhakesh_active = False
+    marakesh_active = False
+    if dashas and target_date_str:
+        current_md, current_ad = _dasha_lords_at(dashas, target_date_str)
+        if natal_bm:
+            badhakesh = natal_bm.get("badhakesh")
+            marakesh_set = natal_bm.get("marakesh") or set()
+            active_dba_lords = {l for l in (current_md, current_ad) if l}
+            if badhakesh and badhakesh in active_dba_lords:
+                badhakesh_active = True
+                which = "MD" if current_md == badhakesh else "AD"
+                hard_rejected_for.append(
+                    f"{name}: Badhakesh {badhakesh} active ({which})"
+                )
+            if marakesh_set & active_dba_lords:
+                marakesh_active = True
+                hit = next(iter(marakesh_set & active_dba_lords))
+                which = "MD" if current_md == hit else "AD"
+                hard_rejected_for.append(
+                    f"{name}: Marakesh {hit} active ({which})"
+                )
+
     return {
         "name": name,
         "chandrashtamam": chandrashtamam,
@@ -294,6 +443,12 @@ def _evaluate_participant(
         "chandrabala_good": cb_good,
         "soft_score": soft,
         "hard_rejected_for": hard_rejected_for,
+        # PR A2.2c.2 — surfaced for UI (Partners panel)
+        "current_md": current_md,
+        "current_ad": current_ad,
+        "badhakesh": (natal_bm or {}).get("badhakesh"),
+        "badhakesh_active": badhakesh_active,
+        "marakesh_active": marakesh_active,
     }
 
 
@@ -484,11 +639,18 @@ def _scan_date_range(
     event_lat: float, event_lon: float, event_tz: float,
     participant_rps: list = None,           # list of (name, set_of_rp_planets)
     participant_natal_moon: list = None,    # list of (name, {moon_nakshatra_idx, moon_sign_idx})
+    participant_natal_bm: list = None,      # PR A2.2c.2 — (name, {badhakesh, marakesh, ...})
+    participant_natal_dashas: list = None,  # PR A2.2c.2 — (name, [full dasha list])
 ) -> list:
     """Scan a date range every 4 minutes, return raw scored windows."""
     swe.set_sid_mode(swe.SIDM_KRISHNAMURTI_VP291)
     participant_rps = participant_rps or []
     participant_natal_moon = participant_natal_moon or []
+    participant_natal_bm = participant_natal_bm or []
+    participant_natal_dashas = participant_natal_dashas or []
+    # Build name → natal data lookups for O(1) access inside the hot loop
+    _bm_by_name = {name: data for name, data in participant_natal_bm}
+    _dashas_by_name = {name: data for name, data in participant_natal_dashas}
 
     raw_windows = []
     planet_cache: dict = {}
@@ -583,8 +745,16 @@ def _scan_date_range(
         tara_num, tara_name, tara_good = 0, "", True
         chandrabala_good = True
 
+        # PR A2.2c.2 — target date string for the DBA check (same
+        # calendar day as the candidate window)
+        _target_date_str = current.strftime("%Y-%m-%d")
         for name, natal_data in participant_natal_moon:
-            p_eval = _evaluate_participant(name, natal_data, moon_lon)
+            p_eval = _evaluate_participant(
+                name, natal_data, moon_lon,
+                natal_bm=_bm_by_name.get(name),
+                dashas=_dashas_by_name.get(name),
+                target_date_str=_target_date_str,
+            )
             per_participant.append(p_eval)
             participant_soft_total += p_eval["soft_score"]
             if p_eval["hard_rejected_for"]:
@@ -1000,18 +1170,29 @@ def find_muhurtha_windows(
     # Pre-compute natal data for each participant
     participant_rps = []
     participant_natal_moon = []
+    # PR A2.2c.2 — Badhakesh/Marakesh + Vimshottari dasha list per participant.
+    # Both are computed once here (not inside the scan's 4-min loop) so a
+    # 60-day sweep doesn't recompute them ~20,000 times.
+    participant_natal_bm = []
+    participant_natal_dashas = []
     if participants:
         for p in participants:
+            p_name = p.get("name", "")
             rps = _get_natal_rps(p)
             if rps:
-                participant_rps.append((p.get("name", ""), rps))
+                participant_rps.append((p_name, rps))
             moon_data = _get_natal_moon_data(p)
-            participant_natal_moon.append((p.get("name", ""), moon_data))
+            participant_natal_moon.append((p_name, moon_data))
+            bm = _natal_badhakesh_marakesh(p)
+            participant_natal_bm.append((p_name, bm))
+            dashas = _natal_dasha_list(p)
+            participant_natal_dashas.append((p_name, dashas))
 
     selected_raw = _scan_date_range(
         start_dt, end_dt, classified_event,
         e_lat, e_lon, e_tz,
-        participant_rps, participant_natal_moon
+        participant_rps, participant_natal_moon,
+        participant_natal_bm, participant_natal_dashas,
     )
     all_merged = _merge_windows(selected_raw)
     all_merged.sort(key=lambda w: w["score"], reverse=True)
@@ -1065,7 +1246,8 @@ def find_muhurtha_windows(
         nearby_raw = _scan_date_range(
             nearby_start, nearby_end, classified_event,
             e_lat, e_lon, e_tz,
-            participant_rps, participant_natal_moon
+            participant_rps, participant_natal_moon,
+            participant_natal_bm, participant_natal_dashas,
         )
         nearby_merged = _merge_windows(nearby_raw)
         nearby_merged.sort(key=lambda w: w["score"], reverse=True)
@@ -1101,6 +1283,7 @@ def find_muhurtha_windows(
             extend_start, extend_end, classified_event,
             e_lat, e_lon, e_tz,
             participant_rps, participant_natal_moon,
+            participant_natal_bm, participant_natal_dashas,
         )
         extend_merged = _merge_windows(extend_raw)
         extend_passed = [w for w in extend_merged if not w.get("hard_rejected_for")]

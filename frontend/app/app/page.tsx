@@ -4433,7 +4433,8 @@ export default function Home() {
                                         <div className="muhurtha-panel-title">{t("Participants (KP §8.1, §8.2)", "పాల్గొనేవారు (KP §8.1, §8.2)")}</div>
                                         <div style={{ display: "flex", flexDirection: "column" as const, gap: 8 }}>
                                           {w.per_participant.map((p: any, j: number) => {
-                                            const anyHardFail = p.chandrashtamam || p.janma_tara;
+                                            // PR A2.2c.2 — DBA hard flags also contribute
+                                            const anyHardFail = p.chandrashtamam || p.janma_tara || p.badhakesh_active || p.marakesh_active;
                                             return (
                                               <div
                                                 key={j}
@@ -4471,6 +4472,27 @@ export default function Home() {
                                                 {p.janma_tara && (
                                                   <div className="muhurtha-detail-row">
                                                     <span style={{ color: "#f87171" }}>{t("Janma Tara", "జన్మ తార")}</span>
+                                                    <span className="muhurtha-fail">{t("ACTIVE — hard filter", "చురుకు — హార్డ్ ఫిల్టర్")}</span>
+                                                  </div>
+                                                )}
+                                                {/* PR A2.2c.2 — current DBA + Badhakesh/Marakesh */}
+                                                {(p.current_md || p.current_ad) && (
+                                                  <div className="muhurtha-detail-row">
+                                                    <span>{t("Current DBA", "ప్రస్తుత దశ")}</span>
+                                                    <span style={{ color: "var(--accent2)" }}>
+                                                      MD: {p.current_md || "—"} · AD: {p.current_ad || "—"}
+                                                    </span>
+                                                  </div>
+                                                )}
+                                                {p.badhakesh_active && (
+                                                  <div className="muhurtha-detail-row">
+                                                    <span style={{ color: "#f87171" }}>{t("Badhakesh DBA", "బాధకేశ దశ")}</span>
+                                                    <span className="muhurtha-fail">{t("ACTIVE — hard filter", "చురుకు — హార్డ్ ఫిల్టర్")} ({p.badhakesh})</span>
+                                                  </div>
+                                                )}
+                                                {p.marakesh_active && (
+                                                  <div className="muhurtha-detail-row">
+                                                    <span style={{ color: "#f87171" }}>{t("Marakesh DBA", "మారకేశ దశ")}</span>
                                                     <span className="muhurtha-fail">{t("ACTIVE — hard filter", "చురుకు — హార్డ్ ఫిల్టర్")}</span>
                                                   </div>
                                                 )}
