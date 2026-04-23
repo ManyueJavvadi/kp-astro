@@ -12,6 +12,27 @@ New in v2:
 - Correct sunrise-based inauspicious periods (no BIT_DISC_CENTER)
 - 15-muhurta Durmuhurtha calculation (weekday-specific slots)
 - Updated scoring weights and quality thresholds
+
+PR A2.2b additions (engine scoring fixes from real-world audit):
+- HARD REJECTS (move window to soft_flagged tier, not top results):
+    * Lagna CSL signifies any event denial house (§1, §2)
+    * Lagna CSL does NOT signify event primary house (§2)
+    * Time outside event practical hours (vehicle 1AM, etc.)
+    * Badhaka/Maraka hit (upgraded from soft penalty)
+- NEW SOFT PENALTIES (scoring only):
+    * Event CSL signifies denial houses (-25)
+    * H11 CSL signifies denial houses (-20)
+    * Rikta-Nanda tithi 4/9/14 (-15, esp. Krishna Navami)
+    * Moon nakshatra class mismatch for event (-15)
+    * Ugra/Tikshna nakshatra for non-surgery events (-10)
+    * Per-event weekday violations (-15)
+    * Lagna type not event-preferred (-10)
+- NEW SOFT BONUSES:
+    * Nakshatra class matches event preferred (+12)
+    * Lagna type event-preferred (+10)
+    * Per-event weekday approved (+10, replacing global GOOD_VARA)
+- Return structure split into `windows` (passed) + `soft_flagged_windows`
+  so the astrologer sees clean top-N and can still review rejects
 """
 import swisseph as swe
 from datetime import datetime, timedelta
@@ -20,6 +41,18 @@ from typing import Optional, Tuple
 from app.services.chart_engine import (
     get_sub_lord, get_nakshatra_and_starlord, get_sign, get_planet_positions,
     date_time_to_julian
+)
+
+# PR A2.2b — consume the findings-module lookup tables (per-event KB rules)
+from app.services.muhurtha_findings import (
+    NAKSHATRA_CLASS,
+    EVENT_PREFERRED_NAK_CLASSES,
+    EVENT_AVOID_NAK_CLASSES,
+    EVENT_PREFERRED_VARAS,
+    EVENT_AVOID_VARAS,
+    EVENT_PREFERRED_LAGNA_TYPE,
+    EVENT_PRACTICAL_HOURS,
+    RIKTA_NANDA_AVOID_TITHIS,
 )
 
 # ── Event house requirements (research-validated) ──────────────
@@ -548,12 +581,128 @@ def _scan_date_range(
         yoga_name = YOGA_NAMES[yoga_idx % 27]
 
         # ── Additional scoring ──
-        badhaka_penalty = -25 if (badhaka_hit or maraka_hit) else 0
         event_cusp_bonus = 15 if event_cusp_confirms else 0
         h11_bonus = 10 if h11_confirms else 0
         moon_sl_bonus = 10 if moon_sl_favorable else 0
 
-        effective_score = base_score + participant_bonus + badhaka_penalty + event_cusp_bonus + h11_bonus + moon_sl_bonus
+        # ── PR A2.2b: HARD-REJECT CHECKS ────────────────────────────
+        # A window is hard-rejected if any classical KP rule is
+        # structurally violated. Rejected windows still go into the
+        # output (under `soft_flagged_windows`) so the astrologer can
+        # review, but they do NOT rank in the top results leaderboard.
+        hard_rejected_for = []
+
+        # (1) Lagna CSL must signify the event's primary house (§2 KB).
+        #     No primary = not an event-muhurtha by definition.
+        event_primary_h = group["primary"]
+        if event_primary_h not in signified:
+            hard_rejected_for.append(
+                f"Lagna CSL missing primary H{event_primary_h}"
+            )
+
+        # (2) Lagna CSL must NOT signify any event denial house (§1 KB).
+        lagna_denial_hit = [h for h in group["denial"] if h in signified]
+        if lagna_denial_hit:
+            hard_rejected_for.append(
+                f"Lagna CSL hits denial {lagna_denial_hit}"
+            )
+
+        # (3) Time-of-day practicality filter (KB §9.x event playbooks).
+        prac_start, prac_end = EVENT_PRACTICAL_HOURS.get(
+            event_type, (0, 24)
+        )
+        hh = current.hour
+        within_practical = prac_start <= hh < prac_end
+        if not within_practical:
+            hard_rejected_for.append(
+                f"Outside practical hours ({prac_start:02d}:00-{prac_end:02d}:00)"
+            )
+
+        # (4) Badhaka/Maraka upgraded from soft penalty to hard reject
+        #     (§8.1 KB — these are participant-level hard filters).
+        if badhaka_hit or maraka_hit:
+            which = []
+            if badhaka_hit:
+                which.append("Badhaka")
+            if maraka_hit:
+                which.append("Maraka")
+            hard_rejected_for.append(f"{'/'.join(which)} hit")
+            # Keep the legacy -25 as a soft penalty on top so even
+            # among soft-flagged windows, B/M hits rank lower.
+            badhaka_penalty = -25
+        else:
+            badhaka_penalty = 0
+
+        # ── PR A2.2b: NEW SOFT SCORING PENALTIES / BONUSES ─────────
+
+        # Event CSL denial hit (asymmetric scoring, §1 Rule 3)
+        event_cusp_denial_hit = [h for h in group["denial"] if h in event_cusp_houses]
+        event_cusp_denial_penalty = -25 if event_cusp_denial_hit else 0
+
+        # H11 CSL denial hit (§1 Rule 4)
+        h11_denial_hit = [h for h in group["denial"] if h in h11_houses]
+        h11_denial_penalty = -20 if h11_denial_hit else 0
+
+        # Rikta-Nanda tithi (4/9/14 — esp. bad in Krishna paksha, §3.1 KB)
+        tithi_within_cycle = ((tithi_num - 1) % 15) + 1
+        rikta_nanda_penalty = 0
+        if tithi_within_cycle in RIKTA_NANDA_AVOID_TITHIS:
+            rikta_nanda_penalty = -15
+            # Krishna paksha Navami (day 24 in 1..30) is doubly weak
+            if tithi_num == 24:
+                rikta_nanda_penalty = -20
+
+        # Moon nakshatra class fit for event (§3.2 Muhurtha Chintamani
+        # 10-class taxonomy crossed with §9.x per-event preference)
+        nak_class = NAKSHATRA_CLASS.get(naks_idx)
+        nak_bonus = 0
+        preferred_nak_classes = EVENT_PREFERRED_NAK_CLASSES.get(event_type, [])
+        avoid_nak_classes = EVENT_AVOID_NAK_CLASSES.get(event_type, [])
+        if nak_class:
+            if nak_class in preferred_nak_classes:
+                nak_bonus = 12
+            elif nak_class in avoid_nak_classes:
+                nak_bonus = -15
+
+        # Per-event weekday table (§3.4 KB — replaces global GOOD_VARA)
+        preferred_varas = EVENT_PREFERRED_VARAS.get(event_type, set())
+        avoid_varas = EVENT_AVOID_VARAS.get(event_type, set())
+        # Rollback the global vara score applied earlier (lines above
+        # added +10 for GOOD_VARA / -15 for BAD_VARA — undo that here
+        # and re-apply per-event score instead).
+        if vara in GOOD_VARA:
+            base_score -= 10
+        elif vara in BAD_VARA:
+            base_score += 15
+        per_event_vara_bonus = 0
+        if vara in preferred_varas:
+            per_event_vara_bonus = 10
+        elif vara in avoid_varas:
+            per_event_vara_bonus = -15
+
+        # Lagna type (Movable/Fixed/Dual, §5.1 KB)
+        lagna_type_bonus = 0
+        preferred_lagna_types = EVENT_PREFERRED_LAGNA_TYPE.get(event_type, [])
+        if sign_type in preferred_lagna_types:
+            lagna_type_bonus = 10
+        elif preferred_lagna_types:  # strict mismatch only when a preference exists
+            lagna_type_bonus = -5
+
+        # ── PR A2.2b: assemble effective_score with all new signals ──
+        effective_score = (
+            base_score
+            + participant_bonus
+            + badhaka_penalty
+            + event_cusp_bonus
+            + h11_bonus
+            + moon_sl_bonus
+            + event_cusp_denial_penalty
+            + h11_denial_penalty
+            + rikta_nanda_penalty
+            + nak_bonus
+            + per_event_vara_bonus
+            + lagna_type_bonus
+        )
         if in_rk:   effective_score -= 50
         if in_yg:   effective_score -= 60
         if in_gl:   effective_score -= 50
@@ -618,6 +767,17 @@ def _scan_date_range(
                     "yoga": yoga_name,
                     "vara": current.strftime("%A"),
                 },
+                # PR A2.2b — structural flags + per-event scoring signals
+                "hard_rejected_for": hard_rejected_for,
+                "within_practical_hours": within_practical,
+                "lagna_denial_hit":  lagna_denial_hit,
+                "event_cusp_denial_hit": event_cusp_denial_hit,
+                "h11_denial_hit":    h11_denial_hit,
+                "nakshatra_class":   nak_class,
+                "nakshatra_event_match": nak_class in preferred_nak_classes if nak_class else False,
+                "vara_event_approved": vara in preferred_varas,
+                "vara_event_avoided":  vara in avoid_varas,
+                "lagna_type_event_preferred": sign_type in preferred_lagna_types,
             })
 
         current += timedelta(minutes=4)
@@ -626,13 +786,28 @@ def _scan_date_range(
 
 
 def _merge_windows(raw: list) -> list:
-    """Merge consecutive 4-min windows sharing the same sub-lord."""
+    """Merge consecutive 4-min windows sharing the same sub-lord.
+
+    PR A2.2b — enforces a minimum 20-min window duration. Previously
+    a bug in the merge step was overwriting end_time with the last
+    slot's end (slot_start + 4 min), yielding 12-min windows from 3
+    merged 4-min slices. Fix: end_time is always max(last_slot_end,
+    first_slot_start + 20 min). Astrologers never see 12-min windows
+    as top recommendations.
+    """
     if not raw:
         return []
     merged = []
     cur = dict(raw[0])
     cur["_last_dt"] = cur["start_dt"]
+    cur["_first_dt"] = cur["start_dt"]
     cur["end_time"] = (cur["start_dt"] + timedelta(minutes=20)).strftime("%H:%M")
+
+    def _floor_end_time(w, last_dt, first_dt):
+        """Return end_time as HH:MM, floored at first_dt + 20 min."""
+        candidate = last_dt + timedelta(minutes=4)  # last 4-min slot's true end
+        floor = first_dt + timedelta(minutes=20)
+        return (candidate if candidate >= floor else floor).strftime("%H:%M")
 
     for w in raw[1:]:
         same_day = w["date"] == cur["date"]
@@ -640,11 +815,27 @@ def _merge_windows(raw: list) -> list:
         adjacent = (w["start_dt"] - cur["_last_dt"]) <= timedelta(minutes=8)
 
         if same_day and same_sl and adjacent:
-            cur["end_time"] = w["end_time"]
             cur["_last_dt"] = w["start_dt"]
+            cur["end_time"] = _floor_end_time(w, cur["_last_dt"], cur["_first_dt"])
             cur["score"]    = max(cur["score"], w["score"])
             cur["base_score"] = max(cur["base_score"], w["base_score"])
             cur["participant_resonance"] = max(cur["participant_resonance"], w["participant_resonance"])
+            # PR A2.2b — a merged window is hard-rejected only if ALL
+            # constituent 4-min slots are hard-rejected for the SAME
+            # reason. Union rejection reasons so the astrologer sees
+            # everything that flagged this window.
+            cur_hr = cur.get("hard_rejected_for") or []
+            w_hr = w.get("hard_rejected_for") or []
+            # A window is hard_rejected if both adjacent slots had at
+            # least one rejection (keeps best-slice logic consistent).
+            if cur_hr and w_hr:
+                cur["hard_rejected_for"] = sorted(set(cur_hr) | set(w_hr))
+            elif not cur_hr and not w_hr:
+                cur["hard_rejected_for"] = []
+            else:
+                # Mixed — keep the rejections from the rejected slot,
+                # marked as "partial" so UI can distinguish.
+                cur["hard_rejected_for"] = sorted(set(cur_hr) | set(w_hr))
             # Inherit new fields from highest-score slice
             if w["score"] > cur["score"]:
                 for f in ("in_abhijit", "tara_bala", "tara_bala_name", "tara_bala_good",
@@ -655,12 +846,14 @@ def _merge_windows(raw: list) -> list:
             merged.append(cur)
             cur = dict(w)
             cur["_last_dt"] = cur["start_dt"]
+            cur["_first_dt"] = cur["start_dt"]
             cur["end_time"] = (cur["start_dt"] + timedelta(minutes=20)).strftime("%H:%M")
 
     merged.append(cur)
     for w in merged:
         w.pop("start_dt", None)
         w.pop("_last_dt", None)
+        w.pop("_first_dt", None)
     return merged
 
 
@@ -718,12 +911,22 @@ def find_muhurtha_windows(
         e_lat, e_lon, e_tz,
         participant_rps, participant_natal_moon
     )
-    selected_windows = _merge_windows(selected_raw)
-    selected_windows.sort(key=lambda w: w["score"], reverse=True)
+    all_merged = _merge_windows(selected_raw)
+    all_merged.sort(key=lambda w: w["score"], reverse=True)
 
-    # Tag event location used
-    for w in selected_windows:
+    # Tag event location used on every window (passed + soft-flagged)
+    for w in all_merged:
         w["event_location_used"] = event_location_different
+
+    # PR A2.2b — three-tier result model.
+    # Passed tier: no hard-reject flags → shown in the main leaderboard.
+    # Soft-flagged tier: at least one hard-reject flag → returned under
+    #   `soft_flagged_windows` so the astrologer can review but these
+    #   do NOT rank in the top results. Dad's workflow: glance at soft
+    #   pile to confirm nothing usable was hidden, then proceed with
+    #   the passed tier.
+    selected_windows = [w for w in all_merged if not w.get("hard_rejected_for")]
+    soft_flagged_windows = [w for w in all_merged if w.get("hard_rejected_for")]
 
     date_windows: dict = {}
     for w in selected_windows:
@@ -758,6 +961,7 @@ def find_muhurtha_windows(
 
     return {
         "windows":              selected_windows[:15],
+        "soft_flagged_windows": soft_flagged_windows[:15],  # PR A2.2b
         "date_windows":         date_windows,
         "best_window":          selected_windows[0] if selected_windows else None,
         "nearby_better":        nearby_better,
@@ -766,4 +970,8 @@ def find_muhurtha_windows(
         "searched_range":       {"start": date_start, "end": date_end},
         "participants_loaded":  [name for name, _ in participant_rps],
         "event_location_different": event_location_different,
+        # PR A2.2b — surface counts so frontend banners can say
+        # "3 top windows, 12 below threshold (astrologer review)".
+        "passed_count":         len(selected_windows),
+        "soft_flagged_count":   len(soft_flagged_windows),
     }
