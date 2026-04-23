@@ -1029,9 +1029,18 @@ CHART DATA:
 # ================================================================
 
 def format_muhurtha_for_llm(muhurtha_data: dict) -> str:
-    """Format muhurtha results into structured text for LLM context."""
+    """Format muhurtha results into structured text for LLM context.
+
+    PR A2.2a.3 — findings-first prompting. Each window now ships with
+    a FINDINGS block (deterministic rule-applications pre-computed in
+    backend/app/services/muhurtha_findings.py) so the LLM can skip
+    table lookups and spend its tokens on judgment + recommendations.
+    """
+    from .muhurtha_findings import compute_findings, format_findings_for_llm
+
     lines = []
-    lines.append(f"EVENT TYPE: {muhurtha_data.get('event_type', 'general').upper()}")
+    event_type = muhurtha_data.get('event_type', 'general')
+    lines.append(f"EVENT TYPE: {event_type.upper()}")
     sr = muhurtha_data.get("searched_range", {})
     lines.append(f"DATE RANGE: {sr.get('start', '?')} to {sr.get('end', '?')}")
     participants = muhurtha_data.get("participants_loaded", [])
@@ -1045,6 +1054,13 @@ def format_muhurtha_for_llm(muhurtha_data: dict) -> str:
 
     lines.append(f"\nTOP {len(windows)} MUHURTHA WINDOWS:")
     lines.append("=" * 60)
+    lines.append(
+        "NOTE: Each window carries RAW DATA + pre-computed FINDINGS. "
+        "Findings are authoritative facts (rule lookups already applied "
+        "with KB §citations). DO NOT re-derive them; use them directly "
+        "and spend your tokens on judgment, trade-offs, and final "
+        "recommendations."
+    )
 
     for i, w in enumerate(windows, 1):
         lines.append(f"\n--- Window #{i} ---")
@@ -1052,30 +1068,28 @@ def format_muhurtha_for_llm(muhurtha_data: dict) -> str:
         lines.append(f"Time: {w.get('start_time', '?')} – {w.get('end_time', '?')}")
         lines.append(f"Score: {w.get('score', 0)} ({w.get('quality', '?')})")
         lines.append(f"Lagna: {w.get('lagna', '?')} | SL: {w.get('lagna_sublord', '?')} | Star Lord: {w.get('lagna_star_lord', '?')}")
-        lines.append(f"Signified Houses: {w.get('signified_houses', [])}")
 
-        bc = w.get("badhaka_check", {})
-        if bc:
-            status = "PASS" if bc.get("passed") else "FAIL"
-            lines.append(f"Badhaka Check: {status} (Sign type: {bc.get('sign_type', '?')}, Badhaka H{bc.get('badhaka_house', '?')}, Hit: {bc.get('badhaka_hit', False)}, Maraka Hit: {bc.get('maraka_hit', False)})")
-
-        lines.append(f"Event Cusp CSL: {w.get('event_cusp_csl', '?')} → Houses: {w.get('event_cusp_houses', [])} | Confirms: {w.get('event_cusp_confirms', False)}")
-        lines.append(f"H11 CSL: {w.get('h11_csl', '?')} → Houses: {w.get('h11_houses', [])} | Confirms: {w.get('h11_confirms', False)}")
-
-        lines.append(f"Moon: {w.get('moon_sign', '?')} | Nakshatra: {w.get('moon_nakshatra', '?')} | Star Lord: {w.get('moon_star_lord', '?')} | Sub: {w.get('moon_sub_lord', '?')}")
-        lines.append(f"Moon SL Favorable: {w.get('moon_sl_favorable', False)}")
-
-        p = w.get("panchang", {})
-        if p:
-            lines.append(f"Panchang: Tithi={p.get('tithi', '?')} ({p.get('paksha', '?')}), Nakshatra={p.get('nakshatra', '?')}, Yoga={p.get('yoga', '?')}, Vara={p.get('vara', '?')}")
-
-        warnings = []
-        if w.get("in_rahu_kalam"):
-            warnings.append("Rahu Kalam")
-        if w.get("is_vishti"):
-            warnings.append("Vishti Karana")
-        if warnings:
-            lines.append(f"Warnings: {', '.join(warnings)}")
+        # --- PR A2.2a.3 — precomputed findings (replaces ~35% of
+        #     what the LLM was re-deriving itself). ---
+        try:
+            findings = compute_findings(w, event_type)
+            lines.append("FINDINGS:")
+            lines.append(format_findings_for_llm(findings))
+        except Exception as e:
+            # Defensive: if findings computation fails for any reason
+            # (unexpected window shape, etc.), fall back to raw data
+            # so the LLM can still answer — just slower as before.
+            lines.append(f"FINDINGS: (unavailable: {type(e).__name__})")
+            lines.append(f"Signified Houses: {w.get('signified_houses', [])}")
+            bc = w.get("badhaka_check", {})
+            if bc:
+                status = "PASS" if bc.get("passed") else "FAIL"
+                lines.append(f"Badhaka: {status}")
+            lines.append(f"Event CSL: {w.get('event_cusp_csl', '?')} → {w.get('event_cusp_houses', [])}")
+            lines.append(f"H11 CSL: {w.get('h11_csl', '?')} → {w.get('h11_houses', [])}")
+            p = w.get("panchang", {})
+            if p:
+                lines.append(f"Panchang: T={p.get('tithi', '?')} N={p.get('nakshatra', '?')} Y={p.get('yoga', '?')} V={p.get('vara', '?')}")
 
         if w.get("resonating_with"):
             lines.append(f"Resonating with: {', '.join(w['resonating_with'])} ({w.get('participant_resonance', 0)}/{len(participants)})")
@@ -1106,17 +1120,34 @@ def get_muhurtha_prediction(muhurtha_data: dict, question: str, history: list = 
 KP MUHURTHA KNOWLEDGE BASE (authoritative — cite these rules, never invent):
 {knowledge}
 
+FINDINGS-FIRST PROTOCOL (PR A2.2a.3):
+Each window ships with a FINDINGS block containing pre-computed rule-applications with §citations. These are AUTHORITATIVE — treat them as the ground truth for rule-lookup work:
+
+- Lagna CSL / Event CSL / H11 CSL signification breakdowns (primary_hit, supporting_hit, denial_hit) are already computed. DO NOT recompute or restate the raw house lists — cite the findings directly ("Lagna CSL clean per findings — denial_hit empty").
+- Tithi class, nakshatra class (Dhruva/Chara/Kshipra/Mridu/Ugra/Tikshna/Mishra), yoga class (benefic/malefic), vara event-approval are already classified. DO NOT re-check §3.x against a table.
+- Panchanga Shuddhi score (0-5) is already aggregated.
+- Time-of-day practicality is already checked against event-specific hours.
+
+Your job is to WEIGH the findings, not repeat them. Spend tokens on:
+  • Comparisons between windows (this vs that, why #1 > #3)
+  • Trade-off analysis (H11 CSL strength vs Moon SL weakness — which matters more for THIS event?)
+  • Practical advisories (insurance, remedies, timing shifts)
+  • Recommendations (proceed / wait / alternatives)
+  • Judgment calls the findings can't encode (dad's context, client-specific situations)
+
+You still have the full KB. You still reason over rules. You just don't waste tokens on lookup narration.
+
 ANALYSIS RULES:
-1. The Sub Lord of Lagna cusp at muhurtha time is THE deciding factor. Cite it in the first sentence of every analysis.
-2. Lagna SL must signify the event's primary + supporting houses (§2 of KB) and must NOT signify denial houses.
-3. Event cusp CSL (e.g., H7 for marriage) should independently confirm favorable houses.
-4. H11 CSL confirming adds strength — H11 is fulfillment of desires.
-5. Moon's star lord should signify event-favorable houses (day-level filter).
-6. Respect Panchanga Shuddhi (§3) — tithi, nakshatra class (§3.2 Dhruva/Chara/Kshipra/Mridu/Ugra/Tikshna), yoga, vara-per-event table, karana.
-7. Check doshas (§4) — Panchaka sub-type, Tithi Shunya, Bhadra, Visha Ghatika, Kartari, Ekargala, Venus/Jupiter combustion (for vivaha).
-8. Per-participant: Chandrashtamam, Janma Tara, Tarabala, Chandrabala. If ANY participant is hard-filtered, say so explicitly.
-9. Multi-chart rules (§8 — KPDP 6-10) — 7th CSL cross-check, RP resonance thresholds (3-5 strong, ≤2 weak), dasha-parallel rule for bride+groom.
-10. Extend-window rule (§8.5) — if no window in the client's range passes hard filters, say so and point to the next qualifying date. Never invent a "best of bad" answer.
+1. Lagna CSL is THE deciding factor (§1). Cite findings.lagna_csl first.
+2. Lagna SL must signify primary + supporting (§2), must NOT hit denial. Findings compute these.
+3. Event CSL independent confirmation — findings.event_csl.confirms_per_engine + denial_hit.
+4. H11 CSL confirmation — findings.h11_csl.confirms_per_engine + findings.h11_same_as_lagna_csl.
+5. Moon SL favorable — findings.moon_sl_favorable (day-level filter).
+6. Panchanga Shuddhi — findings.panchang.shuddhi_score. Weigh by event.
+7. Doshas (§4) — Panchaka, Tithi Shunya, Bhadra, Kartari, Ekargala, Venus/Jupiter combust for vivaha. Findings do not yet cover all — apply KB for these.
+8. Per-participant (§8.1) — Chandrashtamam, Janma Tara, Tarabala, Chandrabala. Findings do not yet cover these (A2.2b ships them). If user asks about multi-chart and data is missing, say so.
+9. Multi-chart (§8, KPDP 6-10) — 7th CSL cross-check, RP resonance ≥3/5 strong.
+10. Extend-window rule (§8.5) — if no window passes hard filters, name the next qualifying date. Never invent "best of bad".
 
 AUDIENCE:
 You are speaking to a practicing KP astrologer. They already know what H4, Trayodashi, Swati, Chara class, Badhaka, Navami mean. DO NOT define these terms. DO cite KB section numbers (§1, §2, §3.1, §10) so they can verify reasoning. DO show planet → house lists (Sun → H3,H4,H11), specific times (13:04–13:24), and exact scores. DO NOT narrate "this is textbook clean alignment" flourish — a ✓ is enough when data speaks.
