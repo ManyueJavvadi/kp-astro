@@ -540,10 +540,20 @@ def _scan_date_range(
         moon_lon = planets.get("Moon", {}).get("longitude", 0)
         sun_lon  = planets.get("Sun",  {}).get("longitude", 0)
 
+        # PR A2.2c.1 — AUSPICIOUS_TITHIS + INAUSPICIOUS_TITHIS are
+        # defined in terms of the 1-15 paksha-agnostic cycle position
+        # (tithi 6 = Shashthi, same classical meaning in both Shukla
+        # AND Krishna paksha). Previous code checked the raw 1-30
+        # tithi_num, which meant Krishna tithis (16-30) never matched
+        # these sets — a window on Krishna Shashthi (tithi_num=21) got
+        # neither bonus nor penalty despite §3.1 classifying it as
+        # inauspicious. Fix: check cycle position explicitly, plus
+        # keep the 15/30 (Purnima/Amavasya) special-case.
         tithi_num = int(((moon_lon - sun_lon) % 360) / 12) + 1
-        if tithi_num in AUSPICIOUS_TITHIS:
+        tithi_cycle_pos = ((tithi_num - 1) % 15) + 1
+        if tithi_cycle_pos in AUSPICIOUS_TITHIS:
             base_score += 20
-        elif tithi_num in INAUSPICIOUS_TITHIS:
+        elif tithi_cycle_pos in INAUSPICIOUS_TITHIS or tithi_num in {15, 30}:
             base_score -= 30
 
         naks_idx = int((moon_lon % 360) / (360.0 / 27))
@@ -1017,8 +1027,26 @@ def find_muhurtha_windows(
     #   do NOT rank in the top results. Dad's workflow: glance at soft
     #   pile to confirm nothing usable was hidden, then proceed with
     #   the passed tier.
-    selected_windows = [w for w in all_merged if not w.get("hard_rejected_for")]
-    soft_flagged_windows = [w for w in all_merged if w.get("hard_rejected_for")]
+    # PR A2.2c.1 — additionally require effective_score >= 30 for the
+    # passed tier. The raw-window filter of base_score >= 40 doesn't
+    # prevent a window from entering the leaderboard with effective
+    # score 0 once all soft penalties apply (Event CSL denial, H11
+    # denial, Rikta-Nanda tithi, nakshatra class mismatch, etc.).
+    # A "passed" score-0 window is misleading — it passed structural
+    # filters but is effectively Weak. Drop these into soft_flagged
+    # with an explicit reason.
+    PASSED_SCORE_FLOOR = 30
+    selected_windows = []
+    soft_flagged_windows = []
+    for w in all_merged:
+        if w.get("hard_rejected_for"):
+            soft_flagged_windows.append(w)
+        elif w.get("score", 0) < PASSED_SCORE_FLOOR:
+            # Tag the reason so the UI / AI can explain the drop
+            w["hard_rejected_for"] = ["Weak score after soft penalties"]
+            soft_flagged_windows.append(w)
+        else:
+            selected_windows.append(w)
 
     date_windows: dict = {}
     for w in selected_windows:

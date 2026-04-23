@@ -307,11 +307,16 @@ def compute_findings(window: Dict[str, Any], event_type: str) -> Dict[str, Any]:
                     break
         except Exception:
             tithi_num = 0
-    if tithi_num in AUSPICIOUS_TITHIS:
+    # PR A2.2c.1 — same paksha-agnostic fix as muhurtha_engine.py.
+    # AUSPICIOUS_TITHIS / INAUSPICIOUS_TITHIS / RIKTA_NANDA_AVOID_TITHIS
+    # are 1-15 cycle positions; raw tithi_num 1-30 never matched for
+    # Krishna paksha without the modulo.
+    tithi_cycle_pos = ((tithi_num - 1) % 15) + 1 if tithi_num else 0
+    if tithi_cycle_pos in AUSPICIOUS_TITHIS:
         tithi_class = "good"
-    elif tithi_num in RIKTA_NANDA_AVOID_TITHIS:
+    elif tithi_cycle_pos in RIKTA_NANDA_AVOID_TITHIS:
         tithi_class = "rikta_nanda_avoid"
-    elif tithi_num in INAUSPICIOUS_TITHIS:
+    elif tithi_cycle_pos in INAUSPICIOUS_TITHIS or tithi_num in {15, 30}:
         tithi_class = "inauspicious"
     else:
         tithi_class = "neutral"
