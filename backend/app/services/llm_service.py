@@ -12,6 +12,11 @@ client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 # ================================================================
 
 KNOWLEDGE_DIR = os.path.join(os.path.dirname(__file__), "..", "knowledge")
+# PR A2.2a — new Markdown KBs live under backend/app/kp_knowledge/.
+# Prefer these over the legacy .txt files in backend/knowledge/; .md KBs
+# are structured, cross-referenced, and authored against the research
+# docs in .claude/research/.
+KP_KNOWLEDGE_DIR = os.path.join(os.path.dirname(__file__), "..", "kp_knowledge")
 
 TOPIC_TO_FILE = {
     "marriage": "marriage.txt",
@@ -1043,37 +1048,64 @@ def format_muhurtha_for_llm(muhurtha_data: dict) -> str:
 
 
 def get_muhurtha_prediction(muhurtha_data: dict, question: str, history: list = []) -> str:
-    """AI analysis of muhurtha windows using KP principles."""
-    knowledge_path = os.path.join(KNOWLEDGE_DIR, "muhurtha.txt")
+    """AI analysis of muhurtha windows using KP principles.
+
+    PR A2.2a — KB source: backend/app/kp_knowledge/muhurtha.md (primary),
+    backend/knowledge/muhurtha.txt (fallback). The .md KB is
+    comprehensive (13 sections incl. Panchanga Shuddhi, doshas,
+    per-event playbooks, multi-chart KPDP rules); the .txt is kept
+    on disk for rollback.
+    """
     knowledge = ""
+    # Primary: structured Markdown KB.
+    md_path = os.path.join(KP_KNOWLEDGE_DIR, "muhurtha.md")
     try:
-        with open(knowledge_path, "r", encoding="utf-8") as f:
+        with open(md_path, "r", encoding="utf-8") as f:
             knowledge = f.read()
     except Exception:
         pass
+    # Fallback: legacy .txt (note: the old KNOWLEDGE_DIR path is
+    # historically miswired — see commit log. We try both the legacy
+    # expected location and the actual location where .txt files live.)
+    if not knowledge:
+        for legacy in (
+            os.path.join(KNOWLEDGE_DIR, "muhurtha.txt"),
+            os.path.join(os.path.dirname(__file__), "..", "..", "knowledge", "muhurtha.txt"),
+        ):
+            try:
+                with open(legacy, "r", encoding="utf-8") as f:
+                    knowledge = f.read()
+                if knowledge:
+                    break
+            except Exception:
+                continue
 
     muhurtha_summary = format_muhurtha_for_llm(muhurtha_data)
 
     system_prompt = f"""You are an expert KP (Krishnamurti Paddhati) Muhurtha specialist with 20+ years of experience in electional astrology.
 
-KP MUHURTHA KNOWLEDGE:
+KP MUHURTHA KNOWLEDGE BASE (authoritative — cite these rules, never invent):
 {knowledge}
 
 ANALYSIS RULES:
-1. The Sub Lord of Lagna cusp at muhurtha time is THE deciding factor for success/failure.
-2. Lagna SL must signify favorable houses for the event AND must NOT signify Badhaka or Maraka houses.
+1. The Sub Lord of Lagna cusp at muhurtha time is THE deciding factor. Cite it in the first sentence of every analysis.
+2. Lagna SL must signify the event's primary + supporting houses (§2 of KB) and must NOT signify denial houses.
 3. Event cusp CSL (e.g., H7 for marriage) should independently confirm favorable houses.
 4. H11 CSL confirming adds strength — H11 is fulfillment of desires.
 5. Moon's star lord should signify event-favorable houses (day-level filter).
-6. Avoid Rahu Kalam, Vishti Karana, and other inauspicious times.
-7. Panchang factors (tithi, nakshatra, yoga, vara) add secondary support.
-8. Multi-chart muhurtha: the lagna SL should ideally appear among natal RPs of all participants.
+6. Respect Panchanga Shuddhi (§3) — tithi, nakshatra class (§3.2 Dhruva/Chara/Kshipra/Mridu/Ugra/Tikshna), yoga, vara-per-event table, karana.
+7. Check doshas (§4) — Panchaka sub-type, Tithi Shunya, Bhadra, Visha Ghatika, Kartari, Ekargala, Venus/Jupiter combustion (for vivaha).
+8. Per-participant: Chandrashtamam, Janma Tara, Tarabala, Chandrabala. If ANY participant is hard-filtered, say so explicitly.
+9. Multi-chart rules (§8 — KPDP 6-10) — 7th CSL cross-check, RP resonance thresholds (3-5 strong, ≤2 weak), dasha-parallel rule for bride+groom.
+10. Extend-window rule (§8.5) — if no window in the client's range passes hard filters, say so and point to the next qualifying date. Never invent a "best of bad" answer.
 
 OUTPUT STYLE:
-- Write in Telugu script mixed with English KP terms (Sub Lord, CSL, house numbers like H7, planet names).
+- Write in Telugu script mixed with English KP terms (Sub Lord, CSL, house numbers like H7, planet names). Match the question's language.
 - Be specific — reference actual data from the windows provided.
+- For multi-chart queries, include a per-participant breakdown table.
 - Use structured markdown with headers and bullet points.
-- When comparing windows, create a table showing key factors side by side."""
+- When comparing windows, create a table showing key factors side by side.
+- If a window is soft-flagged (participant hard-filter but event-window clean), label it "Below threshold — astrologer review" rather than recommending it outright."""
 
     messages = []
     for prev in history[-4:]:
