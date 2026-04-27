@@ -677,6 +677,34 @@ For every Analysis-tab question:
 When in doubt about format or depth, re-read the gold standard examples
 and match their tone, structure, and explicit pattern naming.
 
+DE-DUPLICATION DISCIPLINE (PR fix-10 #9):
+Each insight should appear ONCE in your answer. If a point is made in
+section 2 (Cuspal Evidence), do NOT restate the full point in section 4
+(Timing) or section 6 (Follow-ups). Instead, REFERENCE it back:
+  - "as established in Section 2..."
+  - "per the Step 4 partial denier discussed above..."
+Repetition adds tokens and dilutes signal. The reader is intelligent;
+they remember what you said 200 words ago.
+
+CONFLICTING-SIGNALS PANEL (PR fix-10 #5):
+When the chart has TENSION, CONTRA, or MIXED Star-Sub Harmony — OR
+when the engine emits ⚠️ CONFLICT in the dasha_conflicts block — you
+MUST add an explicit "CONFLICTING SIGNALS" mini-section inside Section 2,
+formatted as:
+
+  CONFLICTING SIGNALS:
+  - Signal pointing YES: [specific structural reason — e.g., "H7 sub
+    lord Rahu's STAR layer signifies H11 (gain) ✓"]
+  - Signal pointing NO: [specific structural reason — e.g., "Rahu's
+    SUB layer signifies H10 + H12 (career-vs-marriage friction) ✗"]
+  - How they resolve: [the deciding rule — e.g., "Per KSK strict, SUB
+    layer is the deciding gate. The YES signal sustains marriage-
+    promise but the NO signal explains delays/multiple offers"]
+
+Do NOT smooth over contradictions. Cite both. Resolve explicitly.
+Smoothness makes the answer feel decisive but loses the user's trust
+when the contradicting signal manifests in real life.
+
 RULE 20 — FOUR-STEP SUB LORD ANALYSIS (was RULE 11; renumbered in fix-1):
 When analyzing any cusp sub lord, trace all 4 steps:
 
@@ -1169,12 +1197,20 @@ INTELLIGENT OMISSION RULES — READ THESE CAREFULLY:
 # ================================================================
 
 def detect_topic(question: str) -> str:
+    # PR A1.3-fix-10 (#7) — list expanded to match TOPIC_TO_FILE.
+    # Was 11 topics, now 20 — covers personality / fame / creativity /
+    # spirituality / addiction / mental_health / friendship / decision /
+    # comparison + relative aliases.
     prompt = f"""Identify the PRIMARY life topic in this question. Reply with ONLY the topic name.
 
 Question: "{question}"
 
 Choose exactly ONE from this list:
-marriage / divorce / job / foreign_travel / foreign_settle / education / health / children / property / wealth / litigation
+marriage / divorce / spouse / job / foreign_travel / foreign_settle /
+education / health / children / fertility / property / wealth /
+litigation / personality / fame / creativity / spirituality /
+addiction / mental_health / friendship / decision / comparison /
+parents / mother / father / siblings / general
 
 Rules:
 - "buy a house" or "buy property" or "buy flat" = property
@@ -1182,12 +1218,28 @@ Rules:
 - "visit abroad" or "travel overseas" or "go to another country" = foreign_travel
 - "get married" or "when marriage" = marriage
 - "divorce" or "separation" or "breakup" or "marital discord" or "split" = divorce
-- "job" or "career" or "work" = job
-- "sick" or "health" or "disease" = health
-- "child" or "baby" or "pregnant" = children
-- "study" or "education" or "degree" = education
-- "money" or "wealth" or "savings" = wealth
+- "what is my partner like" or "spouse details" or "who will i marry" = spouse
+- "job" or "career" or "work" or "promotion" = job
+- "sick" or "health" or "disease" or "illness" = health
+- "child" or "baby" or "pregnant" or "trying to conceive" = children
+- "ivf" or "fertility" or "trouble conceiving" = fertility
+- "study" or "education" or "degree" or "exam" = education
+- "money" or "wealth" or "savings" or "investment" = wealth
 - "court" or "case" or "lawsuit" = litigation
+- "who am i" or "my personality" or "what kind of person" = personality
+- "famous" or "recognition" or "public figure" = fame
+- "creative" or "artistic" or "talent" = creativity
+- "spiritual" or "meditation" or "moksha" or "dharma" = spirituality
+- "addiction" or "habit" or "drinking" or "smoking" = addiction
+- "depression" or "anxiety" or "mental" = mental_health
+- "friend" or "social circle" or "network" = friendship
+- "should i" or "decision" or "good idea" = decision
+- "x vs y" or "compare" or "or" (between two options) = comparison
+- "father" = father
+- "mother" = mother
+- "brother" or "sister" or "sibling" = siblings
+- "parent" or "parents" = parents
+- (anything not matching above) = general
 
 Reply with ONLY the single topic word."""
 
@@ -1199,8 +1251,8 @@ Reply with ONLY the single topic word."""
             messages=[{"role": "user", "content": prompt}]
         )
         detected = message.content[0].text.strip().lower().split()[0]
-        valid = ["marriage", "divorce", "job", "foreign_travel", "foreign_settle", "education",
-                 "health", "children", "property", "wealth", "litigation"]
+        # PR A1.3-fix-10 (#7) — synced with TOPIC_TO_FILE (full set).
+        valid = list(TOPIC_TO_FILE.keys())
         return detected if detected in valid else _keyword_fallback(question)
     except:
         return _keyword_fallback(question)
@@ -1254,6 +1306,23 @@ def get_prediction(chart_data: dict, question: str, history: list = [], mode: st
     # Build conversation history — pass answers only, strip time-specific question context
     # This prevents temporal anchoring from leaking between questions
     messages = []
+    # PR A1.3-fix-10 (#11) — session memory anchor: if there are prior
+    # messages, prepend a single context-reminder line so the LLM
+    # remembers WHO this is across long convos, even past the
+    # 4-history window. ~50 tokens, anchors continuity.
+    if history:
+        gender = (chart_data.get("gender") or "").strip()
+        age = chart_data.get("age_years")
+        md = (chart_data.get("current_dasha") or {}).get("mahadasha", {}).get("lord")
+        ad = (chart_data.get("current_dasha") or {}).get("antardasha", {}).get("antardasha_lord")
+        anchor = (
+            f"[NATIVE CONTEXT REMINDER — same throughout this session: "
+            f"{chart_data.get('name', 'Native')}, age {age}, "
+            f"{gender or 'gender-unknown'}, "
+            f"running {md} MD → {ad} AD. Active topic now: {detected_topic}.]"
+        )
+        messages.append({"role": "user", "content": anchor})
+        messages.append({"role": "assistant", "content": "Acknowledged."})
     for prev in history[-4:]:
         # Pass previous question stripped of year/time references to prevent leakage
         clean_question = prev.get("question", "")
@@ -1416,10 +1485,21 @@ def format_chart_for_llm(chart_data: dict) -> str:
             pad_end   = sookshmas[-1].get("end") if sookshmas else ""
             lines.append(f"  [{pad_lord} PAD] {pad_start} → {pad_end}:")
             for sd in sookshmas:
-                lines.append(
-                    f"    Sookshma {sd.get('sookshma_lord')}: "
-                    f"{sd.get('start')} → {sd.get('end')}"
-                )
+                # PR A1.3-fix-10 #12: emit fire_score + verdict + notes when ranking is present
+                fs = sd.get("fire_score")
+                fv = sd.get("fire_verdict", "")
+                fn = sd.get("fire_notes", "")
+                if fs is not None:
+                    lines.append(
+                        f"    Sookshma {sd.get('sookshma_lord')}: "
+                        f"{sd.get('start')} → {sd.get('end')}  "
+                        f"[fire={fs}/10 {fv}: {fn}]"
+                    )
+                else:
+                    lines.append(
+                        f"    Sookshma {sd.get('sookshma_lord')}: "
+                        f"{sd.get('start')} → {sd.get('end')}"
+                    )
 
     # PR A1.3-fix-4 (N2) — forward sookshmas for the next 2 ADs so the LLM
     # has day-precision data for "when in 2028" type questions where the

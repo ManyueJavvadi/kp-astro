@@ -89,11 +89,14 @@ def detect_combustion(planets: dict) -> Dict[str, Dict[str, object]]:
             continue
         dist = angular_distance_deg(p.get("longitude", 0), sun_lon)
         threshold = thresholds[0]  # use prograde threshold; we don't track retrograde
+        # PR A1.3-fix-10 (#6) — borderline tightened from ±2° to ±1°.
+        # KP texts treat combustion as a clean threshold; soft "borderline"
+        # zones bleed combustion-language into otherwise-clean planets.
         out[pname] = {
             "distance_from_sun_deg": round(dist, 2),
             "threshold_deg":         threshold,
             "is_combust":            dist < threshold,
-            "borderline":            (threshold - 2.0) < dist < (threshold + 2.0),
+            "borderline":            (threshold - 1.0) < dist < (threshold + 1.0),
         }
     return out
 
@@ -811,6 +814,224 @@ def get_d12_sign(longitude: float) -> str:
     return SIGN_NAMES_DIV[(sidx + div_idx) % 12]
 
 
+# ── Past-event verification (PR fix-10, #4 / #10) ───────────────────
+
+def verify_past_event(
+    target_date: str,
+    topic: str,
+    all_md_dashas: List[Dict[str, object]],
+    all_ad_pratyantardashas: Dict[str, List[Dict[str, object]]],
+    sookshmas_per_pad: Dict[str, List[Dict[str, object]]],
+    planets: dict,
+    cusps: dict,
+    planet_positions: dict,
+) -> Dict[str, object]:
+    """
+    For a past date the user mentions (e.g., 'I had failed interviews
+    on Mar 30'), return what the engine state was at that date — the
+    MD/AD/PAD/Sookshma stack + which lords signified the topic's
+    relevant vs denial houses at that moment.
+
+    Returns:
+      {target_date, md, ad, pad, sookshma, signal_at_date,
+       relevant_signified, denial_signified, verdict_match}
+
+    The LLM uses this to say "engine state on {date} was {dasha-stack}.
+    Predicted signal: {DENIAL_LIKELY / FIRE_LIKELY / MIXED} ✓ matches
+    your reported {outcome}."
+    """
+    if topic not in HOUSE_TOPICS:
+        return {"available": False, "error": f"Unknown topic: {topic}"}
+
+    # Find MD active at target_date
+    md_active = next(
+        (m for m in (all_md_dashas or [])
+         if m.get("start", "") <= target_date <= m.get("end", "")),
+        None,
+    )
+    if not md_active:
+        return {"available": False, "error": f"No MD covers {target_date}"}
+
+    # AD active at target_date
+    md_lord = md_active.get("lord")
+    # Get all ADs of this MD (we need calculate_antardashas; assume
+    # caller provides via all_ad_pratyantardashas keys = AD lords)
+    ad_active = None
+    for ad_lord, pads in (all_ad_pratyantardashas or {}).items():
+        if not pads: continue
+        ad_start = pads[0].get("start", "")
+        ad_end = pads[-1].get("end", "")
+        if ad_start <= target_date <= ad_end:
+            ad_active = {"antardasha_lord": ad_lord, "start": ad_start, "end": ad_end}
+            ad_pads = pads
+            break
+    if not ad_active:
+        return {"available": False, "error": f"No AD covers {target_date}"}
+
+    # PAD active at target_date
+    pad_active = next(
+        (p for p in (ad_pads or [])
+         if p.get("start", "") <= target_date <= p.get("end", "")),
+        None,
+    )
+
+    # Sookshma active at target_date (only available if target falls
+    # within the current AD whose sookshmas we computed)
+    sookshma_active = None
+    if pad_active:
+        pad_lord = pad_active.get("pratyantardasha_lord")
+        for sd in (sookshmas_per_pad or {}).get(pad_lord, []) or []:
+            if sd.get("start", "") <= target_date <= sd.get("end", ""):
+                sookshma_active = sd
+                break
+
+    # For each lord (MD/AD/PAD/Sookshma), check signification
+    rel_houses = set(HOUSE_TOPICS[topic])
+    den_houses = set(TOPIC_DENIAL.get(topic, []))
+
+    def _lord_signifies(lord):
+        if not lord or lord not in planets:
+            return {"relevant": [], "denial": []}
+        sig = set()
+        if lord in planet_positions:
+            sig.add(planet_positions[lord])
+        if cusps:
+            sig.update(get_houses_owned_by_planet(lord, cusps))
+        sl = planets[lord].get("star_lord")
+        if sl and sl in planet_positions:
+            sig.add(planet_positions[sl])
+        if sl and cusps:
+            sig.update(get_houses_owned_by_planet(sl, cusps))
+        return {"relevant": sorted(sig & rel_houses), "denial": sorted(sig & den_houses)}
+
+    md_sig = _lord_signifies(md_lord)
+    ad_sig = _lord_signifies(ad_active.get("antardasha_lord"))
+    pad_sig = _lord_signifies((pad_active or {}).get("pratyantardasha_lord"))
+    sd_sig = _lord_signifies((sookshma_active or {}).get("sookshma_lord"))
+
+    # Aggregate signal at this date
+    total_rel = (
+        len(md_sig["relevant"]) + len(ad_sig["relevant"])
+        + len(pad_sig["relevant"]) + len(sd_sig["relevant"])
+    )
+    total_den = (
+        len(md_sig["denial"]) + len(ad_sig["denial"])
+        + len(pad_sig["denial"]) + len(sd_sig["denial"])
+    )
+    if total_rel > total_den * 1.5:
+        signal = "FIRE_LIKELY"
+    elif total_den > total_rel * 1.5:
+        signal = "DENIAL_LIKELY"
+    else:
+        signal = "MIXED"
+
+    return {
+        "available":   True,
+        "target_date": target_date,
+        "topic":       topic,
+        "md":          {"lord": md_lord, "signifies": md_sig},
+        "ad":          {"lord": ad_active.get("antardasha_lord"), "signifies": ad_sig},
+        "pad":         {"lord": (pad_active or {}).get("pratyantardasha_lord"),
+                        "signifies": pad_sig},
+        "sookshma":    {"lord": (sookshma_active or {}).get("sookshma_lord"),
+                        "signifies": sd_sig},
+        "signal":      signal,
+        "summary": (
+            f"On {target_date} for {topic}: stack = "
+            f"MD {md_lord} → AD {ad_active.get('antardasha_lord')} "
+            f"→ PAD {(pad_active or {}).get('pratyantardasha_lord', '?')} "
+            f"→ Sookshma {(sookshma_active or {}).get('sookshma_lord', '?')}. "
+            f"Composite signal: {signal}."
+        ),
+    }
+
+
+# ── Sookshma fire-score ranking (PR fix-10, #12) ────────────────────
+# Pre-rank sookshmas within a PAD by composite "fire likelihood" so the
+# LLM doesn't have to derive the ranking ad-hoc each time.
+
+def rank_sookshmas_by_fire_score(
+    sookshmas: List[Dict[str, object]],
+    relevant_houses: List[int],
+    denial_houses: List[int],
+    planets: dict,
+    cusps: dict,
+    planet_positions: dict,
+    ruling_planets_list: List[dict],
+    vargottama_map: Dict[str, Dict[str, object]],
+) -> List[Dict[str, object]]:
+    """
+    For each sookshma in the list, compute a 0-10 fire-score and add it
+    plus a verdict tag. Returns the sookshmas sorted by fire-score
+    descending (so the LLM sees strongest first).
+
+    Components per sookshma lord:
+      Lord signifies relevant houses (0-3)
+      Lord signifies denial houses (subtract 0-2)
+      Lord is in Ruling Planets (0-2)
+      Lord is vargottama (0-1)
+      Lord nakshatra-class is Sthira/favourable (0-1)
+    """
+    rp_planets = {rp.get("planet") for rp in (ruling_planets_list or []) if rp.get("planet")}
+    rel_set = set(relevant_houses or [])
+    den_set = set(denial_houses or [])
+
+    out: List[Dict[str, object]] = []
+    for s in sookshmas:
+        lord = s.get("sookshma_lord")
+        if not lord:
+            continue
+        score = 0.0
+        notes = []
+        # Lord's signified houses (4-step UNION)
+        signified = set()
+        if lord in planet_positions:
+            signified.add(planet_positions[lord])
+        if cusps:
+            signified.update(get_houses_owned_by_planet(lord, cusps))
+        p = planets.get(lord, {})
+        sl = p.get("star_lord")
+        if sl and sl in planet_positions:
+            signified.add(planet_positions[sl])
+        if sl and cusps:
+            signified.update(get_houses_owned_by_planet(sl, cusps))
+
+        rel_hits = signified & rel_set
+        den_hits = signified & den_set
+        score += min(3, len(rel_hits))
+        if rel_hits:
+            notes.append(f"signifies relevant {sorted(rel_hits)}")
+        score -= min(2, len(den_hits))
+        if den_hits:
+            notes.append(f"signifies denial {sorted(den_hits)} (penalty)")
+        # RP overlap
+        if lord in rp_planets:
+            score += 2
+            notes.append("RP-confirmed")
+        # Vargottama
+        if (vargottama_map or {}).get(lord, {}).get("vargottama"):
+            score += 1
+            notes.append("vargottama")
+
+        score = max(0.0, min(10.0, score))
+        verdict = (
+            "FIRE" if score >= 6 else
+            "STRONG" if score >= 4.5 else
+            "MODERATE" if score >= 3 else
+            "WEAK" if score >= 1.5 else
+            "AVOID"
+        )
+        ranked = dict(s)
+        ranked["fire_score"] = round(score, 1)
+        ranked["fire_verdict"] = verdict
+        ranked["fire_notes"] = "; ".join(notes) if notes else "no notable signals"
+        out.append(ranked)
+
+    # Sort by fire_score descending
+    out.sort(key=lambda x: x.get("fire_score", 0), reverse=True)
+    return out
+
+
 # ── Decision support framework (PR fix-8, #29) ─────────────────────
 # Aggregates all chart signals into a weighted go/no-go score for
 # binary "should I do X" questions.
@@ -820,6 +1041,11 @@ def decision_support_score(advanced: Dict[str, object]) -> Dict[str, object]:
     For binary "should I do X" questions, produce a structured ledger:
         signal | weight | direction (+/-) | contribution
     Sums to a 0..100 go/no-go score with conflict-flagging.
+
+    PR A1.3-fix-10 (#2) — added explicit PENALTY contributions to
+    counter previous over-credit pattern. The Step 4 partial denier
+    (Pattern D2), the recent-failure-pattern (Saturn-stack rejections),
+    and the in-progress-unfavourable-window patterns now subtract.
     """
     if not advanced:
         return {"available": False}
@@ -880,6 +1106,43 @@ def decision_support_score(advanced: Dict[str, object]) -> Dict[str, object]:
             "contribution": -5,
         })
         score -= 5
+
+    # PR A1.3-fix-10 (#2) — PENALTY: Step 4 partial denier (Pattern D2)
+    # detected via SUB layer signifying denial houses while STAR signifies relevant
+    sub_denial = h.get("sub_denial") or []
+    star_relevant = h.get("star_relevant") or []
+    if sub_denial and star_relevant:
+        contributions.append({
+            "signal": f"Step 4 partial denier active (SUB denies {sub_denial} while STAR points to {star_relevant})",
+            "weight": 0.7,
+            "direction": "-",
+            "contribution": -7,
+        })
+        score -= 7
+
+    # PR A1.3-fix-10 (#2) — PENALTY: TENSION/CONTRA/MIXED harmony with denial houses
+    sub_lean_denial = len(sub_denial) > len(h.get("sub_relevant", []))
+    if h.get("harmony") in ("TENSION", "MIXED") and sub_lean_denial:
+        contributions.append({
+            "signal": "SUB layer leans denial — recent friction expected at decision-stage",
+            "weight": 0.5,
+            "direction": "-",
+            "contribution": -5,
+        })
+        score -= 5
+
+    # PR A1.3-fix-10 (#2) — PENALTY: low SAV in topic-relevant houses
+    av_relevant = (advanced.get("ashtakavarga") or {}).get("sav_relevant_houses") or {}
+    if av_relevant:
+        avg_sav = sum(av_relevant.values()) / len(av_relevant)
+        if avg_sav < 25:
+            contributions.append({
+                "signal": f"SAV in relevant houses averages {avg_sav:.1f} (below 25 = weak structural support)",
+                "weight": 0.5,
+                "direction": "-",
+                "contribution": -5,
+            })
+            score -= 5
 
     score = max(0, min(100, score))
     verdict = (

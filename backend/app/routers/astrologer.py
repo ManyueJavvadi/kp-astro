@@ -581,6 +581,24 @@ def analyze_topic(request: AnalysisRequest):
         decision_data = {}
         conflict_flags = []
 
+    # PR A1.3-fix-10 (#12) — pre-rank sookshmas by fire-score so AI
+    # doesn't recompute ad-hoc for "best week" questions.
+    try:
+        from app.services.kp_advanced_compute import rank_sookshmas_by_fire_score
+        ranked_sookshmas_current_ad = {}
+        for pad_lord, sookshmas in sookshmas_current_ad.items():
+            ranked_sookshmas_current_ad[pad_lord] = rank_sookshmas_by_fire_score(
+                sookshmas,
+                advanced.get("relevant_houses", []),
+                advanced.get("denial_houses", []),
+                chart["planets"], chart["cusps"], planet_positions,
+                rp_list,
+                advanced.get("vargottama", {}),
+            )
+    except Exception as e:
+        _log.warning("Sookshma ranking failed: %s", e)
+        ranked_sookshmas_current_ad = sookshmas_current_ad
+
     chart_data = {
         "name": request.name,
         # PR A1.3a — pass gender + birth_date + computed age so the LLM
@@ -601,7 +619,7 @@ def analyze_topic(request: AnalysisRequest):
         "upcoming_antardashas": antardashas,
         # PR A1.3-fix-9 — `pratyantardashas_current_ad` removed (dup of all_ad_pratyantardashas[current_ad_lord])
         "all_ad_pratyantardashas": all_ad_pratyantardashas,
-        "sookshmas_current_ad": sookshmas_current_ad,  # PR A1.3c-extras
+        "sookshmas_current_ad": ranked_sookshmas_current_ad,  # PR A1.3-fix-10 #12: pre-ranked
         "sookshmas_upcoming_ads": sookshmas_upcoming_ads,  # PR A1.3-fix-4 (N2)
         "ruling_planets": ruling_planets,
         "significators": all_significators,

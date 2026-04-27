@@ -138,3 +138,40 @@ Every Analysis-tab answer's section 5 should include:
 The LLM must include at least the calibration caveat for any score
 < 75. The free-will caveat applies to all answers about future
 events.
+
+## Expected Confidence Distribution (PR A1.3-fix-10 — calibration sanity)
+
+Across ~100 typical KP queries, the distribution of engine confidence
+SHOULD look approximately like:
+
+| Range | % of charts | What it means |
+|---|---|---|
+| 90+ | ≤10% | Rare — strongest possible confluence (HARMONY + 3+ fruitful + 2+ RP slots + KSK-fires + vargottama). |
+| 75–89 | ~30% | Common — clear promise with strong timing alignment. |
+| 60–74 | ~40% | Most common — promise present, timing is conditional or has friction. |
+| 45–59 | ~15% | Mixed — TENSION harmony, contradicting signals, weak SAV. |
+| <45 | ≤5% | Rare — clear denial signature, multiple dussthana activations. |
+
+If a chart returns 90+ on EVERY topic, calibration is drifting high.
+Likely causes:
+- Decision-support adding too many positive contributors without
+  matching penalty contributors
+- Star-Sub Harmony returning HARMONY too often (check the leaning
+  threshold in compute_star_sub_harmony)
+- Engine confidence ceiling (clamp at 100) hiding actual over-credit
+
+If a chart returns <45 on EVERY topic, calibration is drifting low.
+Likely cause: denial-house weights too punitive in TOPIC_DENIAL.
+
+LLM SELF-CHECK: When you state engine confidence ≥ 90, ask yourself:
+"Is this chart genuinely in the top 10% of strength for this topic?"
+If the chart has ANY of these friction signals, 90+ is suspect:
+- Pattern D2 fires (Step 4 partial denier)
+- TENSION or MIXED harmony
+- 0 fruitful significators
+- Lord of running PAD has any denial-house touch
+- Recent past failures the user mentions
+
+In those cases, treat the engine score as a CEILING and adjust
+verbal certainty downward by 5-10 in your output. The engine is
+conservative-aligned but can over-credit on positive-feedback loops.

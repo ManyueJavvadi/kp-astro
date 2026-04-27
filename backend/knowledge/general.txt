@@ -637,12 +637,26 @@ native's birth city), use the H7 cusp's nakshatra direction:
 | | | Revati | East |
 
 The engine emits the direction as `partner_profile.direction` for the
-H7 nakshatra. Cite that directly. From Tenali (16°N 80°E in India):
-- East/East-South: Bay of Bengal coast / Tamil Nadu / Kolkata side
-- South-West: Karnataka / Kerala / Tamil Nadu inland
-- North: Maharashtra / Delhi / North India
-- North-East: Bengal / North-East states
-- West: Mumbai / Gujarat / Pune
+H7 nakshatra. Cite that direction relative to the native's OWN birth
+city (in the NATIVE PROFILE block — never use a hardcoded reference
+city). See "DIRECTION INTERPRETATION" below for examples.
+
+DIRECTION INTERPRETATION (universal):
+The compass direction returned by the engine is RELATIVE to the
+native's own birth city. From the native's geographic position,
+the indicated direction maps to the regions in that direction.
+Examples (illustrative — adapt to the actual native's location):
+- South-Indian native: West = Maharashtra/Goa, North = Delhi/UP,
+  East = Bengal/Odisha, South-West = Kerala/Tamil Nadu
+- North-Indian native: West = Pakistan/Iran, South = Deccan/Tamil
+  Nadu, East = Bengal/Bangladesh
+- Western diaspora native: directions interpret relative to current
+  city of residence
+
+DO NOT cite a specific reference city in your answer — use the
+native's own birth city (which is in their NATIVE PROFILE block) as
+the implicit anchor. Frame as "from your birth city, the chart
+points [direction] — typically [examples for that geography]".
 
 This is a WEAK signal — direction predictions are right ~50% of the
 time across populations. State as "leans toward [direction]" not

@@ -154,3 +154,31 @@ SPECIAL CONSIDERATIONS
 - Combustion (planet within 10° of Sun): planet's strength reduced
 - Mutual aspects between transiting planets amplify effects
 - Eclipses (Rahu/Ketu near Sun/Moon): triggers major karmic events within 6 months
+
+---
+
+RULING PLANETS + TRANSIT INTEGRATION (PR A1.3-fix-10)
+========================================================
+
+When a transiting planet IS ALSO a current Ruling Planet at the moment
+of query, its transit effect is AMPLIFIED. This is the strongest
+single-day timing signal in KP.
+
+THE RP-CONFIRMED TRANSIT RULE:
+  A transit fires its predicted effect MOST cleanly when:
+  1. The transiting planet is the current Dasha/AD/PAD/Sookshma lord, AND
+  2. The transiting planet is in the current 7-slot Ruling Planets list
+
+  Either alone = standard transit effect. BOTH = amplified trigger moment.
+
+ENGINE INTEGRATION:
+  The Analysis tab emits CURRENT TRANSITS + RULING PLANETS +
+  UPCOMING TRANSIT WINDOWS. Cross-reference these three blocks to
+  identify converged transit moments. State explicitly when a planet
+  appears in all three.
+
+CAVEAT — Don't over-claim transit certainty:
+  Transits "trigger" but do NOT "create" events. A transit through a
+  cusp WITHOUT supporting CSL signification + dasha alignment = scenery,
+  not event. Always check the chart's structural promise FIRST, then
+  layer transit confirmation on top.
