@@ -241,9 +241,10 @@ Every tool goes through the same four phases. No tool skips a phase.
 | **A1.0** | Horary research audit | `.claude/research/horary-audit.md` (no code) | ✅ shipped |
 | A1.1 | Horary engine accuracy fixes | `backend/app/services/horary_engine.py` + pytest golden + reference case | ✅ shipped |
 | A1.2 | Panchang research audit + fixes | `.claude/research/panchang-audit.md` | ✅ shipped (PR A1.2a–d) |
-| **A1.3** | **Analysis tab KB overhaul + accuracy** (originally not planned — opened mid-track after user testing) | See `.claude/HANDOFF-analysis-tab.md` for the 12-PR arc | ✅ shipped (`76368a2` → `d60527b`, fix-1 through fix-11) |
-| ~~A1.3-fix-11~~ | ~~Output structure refactor + chat UI polish~~ | ~~design locked~~ | ✅ **shipped** `d60527b` — 5-section refactor + chat-feel UI (avatar dot, typing dots, copy button, topic auto-collapse, suggested follow-ups) |
-| A1.3e | UX polish for Analysis tab — confidence-bar visual, source-citation expandables, conflicting-signals panel rendering, life-arc timeline visualization, user-mode 3-section format | frontend changes only (backend support exists) | ⏳ queued — deferred from fix-11 |
+| **A1.3** | **Analysis tab KB overhaul + accuracy** (originally not planned — opened mid-track after user testing) | See `.claude/HANDOFF-analysis-tab.md` for the 12-PR arc | ✅ shipped (`76368a2` → `aa31528`, fix-1 through fix-10). Fix-11 5-section refactor reverted at `07bbc7d` — see HANDOFF post-mortem. Live state = fix-10 (7-section output). |
+| ~~A1.3-fix-11~~ | ~~Backend 7→5 section refactor~~ | shipped `d60527b`, **REVERTED `07bbc7d`** | ⛔ reverted — output got worse than fix-10. Frontend chat polish (avatar dot, typing dots, copy button, topic auto-collapse, follow-ups, starter questions) was KEPT — only the backend prompt was rolled back. See HANDOFF post-mortem for lessons. |
+| A1.3e | UX polish for Analysis tab — confidence-bar visual, source-citation expandables, conflicting-signals panel rendering, life-arc timeline visualization, user-mode 3-section format | frontend changes only (backend support exists from fix-8) | ⏳ queued |
+| A1.3f (optional) | Targeted single-section refactor (only if a section in fix-10's 7-section output proves weak in real testing) | ONE section at a time, A/B vs current, never wholesale | ⏳ optional — see HANDOFF post-mortem rule #1 |
 | A1.4 | Transit research audit | `.claude/research/transit-audit.md` | ⏳ pending |
 | A1.5 | Transit engine accuracy fixes | `backend/app/services/transit_engine.py` + tests | ⏳ pending |
 | A1.6 | Muhurtha research audit | `.claude/research/muhurtha-audit.md` | ✅ shipped (PR A2.2a–f) |

@@ -16,7 +16,7 @@ The Analysis tab has been through **11 PRs (`76368a2` → `aa31528`)** that took
 - 5 compute modules (advanced compute, transit compute, Yogini dasha, plus chart engine extensions)
 - 3 rounds of audit using a **Web-V vs Engine-V debate format** (the user's own invention) that surfaced 72 gaps total — all addressed except 4 deferred for DB infrastructure
 
-**Status as of fix-10 push**: structurally complete. Diminishing returns on further audits. **Next PR (fix-11) is OUTPUT STRUCTURE refactor** to Option B (5 sections instead of 7) — design hashed out with user, not yet implemented. See §Pending.
+**Status as of revert**: backend on **fix-10's 7-section output format**. Fix-11 (5-section refactor) shipped at `d60527b` but produced worse AI output and was **REVERTED at `07bbc7d`**. Frontend chat-feel UI polish from fix-11 is **kept** (typing dots, copy button, topic strip, suggested follow-ups, AI avatar dot — those were independent of the prompt change). See §Reverted post-mortem.
 
 **Universality is sacrosanct**: every fix in every PR was checked against "universal vs chart-specific bias." The engine emits neutral structural signals; the LLM interprets. **Never inject rules that pre-decide outcomes for any chart.**
 
@@ -122,7 +122,8 @@ The user invented an adversarial debate format that surfaced gaps systematically
 | A1.3-fix-8 | `4abe6ce` | audit-2 | 17 features: intercepted signs detection (Placidus quirk — Manyue has Leo in H9 + Aquarius in H3), stellium detection, lagna lord disposition with per-house notes, divisional charts D7/D9/D10/D12 + vargottama-D10, decision_support_score with verdict + ledger, flag_dasha_conflicts (Vimsottari↔Yogini convergence/conflict), Sookshma fire-score ranking, **personality_psychology.md** (4-pillar framework + 27-nakshatra archetypes + free-form topic routing + intent classification), **remedies.md** (KP parihara framework — behavioural-first, per-planet, topic-specific, KP gemstone guard rule), 9 new free-form topics added to TOPIC_TO_FILE. RULES 28/29/30/31 added. |
 | A1.3-fix-9 | `4235ced` | audit-3-fixes | 15 items: transit_rules.txt added to ADVANCED_FILES (was orphaned 156-line KB), `_TOPIC_CACHE` wired into load_knowledge (200KB I/O killed per query), bare except cleanup with logging, `/quick-insights` brought to feature parity with `/analyze`, silent fallback exception logging, RULES 20+21 reordered to numeric position, dead functions removed, `pratyantardashas_current_ad` redundancy dropped, **Anthropic prompt caching for follow-ups (~90% input-token reduction within 5-min cache TTL)**, RULE 10 strengthened with PLACEMENT VERIFICATION (kills "Sun in H6 vs H9" hallucinations), RULE 28 mandates intercepted-sign call-out in Section 2, RULE 31 remedies auto-trigger criteria explicit, `get_cusp_sign_type` topic-scoped (no "Virgo barren" in career), RULE 17 age-consistency clause, **RULE 21B PAD-vs-Sookshma neutral framing** (the calibration commitment) |
 | A1.3-fix-10 | `aa31528` | audit-3 | 10 items: Tenali leak removed from general.txt, `detect_topic` 11→30 topics synced with TOPIC_TO_FILE, decision_support penalties (Step 4 D2, TENSION sub-denial, low SAV — score now realistic 86 not 100), confidence_methodology.md gains Expected Distribution benchmark, combustion borderline ±2°→±1°, RULE 19 de-duplication discipline, RULE 19 conflicting-signals panel mandatory on TENSION/MIXED/CONTRA, sookshma fire-score ranking emitted in formatter, `verify_past_event(date, topic)` helper, session memory anchor in conversation history, transit_rules.txt RP integration |
-| **A1.3-fix-11** | **`d60527b`** | **final structural** | **Backend: 7→5 section system prompt refactor (Verdict / Structural Evidence / Timing / Patterns+Remedies / Client-Facing with 5a Q/A + 5b Summary). Tables-first per design discussion. Estimated -35% output tokens. Frontend: chat-feel UI polish — AI avatar dot, typing dots animation, copy button on AI bubbles, topic-strip auto-collapse after first question, suggested follow-up chips on latest AI message, starter question chips in empty state, topic-aware loading message, hover affordances. NEW handoff doc + BACKLOG/DAILY_LOG updated.** |
+| A1.3-fix-11 | `d60527b` | final structural — **PARTIALLY REVERTED** | Backend 7→5 section refactor (Verdict / Structural Evidence / Timing / Patterns+Remedies / Client-Facing with 5a Q/A + 5b Summary) + frontend chat polish + this HANDOFF doc. **Backend prompt change reverted at `07bbc7d`** — produced worse AI output. Frontend chat polish + HANDOFF KEPT. |
+| A1.3-fix-11-revert | `07bbc7d` | revert | Restored `llm_service.py` to fix-10 state (7-section output: VERDICT / CUSPAL EVIDENCE / FRUITFUL SIGNIFICATORS / TIMING WINDOWS / PRATYANTARDASHA / PRE-ANSWERED FOLLOW-UPS / CLIENT SUMMARY). All 33 system-prompt rules intact. Frontend `page.tsx` + `globals.css` untouched (chat polish kept). |
 
 **Cumulative**: 34 system-prompt rules, 6 new KB files, 5 compute modules, ~6,500 lines added.
 
@@ -169,9 +170,53 @@ These are the structural facts that come up in every test. Useful to know when v
 
 ---
 
-## ~~Pending~~ ✅ SHIPPED — fix-11: Output structure refactor + chat UI polish (commit `d60527b`)
+## ~~Shipped~~ ⛔ REVERTED — fix-11: Output structure refactor (commit `d60527b` shipped, `07bbc7d` reverted)
 
-User and Claude hashed out an output-structure refactor at end of arc. **Shipped in commit `d60527b` on the final day of the arc.** Section structure + chat UI polish + this handoff doc all landed in the same PR.
+**TL;DR**: Backend 5-section refactor (`d60527b`) produced worse AI output than fix-10's 7-section format. User asked to revert. Backend `llm_service.py` restored to fix-10 state at `07bbc7d`. Frontend chat polish from fix-11 (typing dots, copy button, topic strip, suggested follow-ups, AI avatar dot) was **kept** — only the prompt was reverted. HANDOFF doc kept too.
+
+### Post-mortem — why the 5-section format was worse
+
+**What was tried**: collapse 7 → 5 sections to cut tokens ~35% and reduce visual density. Sections 2+3 merged into "STRUCTURAL EVIDENCE", sections 4+5 merged into "TIMING", new section 4 "PATTERNS + REMEDIES" introduced, sections 6+7 merged into "CLIENT-FACING" with 5a Q/A and 5b prose subsections.
+
+**What went wrong** (record actual reasons here as they get diagnosed in the next attempt):
+- The merged "STRUCTURAL EVIDENCE" section bundled too many distinct signals into one block — readers couldn't see the cuspal evidence vs fruitful significators boundary as cleanly.
+- Compressing CUSPAL EVIDENCE + FRUITFUL SIGNIFICATORS together lost the "evidence first, who-fires second" narrative cadence.
+- The 7-section format mapped 1:1 to the cognitive steps of a KP reading. Compression broke that mapping.
+- Token reduction wasn't worth the readability loss.
+- (Add specific findings as they come up in real testing.)
+
+### Lessons for any future output-restructure attempt
+
+1. **Change ONE section at a time, not five.** If timing feels too verbose, refactor TIMING alone — leave the other 6 untouched and A/B compare.
+2. **Never bundle structural prompt changes with UI polish.** Hard to A/B isolate. Frontend polish should be its own PR.
+3. **The 7 sections map to KP reading steps** — Verdict / Cuspal evidence / Who fires / When at AD / When at PAD / Pre-emptive Q&A / Client summary. Treat that mapping as a constraint, not a target for compression.
+4. **Don't optimize for token count** without proving readability holds. Output cost was a small win (~$75/mo at 1k queries); readability is the moat.
+5. **If a refactor needs to ship, write 3-5 sample outputs in the new format BEFORE editing the prompt** so the user can review the shape before code changes.
+
+### What was reverted vs kept
+
+| Component | Status |
+|---|---|
+| `backend/app/services/llm_service.py` system prompt OUTPUT FORMAT block | **REVERTED** to fix-10 (7 sections) |
+| All 33 system-prompt rules (1, 1B, 2-21, 21B, 22-31) | KEPT (intact) |
+| `frontend/app/app/page.tsx` chat polish (avatar dot, typing dots, copy btn, topic strip, follow-ups, starters) | KEPT |
+| `frontend/app/globals.css` chat polish (`.chat-bubble-*`, `.typing-dots`, `.topic-strip`, `.copy-btn`, etc.) | KEPT |
+| `.claude/HANDOFF-analysis-tab.md` (this doc) | KEPT (with this post-mortem appended) |
+| `.claude/BACKLOG.md` + `.claude/DAILY_LOG.md` fix-11 entries | UPDATED (reflect revert + post-mortem) |
+
+### What this means for next time
+
+If output-structure refactor is revisited:
+1. Don't repeat 7→5 wholesale.
+2. Identify the ONE section that feels weakest in fix-10 today, refactor only that, ship as its own PR.
+3. Validate against ≥3 different topic queries before pushing.
+4. Frontend chat polish is already in place (kept from fix-11) — UI won't need to change again.
+
+---
+
+## (Pre-revert design — preserved for reference only, NOT what's currently shipped)
+
+User and Claude hashed out an output-structure refactor at end of arc. **Shipped in commit `d60527b` then reverted at `07bbc7d`.** Section structure + chat UI polish + this handoff doc all landed in the same PR; only the section structure was undone.
 
 ### Decision: Option B (5 sections, astrologer mode) + Option C (3 sections, user mode)
 
@@ -338,20 +383,22 @@ frontend/
 
 ---
 
-## Status block (UPDATED at fix-11 ship)
+## Status block (UPDATED post fix-11 revert)
 
-- **Last PR pushed to develop**: `d60527b` (PR A1.3-fix-11) — final structural pass.
-- **Total arc**: 12 PRs (`76368a2` → `d60527b`), ~7,500 lines added.
-- **Branch**: `develop`. Worktree: `claude/eager-elbakyan` at `C:\Users\manyu\kp-astro\.claude\worktrees\eager-elbakyan`.
-- **Tests**: backend has only `test_muhurtha_engine.py` so far. Analysis-tab compute is verified via manual smoke tests at end of each PR (smoke-test code logged in commit messages).
-- **In flight**: nothing committed-but-unpushed. Working directory has only `.claude/settings.local.json` modifications (irrelevant).
-- **Status**: **STRUCTURALLY + PRESENTATIONALLY COMPLETE**. Backend = 33 rules + 5-section output + 6 KB files + 5 compute modules. Frontend = chat-feel UI polished (avatar dot, typing dots, copy button, topic auto-collapse, suggested follow-ups, starter questions).
+- **Last code commit**: `07bbc7d` — revert of fix-11 backend prompt changes.
+- **Live backend output format**: **fix-10's 7-section structure** (VERDICT / CUSPAL EVIDENCE / FRUITFUL SIGNIFICATORS / TIMING WINDOWS / PRATYANTARDASHA / PRE-ANSWERED FOLLOW-UPS / CLIENT SUMMARY).
+- **Live frontend**: fix-11's chat polish (typing dots, copy button, topic strip, suggested follow-ups, AI avatar dot, starter questions) — KEPT.
+- **Total arc**: 12 PRs shipped (`76368a2` → `d60527b`) + 1 partial revert (`07bbc7d`) + docs reconciliation. The 5-section refactor in fix-11 was undone; everything else from the arc remains live.
+- **Branch**: `develop` / worktree: `claude/eager-elbakyan` at `C:\Users\manyu\kp-astro\.claude\worktrees\eager-elbakyan`.
+- **Tests**: backend has only `test_muhurtha_engine.py` so far. Analysis-tab compute is verified via manual smoke tests at end of each PR.
+- **Status**: **STRUCTURALLY COMPLETE on fix-10 baseline**. Backend = 33 rules + 7-section output + 6 KB files + 5 compute modules. Frontend = chat-feel UI polished.
 - **Next PRs** (for future sessions):
   1. **Real-world calibration** — record actual outcomes vs engine predictions when user's contract / marriage / kids events occur
-  2. **A1.3e** — frontend confidence-bar visualization, source-citation expandables, life-arc timeline (deferred from fix-11 — backend support exists)
-  3. **A1.4 / A1.5** — Transit research audit + accuracy fixes (rest of Track A.1)
-  4. **A1.8 / A1.9** — Match research audit + accuracy fixes
-  5. **Track B** — auth + CRM + billing (deferred pending pricing-research session)
+  2. **A1.3e** — frontend confidence-bar visualization, source-citation expandables, life-arc timeline (backend support already exists from fix-8)
+  3. **(Optional) Targeted single-section refactor** — if a specific section in the 7-section format feels weak, refactor JUST that section per post-mortem lesson #1 (never wholesale again)
+  4. **A1.4 / A1.5** — Transit research audit + accuracy fixes (rest of Track A.1)
+  5. **A1.8 / A1.9** — Match research audit + accuracy fixes
+  6. **Track B** — auth + CRM + billing (deferred pending pricing-research session)
 
 ---
 

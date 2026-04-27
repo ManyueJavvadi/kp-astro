@@ -156,16 +156,32 @@ Lagna Scorpio 24°40' Jyeshtha (Rahu sub). Mercury exalted in Virgo H10. Venus d
 9. **Honest confidence calibration** — Expected Distribution benchmark in `confidence_methodology.md`.
 10. **Sensitive prediction protocol** — death taboo'd (RULE 15); harm-reduction framing for mental-health/addiction/divorce.
 
-### A1.3-fix-11 — Output structure refactor + chat UI polish (✅ SHIPPED `d60527b`)
+### A1.3-fix-11 — Output structure refactor (shipped `d60527b`, ⛔ REVERTED `07bbc7d`)
 
-Final structural pass on the analysis arc. Three parallel deliverables:
-- **Backend** — system prompt 7→5 sections (Verdict / Structural Evidence / Timing / Patterns+Remedies / Client-Facing with 5a Q/A + 5b prose). Tables-first per design discussion. Estimated ~35% output token reduction. Q/A format kept in 5a per user explicit ask.
-- **Frontend** — chat-feel UI polish: AI avatar dot (gold gradient "D"), typing dots animation, copy button on AI bubbles (hover-revealed), topic-strip auto-collapse after first question, suggested follow-up chips on latest AI message, starter question chips in empty state, topic-aware loading message ("Analyzing వివాహం..."), hover affordances.
-- **Documentation** — NEW `.claude/HANDOFF-analysis-tab.md` (350 lines, principle stack P1-P10 + arc record + Web-V vs Engine-V methodology preserved + status). BACKLOG.md + DAILY_LOG.md updated.
+Final structural pass attempted, partially rolled back. Three parallel deliverables landed in `d60527b`:
 
-Total arc: **12 PRs, ~7,500 lines, 33 system-prompt rules, 6 KB files, 5 compute modules, 72 gaps surfaced + 68 closed.** Analysis tab is structurally + presentationally COMPLETE.
+- **Backend** — system prompt 7→5 sections (Verdict / Structural Evidence / Timing / Patterns+Remedies / Client-Facing with 5a Q/A + 5b prose). Tables-first. Estimated ~35% token reduction. **REVERTED at `07bbc7d`** — user found the output worse than fix-10's 7-section format. Backend now back on fix-10 baseline (VERDICT / CUSPAL EVIDENCE / FRUITFUL SIGNIFICATORS / TIMING WINDOWS / PRATYANTARDASHA / PRE-ANSWERED FOLLOW-UPS / CLIENT SUMMARY).
+- **Frontend** — chat-feel UI polish (AI avatar dot, typing dots animation, copy button on AI bubbles, topic-strip auto-collapse, suggested follow-up chips, starter question chips, topic-aware loading message, hover affordances). **KEPT** — only the backend prompt was reverted. UI polish was independent and produced no complaints.
+- **Documentation** — NEW `.claude/HANDOFF-analysis-tab.md` (350 lines). **KEPT** with revert post-mortem appended.
 
-### Pending after fix-11
+#### Post-mortem — why 5-section was worse than 7-section
+
+- The 7 sections mapped 1:1 to the cognitive steps of a KP reading (Verdict → Cuspal evidence → Who fires → When at AD → When at PAD → Pre-emptive Q&A → Client summary). Compression broke that mapping.
+- Merged "STRUCTURAL EVIDENCE" bundled too many distinct signals (cuspal + fruitful) into one block. Reader couldn't see the boundary.
+- Token-count savings (~$75/mo at 1k queries) wasn't worth readability loss.
+- The change bundled prompt restructure + UI polish in one commit, making A/B isolation hard.
+
+#### Lessons for any future output-restructure attempt
+
+1. **Change ONE section at a time.** If timing feels verbose, refactor TIMING alone — leave the other 6 untouched.
+2. **Never bundle backend prompt changes with frontend polish.**
+3. **Don't optimize for token count without proving readability holds.**
+4. **Write 3-5 sample outputs in the new format BEFORE editing the prompt** so user can review the shape first.
+5. The 7-section structure is a constraint, not a target for compression.
+
+Total arc reconciled: **12 PRs (`76368a2` → `d60527b`) + 1 partial revert (`07bbc7d`).** Live state = fix-10 backend + fix-11 frontend polish + HANDOFF doc.
+
+### Pending after fix-11 revert
 
 - **A1.3e** — UX polish (frontend confidence bar, source-citation expandables, conflicting-signals panel rendering, life-arc timeline)
 - **Real-world calibration** — when user's contract / marriage / kids actually happen, record diff vs engine prediction
@@ -182,3 +198,36 @@ Total arc: **12 PRs, ~7,500 lines, 33 system-prompt rules, 6 KB files, 5 compute
 - Every fix in fix-1 through fix-10 was checked against universal-vs-chart-specific bias. Future PRs MUST do the same audit before shipping.
 - Calibration chart (Manyue) facts logged in HANDOFF §Calibration findings — useful for sanity-checking output.
 - **Smoke tests at end of each PR** — manual Python smoke tests are logged in commit messages. Reproduce them when validating future changes.
+
+---
+
+## 2026-04-27 (later) — Fix-11 backend revert
+
+User tested fix-11 output and found it worse than fix-10. Walked through the revert plan, then executed.
+
+### Action
+
+- `git checkout aa31528 -- backend/app/services/llm_service.py` → restored fix-10's 7-section OUTPUT FORMAT block
+- Verified: `python -c "import ast; ast.parse(...)"` OK, all 33 rules intact (RULE 21B at line 761, RULE 31 at line 952), 7 sections present at lines 1137-1179
+- Frontend `page.tsx` + `globals.css` chat polish from fix-11: KEPT (independent of complaint)
+- `.claude/HANDOFF-analysis-tab.md`: KEPT with post-mortem section appended
+- Committed revert as `07bbc7d` with full post-mortem in commit message
+- Reconciled HANDOFF + BACKLOG + DAILY_LOG to reflect new live state
+
+### Decisions
+
+- **Live backend output** = fix-10's 7 sections (VERDICT / CUSPAL EVIDENCE / FRUITFUL SIGNIFICATORS / TIMING WINDOWS / PRATYANTARDASHA / PRE-ANSWERED FOLLOW-UPS / CLIENT SUMMARY)
+- **Live frontend** = fix-11's chat-feel polish (avatar dot, typing dots, copy button, topic strip, suggested follow-ups, starter questions)
+- **No more wholesale prompt restructures.** If a section feels weak, refactor ONE section at a time, A/B test, never bundle with UI work
+- **A1.3f** added to BACKLOG as optional single-section refactor track (only if needed)
+
+### Why this matters for future Claude
+
+If output-structure refactor is revisited:
+1. Identify the ONE section that feels weakest in fix-10's 7-section format today
+2. Refactor only that section
+3. Generate ≥3 sample outputs in the new format BEFORE editing the prompt — user reviews shape first
+4. Ship as its own PR (no UI bundling)
+5. A/B against current 7-section before merging
+
+The 7-section format is a constraint. Treat it as such.
