@@ -610,3 +610,89 @@ When a question is asked about timing without specifying a year,
 ALWAYS analyze ALL future dasha periods and give the COMPLETE timeline.
 Do NOT default to the current period just because it is being asked now.
 The planets determine timing — not the date of the question.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION X — NAKSHATRA DIRECTION TABLE (PR A1.3-fix-6)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+For partner-direction predictions (which way is the partner from the
+native's birth city), use the H7 cusp's nakshatra direction:
+
+| Nakshatra | Direction | Nakshatra | Direction |
+|---|---|---|---|
+| Ashwini | East | Magha | South |
+| Bharani | East | P. Phalguni | South-East |
+| Krittika | South-East | U. Phalguni | South |
+| Rohini | East | Hasta | West |
+| Mrigashira | South-West | Chitra | South-West |
+| Ardra | West | Swati | West |
+| Punarvasu | North-East | Vishakha | North |
+| Pushya | North | Anuradha | North-West |
+| Ashlesha | North-East | Jyeshtha | North-East |
+| Mula | South-West | Shravana | North |
+| P. Ashadha | South | Dhanishta | East |
+| U. Ashadha | South-East | Shatabhisha | North-West |
+| | | P. Bhadrapada | West |
+| | | U. Bhadrapada | North |
+| | | Revati | East |
+
+The engine emits the direction as `partner_profile.direction` for the
+H7 nakshatra. Cite that directly. From Tenali (16°N 80°E in India):
+- East/East-South: Bay of Bengal coast / Tamil Nadu / Kolkata side
+- South-West: Karnataka / Kerala / Tamil Nadu inland
+- North: Maharashtra / Delhi / North India
+- North-East: Bengal / North-East states
+- West: Mumbai / Gujarat / Pune
+
+This is a WEAK signal — direction predictions are right ~50% of the
+time across populations. State as "leans toward [direction]" not
+"will definitely be from [direction]".
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION Y — PLANETARY ASPECTS (Vedic / KP) (PR A1.3-fix-6)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+KP retains the Vedic special aspect rules. From a planet's house:
+- Sun, Moon, Mercury, Venus: 7th aspect only (opposition)
+- Mars: 4th, 7th, 8th aspects
+- Jupiter: 5th, 7th, 9th aspects
+- Saturn: 3rd, 7th, 10th aspects
+- Rahu/Ketu: 5th, 7th, 9th (some traditions only 5th and 9th)
+
+WHY ASPECTS MATTER FOR PREDICTION:
+1. Saturn's 3rd aspect on H8 = chronic restrictive pressure on
+   sexual function / longevity / transformation themes (rises with age)
+2. Jupiter's 5th aspect on a house from H6 = steady employment + growth
+3. Mars's 8th aspect on H4 = home / property / mother area pressure
+4. Saturn 10th aspect on a house = career-discipline imprint there
+5. Aspects RECEIVED by a house = modifiers (benefic vs malefic count)
+
+Aspects do NOT override the CSL verdict — they refine quality and
+intensity. Use as CONTEXT, similar to karaka strength.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION Z — COMBUSTION / CONJUNCTION / PADA (PR A1.3-fix-6)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+COMBUSTION:
+A planet within ~10–17° of the Sun (depending on planet) is "combust".
+KP says combust planets give DELAYED or HIDDEN results. Specifically:
+- Mercury combust → delayed communication / hidden intelligence
+- Venus combust → relationship matters delayed / hidden romance
+- Mars combust → vitality temporarily masked by ego/identity
+- Jupiter combust → fortune delayed by self-importance
+- Saturn combust → discipline/responsibility delayed by ego
+The engine emits combustion flags including BORDERLINE cases (within
+±2° of threshold). Cite combustion as TIMING CAVEAT for that planet's
+results.
+
+CONJUNCTION:
+KP standard orb = 8°. Same house ≠ conjunction. Only pairs within 8°
+exchange signification. The closer (orb < 3° = "tight"), the stronger
+the energy mixing. Engine emits all pairs within 8°.
+
+PADA (1/2/3/4 of nakshatra):
+Each nakshatra of 13°20' divides into 4 padas of 3°20' each.
+Each pada corresponds to one navamsa (D9) sign. Pada thus refines
+the planet's signification at navamsa level even without computing
+full D9 chart. The engine emits pada + navamsa-sign per planet.

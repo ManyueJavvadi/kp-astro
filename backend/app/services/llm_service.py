@@ -599,6 +599,58 @@ For every Analysis-tab question:
 When in doubt about format or depth, re-read the gold standard examples
 and match their tone, structure, and explicit pattern naming.
 
+RULE 22 — TRANSITS / GOCHARYA AS SECONDARY TIMING (PR fix-6):
+The chart data now contains a "CURRENT TRANSITS" + "SADE SATI" +
+"SLOW-PLANET TRANSIT FLAGS" + "UPCOMING SLOW-PLANET TRANSIT WINDOWS"
+block. Use these to:
+  1. Confirm or strengthen dasha-based predictions when transit aligns
+     (e.g., Mercury AD + Jupiter transit through H11 = converged peak)
+  2. Flag periods when a slow-malefic transit DELAYS or AGGRAVATES
+     (Saturn through H7 = marriage delay; Saturn through H1 = identity
+     pressure)
+  3. Identify Sade Sati phase. State the phase explicitly when relevant
+     to the topic — e.g., career questions during peak Sade Sati get
+     a "Saturn pressure" note.
+
+DO NOT ever say "I cannot predict transits — they aren't in the chart."
+The transit block is provided. Cite specific dates from it.
+
+RULE 23 — PLANETARY ASPECTS REFINE VERDICTS (PR fix-6):
+The chart data contains "PLANETARY ASPECTS" block listing each
+planet's aspected houses + "ASPECTS RECEIVED BY EACH HOUSE" inverse map.
+Use these as MODIFIERS:
+  - Saturn 3rd-aspect on H8 = chronic restrictive pressure on
+    sexuality/longevity/transformation themes
+  - Jupiter 5/7/9 aspects on a topic-relevant cusp = expansion +
+    benevolent support
+  - Mars 4/7/8 aspects on a domestic/marriage cusp = friction/passion
+  - Rahu/Ketu 5/7/9 aspects on relevant cusps = unconventional flavor
+Aspects do NOT override CSL — they refine quality and intensity.
+
+RULE 24 — COMBUSTION + CONJUNCTION + PADA (PR fix-6):
+- COMBUSTION: any planet flagged combust or borderline-combust gives
+  delayed/hidden results. State this when the planet is the topic CSL
+  or supporting CSL. (Esp. Mercury/Venus combust → communication/
+  romance delays.)
+- TIGHT CONJUNCTIONS (orb < 8°): the two planets share signification.
+  Treat each as also signifying the other's houses.
+- PADA: each planet's pada (1/2/3/4) maps to a navamsa sign. Use
+  pada when the user asks deep questions about partner sign or
+  planet's deeper nature ("what kind of partner Venus delivers").
+
+RULE 25 — 8TH LORD + PARTNER PROFILE + ASHTAKAVARGA (PR fix-6):
+- 8TH LORD: the engine emits 8L's full disposition. Use for sexual
+  function / longevity / transformation predictions. Cite tags directly.
+- PARTNER PROFILE (marriage topic only): direction, appearance,
+  field hints, age hint pre-computed. CITE THESE — do not recompute.
+  Direction is a WEAK signal (~50% accurate); say "leans [direction]"
+  not "will be from [direction]".
+- ASHTAKAVARGA: SAV per house (out of ~28 average). >30 = strong, <25
+  = weak. Use as INDEPENDENT confirmation alongside CSL/significator
+  signals. A topic with low SAV in relevant houses + weak harmony =
+  consistent denial signal. High SAV + strong harmony = peak
+  fructification.
+
 RULE 21 — KSK STRICT TIMING TRIGGER: AD-LORD = SUPPORTING-CUSP-SUB-LORD (PR fix-5):
 
 KSK Reader (Marriage chapter, generalises to all topics): "Marriage
@@ -1250,6 +1302,119 @@ def format_chart_for_llm(chart_data: dict) -> str:
                 f"(synthesised from promise + harmony + fruitful sigs + RP overlap; "
                 f"calibration is conservative — your KSK reasoning may justify ±10)"
             )
+
+        # PR A1.3-fix-6 — Planetary aspects
+        asp = adv.get("aspects_by_planet") or {}
+        aspr = adv.get("aspects_received") or {}
+        if asp:
+            lines.append("\nPLANETARY ASPECTS (Vedic — count from planet's house):")
+            for p, info in asp.items():
+                lines.append(f"  {p:8} from H{info['from_house']:2} aspects houses {info['aspects']}")
+            lines.append("\nASPECTS RECEIVED BY EACH HOUSE (use for health/career/marriage modifiers):")
+            for h in range(1, 13):
+                ps = aspr.get(h, [])
+                if ps:
+                    lines.append(f"  H{h:2}: {ps}")
+
+        # PR A1.3-fix-6 — Combustion (Mercury/Venus near Sun = effects delayed/hidden)
+        comb = adv.get("combustion") or {}
+        comb_flags = [(p, c) for p, c in comb.items() if c.get("is_combust") or c.get("borderline")]
+        if comb_flags:
+            lines.append("\nCOMBUSTION FLAGS (planet near Sun — KP says effects are delayed/hidden):")
+            for p, c in comb_flags:
+                tag = "COMBUST" if c["is_combust"] else "borderline-combust"
+                lines.append(f"  {p}: {c['distance_from_sun_deg']}° from Sun (threshold {c['threshold_deg']}°) — {tag}")
+
+        # PR A1.3-fix-6 — Tight conjunctions
+        conjs = adv.get("conjunctions") or []
+        if conjs:
+            lines.append("\nTIGHT CONJUNCTIONS (orb < 8°; planets exchanging signification):")
+            for c in conjs:
+                lines.append(f"  {c['planet_a']} + {c['planet_b']}: orb {c['orb_deg']}° ({c['tightness']})")
+
+        # PR A1.3-fix-6 — Pada (refines navamsa-level signification)
+        pada_data = adv.get("pada") or {}
+        if pada_data:
+            lines.append("\nPADA (1/2/3/4) per planet — D9 navamsa sign refinement:")
+            for p, d in pada_data.items():
+                lines.append(f"  {p:8} pada-{d.get('pada')} → navamsa-sign {d.get('navamsa_sign')}")
+
+        # PR A1.3-fix-6 — 8th lord disposition
+        h8d = adv.get("eighth_lord") or {}
+        if h8d.get("available"):
+            lines.append(
+                f"\n8TH LORD DISPOSITION (longevity / sexual function / transformation):"
+            )
+            lines.append(
+                f"  8L = {h8d.get('h8_lord')} in H{h8d.get('house')} {h8d.get('sign')}, "
+                f"star={h8d.get('star_lord')}, sub={h8d.get('sub_lord')}"
+            )
+            lines.append(f"  Signified houses: {h8d.get('signified_houses', [])}")
+            for tag in (h8d.get("tags") or []):
+                lines.append(f"  - {tag}")
+
+        # PR A1.3-fix-6 — Partner profile (marriage topic only)
+        pp = adv.get("partner_profile") or {}
+        if pp.get("available"):
+            lines.append("\nSPOUSE / PARTNER PROFILE (chart-derived; cite directly, don't recompute):")
+            lines.append(f"  H7 sign: {pp.get('h7_sign')} ({pp.get('sign_stability')})")
+            lines.append(f"  H7 nakshatra: {pp.get('h7_nakshatra')} → direction-from-native: {pp.get('direction')}")
+            lines.append(f"  Appearance/temperament: {pp.get('appearance_temperament')}")
+            lines.append(f"  Venus state: H{pp.get('venus_house')} {pp.get('venus_sign')} "
+                         f"{'(DEBILITATED — partner has Virgo-analytical-flaw-finding tendency)' if pp.get('venus_debilitated') else ''}"
+                         f"{'(EXALTED — partner is refined, romantic, easy match)' if pp.get('venus_exalted') else ''}")
+            for h in pp.get("field_hints") or []:
+                lines.append(f"  - {h}")
+            for h in pp.get("origin_hints") or []:
+                lines.append(f"  - {h}")
+            if pp.get("age_hint"):
+                lines.append(f"  - {pp.get('age_hint')}")
+
+        # PR A1.3-fix-6 — Ashtakavarga SAV
+        av = adv.get("ashtakavarga") or {}
+        if av.get("sav_per_house"):
+            lines.append("\nASHTAKAVARGA SAV PER HOUSE (out of ~28 average; >30 = strong, <25 = weak):")
+            sav_line = ", ".join(f"H{h}={av['sav_per_house'].get(h, 0)}" for h in range(1, 13))
+            lines.append(f"  {sav_line}")
+            if av.get("sav_relevant_houses"):
+                lines.append(f"  SAV in topic-relevant houses: {av['sav_relevant_houses']}")
+
+    # PR A1.3-fix-6 — Transit bundle (current transits + Sade Sati + key cusp transits + upcoming)
+    transits = chart_data.get("transits") or {}
+    if transits.get("current_transits"):
+        lines.append("\n" + "=" * 60)
+        lines.append("CURRENT TRANSITS (Gocharya — today's positions in your chart's houses)")
+        lines.append("=" * 60)
+        ct = transits["current_transits"]
+        th = transits.get("transit_houses", {})
+        for p in ("Saturn", "Jupiter", "Rahu", "Ketu", "Sun", "Mars", "Mercury", "Venus", "Moon"):
+            if p in ct:
+                pdata = ct[p]
+                house = th.get(p, "?")
+                lines.append(
+                    f"  {p:8} in {pdata.get('sign'):11} (nak {pdata.get('nakshatra')}) → currently in your H{house}"
+                )
+
+        ss = transits.get("sade_sati") or {}
+        if ss:
+            lines.append(
+                f"\nSADE SATI / KANTAKA SHANI: phase = {ss.get('phase').upper()} — {ss.get('interpretation')}"
+            )
+
+        kc = transits.get("key_cusp_transits") or {}
+        if kc:
+            lines.append("\nSLOW-PLANET TRANSIT FLAGS (right now):")
+            for p, info in kc.items():
+                marker = " ⭐" if info.get("is_in_key_house") else ""
+                lines.append(f"  {p}: {info.get('tag')}{marker}")
+
+        upcoming = transits.get("upcoming_key_transits") or []
+        if upcoming:
+            lines.append("\nUPCOMING SLOW-PLANET TRANSIT WINDOWS (next 4 years — for dasha-transit convergence checks):")
+            for ev in upcoming:
+                lines.append(
+                    f"  {ev['planet']:8} → H{ev['native_house']:2} ({ev['enters_at']} → {ev['exits_at']}): {ev['tag']}"
+                )
 
     # Planet positions
     if "chart_summary" in chart_data:

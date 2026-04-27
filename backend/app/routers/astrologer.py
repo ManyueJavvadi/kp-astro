@@ -517,10 +517,12 @@ def analyze_topic(request: AnalysisRequest):
     from app.services.chart_engine import get_planet_house_positions
     planet_positions = get_planet_house_positions(chart["planets"], chart["cusps"])
 
-    # PR A1.3c — advanced KP compute: A/B/C/D significator labels,
-    # fruitful significators (sig ∩ RP), self-strength flags, cusp sign
-    # types, Star-Sub harmony score, RP overlap per AD, topic confidence.
+    # PR A1.3c + fix-6 — advanced KP compute (A/B/C/D, harmony, RP, topic
+    # confidence, supporting cusp triggers, aspects, combustion, conjunctions,
+    # pada, 8th lord, partner profile, Ashtakavarga) + transit bundle
+    # (current transits, Sade Sati, key cusp transits, upcoming windows).
     from app.services.kp_advanced_compute import compute_advanced_for_topic
+    from app.services.kp_transit_compute  import compute_transit_bundle
     promise_verdict_hint = (
         "STRONGLY PROMISED" if promise.get("is_promised")
         else "WEAKLY PROMISED"
@@ -539,6 +541,12 @@ def analyze_topic(request: AnalysisRequest):
         upcoming_antardashas=antardashas,
         promise_verdict=promise_verdict_hint,
     )
+
+    # PR A1.3-fix-6 — transit bundle (computed once; not topic-specific)
+    try:
+        transits = compute_transit_bundle(chart["cusps"], moon_longitude)
+    except Exception:
+        transits = {}
 
     chart_data = {
         "name": request.name,
@@ -566,6 +574,7 @@ def analyze_topic(request: AnalysisRequest):
         "significators": all_significators,
         "planet_positions": planet_positions,
         "advanced_compute": advanced,  # PR A1.3c
+        "transits": transits,          # PR A1.3-fix-6
     }
 
     # Build language instruction with Telugu planet name reference

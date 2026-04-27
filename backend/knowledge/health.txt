@@ -151,3 +151,47 @@ Step 6: Identify which body part is affected from the sign involved
 Step 7: Check current dasha — are H6, H8, H12 significators activated?
 Step 8: When do recovery planets (H1, H5, H11) come into operation?
 Step 9: Give timeline for illness risk and recovery window
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 8: DASHA-SPECIFIC HEALTH TRIGGERS (PR A1.3-fix-6)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+When MD/AD lord is also a significator of H6/H8/H12, certain themes
+intensify per the lord's nature:
+
+| Dasha lord | Health themes activated |
+|---|---|
+| Sun | Eye, heart, BP, cardiac stress (esp. mid-life), fevers, headache. |
+| Moon | Mental health, anxiety, sleep, fluid retention, allergies, women's hormonal cycles. |
+| Mars | Inflammation, accidents, surgery, BP spikes, ulcers, cuts/burns. |
+| Mercury | Nervous system, anxiety, skin conditions, allergies, breathing/asthma. |
+| Jupiter | Diabetes risk, weight gain, liver/pancreas, cholesterol — Jupiter in H6 in earth sign = strong metabolic risk. |
+| Venus | Reproductive system (men: prostate; women: PCOD/endometriosis), urinary, kidneys, throat/neck. |
+| Saturn | Joints, arthritis, chronic conditions, nerve pain, bone, depression, aging-related. |
+| Rahu | Sudden / undiagnosed, mental anxiety, eating disorders, addictions, autoimmune. |
+| Ketu | Mysterious / hard-to-diagnose, viral, parasitic, neurological. |
+
+REPRODUCTIVE / SEXUAL FUNCTION RULES:
+For male native (ED / fertility / libido):
+  - Saturn 3rd-aspect on H8 = chronic restrictive pressure 30s+ (stress
+    /lifestyle response, NOT structural impotence)
+  - Mars in star/sub of Ketu = vitality with detachment phases (low
+    desire periods)
+  - Rahu in H8 = anxiety-driven / performance dysfunction
+  - Venus combust or debilitated = romantic-Eros muted; partner-
+    intimacy lower scoring
+  - 8th lord in H6/H8/H12 = chronic concern; in trine/upachaya = fine
+For female native (menstrual / fertility / hormonal):
+  - Mars or Saturn afflicting H5/H8 = irregular cycles / PCOD risk
+  - Moon in Saturn's star or sub = hormonal slowdown
+  - Venus in Virgo (debilitated) = analytical relationship to body
+  - 8th lord in H6 + Venus afflicted = endometriosis / fibroid risk
+
+AGE-WATCH MATRIX FOR METABOLIC RISK:
+| Pattern | Watch from age |
+|---|---|
+| Saturn or Jupiter in H6 in earth sign | 32+ (diabetes, cholesterol) |
+| Mars in H1, H4, H8 with affliction | 35+ (BP, cardiac stress) |
+| Rahu in H8 + Saturn aspect | 35+ (mental health, sudden episodes) |
+| H6 sub lord = Sun + Sun afflicted | 40+ (cardiac) |
+| H8 with malefics | 40+ (chronic / longevity-relevant) |

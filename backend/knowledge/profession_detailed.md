@@ -253,3 +253,68 @@ Following sub-period activates 1, 5, 9 = job departure / change-failed.
 - **For "should I switch careers?"**, look at whether the next dasha period
   activates DIFFERENT planets than current career-determining planets. Strong
   signal of natural transition.
+
+---
+
+## Sign-by-sign industry mapping (PR A1.3-fix-6)
+
+When H10 cusp falls in a given sign, certain industries are
+naturally indicated. Combine with H10 occupants and CSL chain for
+specificity.
+
+| H10 sign | Natural industries |
+|---|---|
+| Aries | Military, sports, surgery, mechanical engineering, manufacturing, fitness |
+| Taurus | Banking, finance, real estate, food/beverage, music, fashion, agriculture |
+| Gemini | Communication, journalism, software, sales, teaching, telecom, content |
+| Cancer | Healthcare, hospitality, food service, real estate (residential), childcare, public-facing service |
+| Leo | Government, leadership, entertainment, arts (high-status), executive roles, performance |
+| Virgo | IT/software, data/analytics, accounting, healthcare-technical, editing, research, quality control |
+| Libra | Law, design, fashion, diplomacy, partnerships, beauty/aesthetics, mediation |
+| Scorpio | Research, surgery, intelligence, occult/psychology, finance (forensic), security, deep-tech |
+| Sagittarius | Higher education, philosophy, law, publishing, international trade, teaching, religion |
+| Capricorn | Government, civil service, large corporations, mining, construction, engineering, leadership |
+| Aquarius | Technology, innovation, science, social work, NGOs, distributed systems, AI/automation |
+| Pisces | Pharmaceuticals, art, spirituality, charity, foreign trade, oil/chemicals, photography |
+
+---
+
+## Planet + star-lord sector matrix (PR A1.3-fix-6)
+
+The H10 sub lord's STAR LORD adds a second-dimension sector hint.
+Planet + star-lord combinations:
+
+| Planet (H10 CSL) in star of | Likely sector indicator |
+|---|---|
+| Sun in Sun's star | Government / authority / leadership at top tier |
+| Sun in Mars's star | Defence / police / executive operations |
+| Sun in Jupiter's star | Public service / policy / education leadership |
+| Moon in Moon's star | Public-facing / hospitality / mass-market consumer |
+| Moon in Mercury's star | Communications / media / news / publishing |
+| Mars in Saturn's star | Heavy industry / engineering / construction |
+| Mars in Mercury's star | Engineering / surgery / mechanical IT |
+| Mercury in Mercury's star | Pure analytics / accounting / writing / coding |
+| Mercury in Sun's star | Government accounting / public-sector analytics |
+| Mercury in Venus's star | Marketing / fashion-tech / financial-aesthetic |
+| Mercury in Rahu's star | AI / ML / emerging tech / data engineering / fintech |
+| Mercury in Saturn's star | Steady IT / corporate analytics / banking-tech |
+| Jupiter in Jupiter's star | Higher education / philosophy / law / consulting |
+| Jupiter in Sun's star | Senior advisory / public-policy / teaching |
+| Venus in Venus's star | Pure aesthetic / arts / luxury / banking-finance |
+| Venus in Mercury's star | Design-tech / UX / creative software / media |
+| Venus in Moon's star | Hospitality / wellness / women's products |
+| Saturn in Saturn's star | Long-tenure corporate / civil-service / structural engineering |
+| Saturn in Mercury's star | Disciplined IT-corporate / steady banking-tech |
+| Saturn in Sun's star | Government bureaucracy / disciplined leadership |
+| Rahu in Mercury's star | Cutting-edge tech / AI / quant / unconventional analytics |
+| Rahu in Jupiter's star | Foreign-collaboration / international consulting |
+| Rahu in Venus's star | Modern luxury / digital marketing / influencer-economy |
+| Ketu in Mars's star | Specialised technical / niche engineering / research |
+| Ketu in Mercury's star | Specialised analytical / niche software / forensic |
+
+When the AI predicts career sector, it should:
+1. Start with H10 sign (industry general direction)
+2. Refine using H10 CSL's planet + star-lord combination
+3. Refine further using H10 occupants and Venus/Mercury position
+4. Cross-check with Saturn (steady-job / discipline) vs Jupiter
+   (growth) vs Rahu (unconventional) signature.
