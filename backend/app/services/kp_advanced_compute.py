@@ -19,6 +19,7 @@ from typing import Dict, List, Optional
 from app.services.chart_engine import (
     get_sign_lord_for_house,
     get_houses_owned_by_planet,
+    get_rahu_ketu_significations,
     HOUSE_TOPICS,
 )
 
@@ -41,20 +42,25 @@ SEMI_FRUITFUL  = {"Taurus", "Libra"}
 # system prompt and this dict disagree, fix BOTH at the same time.
 
 TOPIC_DENIAL: Dict[str, List[int]] = {
-    "marriage":       [1, 6, 10, 12],
-    "divorce":        [2, 7, 11],   # inversion of marriage relevant
-    "job":            [1, 5, 9, 12],
-    "career":         [1, 5, 9, 12],
-    "profession":     [1, 5, 9, 12],
-    "business":       [1, 5, 9, 12],
-    "foreign_travel": [2, 8, 11],
-    "foreign_settle": [2, 8, 11],
-    "education":      [3, 5, 8, 12],
-    "health":         [1, 5, 11],   # inverted: 6/8/12 = disease, 1/5/11 = recovery
-    "children":       [1, 4, 10],
-    "property":       [3, 5, 9],
-    "litigation":     [5, 7, 12],
-    "wealth":         [1, 8, 12],
+    # PR A1.3-fix-2 (C3): each set is now grounded in either explicit KSK
+    # rule or strict 12th-from-relevant logic; matches RULE 5 + KB.
+    "marriage":       [1, 6, 10, 12],   # KSK Reader Rule 2 verbatim
+    "divorce":        [2, 7, 11],       # = marriage relevant (reconciliation = denial of divorce)
+    "job":            [1, 5, 9, 12],    # 12th-from [2,6,10,11] (KSK Simple Rules)
+    "career":         [1, 5, 9, 12],    # alias of job
+    "profession":     [1, 5, 9, 12],    # alias of job
+    "business":       [1, 6, 9],        # 12th-from [7,2,10,11] — H7 primary not H6 (FIX from job copy)
+    "foreign_travel": [2, 8, 11],       # 12th-from [3,9,12]
+    "foreign_settle": [2, 8, 11],       # same as travel; H12 primary
+    "education":      [3, 8, 10],       # KSK rule (other_topics.txt:28 + RULE 5) — was [3,5,8,12]
+    "children":       [1, 4, 10],       # KSK rule (other_topics.txt) — H4=12th from H5
+    "property":       [3],              # KSK: only H3 explicit (12th from H4); H10 secondary
+    "litigation":     [7, 12],          # RULE 5: opponent wins via H7/H12 — was [5,7,12]
+    "wealth":         [1, 8, 12],       # 12th-from H2 + debt + loss
+    # Health: HOUSE_TOPICS health = [6,8,12] (disease houses = relevant for
+    # "do I have/will I have disease"). TOPIC_DENIAL = wellness houses
+    # [1,5,11] (denial-of-disease = healthy). No overlap with relevant.
+    "health":         [1, 5, 11],
 }
 
 
@@ -186,15 +192,23 @@ def compute_star_sub_harmony(
     denial_houses: List[int],
 ) -> Dict[str, object]:
     """
-    Split the houses signified by a CSL into STAR LAYER vs SUB LAYER.
+    Split the houses signified by a CSL into THREE layers:
 
-    STAR LAYER (the "what" — nature of matter):
+    SELF LAYER (the planet itself — what it embodies):
+        houses occupied + owned by the CSL planet itself
+    STAR LAYER (the "what" — nature of matter, KSK colouring):
         houses occupied + owned by CSL's STAR LORD
-        + house CSL itself occupies + houses CSL itself owns
-    SUB LAYER (the "whether" — deciding gate):
+    SUB LAYER (the "whether" — KSK deciding gate):
         houses occupied + owned by CSL's SUB LORD
 
-    Then score harmony:
+    PR A1.3-fix-2 (C2): when CSL is Rahu or Ketu, apply the proxy rule —
+    nodes have no sign rulership, so we add their conjunction-proxy
+    significations into the SELF layer (delegated to chart_engine's
+    get_rahu_ketu_significations which handles conjunction + sign-lord
+    chains).
+
+    Then score harmony from STAR + SUB leans (SELF is reported but does
+    not drive the verdict — the sub is still the deciding gate per KSK):
         HARMONY  — both layers lean to RELEVANT houses
         ALIGNED  — sub leans relevant, star is mixed/neutral
         MIXED    — both layers ambiguous
@@ -205,7 +219,8 @@ def compute_star_sub_harmony(
     if csl_planet not in planets:
         return {
             "csl_planet": csl_planet, "star_lord": None, "sub_lord": None,
-            "star_houses": [], "sub_houses": [],
+            "self_houses": [], "star_houses": [], "sub_houses": [],
+            "self_relevant": [], "self_denial": [],
             "star_relevant": [], "star_denial": [],
             "sub_relevant": [], "sub_denial": [],
             "harmony": "UNKNOWN",
@@ -215,20 +230,34 @@ def compute_star_sub_harmony(
     star_lord = p.get("star_lord")
     sub_lord  = p.get("sub_lord")
 
-    # STAR layer
+    # SELF layer — CSL's own occupation + ownership
+    self_houses: set = set()
+    if csl_planet in planet_positions:
+        self_houses.add(planet_positions[csl_planet])
+    if cusps:
+        self_houses.update(get_houses_owned_by_planet(csl_planet, cusps))
+
+    # PR A1.3-fix-2 (C2): Rahu/Ketu proxy. Nodes have no sign rulership,
+    # so without the proxy their SELF layer is just their occupation house
+    # — drastically under-counts. Delegate to chart_engine's helper which
+    # walks conjunction + star-lord chains correctly.
+    if csl_planet in ("Rahu", "Ketu"):
+        try:
+            rk = get_rahu_ketu_significations(csl_planet, planets, cusps, planet_positions)
+            for h in rk.get("all_signified_houses", []) or []:
+                if isinstance(h, int) and 1 <= h <= 12:
+                    self_houses.add(h)
+        except Exception:
+            pass  # never fail compute on RK proxy — fall back to occupation only
+
+    # STAR layer — star lord's occupation + ownership
     star_houses: set = set()
     if star_lord and star_lord in planet_positions:
         star_houses.add(planet_positions[star_lord])
     if star_lord and cusps:
         star_houses.update(get_houses_owned_by_planet(star_lord, cusps))
-    # CSL's own occupation + ownership belong to the "star side" of the
-    # signification reading because the planet itself supplies the matter.
-    if csl_planet in planet_positions:
-        star_houses.add(planet_positions[csl_planet])
-    if cusps:
-        star_houses.update(get_houses_owned_by_planet(csl_planet, cusps))
 
-    # SUB layer
+    # SUB layer — sub lord's occupation + ownership
     sub_houses: set = set()
     if sub_lord and sub_lord in planet_positions:
         sub_houses.add(planet_positions[sub_lord])
@@ -238,6 +267,8 @@ def compute_star_sub_harmony(
     rel_set = set(relevant_houses or [])
     den_set = set(denial_houses or [])
 
+    self_rel = sorted(self_houses & rel_set)
+    self_den = sorted(self_houses & den_set)
     star_rel = sorted(star_houses & rel_set)
     star_den = sorted(star_houses & den_set)
     sub_rel  = sorted(sub_houses  & rel_set)
@@ -262,6 +293,9 @@ def compute_star_sub_harmony(
         "csl_planet": csl_planet,
         "star_lord": star_lord,
         "sub_lord":  sub_lord,
+        "self_houses":   sorted(self_houses),
+        "self_relevant": self_rel,
+        "self_denial":   self_den,
         "star_houses": sorted(star_houses),
         "sub_houses":  sorted(sub_houses),
         "star_relevant": star_rel,
@@ -334,18 +368,22 @@ def compute_topic_confidence(
     fruitful_count: int,
     rp_overlap_md: int,
     rp_overlap_ad: int,
+    csl_self_strength: bool = False,
 ) -> int:
     """
     Weighted heuristic that synthesises the major signals into a single
     0–100 score. Calibration is INTENTIONALLY conservative — we'd rather
     say 65% and be right than say 92% and be wrong.
 
-    Components:
+    Components (after PR A1.3-fix-4):
       Promise verdict tier         0–40
       Star-Sub harmony             0–25
       Fruitful significator count  0–15  (5 per fruitful, capped 15)
       MD lord RP overlap           0–10  (5 per slot, capped 10)
       AD lord RP overlap           0–10  (5 per slot, capped 10)
+      CSL self-significator bonus  +5    (KSK pure-result concentration)
+
+    Total can exceed 100 when CSL is self-significator; clamped at 100.
     """
     score = 0
 
@@ -368,6 +406,12 @@ def compute_topic_confidence(
     score += min(15, max(0, fruitful_count) * 5)
     score += min(10, max(0, rp_overlap_md) * 5)
     score += min(10, max(0, rp_overlap_ad) * 5)
+
+    # PR A1.3-fix-4 (N1): KSK self-significator concentration — when the
+    # primary CSL is in its own nakshatra, results arrive directly without
+    # colouring through another star lord. Bonus +5.
+    if csl_self_strength:
+        score += 5
 
     return max(0, min(100, score))
 
@@ -423,6 +467,10 @@ def compute_advanced_for_topic(
     # Self-strength flags for the planets that matter most for this topic
     self_strength = {p: is_self_strength(p, planets) for p in flat_sigs}
 
+    # PR A1.3-fix-4 (N1): is the primary CSL itself a self-significator?
+    csl_planet = (harmony or {}).get("csl_planet") if harmony else None
+    csl_self = is_self_strength(csl_planet, planets) if csl_planet else False
+
     # Overall confidence
     confidence = compute_topic_confidence(
         promise_verdict=promise_verdict,
@@ -430,6 +478,7 @@ def compute_advanced_for_topic(
         fruitful_count=len(fruitful),
         rp_overlap_md=md_overlap,
         rp_overlap_ad=ad_overlap,
+        csl_self_strength=csl_self,
     )
 
     return {

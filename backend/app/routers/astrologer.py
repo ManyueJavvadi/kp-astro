@@ -464,15 +464,41 @@ def analyze_topic(request: AnalysisRequest):
         ad_lord = ad["antardasha_lord"]
         all_ad_pratyantardashas[ad_lord] = calculate_pratyantardashas(ad)
 
-    # PR A1.3c-extras — Sookshma Dasha (sub-PAD / 4th-level) for the
-    # current AD only. 9 PADs × 9 sookshmas = 81 entries; capped here.
-    # Going further (every PAD of every AD) would explode prompt size.
+    # PR A1.3c-extras — Sookshma Dasha (sub-PAD / 4th-level).
+    # Current AD: full coverage (9 PADs × 9 sookshmas = 81 entries).
+    # Next 2 ADs: forward-looking timing for "when in 2028" questions.
+    # PR A1.3-fix-4 (N2): extended from current AD only to current + next 2.
     from app.services.chart_engine import calculate_sookshma_dashas, get_current_sookshma
     sookshmas_current_ad: dict = {}
     for pad in pratyantardashas:
         pad_lord = pad.get("pratyantardasha_lord")
         sookshmas_current_ad[pad_lord] = calculate_sookshma_dashas(pad)
     current_sookshma = get_current_sookshma(sookshmas_current_ad.get(current_pad.get("pratyantardasha_lord"), [])) if current_pad else {}
+
+    # Forward sookshmas — next 2 ADs after the current one.
+    sookshmas_upcoming_ads: dict = {}
+    try:
+        # Locate current AD's index in the antardashas list.
+        current_ad_lord = current_ad.get("antardasha_lord") if current_ad else None
+        cur_idx = next(
+            (i for i, a in enumerate(antardashas)
+             if a.get("antardasha_lord") == current_ad_lord
+             and a.get("start") == current_ad.get("start")),
+            -1,
+        )
+        for offset in (1, 2):
+            j = cur_idx + offset
+            if 0 <= j < len(antardashas):
+                future_ad = antardashas[j]
+                future_pads = calculate_pratyantardashas(future_ad)
+                ad_label = f"{future_ad.get('antardasha_lord')} ({future_ad.get('start')} → {future_ad.get('end')})"
+                sookshmas_upcoming_ads[ad_label] = {
+                    pad.get("pratyantardasha_lord"): calculate_sookshma_dashas(pad)
+                    for pad in future_pads
+                }
+    except Exception:
+        # Never block /analyze if forward-sookshma compute hits an edge case.
+        sookshmas_upcoming_ads = {}
 
     from app.services.chart_engine import (
         check_promise, check_dasha_relevance, get_all_house_significators
@@ -535,6 +561,7 @@ def analyze_topic(request: AnalysisRequest):
         "pratyantardashas_current_ad": pratyantardashas,
         "all_ad_pratyantardashas": all_ad_pratyantardashas,
         "sookshmas_current_ad": sookshmas_current_ad,  # PR A1.3c-extras
+        "sookshmas_upcoming_ads": sookshmas_upcoming_ads,  # PR A1.3-fix-4 (N2)
         "ruling_planets": ruling_planets,
         "significators": all_significators,
         "planet_positions": planet_positions,
@@ -568,7 +595,8 @@ If you cannot write a word in Telugu, write it in English instead.
     answer = get_prediction(
         chart_data, question,
         request.history,
-        mode="astrologer"
+        mode="astrologer",
+        topic=topic,  # PR A1.3-fix-1 (C1): pass topic explicitly so detect_topic Haiku call is skipped
     )
 
     return {"topic": topic, "answer": answer, "promise": promise, "timing": timing}

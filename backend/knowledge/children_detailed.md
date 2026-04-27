@@ -66,7 +66,7 @@ We need to distinguish:
 - Jupiter is strong AND signifies H5 (natural karaka aligned)
 - Moon is well-placed (especially in female chart)
 - No Saturn/Rahu/Ketu directly afflicting H5
-- H5 is NOT in barren sign (Aries, Leo, Virgo are classically "barren" for children)
+- H5 is NOT in barren sign — KSK 5-sign canonical list: Aries, Gemini, Leo, Virgo, Capricorn (PR A1.3-fix-3 M3: aligned with other_topics.txt + kp_advanced_compute)
 - H5 cusp NOT in dual sign with malefic afflictions
 - Jupiter or Moon transit through H5 in coming dasha → easy timing
 
@@ -145,7 +145,7 @@ We need to distinguish:
 - H9 (3rd from H7) = third child
 
 ### Signs that limit number:
-- **Barren signs** at H5 cusp (Aries, Leo, Virgo) classically restrict
+- **Barren signs** at H5 cusp (KSK canonical 5-sign list: Aries, Gemini, Leo, Virgo, Capricorn) classically restrict
 - **Dual signs** (Gemini, Virgo, Sagittarius, Pisces) at H5 = possibility of twins
   or multiple but each weakly
 - **Saturn or Rahu** at H5 dramatically reduces count

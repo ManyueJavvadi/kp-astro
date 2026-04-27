@@ -508,7 +508,7 @@ HOUSE_TOPICS = {
     "foreign_travel":   [9, 3, 12],      # H9 = long journeys (primary gate)
     "foreign_settle":   [12, 3, 9],      # H12 = foreign land (primary gate)
     "education":        [9, 4, 11],      # H9 = higher learning (primary gate)
-    "health":           [6, 1, 8, 12],   # H6 = disease house (primary gate)
+    "health":           [6, 8, 12],      # disease/illness set; H1 removed to fix relevant/denial overlap (PR A1.3-fix-2)
     "children":         [5, 2, 11],      # H5 = children (primary gate)
     "property":         [4, 11, 12],     # H4 = immovable property (primary gate)
     "father":           [9, 10],

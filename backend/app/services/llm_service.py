@@ -70,12 +70,15 @@ TOPIC_TO_FILE = {
     "litigation": "other_topics.txt",
     "health": "health.txt",
     "divorce": "divorce.txt",
-    # PR A1.3 — relative-related topic aliases route to parents_family + bhavat_bhavam
-    "parents": "health.txt",
-    "mother": "health.txt",
-    "father": "health.txt",
+    # PR A1.3 — relative-related topic aliases. Primary file is general.txt
+    # (no topic-specific .txt for relatives); the parents_family.md +
+    # bhavat_bhavam.md are pulled in via TOPIC_DEEP_DIVE below.
+    # PR A1.3-fix-3 (M2): was wrongly routed to health.txt — fixed.
+    "parents": "general.txt",
+    "mother": "general.txt",
+    "father": "general.txt",
     "spouse": "marriage.txt",
-    "siblings": "other_topics.txt",
+    "siblings": "general.txt",  # was other_topics.txt; siblings deep-dive lives in parents_family.md
     "general": "general.txt",
 }
 
@@ -589,7 +592,7 @@ For every Analysis-tab question:
 When in doubt about format or depth, re-read the gold standard examples
 and match their tone, structure, and explicit pattern naming.
 
-RULE 11 — FOUR-STEP SUB LORD ANALYSIS:
+RULE 20 — FOUR-STEP SUB LORD ANALYSIS (was RULE 11; renumbered in fix-1):
 When analyzing any cusp sub lord, trace all 4 steps:
 
 Step 1: Houses occupied AND owned by the sub lord itself
@@ -624,7 +627,7 @@ STEP 2 — CUSPAL SUB LORD ANALYSIS (Promise Gate)
 - Get sub lord of primary cusp from HOUSE CUSPS section
 - If sub lord is Rahu/Ketu: note their occupation house first, then apply
   RULE 8 proxy chain. Use the provided "full_signification" list directly.
-- Apply RULE 11: trace all 4 steps. Note self-significator status.
+- Apply RULE 20: trace all 4 steps. Note self-significator status.
 - List ALL houses sub lord signifies through complete chain
 - Apply RULE 5 "ANY ONE" test:
   Does the list contain ANY relevant house? → PROMISED
@@ -645,7 +648,7 @@ Does current AD lord signify relevant houses? (Yes/No/Partial)
 Both Yes = event possible NOW. Only MD = need better AD.
 
 STEP 5 — SCAN ALL UPCOMING ANTARDASHA PERIODS
-For EVERY upcoming AD lord, apply the FULL 4-step Rule 11 chain:
+For EVERY upcoming AD lord, apply the FULL 4-step Rule 20 chain:
 Step 1: Houses AD lord occupies + owns
 Step 2: Houses AD lord's STAR LORD occupies + owns
 Step 3: Houses AD lord's SUB LORD occupies + owns
@@ -661,7 +664,7 @@ assigning your rating. Never silently skip Steps 3-4.
 
 STEP 5B — PRATYANTARDASHA ANALYSIS (within current AD)
 Use the exact PAD dates provided in "PRATYANTARDASHA SEQUENCE" section.
-For each PAD lord, apply the FULL 4-step Rule 11 chain:
+For each PAD lord, apply the FULL 4-step Rule 20 chain:
 Step 1: Houses PAD lord occupies + owns
 Step 2: Houses PAD lord's STAR LORD occupies + owns
 Step 3: Houses PAD lord's SUB LORD occupies + owns
@@ -769,7 +772,7 @@ These are the timing planets. List them with the houses they connect.
 Non-fruitful significators: list briefly.
 
 ### 4. TIMING WINDOWS
-Scan ALL upcoming AD lords. For each, apply the full 4-step Rule 11 chain before rating.
+Scan ALL upcoming AD lords. For each, apply the full 4-step Rule 20 chain before rating.
 Show in a table — include every upcoming AD, not just favorable ones:
 
 | AD Lord | Period | Houses Signified (4-step) | Touches Topic? | Quality |
@@ -878,8 +881,17 @@ def _keyword_fallback(question: str) -> str:
 # MAIN PREDICTION FUNCTION
 # ================================================================
 
-def get_prediction(chart_data: dict, question: str, history: list = [], mode: str = "user") -> str:
-    detected_topic = detect_topic(question)
+def get_prediction(chart_data: dict, question: str, history: list = [], mode: str = "user", topic: str = None) -> str:
+    # PR A1.3-fix-1 (C1): if the caller already knows the topic (frontend topic
+    # picker), skip the Haiku detection round-trip. Saves ~5-10s latency per
+    # query and prevents topic drift between the loaded KB and the
+    # pre-computed advanced_compute block.
+    if topic and topic in TOPIC_TO_FILE:
+        detected_topic = topic
+    elif chart_data.get("advanced_compute", {}).get("topic"):
+        detected_topic = chart_data["advanced_compute"]["topic"]
+    else:
+        detected_topic = detect_topic(question)
     chart_data["detected_topic"] = detected_topic
 
     knowledge = load_knowledge(detected_topic)
@@ -960,24 +972,23 @@ def format_chart_for_llm(chart_data: dict) -> str:
             "gender-neutral analysis instead of assuming."
         )
 
-    # Promise analysis
+    # Promise analysis — RAW SIGNALS ONLY
+    # PR A1.3-fix-3 (M4): the previous "Pre-calculation hint: STRONGLY PROMISED"
+    # line was anchoring the LLM to the simplified verdict before it did its
+    # own A/B/C/D + Star-Sub Harmony reading. We now emit the raw signals
+    # (relevant houses, primary CSL, significator list) only, and let RULE 18
+    # (use ADVANCED COMPUTE block) drive the verdict via the layer split.
     if "promise_analysis" in chart_data:
         p = chart_data["promise_analysis"]
-        lines.append(f"\nPROMISE ANALYSIS (pre-calculated):")
+        lines.append(f"\nPROMISE ANALYSIS (raw inputs — NOT a verdict):")
         lines.append(f"Relevant Houses: {p.get('relevant_houses', [])}")
         lines.append(f"Primary Cusp Sub Lord: {p.get('primary_cusp_sublord', '')}")
         lines.append(f"All Significators for Relevant Houses: {p.get('relevant_significators', [])}")
-        is_promised = p.get('is_promised', False)
-        strength = p.get('promise_strength', '')
-        # Determine conditional vs promised vs denied
-        if is_promised:
-            verdict = "PROMISED"
-        elif "conditional" in str(strength).lower() or "partial" in str(strength).lower():
-            verdict = "CONDITIONAL"
-        else:
-            verdict = "DENIED"
-        lines.append(f"Pre-calculation hint (VERIFY with your own cuspal analysis): {verdict} — {strength}")
-        lines.append("IMPORTANT: This backend check is simplified — it may say DENIED when the real answer is CONDITIONAL. Always do your own full cuspal sub lord analysis using the house cusps and significators below. Your analysis overrides this hint.")
+        lines.append(
+            "NOTE: Above are SIGNALS, not a verdict. Derive your verdict from "
+            "the ADVANCED KP COMPUTE block (Star-Sub Harmony layer split + "
+            "A/B/C/D significator strengths) per RULE 18, not from a simplified hint."
+        )
 
     # Current dasha — MD + AD + PAD + Sookshma (PR A1.3c-extras)
     if "current_dasha" in chart_data:
@@ -1036,6 +1047,27 @@ def format_chart_for_llm(chart_data: dict) -> str:
                     f"    Sookshma {sd.get('sookshma_lord')}: "
                     f"{sd.get('start')} → {sd.get('end')}"
                 )
+
+    # PR A1.3-fix-4 (N2) — forward sookshmas for the next 2 ADs so the LLM
+    # has day-precision data for "when in 2028" type questions where the
+    # relevant AD is ahead of the current one.
+    if chart_data.get("sookshmas_upcoming_ads"):
+        lines.append(
+            f"\nSOOKSHMA SEQUENCES — UPCOMING ANTARDASHAS (forward day-precision):"
+        )
+        for ad_label, pads_dict in chart_data["sookshmas_upcoming_ads"].items():
+            lines.append(f"\n  ===== {ad_label} =====")
+            for pad_lord, sookshmas in pads_dict.items():
+                if not sookshmas:
+                    continue
+                pad_start = sookshmas[0].get("start")
+                pad_end   = sookshmas[-1].get("end")
+                lines.append(f"  [{pad_lord} PAD] {pad_start} → {pad_end}:")
+                for sd in sookshmas:
+                    lines.append(
+                        f"    Sookshma {sd.get('sookshma_lord')}: "
+                        f"{sd.get('start')} → {sd.get('end')}"
+                    )
 
     # Timing analysis
     if "timing_analysis" in chart_data:
@@ -1098,19 +1130,26 @@ def format_chart_for_llm(chart_data: dict) -> str:
                 f"({cs.get('movability')}, {cs.get('fruitfulness')})"
             )
 
-        # Star-Sub Harmony of the primary cusp's CSL
+        # Star-Sub Harmony of the primary cusp's CSL — 3-layer split
+        # (PR A1.3-fix-2: SELF layer added; for Rahu/Ketu CSL it now
+        # includes the conjunction-proxy chain via get_rahu_ketu_significations).
         h = adv.get("star_sub_harmony") or {}
         if h:
             lines.append(
                 f"\nSTAR–SUB HARMONY (H{h.get('primary_cusp')} CSL = {h.get('csl_planet')}, "
                 f"in star of {h.get('star_lord')}, in sub of {h.get('sub_lord')}):"
             )
+            if "self_houses" in h:
+                lines.append(
+                    f"  SELF layer (planet itself): {h.get('self_houses', [])} "
+                    f"(rel={h.get('self_relevant', [])}, denial={h.get('self_denial', [])})"
+                )
             lines.append(
-                f"  STAR layer signifies: {h.get('star_houses', [])} "
+                f"  STAR layer (nature/colour): {h.get('star_houses', [])} "
                 f"(rel={h.get('star_relevant', [])}, denial={h.get('star_denial', [])})"
             )
             lines.append(
-                f"  SUB layer signifies:  {h.get('sub_houses', [])} "
+                f"  SUB layer (deciding gate):  {h.get('sub_houses', [])} "
                 f"(rel={h.get('sub_relevant', [])}, denial={h.get('sub_denial', [])})"
             )
             lines.append(f"  HARMONY VERDICT: {h.get('harmony')}")
