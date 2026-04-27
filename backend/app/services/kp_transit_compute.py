@@ -300,11 +300,67 @@ def upcoming_key_transits(
     return events
 
 
+# ── Planetary returns (PR fix-7, #11) ───────────────────────────────
+# When a planet returns to its natal sign, that's a watershed. Saturn
+# return ~ age 28-30 = first major life pivot. Jupiter return ~ every 12y.
+
+def planetary_returns(
+    natal_planets: dict,
+    months_ahead: int = 60,
+) -> List[Dict[str, object]]:
+    """
+    For Saturn and Jupiter, find the next return to their natal sign
+    within the next `months_ahead` months. Sampling cadence: 14 days.
+
+    Returns list of:
+        {planet, natal_sign, return_at, age_at_return_yrs (placeholder)}
+    """
+    swe.set_sid_mode(swe.SIDM_KRISHNAMURTI_VP291)
+    start = datetime.now(dt_tz.utc)
+    end = start + timedelta(days=30 * months_ahead)
+    step = timedelta(days=14)
+
+    out: List[Dict[str, object]] = []
+    for pname in ("Saturn", "Jupiter"):
+        natal = natal_planets.get(pname)
+        if not natal:
+            continue
+        natal_sign_idx = int((natal.get("longitude", 0) % 360) / 30)
+        last_match: Optional[datetime] = None
+        currently_in = False
+        t = start
+        # First check current state
+        result0, _ = swe.calc_ut(
+            swe.julday(t.year, t.month, t.day, t.hour),
+            PLANETS[pname], swe.FLG_SIDEREAL,
+        )
+        cur_idx = int((result0[0] % 360) / 30)
+        currently_in = (cur_idx == natal_sign_idx)
+        # Walk forward
+        while t <= end:
+            jd = swe.julday(t.year, t.month, t.day, t.hour)
+            result, _ = swe.calc_ut(jd, PLANETS[pname], swe.FLG_SIDEREAL)
+            sign_idx = int((result[0] % 360) / 30)
+            if sign_idx == natal_sign_idx and not currently_in:
+                # Found return entry
+                out.append({
+                    "planet":     pname,
+                    "natal_sign": SIGN_NAMES[natal_sign_idx],
+                    "return_at":  t.strftime("%Y-%m-%d"),
+                })
+                currently_in = True
+            elif sign_idx != natal_sign_idx and currently_in:
+                currently_in = False
+            t += step
+    return out
+
+
 # ── Top-level orchestrator ──────────────────────────────────────────
 
 def compute_transit_bundle(
     natal_cusps: Dict[str, Dict[str, object]],
     natal_moon_longitude: float,
+    natal_planets: Optional[dict] = None,
 ) -> Dict[str, object]:
     """One-shot: returns everything the LLM needs about transits."""
     transits = get_current_transits()
@@ -313,6 +369,7 @@ def compute_transit_bundle(
     sade_sati = compute_sade_sati(natal_moon_longitude, saturn_sign_index)
     key_cusps = transits_through_key_cusps(transits, natal_cusps)
     upcoming = upcoming_key_transits(natal_cusps, months_ahead=48)
+    returns_list = planetary_returns(natal_planets or {}, months_ahead=120) if natal_planets else []
 
     return {
         "current_transits":       transits,
@@ -320,5 +377,6 @@ def compute_transit_bundle(
         "sade_sati":              sade_sati,
         "key_cusp_transits":      key_cusps,
         "upcoming_key_transits":  upcoming,
+        "planetary_returns":      returns_list,
         "computed_at_utc":        datetime.now(dt_tz.utc).strftime("%Y-%m-%d %H:%M UTC"),
     }

@@ -696,3 +696,122 @@ Each nakshatra of 13°20' divides into 4 padas of 3°20' each.
 Each pada corresponds to one navamsa (D9) sign. Pada thus refines
 the planet's signification at navamsa level even without computing
 full D9 chart. The engine emits pada + navamsa-sign per planet.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION AA — DIGNITY (EXALT / DEBIL / OWN) — CONTEXT NOT VERDICT (PR fix-7)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+KSK explicitly REJECTS exaltation/debilitation as primary verdict
+(see RULE 15). The CSL of the relevant cusp is ALWAYS the gate. But
+dignity IS valid as quality CONTEXT — it tells you HOW the planet
+delivers, not WHETHER it delivers.
+
+Classical exaltation / debilitation table (the engine emits dignity tags):
+
+| Planet | Exalt | Debil | Own signs |
+|---|---|---|---|
+| Sun | Aries | Libra | Leo |
+| Moon | Taurus | Scorpio | Cancer |
+| Mars | Capricorn | Cancer | Aries, Scorpio |
+| Mercury | Virgo | Pisces | Gemini, Virgo |
+| Jupiter | Cancer | Capricorn | Sagittarius, Pisces |
+| Venus | Pisces | Virgo | Taurus, Libra |
+| Saturn | Libra | Aries | Capricorn, Aquarius |
+| Rahu | Taurus | Scorpio | (none) |
+| Ketu | Scorpio | Taurus | (none) |
+
+INTERPRETATION RULE:
+- Exalted planet on a relevant cusp → results arrive with quality + ease
+- Debilitated planet on a relevant cusp → results still arrive (CSL decides)
+  but quality has Virgo-flaw-finding / Cancer-emotional / etc. overlay
+- Own-sign planet → strong native expression
+- Neutral → no dignity-driven modifier
+
+NEVER say: "Venus is debilitated → marriage denied."
+ALWAYS say: "Venus is debilitated in Virgo — partner has analytical/
+self-critical tendency, marriage still happens because CSL is favorable."
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION BB — VARGOTTAMA (D9 = D1) (PR fix-7)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+A planet is Vargottama if its sign in D1 (rashi chart) is the SAME as
+its sign in D9 (navamsa chart). KSK + classical: vargottama planets
+are doubly strong — their results arrive with concentration and
+purity in BOTH outer (D1) and inner (D9) life domains.
+
+The engine emits a vargottama flag per planet. Treat as STRENGTH
+MULTIPLIER on top of the planet's CSL chain. A vargottama AD lord
+delivers cleaner results than a non-vargottama AD lord.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION CC — GANDANTA + NAKSHATRA CLASSIFICATION (PR fix-7)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+GANDANTA ZONES (the "knot junctions" — last 3°20' of water signs +
+first 3°20' of fire signs):
+  Cancer-Leo (86°40' to 93°20')
+  Scorpio-Sagittarius (206°40' to 213°20')
+  Pisces-Aries (326°40' to 360°/0° to 3°20')
+
+A planet — especially Lagna or Moon — in gandanta = transformation
+/ anxiety / ego-test zone. Native experiences the planet's themes
+through repeated tests + breakthroughs. Not catastrophic; just intense.
+
+The engine emits gandanta flag for Lagna and Moon. When flagged,
+add a "transformation theme" note to relevant predictions.
+
+NAKSHATRA NATURE CLASSIFICATION (KSK timing application):
+
+| Nature | Nakshatras | Action types favoured |
+|---|---|---|
+| Mridu (mild) | Mrigashira, Chitra, Anuradha, Revati | Romance, social, friendly events |
+| Tikshna (sharp) | Ardra, Ashlesha, Jyeshtha, Mula | Surgery, breakups, decisive cuts |
+| Sthira (fixed) | Rohini, U. Phalguni, U. Ashadha, U. Bhadrapada | Foundations, marriage, long commitments |
+| Chara (movable) | Punarvasu, Swati, Shravana, Dhanishta, Shatabhisha | Travel, relocation, transit |
+| Ugra (fierce) | Bharani, Magha, P. Phalguni, P. Ashadha, P. Bhadrapada | Disputes, debt collection, demolition |
+| Laghu (light) | Ashwini, Pushya, Hasta | Short tasks, sales, learning |
+| Mishra (mixed) | Krittika, Vishakha | Ritual + healing |
+
+When the user asks about timing of a specific event, check which
+nakshatra-class the active sookshma's lord falls in. Sthira sookshma
+favors marriage commitments; Tikshna favours job decisions, etc.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION DD — YOGINI DASHA CROSS-CHECK (PR fix-7)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Yogini Dasha is a parallel 36-year timing system used as a CROSS-
+CHECK against Vimsottari. Eight Yoginis with planetary lords:
+
+| Yogini | Years | Lord |
+|---|---|---|
+| Mangala | 1 | Moon |
+| Pingala | 2 | Sun |
+| Dhanya | 3 | Jupiter |
+| Bhramari | 4 | Mars |
+| Bhadrika | 5 | Mercury |
+| Ulka | 6 | Saturn |
+| Siddha | 7 | Venus |
+| Sankata | 8 | Rahu |
+
+When BOTH Vimsottari AD lord AND Yogini lord are significators of the
+topic's relevant houses simultaneously = PEAK timing window. Engine
+emits Yogini cross-check per upcoming AD.
+
+When Vimsottari + Yogini AGREE → high-confidence prediction.
+When they DISAGREE → reduce confidence by ~5-10 in your verdict.
+SHARED LORD (rare): Vimsottari AD lord IS Yogini lord at same date =
+strongest possible peak window.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION EE — PLANETARY RETURNS (PR fix-7)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Saturn return (~age 28-30): first major adult-life pivot. Career
+foundations, relationship commitments, identity crystallisation.
+Jupiter return (every ~12 years): expansion-phase markers (12, 24,
+36, 48, 60, 72, ...).
+
+The engine emits next return dates. Use as life-arc waypoints in
+long-horizon predictions.

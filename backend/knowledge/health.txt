@@ -195,3 +195,89 @@ AGE-WATCH MATRIX FOR METABOLIC RISK:
 | Rahu in H8 + Saturn aspect | 35+ (mental health, sudden episodes) |
 | H6 sub lord = Sun + Sun afflicted | 40+ (cardiac) |
 | H8 with malefics | 40+ (chronic / longevity-relevant) |
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 9: REPRODUCTIVE / SEXUAL FUNCTION DEEP-DIVE (PR fix-7)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+KP / KSK has specific signal stacks for reproductive function. These
+are CONTEXT signals — combined with H5/H8/H1 CSL chains they refine
+the verdict on fertility, libido, and reproductive health.
+
+MALE NATIVE — ED / LIBIDO / FERTILITY MATRIX:
+
+Primary structural risks (CSL-level):
+- H8 sub lord signifies H6 + H12 with no H1/H5/H11 touch → chronic
+  reproductive concern. CONSULT urology/endocrinology.
+- 8th lord placed in H6 or H12 → chronic; in trine = fine.
+- Mars in H7 with Saturn aspect → erratic libido + relationship friction
+- Venus debilitated in Virgo + 8L afflicted → analytical/critical
+  relationship to one's own sexual function — often stress-driven
+  rather than organic.
+
+Secondary modifiers (context):
+- Saturn 3rd-aspect on H8 = chronic restrictive pressure 30s+
+  (stress-driven, not organic — responds to lifestyle changes)
+- Rahu in H8 = anxiety / performance dysfunction / "mind-body
+  disconnect" pattern — typical modern tech-professional pattern
+- Mars in star/sub of Ketu = vitality with detachment phases (low
+  desire periods, often during career-grind windows)
+- Saturn or Jupiter in H6 in earth sign = metabolic risk creates
+  later organic ED risk if weight/diabetes/cholesterol unmanaged
+
+Specific pattern triggers (when in dasha):
+- Saturn AD/PAD with Saturn aspecting H8 = lowest-libido phase
+  (career grind dominant)
+- Jupiter AD/PAD = libido restoration window (Jupiter heals reproductive)
+- Venus AD = reproductive health peak (karaka activated)
+- Rahu AD with Rahu in H8 = anxiety-driven episodes (CBT/therapy helps)
+
+FEMALE NATIVE — MENSTRUAL / FERTILITY / HORMONAL MATRIX:
+
+Primary structural risks:
+- H5 sub lord with no H2/H5/H11 touch + H5 in barren sign → fertility
+  treatment likely (per Pattern C2)
+- Mars OR Saturn afflicting H5 → irregular cycles, PCOS risk
+- 8th lord in H6 + Venus afflicted → endometriosis / fibroid risk
+- Venus in Virgo (debilitated) + Mars affliction → menstrual irregularity
+  + body-image stress
+
+Secondary modifiers:
+- Moon afflicted by Saturn or Mars (3rd/7th/10th aspect) → hormonal
+  irregularity, PMS amplification
+- Moon in Saturn's star or sub = late maturation, hormonal slowdown
+- Jupiter in H5 → fertility blessing (counterbalances barren sign)
+- Venus in own sign or exalted → smooth reproductive function
+
+PCOS / PCOD specific signal stack:
+- Mars + Saturn in same house (esp. H5/H6/H8)
+- Moon in Capricorn or Scorpio + Saturn aspect
+- Venus debilitated + Sun in same sign (hormonal Sun-Moon-Venus tension)
+- Confirmed by H6 CSL chain touching H5
+
+Endometriosis / fibroid signal stack:
+- 8th lord in H6 + Mars affliction
+- Saturn in H7 or H8 with no benefic relief
+- Venus afflicted + H4 (mother's gynaec history) connection
+
+Pregnancy / childbirth windows (female):
+- Jupiter PAD inside Venus AD = strongest natural conception
+- Moon PAD with Moon strong = supportive
+- Venus PAD with Venus signifying H5/H11 = peak window
+- Avoid Saturn/Mars/Rahu PADs for conception attempts unless
+  fertility clinic involvement is planned
+
+GENDER-NEUTRAL HORMONAL / ENDOCRINE:
+- Sun afflicted = thyroid (esp. with H6 connection)
+- Mercury afflicted = adrenal/nervous endocrine
+- Moon afflicted = pituitary/cyclical hormonal
+- Jupiter afflicted = pancreatic/insulin (metabolic-endocrine overlap)
+
+MENTAL HEALTH SIGNALS (depression, anxiety):
+- Moon in H6/H8/H12 with Saturn aspect → depression risk
+- Mercury afflicted + H3 connection → anxiety/OCD
+- Rahu in H1/H5/H9 → episodic anxiety, manic phases possible
+- Strong Sun + Jupiter = resilience anchor (counterbalances)
+
+The engine emits these signals via 8L disposition, aspects, dignity,
+and combustion blocks. Cite specifically rather than generally.

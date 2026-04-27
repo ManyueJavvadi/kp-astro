@@ -452,6 +452,159 @@ _BAV_TABLES = {
 }
 
 
+# ── Gandanta detection (PR fix-7, #2) ───────────────────────────────
+# Gandanta = "knot junctions" — last 3°20' of water signs (Cancer,
+# Scorpio, Pisces) + first 3°20' of fire signs (Aries, Leo, Sagittarius).
+# Lagna or Moon in gandanta = transformation/anxiety zones.
+
+def is_in_gandanta(longitude: float) -> Dict[str, object]:
+    """
+    Returns:
+        in_gandanta: bool
+        zone: which junction (e.g., "Cancer-Leo", "Scorpio-Sagittarius",
+              "Pisces-Aries") or "" if not in gandanta
+        side: "ending water sign" | "beginning fire sign" | ""
+    """
+    lon = longitude % 360
+    # Junctions: Cancer-Leo (90-120), Scorpio-Sag (210-240), Pisces-Aries (330-360+0)
+    junctions = [
+        (86.667, 90.0,  "Cancer-Leo",      "ending water sign"),
+        (90.0,   93.333,"Cancer-Leo",      "beginning fire sign"),
+        (206.667,210.0, "Scorpio-Sagittarius", "ending water sign"),
+        (210.0,  213.333,"Scorpio-Sagittarius","beginning fire sign"),
+        (326.667,330.0, "Pisces-Aries",    "ending water sign"),
+        (0.0,    3.333, "Pisces-Aries",    "beginning fire sign"),
+    ]
+    for start, end, zone, side in junctions:
+        if start <= lon < end:
+            return {"in_gandanta": True, "zone": zone, "side": side}
+    return {"in_gandanta": False, "zone": "", "side": ""}
+
+
+# ── Nakshatra classification (PR fix-7, #3) ─────────────────────────
+# KSK + classical: each of 27 nakshatras has a "nature" that affects
+# what types of actions fire well during that nakshatra's moon-transit
+# (or when chart's lagna/moon falls in it).
+
+NAKSHATRA_NATURE = {
+    # Mridu (mild/soft) — friendly, romantic, social events
+    "Mrigashira": "Mridu", "Chitra": "Mridu", "Anuradha": "Mridu", "Revati": "Mridu",
+    # Tikshna (sharp/severe) — surgeries, sharp decisions, breakups, military
+    "Ardra": "Tikshna", "Ashlesha": "Tikshna", "Jyeshtha": "Tikshna", "Mula": "Tikshna",
+    # Sthira (fixed/stable) — long-term commitments, foundations, marriage
+    "Rohini": "Sthira", "Uttara Phalguni": "Sthira", "Uttara Ashadha": "Sthira", "Uttara Bhadrapada": "Sthira",
+    # Chara (movable) — travel, change of place, transit
+    "Punarvasu": "Chara", "Swati": "Chara", "Shravana": "Chara", "Dhanishta": "Chara", "Shatabhisha": "Chara",
+    # Ugra (fierce/cruel) — disputes, debt collection, demolition
+    "Bharani": "Ugra", "Magha": "Ugra", "Purva Phalguni": "Ugra", "Purva Ashadha": "Ugra", "Purva Bhadrapada": "Ugra",
+    # Kshipra/Laghu (light/swift) — short tasks, sales, learning
+    "Ashwini": "Laghu", "Pushya": "Laghu", "Hasta": "Laghu",
+    # Mishra (mixed) — both benefic + malefic; ritual + healing
+    "Krittika": "Mishra", "Vishakha": "Mishra",
+}
+
+
+def classify_nakshatra(nakshatra_name: str) -> Dict[str, str]:
+    """Return nature classification + interpretive note for KSK timing application."""
+    nature = NAKSHATRA_NATURE.get(nakshatra_name, "Unknown")
+    notes = {
+        "Mridu":   "Soft/mild — friendly, romantic, social events fire well",
+        "Tikshna": "Sharp/severe — surgery, breakups, sharp decisions; avoid for soft matters",
+        "Sthira":  "Fixed/stable — foundations, marriage, long-term commitments fire well",
+        "Chara":   "Movable — travel, relocation, transit events fire well",
+        "Ugra":    "Fierce — disputes, debt collection, demolition; avoid for harmony matters",
+        "Laghu":   "Light/swift — short tasks, sales, learning; avoid for long-term commitments",
+        "Mishra":  "Mixed — ritual + healing; both benefic and malefic strands",
+    }
+    return {"nature": nature, "note": notes.get(nature, "")}
+
+
+# ── Classical exaltation / debilitation tags (PR fix-7, #8) ────────
+# KSK rejects exalt/debil as primary verdict (RULE 15) but acknowledges
+# them as CONTEXT for quality-of-result.
+
+EXALT_SIGN = {
+    "Sun": "Aries", "Moon": "Taurus", "Mars": "Capricorn",
+    "Mercury": "Virgo", "Jupiter": "Cancer", "Venus": "Pisces",
+    "Saturn": "Libra", "Rahu": "Taurus", "Ketu": "Scorpio",
+}
+DEBIL_SIGN = {
+    "Sun": "Libra", "Moon": "Scorpio", "Mars": "Cancer",
+    "Mercury": "Pisces", "Jupiter": "Capricorn", "Venus": "Virgo",
+    "Saturn": "Aries", "Rahu": "Scorpio", "Ketu": "Taurus",
+}
+OWN_SIGNS = {
+    "Sun": ["Leo"], "Moon": ["Cancer"],
+    "Mars": ["Aries", "Scorpio"], "Mercury": ["Gemini", "Virgo"],
+    "Jupiter": ["Sagittarius", "Pisces"], "Venus": ["Taurus", "Libra"],
+    "Saturn": ["Capricorn", "Aquarius"],
+}
+
+
+def get_dignity(planets: dict) -> Dict[str, Dict[str, object]]:
+    """For each planet: exalt/debil/own/neutral classification (CONTEXT only — RULE 12)."""
+    out: Dict[str, Dict[str, object]] = {}
+    for pname, p in planets.items():
+        sign = p.get("sign", "")
+        if sign == EXALT_SIGN.get(pname):
+            tag = "exalted"
+            note = f"{pname} in own exaltation sign — quality CONTEXT (not verdict)"
+        elif sign == DEBIL_SIGN.get(pname):
+            tag = "debilitated"
+            note = f"{pname} in debilitation sign — quality CONTEXT, KP says CSL still decides"
+        elif sign in OWN_SIGNS.get(pname, []):
+            tag = "own"
+            note = f"{pname} in own sign — strong native expression"
+        else:
+            tag = "neutral"
+            note = ""
+        out[pname] = {"sign": sign, "dignity": tag, "note": note}
+    return out
+
+
+# ── D9 Navamsa sign (PR fix-7, #6 + #21) ────────────────────────────
+
+def get_d9_sign(longitude: float) -> str:
+    """
+    Compute the navamsa (D9) sign of a planet's longitude.
+    Each sign of 30° divides into 9 navamsas of 3°20' each.
+    """
+    lon = longitude % 360
+    sign_index = int(lon / 30)
+    pos_in_sign = lon - sign_index * 30
+    nav_in_sign = int(pos_in_sign / (30.0 / 9))
+    sign_names = [
+        "Aries","Taurus","Gemini","Cancer","Leo","Virgo",
+        "Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces",
+    ]
+    # Movable signs start navamsa from same sign; Fixed from 9th; Dual from 5th
+    movable = {"Aries","Cancer","Libra","Capricorn"}
+    fixed   = {"Taurus","Leo","Scorpio","Aquarius"}
+    if sign_names[sign_index] in movable:
+        start = sign_index
+    elif sign_names[sign_index] in fixed:
+        start = (sign_index + 8) % 12
+    else:  # dual
+        start = (sign_index + 4) % 12
+    return sign_names[(start + nav_in_sign) % 12]
+
+
+def detect_vargottama(planets: dict) -> Dict[str, Dict[str, object]]:
+    """A planet is vargottama if D1 sign == D9 sign — strength multiplier."""
+    out: Dict[str, Dict[str, object]] = {}
+    for pname, p in planets.items():
+        d1_sign = p.get("sign", "")
+        d9_sign = get_d9_sign(p.get("longitude", 0))
+        is_var = (d1_sign == d9_sign)
+        out[pname] = {
+            "d1_sign": d1_sign,
+            "d9_sign": d9_sign,
+            "vargottama": is_var,
+            "note": "VARGOTTAMA — concentrated strength in both D1 + D9" if is_var else "",
+        }
+    return out
+
+
 def compute_ashtakavarga(
     planets: dict,
     cusps: dict,
@@ -1100,6 +1253,21 @@ def compute_advanced_for_topic(
     partner_profile   = compute_partner_profile(planets, cusps, planet_positions) if topic == "marriage" else None
     ashtakavarga      = compute_ashtakavarga(planets, cusps)
 
+    # PR A1.3-fix-7 — additional MEDIUM-priority signals
+    dignity_map       = get_dignity(planets)
+    vargottama_map    = detect_vargottama(planets)
+    nakshatra_class   = {
+        p: classify_nakshatra(planets[p].get("nakshatra", ""))
+        for p in planets.keys()
+    }
+    # Lagna gandanta + nakshatra class
+    lagna_lon = (cusps or {}).get("House_1", {}).get("cusp_longitude", 0)
+    lagna_gandanta = is_in_gandanta(lagna_lon)
+    lagna_nak_class = classify_nakshatra((cusps or {}).get("House_1", {}).get("nakshatra", ""))
+    # Moon gandanta
+    moon_lon_local = (planets or {}).get("Moon", {}).get("longitude", 0)
+    moon_gandanta = is_in_gandanta(moon_lon_local)
+
     # SAV strength of the topic's relevant houses — additional fitness signal
     sav_relevant: Dict[int, int] = {}
     if ashtakavarga.get("available"):
@@ -1135,4 +1303,11 @@ def compute_advanced_for_topic(
             "sav_per_house":      ashtakavarga.get("sav_per_house", {}),
             "sav_relevant_houses": sav_relevant,
         },
+        # PR A1.3-fix-7
+        "dignity":          dignity_map,
+        "vargottama":       vargottama_map,
+        "nakshatra_class":  nakshatra_class,
+        "lagna_gandanta":   lagna_gandanta,
+        "lagna_nakshatra_class": lagna_nak_class,
+        "moon_gandanta":    moon_gandanta,
     }

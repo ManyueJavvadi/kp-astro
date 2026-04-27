@@ -542,11 +542,27 @@ def analyze_topic(request: AnalysisRequest):
         promise_verdict=promise_verdict_hint,
     )
 
-    # PR A1.3-fix-6 — transit bundle (computed once; not topic-specific)
+    # PR A1.3-fix-6 + fix-7 — transit bundle (now also includes planetary returns)
     try:
-        transits = compute_transit_bundle(chart["cusps"], moon_longitude)
+        transits = compute_transit_bundle(chart["cusps"], moon_longitude, chart["planets"])
     except Exception:
         transits = {}
+
+    # PR A1.3-fix-7 — Yogini Dasha cross-check (parallel 36-yr cycle)
+    try:
+        from app.services.kp_yogini_dasha import (
+            calculate_yogini_dashas, get_current_yogini, cross_check_with_vimsottari,
+        )
+        yogini_list = calculate_yogini_dashas(request.date, request.time, moon_longitude)
+        current_yogini = get_current_yogini(yogini_list)
+        yogini_xcheck = cross_check_with_vimsottari(yogini_list, antardashas[:9])
+        yogini_data = {
+            "current":           current_yogini,
+            "next_3_yoginis":    yogini_list[1:4] if len(yogini_list) > 1 else [],
+            "vimsottari_xcheck": yogini_xcheck,
+        }
+    except Exception:
+        yogini_data = {}
 
     chart_data = {
         "name": request.name,
@@ -575,6 +591,7 @@ def analyze_topic(request: AnalysisRequest):
         "planet_positions": planet_positions,
         "advanced_compute": advanced,  # PR A1.3c
         "transits": transits,          # PR A1.3-fix-6
+        "yogini_dasha": yogini_data,   # PR A1.3-fix-7
     }
 
     # Build language instruction with Telugu planet name reference

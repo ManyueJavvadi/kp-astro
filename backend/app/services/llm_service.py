@@ -651,6 +651,41 @@ RULE 25 — 8TH LORD + PARTNER PROFILE + ASHTAKAVARGA (PR fix-6):
   consistent denial signal. High SAV + strong harmony = peak
   fructification.
 
+RULE 26 — DIGNITY + VARGOTTAMA + GANDANTA + NAKSHATRA-NATURE (PR fix-7):
+The chart data now includes structural CONTEXT signals. None of these
+override the CSL verdict (RULE 12 stands), but ALL refine quality:
+
+- DIGNITY: Exalted / debilitated / own-sign tags per planet. ALWAYS
+  state dignity for the topic's primary CSL planet AND for the karaka
+  (e.g., Venus debilitated for marriage = "partner has analytical-self-
+  critical tendency", NOT "marriage denied").
+- VARGOTTAMA: planets where D1 sign == D9 sign. These are doubly
+  strong — when an AD lord is vargottama AND a significator, weight
+  its delivery ~1.5× the non-vargottama equivalent.
+- GANDANTA: Lagna or Moon in last 3°20' of water sign / first 3°20'
+  of fire sign = transformation/anxiety zones. Add a "transformation
+  theme" note when relevant.
+- NAKSHATRA NATURE: each planet's nakshatra has a class (Mridu/Tikshna/
+  Sthira/Chara/Ugra/Laghu/Mishra). When predicting WHICH sookshma
+  fires an event, prefer Sthira sookshmas for marriage/foundations,
+  Tikshna for cuts/decisions, Chara for travel/relocation.
+
+RULE 27 — YOGINI DASHA + PLANETARY RETURNS (PR fix-7):
+The chart data includes a YOGINI DASHA CROSS-CHECK block (parallel
+36-year cycle) and PLANETARY RETURNS block.
+
+- YOGINI: when both Vimsottari AD lord AND Yogini lord are
+  significators of the topic's relevant houses → CONVERGED window
+  (peak timing). When SHARED-LORD (Vimsottari AD lord = Yogini lord
+  at same date) → strongest possible convergence. State explicitly
+  in your timing prediction.
+- WHEN SYSTEMS DISAGREE (Vimsottari fires but Yogini doesn't, or
+  vice versa) → reduce confidence by ~5-10. Don't be over-confident
+  on single-system signals.
+- PLANETARY RETURNS: Saturn return ~age 28-30 = first major adult
+  pivot. Jupiter returns every 12 years = expansion phases. Cite
+  these as life-arc waypoints when the topic spans 5+ years.
+
 RULE 21 — KSK STRICT TIMING TRIGGER: AD-LORD = SUPPORTING-CUSP-SUB-LORD (PR fix-5):
 
 KSK Reader (Marriage chapter, generalises to all topics): "Marriage
@@ -1379,6 +1414,50 @@ def format_chart_for_llm(chart_data: dict) -> str:
             if av.get("sav_relevant_houses"):
                 lines.append(f"  SAV in topic-relevant houses: {av['sav_relevant_houses']}")
 
+        # PR A1.3-fix-7 — Dignity (exalt/debil/own — CONTEXT only)
+        dig = adv.get("dignity") or {}
+        flagged_dig = [(p, d) for p, d in dig.items() if d.get("dignity") in ("exalted", "debilitated", "own")]
+        if flagged_dig:
+            lines.append("\nDIGNITY FLAGS (CONTEXT only — RULE 12 says CSL decides; dignity refines QUALITY):")
+            for p, d in flagged_dig:
+                lines.append(f"  {p:8} in {d.get('sign'):11}: {d.get('dignity').upper()} — {d.get('note')}")
+
+        # PR A1.3-fix-7 — Vargottama (D1 sign == D9 sign)
+        vg = adv.get("vargottama") or {}
+        flagged_vg = [(p, v) for p, v in vg.items() if v.get("vargottama")]
+        if flagged_vg:
+            lines.append("\nVARGOTTAMA FLAGS (D1 sign = D9 sign — concentrated strength):")
+            for p, v in flagged_vg:
+                lines.append(f"  {p}: D1={v.get('d1_sign')} D9={v.get('d9_sign')} — VARGOTTAMA")
+        # Also emit D9 sign for ALL planets (compact)
+        if vg:
+            d9_line = ", ".join(f"{p}={v.get('d9_sign')}" for p, v in vg.items())
+            lines.append(f"D9 NAVAMSA SIGNS: {d9_line}")
+
+        # PR A1.3-fix-7 — Nakshatra classification
+        nc = adv.get("nakshatra_class") or {}
+        if nc:
+            lines.append("\nNAKSHATRA NATURE CLASSIFICATION (per planet — affects what action-types fire well):")
+            for p, c in nc.items():
+                if c.get("nature") and c.get("nature") != "Unknown":
+                    lines.append(f"  {p:8} {c.get('nature'):8} — {c.get('note', '')}")
+            # Lagna nakshatra
+            lnc = adv.get("lagna_nakshatra_class") or {}
+            if lnc.get("nature"):
+                lines.append(f"  Lagna   {lnc.get('nature'):8} — {lnc.get('note', '')}")
+
+        # PR A1.3-fix-7 — Gandanta flags
+        lg = adv.get("lagna_gandanta") or {}
+        mg = adv.get("moon_gandanta") or {}
+        if lg.get("in_gandanta") or mg.get("in_gandanta"):
+            lines.append("\nGANDANTA FLAGS (sign-junction transformation zones):")
+            if lg.get("in_gandanta"):
+                lines.append(f"  LAGNA in gandanta — {lg.get('zone')} ({lg.get('side')}) → identity/transformation tests")
+            if mg.get("in_gandanta"):
+                lines.append(f"  MOON in gandanta — {mg.get('zone')} ({mg.get('side')}) → emotional/anxiety zones")
+
+    # PR A1.3-fix-6 — Transit bundle (current transits + Sade Sati + key cusp transits + upcoming)
+
     # PR A1.3-fix-6 — Transit bundle (current transits + Sade Sati + key cusp transits + upcoming)
     transits = chart_data.get("transits") or {}
     if transits.get("current_transits"):
@@ -1414,6 +1493,42 @@ def format_chart_for_llm(chart_data: dict) -> str:
             for ev in upcoming:
                 lines.append(
                     f"  {ev['planet']:8} → H{ev['native_house']:2} ({ev['enters_at']} → {ev['exits_at']}): {ev['tag']}"
+                )
+
+        # PR A1.3-fix-7 — Planetary returns (Saturn ~28-30, Jupiter ~12yr cycles)
+        returns = transits.get("planetary_returns") or []
+        if returns:
+            lines.append("\nUPCOMING PLANETARY RETURNS (life-arc waypoints):")
+            for r in returns:
+                lines.append(f"  {r['planet']} return to natal {r['natal_sign']}: {r['return_at']}")
+
+    # PR A1.3-fix-7 — Yogini Dasha cross-check (parallel 36-year cycle)
+    yogini = chart_data.get("yogini_dasha") or {}
+    if yogini.get("current"):
+        lines.append("\n" + "=" * 60)
+        lines.append("YOGINI DASHA CROSS-CHECK (parallel 36-yr cycle — independent timing system)")
+        lines.append("=" * 60)
+        cur = yogini["current"]
+        lines.append(
+            f"  Current Yogini: {cur.get('yogini_name')} (lord {cur.get('yogini_lord')}) "
+            f"{cur.get('start')} → {cur.get('end')}"
+        )
+        nxt = yogini.get("next_3_yoginis") or []
+        if nxt:
+            lines.append("  Next 3 Yoginis:")
+            for y in nxt:
+                lines.append(
+                    f"    {y.get('yogini_name')} (lord {y.get('yogini_lord')}) "
+                    f"{y.get('start')} → {y.get('end')}"
+                )
+        xc = yogini.get("vimsottari_xcheck") or []
+        if xc:
+            lines.append("  Vimsottari ↔ Yogini convergence (per upcoming AD):")
+            for x in xc[:9]:
+                shared = " ⭐ SHARED-LORD" if x.get("shared_lord") else ""
+                lines.append(
+                    f"    AD {x.get('ad_lord'):8} ({x.get('ad_start')} → {x.get('ad_end')})"
+                    f" ↔ Yogini {x.get('yogini_at_start')}/{x.get('yogini_at_end')}{shared}"
                 )
 
     # Planet positions
