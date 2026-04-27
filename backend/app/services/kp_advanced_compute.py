@@ -1167,19 +1167,29 @@ def is_self_strength(planet_name: str, planets: dict) -> bool:
     return pdata.get("star_lord") == planet_name
 
 
-def self_strength_map(planets: dict) -> Dict[str, bool]:
-    """Per-planet self-strength flags."""
-    return {p: is_self_strength(p, planets) for p in planets.keys()}
+# PR A1.3-fix-9 — removed `self_strength_map` (dead function — replaced
+# by inline dict-comp in compute_advanced_for_topic).
 
 
-# ── Cusp sign type ──────────────────────────────────────────────────
+# ── Cusp sign type (PR fix-9: topic-scoped fruitfulness) ───────────
 
-def get_cusp_sign_type(cusp_data: dict) -> Dict[str, str]:
+# Topics where fruitful/barren classification is semantically meaningful.
+# For other topics (career, foreign, wealth), labeling H10 as "barren"
+# is a category error (barren = fertility context, not work context).
+_FRUITFULNESS_RELEVANT_TOPICS = {"children", "fertility", "marriage"}
+
+
+def get_cusp_sign_type(cusp_data: dict, topic: str = None) -> Dict[str, str]:
     """
     Categorise a cusp's sign on two independent axes:
       movability:  movable | fixed | dual
       fruitfulness: fruitful | barren | semi | neutral
-    Used as KSK overlay rules (e.g., barren H5 = restricted childbirth).
+
+    PR A1.3-fix-9: fruitfulness only emitted for fertility-relevant
+    topics. For career/wealth/foreign etc., the field is omitted to
+    prevent the LLM from citing "Virgo barren" in a career context
+    (which is a category error — barren is fertility-domain, not
+    career-domain).
     """
     sign = cusp_data.get("sign", "") if cusp_data else ""
     movability = (
@@ -1187,21 +1197,19 @@ def get_cusp_sign_type(cusp_data: dict) -> Dict[str, str]:
         "fixed"   if sign in FIXED_SIGNS   else
         "dual"    if sign in DUAL_SIGNS    else "unknown"
     )
-    fruitfulness = (
-        "fruitful" if sign in FRUITFUL_SIGNS else
-        "barren"   if sign in BARREN_SIGNS   else
-        "semi"     if sign in SEMI_FRUITFUL  else "neutral"
-    )
-    return {"sign": sign, "movability": movability, "fruitfulness": fruitfulness}
-
-
-def all_cusp_sign_types(cusps: dict) -> Dict[int, Dict[str, str]]:
-    """Map house number -> sign-type info for all 12 cusps."""
-    out: Dict[int, Dict[str, str]] = {}
-    for i in range(1, 13):
-        cd = cusps.get(f"House_{i}", {})
-        out[i] = get_cusp_sign_type(cd)
+    out = {"sign": sign, "movability": movability}
+    # Only emit fruitfulness for fertility-relevant topics
+    if topic is None or topic in _FRUITFULNESS_RELEVANT_TOPICS:
+        fruitfulness = (
+            "fruitful" if sign in FRUITFUL_SIGNS else
+            "barren"   if sign in BARREN_SIGNS   else
+            "semi"     if sign in SEMI_FRUITFUL  else "neutral"
+        )
+        out["fruitfulness"] = fruitfulness
     return out
+
+
+# PR A1.3-fix-9 — removed `all_cusp_sign_types` (dead function — never called externally).
 
 
 # ── Star–Sub Harmony (the BIG KSK insight) ──────────────────────────
@@ -1574,7 +1582,10 @@ def compute_advanced_for_topic(
     # Sign-type for the primary cusp (KSK overlay — esp. children/marriage)
     primary_house = relevant_houses[0] if relevant_houses else 0
     primary_cusp_data = cusps.get(f"House_{primary_house}", {}) if primary_house else {}
-    primary_cusp_sign = get_cusp_sign_type(primary_cusp_data)
+    # PR A1.3-fix-9 — pass topic so fruitfulness is only emitted for
+    # fertility-relevant topics (children/fertility/marriage). Prevents
+    # "Virgo barren" tag in career/wealth/foreign answers.
+    primary_cusp_sign = get_cusp_sign_type(primary_cusp_data, topic=topic)
 
     # Self-strength flags for the planets that matter most for this topic
     self_strength = {p: is_self_strength(p, planets) for p in flat_sigs}

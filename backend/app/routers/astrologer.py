@@ -543,9 +543,13 @@ def analyze_topic(request: AnalysisRequest):
     )
 
     # PR A1.3-fix-6 + fix-7 — transit bundle (now also includes planetary returns)
+    # PR A1.3-fix-9 — log fallback exceptions instead of swallowing silently
+    import logging
+    _log = logging.getLogger("astrologer.analyze")
     try:
         transits = compute_transit_bundle(chart["cusps"], moon_longitude, chart["planets"])
-    except Exception:
+    except Exception as e:
+        _log.warning("compute_transit_bundle failed (degrading silently): %s", e)
         transits = {}
 
     # PR A1.3-fix-7 — Yogini Dasha cross-check (parallel 36-yr cycle)
@@ -561,7 +565,8 @@ def analyze_topic(request: AnalysisRequest):
             "next_3_yoginis":    yogini_list[1:4] if len(yogini_list) > 1 else [],
             "vimsottari_xcheck": yogini_xcheck,
         }
-    except Exception:
+    except Exception as e:
+        _log.warning("Yogini Dasha compute failed (degrading silently): %s", e)
         yogini_data = {}
 
     # PR A1.3-fix-8 — decision support + conflict flags
@@ -571,7 +576,8 @@ def analyze_topic(request: AnalysisRequest):
         )
         decision_data = decision_support_score(advanced)
         conflict_flags = flag_dasha_conflicts(advanced, yogini_data)
-    except Exception:
+    except Exception as e:
+        _log.warning("decision_support / flag_dasha_conflicts failed (degrading silently): %s", e)
         decision_data = {}
         conflict_flags = []
 
@@ -593,7 +599,7 @@ def analyze_topic(request: AnalysisRequest):
             "sookshma": current_sookshma,        # PR A1.3c-extras
         },
         "upcoming_antardashas": antardashas,
-        "pratyantardashas_current_ad": pratyantardashas,
+        # PR A1.3-fix-9 — `pratyantardashas_current_ad` removed (dup of all_ad_pratyantardashas[current_ad_lord])
         "all_ad_pratyantardashas": all_ad_pratyantardashas,
         "sookshmas_current_ad": sookshmas_current_ad,  # PR A1.3c-extras
         "sookshmas_upcoming_ads": sookshmas_upcoming_ads,  # PR A1.3-fix-4 (N2)
@@ -696,6 +702,31 @@ def quick_insights(request: QuickInsightsRequest):
 
     from app.services.kp_advanced_compute import compute_advanced_for_topic
 
+    # PR A1.3-fix-9 — Quick-insights parity: bring transits + yogini +
+    # decision_support to match /analyze. Previously bullets had less
+    # context than full analysis = inconsistent quality across endpoints.
+    import logging
+    _qi_log = logging.getLogger("astrologer.quick_insights")
+    try:
+        from app.services.kp_transit_compute import compute_transit_bundle
+        qi_transits = compute_transit_bundle(chart["cusps"], moon_longitude, chart["planets"])
+    except Exception as e:
+        _qi_log.warning("transit bundle failed for quick-insights: %s", e)
+        qi_transits = {}
+    try:
+        from app.services.kp_yogini_dasha import (
+            calculate_yogini_dashas, get_current_yogini, cross_check_with_vimsottari,
+        )
+        qi_yog_list = calculate_yogini_dashas(request.date, request.time, moon_longitude)
+        qi_yogini = {
+            "current":           get_current_yogini(qi_yog_list),
+            "next_3_yoginis":    qi_yog_list[1:4] if len(qi_yog_list) > 1 else [],
+            "vimsottari_xcheck": cross_check_with_vimsottari(qi_yog_list, antardashas[:9]),
+        }
+    except Exception as e:
+        _qi_log.warning("Yogini failed for quick-insights: %s", e)
+        qi_yogini = {}
+
     chart_data = {
         "name": request.name,
         # PR A1.3a — gender + age so quick-insights also stops guessing.
@@ -713,13 +744,18 @@ def quick_insights(request: QuickInsightsRequest):
         "significators": all_significators,
         "planet_positions": planet_positions,
         "csl_chains_text": csl_text,
+        "transits":   qi_transits,                  # PR A1.3-fix-9 (parity with /analyze)
+        "yogini_dasha": qi_yogini,                  # PR A1.3-fix-9
     }
 
     results = {}
+    from app.services.kp_advanced_compute import (
+        decision_support_score, flag_dasha_conflicts,
+    )
     for topic in request.topics:
         try:
             # PR A1.3c — per-topic advanced compute (A/B/C/D, harmony, etc.)
-            chart_data["advanced_compute"] = compute_advanced_for_topic(
+            adv = compute_advanced_for_topic(
                 topic=topic,
                 planets=chart["planets"],
                 cusps=chart["cusps"],
@@ -730,9 +766,19 @@ def quick_insights(request: QuickInsightsRequest):
                 upcoming_antardashas=antardashas[:9],
                 promise_verdict=None,
             )
+            chart_data["advanced_compute"] = adv
+            # PR A1.3-fix-9 — decision support + conflict flags per topic
+            try:
+                chart_data["decision_support"] = decision_support_score(adv)
+                chart_data["dasha_conflicts"]  = flag_dasha_conflicts(adv, qi_yogini)
+            except Exception as e:
+                _qi_log.warning("decision_support failed for topic %s: %s", topic, e)
+                chart_data["decision_support"] = {}
+                chart_data["dasha_conflicts"]  = []
             insight = get_quick_insights(chart_data, topic, request.language)
             results[topic] = insight
         except Exception as e:
+            _qi_log.warning("get_quick_insights failed for topic %s: %s", topic, e)
             results[topic] = f"Error: {str(e)}"
 
     return results
