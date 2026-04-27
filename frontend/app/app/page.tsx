@@ -3900,12 +3900,31 @@ export default function Home() {
                         )}
                       </div>
 
-                      {/* Participant summary if any */}
-                      {mParticipants.length > 0 && (
-                        <div style={{ padding: "6px 10px", background: "rgba(201,169,110,0.06)", border: "0.5px solid rgba(201,169,110,0.2)", borderRadius: 6, marginBottom: "0.875rem", fontSize: 11, color: "var(--muted)" }}>
-                          {t("Participants", "పాల్గొనేవారు")}: {mParticipants.map(p => <span key={p.id} style={{ color: "var(--accent)", marginRight: 6 }}>{p.name || p.birthDetails.name}</span>)}
-                        </div>
-                      )}
+                      {/* Participant summary — PR A2.2d.1: always show the
+                          primary chart holder explicitly. Previous version only
+                          listed additional participants (mParticipants), making
+                          it look like the client's own chart was excluded.
+                          Now always shows "primary · others" so the astrologer
+                          confirms their main chart is included in the scan. */}
+                      <div style={{ padding: "6px 10px", background: "rgba(201,169,110,0.06)", border: "0.5px solid rgba(201,169,110,0.2)", borderRadius: 6, marginBottom: "0.875rem", fontSize: 11, color: "var(--muted)", display: "flex", flexWrap: "wrap" as const, gap: 4, alignItems: "center" }}>
+                        <span>{t("For", "కోసం")}:</span>
+                        <span style={{ color: "var(--accent)" }}>
+                          {workspaceData?.name || birthDetails?.name || t("primary chart", "ప్రధాన చార్ట్")}
+                        </span>
+                        <span style={{ fontSize: 9, padding: "1px 6px", background: "rgba(201,169,110,0.14)", color: "var(--accent)", borderRadius: 4, letterSpacing: "0.04em", fontWeight: 600 }}>
+                          {t("PRIMARY", "ప్రధాన")}
+                        </span>
+                        {mParticipants.length > 0 && (
+                          <>
+                            <span style={{ color: "var(--border2)", margin: "0 4px" }}>+</span>
+                            {mParticipants.map((p, i) => (
+                              <span key={p.id} style={{ color: "var(--accent)", marginRight: i < mParticipants.length - 1 ? 6 : 0 }}>
+                                {p.name || p.birthDetails.name}
+                              </span>
+                            ))}
+                          </>
+                        )}
+                      </div>
                       {/* Quick picks */}
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: "1rem" }}>
                         {[
@@ -4104,6 +4123,57 @@ export default function Home() {
                             </div>
                           )}
 
+                          {/* ── PR A2.2d — Extend Window Banner ──
+                              Shown when passed_count == 0 (no window
+                              in client range cleared hard filters).
+                              Classical rule (KB §8.5): defer rather
+                              than recommend a bad window. Dad's exact
+                              practice. */}
+                          {mResults.extend_suggestion && (mResults.passed_count === 0 || !mResults.best_window) && (
+                            <div style={{
+                              padding: "1rem 1.125rem",
+                              background: "rgba(239,68,68,0.08)",
+                              border: "0.5px solid rgba(239,68,68,0.35)",
+                              borderRadius: 12,
+                              display: "flex",
+                              alignItems: "flex-start",
+                              gap: 12,
+                            }}>
+                              <TriangleAlert size={18} strokeWidth={1.8} color="#ef4444" style={{ flexShrink: 0, marginTop: 2 }} />
+                              <div style={{ minWidth: 0, flex: 1 }}>
+                                <div style={{ fontSize: 11, color: "#ef4444", fontWeight: 700, marginBottom: 6, letterSpacing: "0.06em", textTransform: "uppercase" as const }}>
+                                  {t("No qualifying window in your range", "ఈ తేదీల్లో సరైన ముహూర్తం లేదు")}
+                                </div>
+                                <div style={{ fontSize: 13, color: "var(--text)", marginBottom: 6, lineHeight: 1.5 }}>
+                                  {t("Next qualifying window:", "తరువాత సరైన ముహూర్తం:")}
+                                  {" "}
+                                  <strong style={{ color: "var(--accent)" }}>
+                                    {mResults.extend_suggestion.window?.date_display} · {mResults.extend_suggestion.window?.start_time}–{mResults.extend_suggestion.window?.end_time}
+                                  </strong>
+                                  {" "}
+                                  <span style={{ color: "var(--muted)", fontSize: 11 }}>
+                                    ({mResults.extend_suggestion.days_from_range_end} {t("days away", "రోజుల తర్వాత")} · Score {mResults.extend_suggestion.window?.score})
+                                  </span>
+                                </div>
+                                {mResults.extend_suggestion.blocking_reasons?.length > 0 && (
+                                  <div>
+                                    <div style={{ fontSize: 10, color: "var(--muted)", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" as const, marginTop: 6, marginBottom: 4 }}>
+                                      {t("Why your range fails", "ఎందుకు ఈ పరిధి విఫలం")}
+                                    </div>
+                                    <div style={{ display: "flex", flexDirection: "column" as const, gap: 3 }}>
+                                      {mResults.extend_suggestion.blocking_reasons.map((r: any, i: number) => (
+                                        <div key={i} style={{ fontSize: 11, color: "var(--muted)", display: "flex", gap: 8, alignItems: "baseline" }}>
+                                          <span style={{ color: "#f87171", minWidth: 30, fontVariantNumeric: "tabular-nums" as const, fontWeight: 600 }}>×{r.count}</span>
+                                          <span>{r.reason}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
                           {/* ── B. CALENDAR DATE STRIP ── */}
                           {uniqueDates.length > 1 && (
                             <div className="muhurtha-calendar-strip">
@@ -4189,6 +4259,19 @@ export default function Home() {
                                       {bc.passed !== undefined && <span className={`muhurtha-badge ${bc.passed ? "pass" : "fail"}`}>{bc.passed ? "✓" : "✗"} Badhaka</span>}
                                       {w.event_cusp_confirms !== undefined && <span className={`muhurtha-badge ${w.event_cusp_confirms ? "pass" : "neutral"}`}>{w.event_cusp_confirms ? "✓" : "–"} Event CSL</span>}
                                       {w.moon_sl_favorable !== undefined && <span className={`muhurtha-badge ${w.moon_sl_favorable ? "pass" : "neutral"}`}>{w.moon_sl_favorable ? "✓" : "–"} Moon SL</span>}
+                                      {/* PR A2.2d — Partners aggregate chip.
+                                          Green = all participants clean on Tarabala + Chandrabala.
+                                          Amber = at least one participant has a soft flag. */}
+                                      {w.per_participant && w.per_participant.length > 0 && (() => {
+                                        const ppl = w.per_participant;
+                                        const softFlags = ppl.filter((p: any) => !p.tara_bala_good || !p.chandrabala_good).length;
+                                        const allClean = softFlags === 0;
+                                        return (
+                                          <span className={`muhurtha-badge ${allClean ? "pass" : "neutral"}`}>
+                                            {allClean ? "✓" : "⚠"} {t("Partners", "పాల్గొనేవారు")} {ppl.length - softFlags}/{ppl.length}
+                                          </span>
+                                        );
+                                      })()}
                                     </div>
                                     {w.resonating_with && w.resonating_with.length > 0 && (
                                       <div style={{ display: "flex", gap: 3, flexWrap: "wrap" as const, justifyContent: "flex-end" }}>
@@ -4327,6 +4410,37 @@ export default function Home() {
                                         <span>{t("Vishti karana", "విష్టి కరణం")}</span>
                                         <span className={w.is_vishti ? "muhurtha-fail" : "muhurtha-pass"}>{w.is_vishti ? "VISHTI" : t("Clear", "లేదు")}</span>
                                       </div>
+                                      {/* PR A2.2e — classical dosha flags */}
+                                      {w.venus_combust && (
+                                        <div className="muhurtha-detail-row">
+                                          <span>{t("Venus combust", "శుక్ర అస్త")}</span>
+                                          <span className="muhurtha-fail">{t("SHUKRA ASTA", "శుక్ర అస్త")}</span>
+                                        </div>
+                                      )}
+                                      {w.jupiter_combust && (
+                                        <div className="muhurtha-detail-row">
+                                          <span>{t("Jupiter combust", "గురు అస్త")}</span>
+                                          <span className="muhurtha-fail">{t("GURU ASTA", "గురు అస్త")}</span>
+                                        </div>
+                                      )}
+                                      {w.solar_month_blocked && (
+                                        <div className="muhurtha-detail-row">
+                                          <span>{t("Solar month", "సౌర మాసం")}</span>
+                                          <span className="muhurtha-fail">{t("BLOCKED (vivaha)", "నిషేధం (వివాహ)")}</span>
+                                        </div>
+                                      )}
+                                      {w.kartari_active && (
+                                        <div className="muhurtha-detail-row">
+                                          <span>{t("Kartari dosha", "కర్తరి దోషం")}</span>
+                                          <span className="muhurtha-fail">{t("ACTIVE", "చురుకు")}</span>
+                                        </div>
+                                      )}
+                                      {w.ekargala_active && (
+                                        <div className="muhurtha-detail-row">
+                                          <span>{t("Ekargala dosha", "ఏకార్గల దోషం")}</span>
+                                          <span className="muhurtha-fail">{t("ACTIVE", "చురుకు")}</span>
+                                        </div>
+                                      )}
                                       {mParticipants.length > 0 && (
                                         <>
                                           <div className="muhurtha-detail-row">
@@ -4342,12 +4456,186 @@ export default function Home() {
                                         </>
                                       )}
                                     </div>
+
+                                    {/* PR A2.2d — Panel 5: Per-participant breakdown
+                                        (Tarabala / Chandrabala / Chandrashtamam /
+                                         Janma Tara from A2.2c's per_participant data) */}
+                                    {w.per_participant && w.per_participant.length > 0 && (
+                                      <div className="muhurtha-detail-panel" style={{ gridColumn: "1 / -1" }}>
+                                        <div className="muhurtha-panel-title">{t("Participants (KP §8.1, §8.2)", "పాల్గొనేవారు (KP §8.1, §8.2)")}</div>
+                                        <div style={{ display: "flex", flexDirection: "column" as const, gap: 8 }}>
+                                          {w.per_participant.map((p: any, j: number) => {
+                                            // PR A2.2c.2 — DBA hard flags also contribute
+                                            const anyHardFail = p.chandrashtamam || p.janma_tara || p.badhakesh_active || p.marakesh_active;
+                                            return (
+                                              <div
+                                                key={j}
+                                                style={{
+                                                  borderTop: j > 0 ? "0.5px solid rgba(255,255,255,0.06)" : "none",
+                                                  paddingTop: j > 0 ? 8 : 0,
+                                                }}
+                                              >
+                                                <div style={{ fontSize: 11, fontWeight: 600, color: anyHardFail ? "#f87171" : "var(--accent2)", marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
+                                                  <span>{p.name || "—"}</span>
+                                                  {anyHardFail && (
+                                                    <span style={{ fontSize: 9, background: "rgba(248,113,113,0.18)", color: "#f87171", padding: "1px 7px", borderRadius: 4, fontWeight: 700, letterSpacing: "0.04em" }}>
+                                                      {t("HARD FLAG", "హార్డ్ ఫ్లాగ్")}
+                                                    </span>
+                                                  )}
+                                                </div>
+                                                <div className="muhurtha-detail-row">
+                                                  <span>{t("Tarabala", "తారాబల")}</span>
+                                                  <span className={p.tara_bala_good ? "muhurtha-pass" : "muhurtha-neutral"}>
+                                                    {p.tara_bala_name || "—"} ({p.tara_bala_num}/9){p.tara_bala_good ? " ✓" : ""}
+                                                  </span>
+                                                </div>
+                                                <div className="muhurtha-detail-row">
+                                                  <span>{t("Chandrabala", "చంద్రబల")}</span>
+                                                  <span className={p.chandrabala_good ? "muhurtha-pass" : "muhurtha-neutral"}>
+                                                    {p.chandrabala_num || "—"}/12{p.chandrabala_good ? " ✓" : ""}
+                                                  </span>
+                                                </div>
+                                                {p.chandrashtamam && (
+                                                  <div className="muhurtha-detail-row">
+                                                    <span style={{ color: "#f87171" }}>{t("Chandrashtamam", "చంద్రాష్టమం")}</span>
+                                                    <span className="muhurtha-fail">{t("ACTIVE — hard filter", "చురుకు — హార్డ్ ఫిల్టర్")}</span>
+                                                  </div>
+                                                )}
+                                                {p.janma_tara && (
+                                                  <div className="muhurtha-detail-row">
+                                                    <span style={{ color: "#f87171" }}>{t("Janma Tara", "జన్మ తార")}</span>
+                                                    <span className="muhurtha-fail">{t("ACTIVE — hard filter", "చురుకు — హార్డ్ ఫిల్టర్")}</span>
+                                                  </div>
+                                                )}
+                                                {/* PR A2.2c.2 — current DBA + Badhakesh/Marakesh */}
+                                                {(p.current_md || p.current_ad) && (
+                                                  <div className="muhurtha-detail-row">
+                                                    <span>{t("Current DBA", "ప్రస్తుత దశ")}</span>
+                                                    <span style={{ color: "var(--accent2)" }}>
+                                                      MD: {p.current_md || "—"} · AD: {p.current_ad || "—"}
+                                                    </span>
+                                                  </div>
+                                                )}
+                                                {p.badhakesh_active && (
+                                                  <div className="muhurtha-detail-row">
+                                                    <span style={{ color: "#f87171" }}>{t("Badhakesh DBA", "బాధకేశ దశ")}</span>
+                                                    <span className="muhurtha-fail">{t("ACTIVE — hard filter", "చురుకు — హార్డ్ ఫిల్టర్")} ({p.badhakesh})</span>
+                                                  </div>
+                                                )}
+                                                {p.marakesh_active && (
+                                                  <div className="muhurtha-detail-row">
+                                                    <span style={{ color: "#f87171" }}>{t("Marakesh DBA", "మారకేశ దశ")}</span>
+                                                    <span className="muhurtha-fail">{t("ACTIVE — hard filter", "చురుకు — హార్డ్ ఫిల్టర్")}</span>
+                                                  </div>
+                                                )}
+                                                <div className="muhurtha-detail-row">
+                                                  <span>{t("Soft score contribution", "సాఫ్ట్ స్కోర్")}</span>
+                                                  <span style={{ color: p.soft_score >= 0 ? "#4ade80" : "#f87171", fontWeight: 600 }}>
+                                                    {p.soft_score >= 0 ? "+" : ""}{p.soft_score}
+                                                  </span>
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               </div>
                             </div>
                             );
                           })}
+
+                          {/* ── PR A2.2d — Soft-Flagged Tier ──
+                              Windows that hit a hard filter (participant
+                              Chandrashtamam/Janma Tara, practical hours,
+                              Lagna CSL denial, etc.) don't rank in the
+                              main leaderboard — but the astrologer can
+                              open this collapsed section to review them
+                              and decide case-by-case. Matches the KB §8
+                              three-tier result model. */}
+                          {mResults.soft_flagged_windows && mResults.soft_flagged_windows.length > 0 && (
+                            <details style={{
+                              marginTop: 16,
+                              padding: "0.75rem 1rem",
+                              background: "rgba(251,191,36,0.04)",
+                              border: "0.5px dashed rgba(251,191,36,0.25)",
+                              borderRadius: 10,
+                            }}>
+                              <summary style={{
+                                cursor: "pointer",
+                                fontSize: 11,
+                                fontWeight: 600,
+                                letterSpacing: "0.08em",
+                                textTransform: "uppercase" as const,
+                                color: "#fbbf24",
+                                listStyle: "none",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                              }}>
+                                <TriangleAlert size={12} strokeWidth={2} color="#fbbf24" />
+                                {t("Below threshold — astrologer review", "మీ సమీక్ష కోసం — థ్రెషోల్డ్ క్రింద")}
+                                <span style={{ color: "var(--muted)", fontWeight: 500, letterSpacing: "normal", textTransform: "none" as const }}>
+                                  ({mResults.soft_flagged_windows.length})
+                                </span>
+                              </summary>
+                              <div style={{ marginTop: 12, fontSize: 11, color: "var(--muted)", lineHeight: 1.5, marginBottom: 10 }}>
+                                {t(
+                                  "These windows failed one or more hard filters (per KP §1/§2/§8). Shown for transparency; review each case before overriding.",
+                                  "ఈ సమయాలు హార్డ్ ఫిల్టర్లు విఫలమయ్యాయి (KP §1/§2/§8). పారదర్శకతకు చూపించబడ్డాయి; ఓవర్‌రైడ్ చేసే ముందు ప్రతిదాన్ని సమీక్షించండి."
+                                )}
+                              </div>
+                              <div style={{ display: "flex", flexDirection: "column" as const, gap: 6 }}>
+                                {mResults.soft_flagged_windows.slice(0, 25).map((sw: any, i: number) => (
+                                  <div
+                                    key={i}
+                                    style={{
+                                      padding: "8px 10px",
+                                      background: "rgba(0,0,0,0.2)",
+                                      border: "0.5px solid rgba(255,255,255,0.04)",
+                                      borderRadius: 6,
+                                      display: "flex",
+                                      gap: 12,
+                                      alignItems: "flex-start",
+                                    }}
+                                  >
+                                    <div style={{ minWidth: 0, flex: 1 }}>
+                                      <div style={{ fontSize: 12, color: "var(--text)", fontWeight: 500, marginBottom: 2 }}>
+                                        {sw.date_display || sw.date} · {sw.start_time}–{sw.end_time}
+                                      </div>
+                                      <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 4 }}>
+                                        Lagna {sw.lagna} · SL {sw.lagna_sublord} · Score {sw.score}
+                                      </div>
+                                      <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 4 }}>
+                                        {(sw.hard_rejected_for || []).map((r: string, ri: number) => (
+                                          <span
+                                            key={ri}
+                                            style={{
+                                              fontSize: 10,
+                                              padding: "2px 8px",
+                                              borderRadius: 4,
+                                              background: "rgba(248,113,113,0.12)",
+                                              color: "#f87171",
+                                              border: "0.5px solid rgba(248,113,113,0.25)",
+                                            }}
+                                          >
+                                            {r}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                                {mResults.soft_flagged_windows.length > 25 && (
+                                  <div style={{ fontSize: 10, color: "var(--muted)", textAlign: "center" as const, paddingTop: 4, fontStyle: "italic" as const }}>
+                                    +{mResults.soft_flagged_windows.length - 25} {t("more soft-flagged windows not shown", "మరిన్ని సాఫ్ట్-ఫ్లాగ్ చేయబడిన సమయాలు చూపబడలేదు")}
+                                  </div>
+                                )}
+                              </div>
+                            </details>
+                          )}
 
                           {/* ── D. AI ANALYSIS SECTION ── */}
                           <div className="muhurtha-ai-section">

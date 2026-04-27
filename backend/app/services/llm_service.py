@@ -12,11 +12,47 @@ client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 # ================================================================
 
 # PR A1.3 — KNOWLEDGE_DIR was miswired. __file__ is backend/app/services/llm_service.py;
-# ".." goes up to backend/app; "knowledge" appended = backend/app/knowledge (DOES NOT EXIST).
+# ".." went up to backend/app; "knowledge" appended = backend/app/knowledge (DOES NOT EXIST).
 # The actual KB files live at backend/knowledge/. Two ".." needed.
 # This silent bug meant the Analysis LLM had been receiving ZERO knowledge content
 # since the Analysis tab was first built. Fixed here.
 KNOWLEDGE_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "knowledge")
+# PR A2.2a — new Markdown KBs live under backend/app/kp_knowledge/.
+# Prefer these over the legacy .txt files in backend/knowledge/; .md KBs
+# are structured, cross-referenced, and authored against the research
+# docs in .claude/research/.
+KP_KNOWLEDGE_DIR = os.path.join(os.path.dirname(__file__), "..", "kp_knowledge")
+
+# PR A2.2a.1 — module-level KB cache. The KB files are ~24 KB each;
+# re-reading them on every LLM request wastes time. Load once at first
+# use, cache in-memory. Safe because these files are immutable at
+# runtime (only change on deploy, which restarts the process).
+_KB_CACHE: dict = {}
+
+def _load_kb(name: str) -> str:
+    """Load a Markdown KB from backend/app/kp_knowledge/ with legacy
+    .txt fallback, caching the result in-memory."""
+    if name in _KB_CACHE:
+        return _KB_CACHE[name]
+    content = ""
+    # Primary: structured Markdown in kp_knowledge/
+    md_path = os.path.join(KP_KNOWLEDGE_DIR, f"{name}.md")
+    try:
+        with open(md_path, "r", encoding="utf-8") as f:
+            content = f.read()
+    except Exception:
+        pass
+    # Fallback: legacy .txt files in backend/knowledge/ (now correctly resolved
+    # via KNOWLEDGE_DIR after the PR A1.3 fix above).
+    if not content:
+        legacy = os.path.join(KNOWLEDGE_DIR, f"{name}.txt")
+        try:
+            with open(legacy, "r", encoding="utf-8") as f:
+                content = f.read()
+        except Exception:
+            pass
+    _KB_CACHE[name] = content
+    return content
 
 TOPIC_TO_FILE = {
     "marriage": "marriage.txt",
@@ -1291,37 +1327,90 @@ def format_muhurtha_for_llm(muhurtha_data: dict) -> str:
 
 
 def get_muhurtha_prediction(muhurtha_data: dict, question: str, history: list = []) -> str:
-    """AI analysis of muhurtha windows using KP principles."""
-    knowledge_path = os.path.join(KNOWLEDGE_DIR, "muhurtha.txt")
-    knowledge = ""
-    try:
-        with open(knowledge_path, "r", encoding="utf-8") as f:
-            knowledge = f.read()
-    except Exception:
-        pass
+    """AI analysis of muhurtha windows using KP principles.
+
+    PR A2.2a — KB source: backend/app/kp_knowledge/muhurtha.md (primary),
+    backend/knowledge/muhurtha.txt (fallback). The .md KB is
+    comprehensive (13 sections incl. Panchanga Shuddhi, doshas,
+    per-event playbooks, multi-chart KPDP rules).
+
+    PR A2.2a.1 — KB served from module-level cache (see _load_kb);
+    system prompt marked for Anthropic ephemeral prompt caching
+    (5-minute cache → subsequent calls within that window see
+    ~85% faster processing on cached tokens + ~90% token cost
+    discount). Critical for "Compare top 3" and multi-turn flows.
+    """
+    knowledge = _load_kb("muhurtha")
 
     muhurtha_summary = format_muhurtha_for_llm(muhurtha_data)
 
     system_prompt = f"""You are an expert KP (Krishnamurti Paddhati) Muhurtha specialist with 20+ years of experience in electional astrology.
 
-KP MUHURTHA KNOWLEDGE:
+KP MUHURTHA KNOWLEDGE BASE (authoritative — cite these rules, never invent):
 {knowledge}
 
 ANALYSIS RULES:
-1. The Sub Lord of Lagna cusp at muhurtha time is THE deciding factor for success/failure.
-2. Lagna SL must signify favorable houses for the event AND must NOT signify Badhaka or Maraka houses.
+1. The Sub Lord of Lagna cusp at muhurtha time is THE deciding factor. Cite it in the first sentence of every analysis.
+2. Lagna SL must signify the event's primary + supporting houses (§2 of KB) and must NOT signify denial houses.
 3. Event cusp CSL (e.g., H7 for marriage) should independently confirm favorable houses.
 4. H11 CSL confirming adds strength — H11 is fulfillment of desires.
 5. Moon's star lord should signify event-favorable houses (day-level filter).
-6. Avoid Rahu Kalam, Vishti Karana, and other inauspicious times.
-7. Panchang factors (tithi, nakshatra, yoga, vara) add secondary support.
-8. Multi-chart muhurtha: the lagna SL should ideally appear among natal RPs of all participants.
+6. Respect Panchanga Shuddhi (§3) — tithi, nakshatra class (§3.2 Dhruva/Chara/Kshipra/Mridu/Ugra/Tikshna), yoga, vara-per-event table, karana.
+7. Check doshas (§4) — Panchaka sub-type, Tithi Shunya, Bhadra, Visha Ghatika, Kartari, Ekargala, Venus/Jupiter combustion (for vivaha).
+8. Per-participant: Chandrashtamam, Janma Tara, Tarabala, Chandrabala. If ANY participant is hard-filtered, say so explicitly.
+9. Multi-chart rules (§8 — KPDP 6-10) — 7th CSL cross-check, RP resonance thresholds (3-5 strong, ≤2 weak), dasha-parallel rule for bride+groom.
+10. Extend-window rule (§8.5) — if no window in the client's range passes hard filters, say so and point to the next qualifying date. Never invent a "best of bad" answer.
 
-OUTPUT STYLE:
-- Write in Telugu script mixed with English KP terms (Sub Lord, CSL, house numbers like H7, planet names).
-- Be specific — reference actual data from the windows provided.
-- Use structured markdown with headers and bullet points.
-- When comparing windows, create a table showing key factors side by side."""
+AUDIENCE:
+You are speaking to a practicing KP astrologer. They already know what H4, Trayodashi, Swati, Chara class, Badhaka, Navami mean. DO NOT define these terms. DO cite KB section numbers (§1, §2, §3.1, §10) so they can verify reasoning. DO show planet → house lists (Sun → H3,H4,H11), specific times (13:04–13:24), and exact scores. DO NOT narrate "this is textbook clean alignment" flourish — a ✓ is enough when data speaks.
+
+OUTPUT LANGUAGE:
+- Match the question's language (English/Telugu/mixed).
+- When Telugu, use Telugu script + English KP terms (Sub Lord, CSL, H7, planet names).
+- Every claim needs a reference: data point OR KB section citation.
+
+DENSITY OVER LENGTH:
+Every sentence must move the verdict. Compact tables beat prose paragraphs. Tight verdicts beat discursive narratives. The astrologer's eye scans for: Lagna CSL + houses, denial hits, Badhaka/Maraka, panchang row, final verdict with time.
+
+RESPONSE SHAPE BY QUESTION TYPE (target tokens in brackets — stay close):
+
+"Best muhurtha" / "ఉత్తమ ముహూర్తం" [~500 tokens]:
+- 1 window only (the top-ranked).
+- Compact KP table: Lagna CSL → houses | denial hit Y/N | Badhaka | Event CSL | H11 CSL | Moon SL.
+- Panchang row: Tithi | Nakshatra+class | Yoga | Vara.
+- 3-line verdict citing §X KB + specific time/date.
+
+"Why this time?" / "ఎందుకు ఈ సమయం?" [~750 tokens]:
+- 1 window deep.
+- Lagna CSL breakdown → which houses it signifies and what that means for THIS event (1-2 sentences per house, not per definition).
+- Denial check (H8/H12 absent or present + why that matters).
+- Panchang Shuddhi table (5 rows × 2 cols: layer / status).
+- 3-line verdict citing KB sections.
+
+"Compare top 3" / "Top 3 పోలిక" [~1200 tokens]:
+- ONE comparison table (all 3 windows as columns, key factors as rows: Date/Time, Score, Lagna+SL, CSL Houses, Denial, Event CSL, H11 CSL, Badhaka, Panchang bundle, Moon SL, Practical Time).
+- 2 bullets per window: KEY STRENGTH (1 line), KEY RISK (1 line).
+- Final rank: 🥇🥈🥉 with specific time + 1-line rationale each.
+- Skip exhaustive pros/cons lists — the table + strength/risk lines carry it.
+
+"Alternatives" / "ప్రత్యామ్నాయాలు" [~1000 tokens]:
+- Compact list of 5-7 candidate windows beyond the top 3.
+- Each: Date · Time · Score · Lagna+SL · 1-line "why this over #1?" OR "trade-off vs #1".
+- No deep analysis per window — reader uses "Why this time?" for that.
+
+"Remedies" / "పరిహారాలు" [~400 tokens]:
+- Bullet list ONLY.
+- Format: Weak point detected → Specific remedy (mantra/puja/ritual/timing-shift).
+- Link to §KB section that justifies the remedy.
+
+SOFT-FLAGGED WINDOWS (participant hard-filter but event-window clean):
+Label explicitly as "Below threshold — astrologer review" NOT "recommended". Show WHICH hard filter failed for WHICH participant. Astrologer decides override.
+
+HARD RULES:
+- NEVER explain KB rule text verbatim. Cite the section + apply it.
+- NEVER show all 10-15 windows unless user says "show all" / "అన్నీ చూపించు".
+- NEVER invent a "best of bad" when all windows are weak — say "no qualifying window in range, next qualifying is [date]" per KB §8.5.
+- ALWAYS include specific times (HH:MM–HH:MM), planet→house lists, scores, and KB citations in verdicts."""
 
     messages = []
     for prev in history[-4:]:
@@ -1340,11 +1429,26 @@ QUESTION: {question}
 Analyze the muhurtha windows above and answer the question. Reference specific window data, planet positions, and house significations."""
     })
 
+    # PR A2.2a.1 — prompt caching: the system prompt (KB + rules) is
+    # identical across all calls for a given KB version. Mark it as
+    # ephemeral so Anthropic caches it for 5 minutes — subsequent
+    # "Compare top 3", "Alternatives", etc. calls get cache-hit
+    # responses (~85% faster on cached tokens, ~90% token cost off).
+    # PR A2.2a.2 — max_tokens reduced from 4000 → 2500. New response
+    # shapes (see system prompt) target 400-1400 tokens typical; 2500
+    # gives comfortable headroom for "Compare top 3" + detail follow-ups
+    # while preventing runaway 3000+-token verbose walls.
     message = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=4000,
+        max_tokens=2500,
         temperature=0,
-        system=system_prompt,
+        system=[
+            {
+                "type": "text",
+                "text": system_prompt,
+                "cache_control": {"type": "ephemeral"},
+            }
+        ],
         messages=messages,
     )
     return message.content[0].text

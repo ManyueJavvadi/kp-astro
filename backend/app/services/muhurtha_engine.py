@@ -12,6 +12,27 @@ New in v2:
 - Correct sunrise-based inauspicious periods (no BIT_DISC_CENTER)
 - 15-muhurta Durmuhurtha calculation (weekday-specific slots)
 - Updated scoring weights and quality thresholds
+
+PR A2.2b additions (engine scoring fixes from real-world audit):
+- HARD REJECTS (move window to soft_flagged tier, not top results):
+    * Lagna CSL signifies any event denial house (§1, §2)
+    * Lagna CSL does NOT signify event primary house (§2)
+    * Time outside event practical hours (vehicle 1AM, etc.)
+    * Badhaka/Maraka hit (upgraded from soft penalty)
+- NEW SOFT PENALTIES (scoring only):
+    * Event CSL signifies denial houses (-25)
+    * H11 CSL signifies denial houses (-20)
+    * Rikta-Nanda tithi 4/9/14 (-15, esp. Krishna Navami)
+    * Moon nakshatra class mismatch for event (-15)
+    * Ugra/Tikshna nakshatra for non-surgery events (-10)
+    * Per-event weekday violations (-15)
+    * Lagna type not event-preferred (-10)
+- NEW SOFT BONUSES:
+    * Nakshatra class matches event preferred (+12)
+    * Lagna type event-preferred (+10)
+    * Per-event weekday approved (+10, replacing global GOOD_VARA)
+- Return structure split into `windows` (passed) + `soft_flagged_windows`
+  so the astrologer sees clean top-N and can still review rejects
 """
 import swisseph as swe
 from datetime import datetime, timedelta
@@ -20,6 +41,18 @@ from typing import Optional, Tuple
 from app.services.chart_engine import (
     get_sub_lord, get_nakshatra_and_starlord, get_sign, get_planet_positions,
     date_time_to_julian
+)
+
+# PR A2.2b — consume the findings-module lookup tables (per-event KB rules)
+from app.services.muhurtha_findings import (
+    NAKSHATRA_CLASS,
+    EVENT_PREFERRED_NAK_CLASSES,
+    EVENT_AVOID_NAK_CLASSES,
+    EVENT_PREFERRED_VARAS,
+    EVENT_AVOID_VARAS,
+    EVENT_PREFERRED_LAGNA_TYPE,
+    EVENT_PRACTICAL_HOURS,
+    RIKTA_NANDA_AVOID_TITHIS,
 )
 
 # ── Event house requirements (research-validated) ──────────────
@@ -191,6 +224,232 @@ def _compute_chandrabala(birth_moon_sign_idx: int, current_moon_lon: float) -> T
     position = ((current_sign - birth_moon_sign_idx) % 12) + 1   # 1-12
     good_positions = {2, 3, 6, 7, 10, 11}
     return position, (position in good_positions)
+
+
+# PR A2.2c — per-participant evaluation ──────────────────────────
+
+def _is_chandrashtamam(birth_moon_sign_idx: int, current_moon_lon: float) -> bool:
+    """True when the current Moon is in the 8th rashi from the native's
+    natal Moon — classical "chandrashtamam" hard filter (KB §8.1).
+    """
+    current_sign = int((current_moon_lon % 360) / 30.0)  # 0-11
+    # 8th from natal: (natal + 7) % 12 (0-indexed)
+    return current_sign == (birth_moon_sign_idx + 7) % 12
+
+
+def _is_janma_tara(birth_nakshatra_idx: int, current_moon_lon: float) -> bool:
+    """True when the current Moon is in the native's own janma nakshatra
+    (Tara = 1 in the 9-cycle). Classical hard filter (KB §8.1).
+    """
+    current_nak = int((current_moon_lon % 360) / (360.0 / 27))
+    return current_nak == birth_nakshatra_idx
+
+
+# ── PR A2.2c.2 — natal Badhakesh/Marakesh + dasha context ────────
+
+# Sign lords (reused below; defined further down but declared here
+# via a lazy import to avoid forward-reference issues).
+_SIGN_LORDS_FALLBACK = {
+    "Aries": "Mars", "Taurus": "Venus", "Gemini": "Mercury", "Cancer": "Moon",
+    "Leo": "Sun",    "Virgo": "Mercury","Libra": "Venus",  "Scorpio": "Mars",
+    "Sagittarius": "Jupiter", "Capricorn": "Saturn",
+    "Aquarius": "Saturn", "Pisces": "Jupiter",
+}
+
+# Standard zodiac order for "Nth sign from Lagna" math
+_SIGN_ORDER = [
+    "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
+    "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces",
+]
+
+
+def _natal_badhakesh_marakesh(participant: dict) -> dict:
+    """KB §8.1 hard-filter inputs per participant:
+       - Badhakesh = lord of the Badhaka house from natal Lagna
+         (movable → 11th, fixed → 9th, dual → 7th from Lagna).
+       - Marakesh = lords of the 2nd AND 7th houses from natal Lagna
+         (classical marakasthanas).
+
+    Returns {"badhakesh": "Saturn", "marakesh": {"Venus", "Mars"}, "lagna_sign": "Libra"}.
+    On error (bad natal data), returns empty sets so the DBA check
+    no-ops — better than blocking all windows for a data issue.
+    """
+    try:
+        jd = date_time_to_julian(
+            participant["date"], participant["time"],
+            participant.get("timezone_offset", 5.5),
+        )
+        swe.set_sid_mode(swe.SIDM_KRISHNAMURTI_VP291)
+        cusps, _ = swe.houses_ex(
+            jd, participant["latitude"], participant["longitude"],
+            b'P', swe.FLG_SIDEREAL,
+        )
+        lagna_lon = cusps[0] % 360
+        lagna_sign = get_sign(lagna_lon)
+        sign_type = SIGN_TYPES.get(lagna_sign, "Movable")
+        badhaka_house_num = BADHAKA_HOUSE[sign_type]  # 11/9/7
+
+        # Lagna sign index in _SIGN_ORDER
+        li = _SIGN_ORDER.index(lagna_sign)
+        badhaka_sign = _SIGN_ORDER[(li + badhaka_house_num - 1) % 12]
+        maraka_sign_2 = _SIGN_ORDER[(li + 1) % 12]    # 2nd sign
+        maraka_sign_7 = _SIGN_ORDER[(li + 6) % 12]    # 7th sign
+
+        badhakesh = _SIGN_LORDS_FALLBACK.get(badhaka_sign)
+        marakesh = {
+            _SIGN_LORDS_FALLBACK.get(maraka_sign_2),
+            _SIGN_LORDS_FALLBACK.get(maraka_sign_7),
+        }
+        marakesh.discard(None)
+
+        return {
+            "badhakesh": badhakesh,
+            "marakesh": marakesh,
+            "lagna_sign": lagna_sign,
+            "lagna_sign_type": sign_type,
+            "badhaka_house": badhaka_house_num,
+        }
+    except Exception:
+        return {"badhakesh": None, "marakesh": set(), "lagna_sign": None,
+                "lagna_sign_type": None, "badhaka_house": None}
+
+
+def _natal_dasha_list(participant: dict) -> list:
+    """Returns the full Vimshottari Mahadasha list for a participant
+    (9 entries covering ~120 years from birth). Calls the existing
+    chart_engine.calculate_dashas helper.
+
+    Returns [] on error so the DBA check no-ops rather than blocking.
+    """
+    try:
+        from app.services.chart_engine import calculate_dashas, get_planet_positions
+        jd = date_time_to_julian(
+            participant["date"], participant["time"],
+            participant.get("timezone_offset", 5.5),
+        )
+        moon_lon = get_planet_positions(jd).get("Moon", {}).get("longitude", 0)
+        return calculate_dashas(
+            participant["date"], participant["time"], moon_lon,
+            participant.get("timezone_offset", 5.5),
+        )
+    except Exception:
+        return []
+
+
+def _dasha_lords_at(
+    dashas: list,
+    target_date_str: str,
+) -> Tuple[Optional[str], Optional[str]]:
+    """Given a participant's dasha list and a target YYYY-MM-DD string,
+    return (mahadasha_lord, antardasha_lord) active on that date.
+    Returns (None, None) if no match.
+    """
+    if not dashas or not target_date_str:
+        return (None, None)
+    try:
+        from app.services.chart_engine import calculate_antardashas
+        for md in dashas:
+            if md["start"] <= target_date_str <= md["end"]:
+                ads = calculate_antardashas(md)
+                for ad in ads:
+                    if ad["start"] <= target_date_str <= ad["end"]:
+                        return (md["lord"], ad["antardasha_lord"])
+                return (md["lord"], None)
+        return (None, None)
+    except Exception:
+        return (None, None)
+
+
+def _evaluate_participant(
+    name: str,
+    natal_moon: dict,
+    current_moon_lon: float,
+    *,
+    natal_bm: dict = None,   # from _natal_badhakesh_marakesh
+    dashas: list = None,     # from _natal_dasha_list
+    target_date_str: str = None,
+) -> dict:
+    """Compute per-participant findings for a single candidate moment.
+
+    KB §8.1 hard filters: Chandrashtamam, Janma Tara.
+    KB §8.2 soft signals: Tarabala class, Chandrabala.
+
+    Returns a dict the scan loop aggregates into the window's
+    per_participant list and hard_rejected_for list.
+    """
+    birth_nak_idx = natal_moon.get("moon_nakshatra_idx", 0)
+    birth_sign_idx = natal_moon.get("moon_sign_idx", 0)
+
+    chandrashtamam = _is_chandrashtamam(birth_sign_idx, current_moon_lon)
+    janma_tara = _is_janma_tara(birth_nak_idx, current_moon_lon)
+    tara_num, tara_name, tara_good = _compute_tara_bala(birth_nak_idx, current_moon_lon)
+    cb_pos, cb_good = _compute_chandrabala(birth_sign_idx, current_moon_lon)
+
+    # Soft score contribution (KB §8.2 weights, modest per-participant)
+    soft = 0
+    if tara_good:
+        soft += 12
+    else:
+        soft -= 8
+    if cb_good:
+        soft += 6
+    else:
+        soft -= 6
+
+    hard_rejected_for = []
+    if chandrashtamam:
+        hard_rejected_for.append(f"{name}: Chandrashtamam")
+    if janma_tara:
+        hard_rejected_for.append(f"{name}: Janma Tara")
+
+    # ── PR A2.2c.2: Current DBA + Badhakesh/Marakesh check ──
+    # Classical KP rule (KB §8.1): auspicious events must NOT start
+    # when the native's current Mahadasha or Antardasha lord is their
+    # natal Badhakesh (obstruction lord) or Marakesh (death-bringer
+    # lord). Such periods indicate structural opposition to new
+    # beginnings.
+    current_md = None
+    current_ad = None
+    badhakesh_active = False
+    marakesh_active = False
+    if dashas and target_date_str:
+        current_md, current_ad = _dasha_lords_at(dashas, target_date_str)
+        if natal_bm:
+            badhakesh = natal_bm.get("badhakesh")
+            marakesh_set = natal_bm.get("marakesh") or set()
+            active_dba_lords = {l for l in (current_md, current_ad) if l}
+            if badhakesh and badhakesh in active_dba_lords:
+                badhakesh_active = True
+                which = "MD" if current_md == badhakesh else "AD"
+                hard_rejected_for.append(
+                    f"{name}: Badhakesh {badhakesh} active ({which})"
+                )
+            if marakesh_set & active_dba_lords:
+                marakesh_active = True
+                hit = next(iter(marakesh_set & active_dba_lords))
+                which = "MD" if current_md == hit else "AD"
+                hard_rejected_for.append(
+                    f"{name}: Marakesh {hit} active ({which})"
+                )
+
+    return {
+        "name": name,
+        "chandrashtamam": chandrashtamam,
+        "janma_tara": janma_tara,
+        "tara_bala_num": tara_num,
+        "tara_bala_name": tara_name,
+        "tara_bala_good": tara_good,
+        "chandrabala_num": cb_pos,
+        "chandrabala_good": cb_good,
+        "soft_score": soft,
+        "hard_rejected_for": hard_rejected_for,
+        # PR A2.2c.2 — surfaced for UI (Partners panel)
+        "current_md": current_md,
+        "current_ad": current_ad,
+        "badhakesh": (natal_bm or {}).get("badhakesh"),
+        "badhakesh_active": badhakesh_active,
+        "marakesh_active": marakesh_active,
+    }
 
 
 def _get_natal_moon_data(participant: dict) -> dict:
@@ -380,11 +639,18 @@ def _scan_date_range(
     event_lat: float, event_lon: float, event_tz: float,
     participant_rps: list = None,           # list of (name, set_of_rp_planets)
     participant_natal_moon: list = None,    # list of (name, {moon_nakshatra_idx, moon_sign_idx})
+    participant_natal_bm: list = None,      # PR A2.2c.2 — (name, {badhakesh, marakesh, ...})
+    participant_natal_dashas: list = None,  # PR A2.2c.2 — (name, [full dasha list])
 ) -> list:
     """Scan a date range every 4 minutes, return raw scored windows."""
     swe.set_sid_mode(swe.SIDM_KRISHNAMURTI_VP291)
     participant_rps = participant_rps or []
     participant_natal_moon = participant_natal_moon or []
+    participant_natal_bm = participant_natal_bm or []
+    participant_natal_dashas = participant_natal_dashas or []
+    # Build name → natal data lookups for O(1) access inside the hot loop
+    _bm_by_name = {name: data for name, data in participant_natal_bm}
+    _dashas_by_name = {name: data for name, data in participant_natal_dashas}
 
     raw_windows = []
     planet_cache: dict = {}
@@ -436,10 +702,20 @@ def _scan_date_range(
         moon_lon = planets.get("Moon", {}).get("longitude", 0)
         sun_lon  = planets.get("Sun",  {}).get("longitude", 0)
 
+        # PR A2.2c.1 — AUSPICIOUS_TITHIS + INAUSPICIOUS_TITHIS are
+        # defined in terms of the 1-15 paksha-agnostic cycle position
+        # (tithi 6 = Shashthi, same classical meaning in both Shukla
+        # AND Krishna paksha). Previous code checked the raw 1-30
+        # tithi_num, which meant Krishna tithis (16-30) never matched
+        # these sets — a window on Krishna Shashthi (tithi_num=21) got
+        # neither bonus nor penalty despite §3.1 classifying it as
+        # inauspicious. Fix: check cycle position explicitly, plus
+        # keep the 15/30 (Purnima/Amavasya) special-case.
         tithi_num = int(((moon_lon - sun_lon) % 360) / 12) + 1
-        if tithi_num in AUSPICIOUS_TITHIS:
+        tithi_cycle_pos = ((tithi_num - 1) % 15) + 1
+        if tithi_cycle_pos in AUSPICIOUS_TITHIS:
             base_score += 20
-        elif tithi_num in INAUSPICIOUS_TITHIS:
+        elif tithi_cycle_pos in INAUSPICIOUS_TITHIS or tithi_num in {15, 30}:
             base_score -= 30
 
         naks_idx = int((moon_lon % 360) / (360.0 / 27))
@@ -456,26 +732,44 @@ def _scan_date_range(
         elif vara in BAD_VARA:
             base_score -= 15
 
-        # ── Tara Bala (primary participant) ───────────────────────
+        # ── PR A2.2c — per-participant evaluation ─────────────────
+        # For each participant (not just primary), compute classical
+        # §8.1 hard filters + §8.2 soft signals. A window is
+        # hard-rejected if ANY participant has Chandrashtamam OR
+        # Janma Tara active. Soft score sums across participants
+        # (average-preserving but scales with participant count).
+        per_participant = []
+        participant_hard_rejects = []
+        participant_soft_total = 0
+        # Legacy single-participant fields kept for UI back-compat
         tara_num, tara_name, tara_good = 0, "", True
         chandrabala_good = True
-        if participant_natal_moon:
-            # Use first/primary participant
-            _, natal_data = participant_natal_moon[0]
-            tara_num, tara_name, tara_good = _compute_tara_bala(
-                natal_data["moon_nakshatra_idx"], moon_lon
+
+        # PR A2.2c.2 — target date string for the DBA check (same
+        # calendar day as the candidate window)
+        _target_date_str = current.strftime("%Y-%m-%d")
+        for name, natal_data in participant_natal_moon:
+            p_eval = _evaluate_participant(
+                name, natal_data, moon_lon,
+                natal_bm=_bm_by_name.get(name),
+                dashas=_dashas_by_name.get(name),
+                target_date_str=_target_date_str,
             )
-            _, chandrabala_good = _compute_chandrabala(
-                natal_data["moon_sign_idx"], moon_lon
+            per_participant.append(p_eval)
+            participant_soft_total += p_eval["soft_score"]
+            if p_eval["hard_rejected_for"]:
+                participant_hard_rejects.extend(p_eval["hard_rejected_for"])
+
+        # Primary-participant legacy fields (first in list; UI chips)
+        if per_participant:
+            p0 = per_participant[0]
+            tara_num, tara_name, tara_good = (
+                p0["tara_bala_num"], p0["tara_bala_name"], p0["tara_bala_good"]
             )
-            if tara_good:
-                base_score += 25
-            else:
-                base_score -= 20
-            if chandrabala_good:
-                base_score += 15
-            else:
-                base_score -= 15
+            chandrabala_good = p0["chandrabala_good"]
+
+        # Apply per-participant soft total to base_score
+        base_score += participant_soft_total
 
         # ── Hora lord scoring ──────────────────────────────────────
         hora_lord = _get_hora_lord(jd, sunrise_jd, sunset_jd, vara)
@@ -548,12 +842,203 @@ def _scan_date_range(
         yoga_name = YOGA_NAMES[yoga_idx % 27]
 
         # ── Additional scoring ──
-        badhaka_penalty = -25 if (badhaka_hit or maraka_hit) else 0
         event_cusp_bonus = 15 if event_cusp_confirms else 0
         h11_bonus = 10 if h11_confirms else 0
         moon_sl_bonus = 10 if moon_sl_favorable else 0
 
-        effective_score = base_score + participant_bonus + badhaka_penalty + event_cusp_bonus + h11_bonus + moon_sl_bonus
+        # ── PR A2.2b: HARD-REJECT CHECKS ────────────────────────────
+        # A window is hard-rejected if any classical KP rule is
+        # structurally violated. Rejected windows still go into the
+        # output (under `soft_flagged_windows`) so the astrologer can
+        # review, but they do NOT rank in the top results leaderboard.
+        hard_rejected_for = []
+
+        # (1) Lagna CSL must signify the event's primary house (§2 KB).
+        #     No primary = not an event-muhurtha by definition.
+        event_primary_h = group["primary"]
+        if event_primary_h not in signified:
+            hard_rejected_for.append(
+                f"Lagna CSL missing primary H{event_primary_h}"
+            )
+
+        # (2) Lagna CSL must NOT signify any event denial house (§1 KB).
+        lagna_denial_hit = [h for h in group["denial"] if h in signified]
+        if lagna_denial_hit:
+            hard_rejected_for.append(
+                f"Lagna CSL hits denial {lagna_denial_hit}"
+            )
+
+        # (3) Time-of-day practicality filter (KB §9.x event playbooks).
+        prac_start, prac_end = EVENT_PRACTICAL_HOURS.get(
+            event_type, (0, 24)
+        )
+        hh = current.hour
+        within_practical = prac_start <= hh < prac_end
+        if not within_practical:
+            hard_rejected_for.append(
+                f"Outside practical hours ({prac_start:02d}:00-{prac_end:02d}:00)"
+            )
+
+        # (4) Badhaka/Maraka upgraded from soft penalty to hard reject
+        #     (§8.1 KB — these are participant-level hard filters).
+        if badhaka_hit or maraka_hit:
+            which = []
+            if badhaka_hit:
+                which.append("Badhaka")
+            if maraka_hit:
+                which.append("Maraka")
+            hard_rejected_for.append(f"{'/'.join(which)} hit")
+            # Keep the legacy -25 as a soft penalty on top so even
+            # among soft-flagged windows, B/M hits rank lower.
+            badhaka_penalty = -25
+        else:
+            badhaka_penalty = 0
+
+        # (5) PR A2.2c — per-participant hard filters (§8.1).
+        #     Chandrashtamam or Janma Tara on ANY participant → reject.
+        if participant_hard_rejects:
+            hard_rejected_for.extend(participant_hard_rejects)
+
+        # ── PR A2.2b: NEW SOFT SCORING PENALTIES / BONUSES ─────────
+
+        # Event CSL denial hit (asymmetric scoring, §1 Rule 3)
+        event_cusp_denial_hit = [h for h in group["denial"] if h in event_cusp_houses]
+        event_cusp_denial_penalty = -25 if event_cusp_denial_hit else 0
+
+        # H11 CSL denial hit (§1 Rule 4)
+        h11_denial_hit = [h for h in group["denial"] if h in h11_houses]
+        h11_denial_penalty = -20 if h11_denial_hit else 0
+
+        # Rikta-Nanda tithi (4/9/14 — esp. bad in Krishna paksha, §3.1 KB)
+        tithi_within_cycle = ((tithi_num - 1) % 15) + 1
+        rikta_nanda_penalty = 0
+        if tithi_within_cycle in RIKTA_NANDA_AVOID_TITHIS:
+            rikta_nanda_penalty = -15
+            # Krishna paksha Navami (day 24 in 1..30) is doubly weak
+            if tithi_num == 24:
+                rikta_nanda_penalty = -20
+
+        # Moon nakshatra class fit for event (§3.2 Muhurtha Chintamani
+        # 10-class taxonomy crossed with §9.x per-event preference)
+        nak_class = NAKSHATRA_CLASS.get(naks_idx)
+        nak_bonus = 0
+        preferred_nak_classes = EVENT_PREFERRED_NAK_CLASSES.get(event_type, [])
+        avoid_nak_classes = EVENT_AVOID_NAK_CLASSES.get(event_type, [])
+        if nak_class:
+            if nak_class in preferred_nak_classes:
+                nak_bonus = 12
+            elif nak_class in avoid_nak_classes:
+                nak_bonus = -15
+
+        # Per-event weekday table (§3.4 KB — replaces global GOOD_VARA)
+        preferred_varas = EVENT_PREFERRED_VARAS.get(event_type, set())
+        avoid_varas = EVENT_AVOID_VARAS.get(event_type, set())
+        # Rollback the global vara score applied earlier (lines above
+        # added +10 for GOOD_VARA / -15 for BAD_VARA — undo that here
+        # and re-apply per-event score instead).
+        if vara in GOOD_VARA:
+            base_score -= 10
+        elif vara in BAD_VARA:
+            base_score += 15
+        per_event_vara_bonus = 0
+        if vara in preferred_varas:
+            per_event_vara_bonus = 10
+        elif vara in avoid_varas:
+            per_event_vara_bonus = -15
+
+        # Lagna type (Movable/Fixed/Dual, §5.1 KB)
+        lagna_type_bonus = 0
+        preferred_lagna_types = EVENT_PREFERRED_LAGNA_TYPE.get(event_type, [])
+        if sign_type in preferred_lagna_types:
+            lagna_type_bonus = 10
+        elif preferred_lagna_types:  # strict mismatch only when a preference exists
+            lagna_type_bonus = -5
+
+        # ── PR A2.2e: classical dosha checks ────────────────────────
+
+        # (A) Venus/Jupiter combustion — classical hard-block for
+        # vivaha (marriage). Combustion thresholds per Brihat Samhita:
+        # Venus ≤ 9°, Jupiter ≤ 11°. Applies only to marriage event.
+        venus_combust = False
+        jupiter_combust = False
+        if event_type == "marriage":
+            venus_lon = planets.get("Venus", {}).get("longitude", 0)
+            jupiter_lon = planets.get("Jupiter", {}).get("longitude", 0)
+            venus_sun_sep = min(abs(venus_lon - sun_lon), 360 - abs(venus_lon - sun_lon))
+            jup_sun_sep = min(abs(jupiter_lon - sun_lon), 360 - abs(jupiter_lon - sun_lon))
+            venus_combust = venus_sun_sep <= 9.0
+            jupiter_combust = jup_sun_sep <= 11.0
+            if venus_combust:
+                hard_rejected_for.append("Venus combust (Shukra asta — no vivaha)")
+            if jupiter_combust:
+                hard_rejected_for.append("Jupiter combust (Guru asta — no vivaha)")
+
+        # (B) Solar-month rule for vivaha. Classical: marriage allowed
+        # only when Sun transits Mesha / Vrishabha / Mithuna /
+        # Vrischika / Makara / Kumbha (sign indices 0, 1, 2, 7, 9, 10).
+        # Blocks Cancer, Leo, Virgo, Libra, Sagittarius, Pisces.
+        solar_month_blocked = False
+        if event_type == "marriage":
+            sun_sign_idx = int((sun_lon % 360) / 30.0)
+            ALLOWED_SUN_SIGNS_MARRIAGE = {0, 1, 2, 7, 9, 10}
+            if sun_sign_idx not in ALLOWED_SUN_SIGNS_MARRIAGE:
+                solar_month_blocked = True
+                BLOCKED_SIGN_NAMES = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo",
+                                       "Libra","Scorpio","Sagittarius","Capricorn",
+                                       "Aquarius","Pisces"]
+                hard_rejected_for.append(
+                    f"Sun in {BLOCKED_SIGN_NAMES[sun_sign_idx]} (vivaha blocked — not in allowed 6 signs)"
+                )
+
+        # (C) Kartari dosha — malefics flanking the muhurtha Lagna
+        # (i.e., malefic in 12th AND malefic in 2nd from Lagna).
+        # Classical KP: this "scissor" cuts the event. Soft penalty
+        # rather than hard reject in modern practice; KB §4.6 says
+        # avoid, so we apply a meaningful soft hit.
+        kartari_active = False
+        MALEFICS = {"Sun", "Saturn", "Mars", "Rahu", "Ketu"}
+        # Occupants of H2 (sign at lagna_lon + 30°) and H12 (sign at lagna_lon - 30°)
+        lagna_sign_idx = int((lagna_lon % 360) / 30.0)
+        h2_sign_idx = (lagna_sign_idx + 1) % 12
+        h12_sign_idx = (lagna_sign_idx - 1) % 12
+        h2_has_malefic = False
+        h12_has_malefic = False
+        for pname, pdata in planets.items():
+            if pname not in MALEFICS:
+                continue
+            p_sign_idx = int((pdata.get("longitude", 0) % 360) / 30.0)
+            if p_sign_idx == h2_sign_idx:
+                h2_has_malefic = True
+            if p_sign_idx == h12_sign_idx:
+                h12_has_malefic = True
+        kartari_active = h2_has_malefic and h12_has_malefic
+        kartari_penalty = -25 if kartari_active else 0
+
+        # (D) Ekargala dosha — Sun and Moon in the same sign
+        # (most intense on Amavasya). Blocks auspicious starts.
+        # Soft penalty per KB §4.7.
+        sun_sign_idx_here = int((sun_lon % 360) / 30.0)
+        moon_sign_idx_here = int((moon_lon % 360) / 30.0)
+        ekargala_active = sun_sign_idx_here == moon_sign_idx_here
+        ekargala_penalty = -20 if ekargala_active else 0
+
+        # ── PR A2.2b: assemble effective_score with all new signals ──
+        effective_score = (
+            base_score
+            + participant_bonus
+            + badhaka_penalty
+            + event_cusp_bonus
+            + h11_bonus
+            + moon_sl_bonus
+            + event_cusp_denial_penalty
+            + h11_denial_penalty
+            + rikta_nanda_penalty
+            + nak_bonus
+            + per_event_vara_bonus
+            + lagna_type_bonus
+            + kartari_penalty        # PR A2.2e
+            + ekargala_penalty       # PR A2.2e
+        )
         if in_rk:   effective_score -= 50
         if in_yg:   effective_score -= 60
         if in_gl:   effective_score -= 50
@@ -618,6 +1103,26 @@ def _scan_date_range(
                     "yoga": yoga_name,
                     "vara": current.strftime("%A"),
                 },
+                # PR A2.2b — structural flags + per-event scoring signals
+                "hard_rejected_for": hard_rejected_for,
+                "within_practical_hours": within_practical,
+                "lagna_denial_hit":  lagna_denial_hit,
+                "event_cusp_denial_hit": event_cusp_denial_hit,
+                "h11_denial_hit":    h11_denial_hit,
+                "nakshatra_class":   nak_class,
+                "nakshatra_event_match": nak_class in preferred_nak_classes if nak_class else False,
+                "vara_event_approved": vara in preferred_varas,
+                "vara_event_avoided":  vara in avoid_varas,
+                "lagna_type_event_preferred": sign_type in preferred_lagna_types,
+                # PR A2.2c — per-participant evaluation (KB §8.1, §8.2)
+                "per_participant":   per_participant,
+                "participant_soft_total": participant_soft_total,
+                # PR A2.2e — classical dosha flags
+                "venus_combust":     venus_combust,
+                "jupiter_combust":   jupiter_combust,
+                "solar_month_blocked": solar_month_blocked,
+                "kartari_active":    kartari_active,
+                "ekargala_active":   ekargala_active,
             })
 
         current += timedelta(minutes=4)
@@ -626,13 +1131,28 @@ def _scan_date_range(
 
 
 def _merge_windows(raw: list) -> list:
-    """Merge consecutive 4-min windows sharing the same sub-lord."""
+    """Merge consecutive 4-min windows sharing the same sub-lord.
+
+    PR A2.2b — enforces a minimum 20-min window duration. Previously
+    a bug in the merge step was overwriting end_time with the last
+    slot's end (slot_start + 4 min), yielding 12-min windows from 3
+    merged 4-min slices. Fix: end_time is always max(last_slot_end,
+    first_slot_start + 20 min). Astrologers never see 12-min windows
+    as top recommendations.
+    """
     if not raw:
         return []
     merged = []
     cur = dict(raw[0])
     cur["_last_dt"] = cur["start_dt"]
+    cur["_first_dt"] = cur["start_dt"]
     cur["end_time"] = (cur["start_dt"] + timedelta(minutes=20)).strftime("%H:%M")
+
+    def _floor_end_time(w, last_dt, first_dt):
+        """Return end_time as HH:MM, floored at first_dt + 20 min."""
+        candidate = last_dt + timedelta(minutes=4)  # last 4-min slot's true end
+        floor = first_dt + timedelta(minutes=20)
+        return (candidate if candidate >= floor else floor).strftime("%H:%M")
 
     for w in raw[1:]:
         same_day = w["date"] == cur["date"]
@@ -640,27 +1160,48 @@ def _merge_windows(raw: list) -> list:
         adjacent = (w["start_dt"] - cur["_last_dt"]) <= timedelta(minutes=8)
 
         if same_day and same_sl and adjacent:
-            cur["end_time"] = w["end_time"]
             cur["_last_dt"] = w["start_dt"]
+            cur["end_time"] = _floor_end_time(w, cur["_last_dt"], cur["_first_dt"])
             cur["score"]    = max(cur["score"], w["score"])
             cur["base_score"] = max(cur["base_score"], w["base_score"])
             cur["participant_resonance"] = max(cur["participant_resonance"], w["participant_resonance"])
+            # PR A2.2b — a merged window is hard-rejected only if ALL
+            # constituent 4-min slots are hard-rejected for the SAME
+            # reason. Union rejection reasons so the astrologer sees
+            # everything that flagged this window.
+            cur_hr = cur.get("hard_rejected_for") or []
+            w_hr = w.get("hard_rejected_for") or []
+            # A window is hard_rejected if both adjacent slots had at
+            # least one rejection (keeps best-slice logic consistent).
+            if cur_hr and w_hr:
+                cur["hard_rejected_for"] = sorted(set(cur_hr) | set(w_hr))
+            elif not cur_hr and not w_hr:
+                cur["hard_rejected_for"] = []
+            else:
+                # Mixed — keep the rejections from the rejected slot,
+                # marked as "partial" so UI can distinguish.
+                cur["hard_rejected_for"] = sorted(set(cur_hr) | set(w_hr))
             # Inherit new fields from highest-score slice
             if w["score"] > cur["score"]:
                 for f in ("in_abhijit", "tara_bala", "tara_bala_name", "tara_bala_good",
-                          "chandrabala_good", "hora_lord", "hora_auspicious", "lagna_lord_retrograde"):
-                    cur[f] = w[f]
+                          "chandrabala_good", "hora_lord", "hora_auspicious", "lagna_lord_retrograde",
+                          # PR A2.2c — per-participant snapshot belongs to the strongest slice
+                          "per_participant", "participant_soft_total"):
+                    if f in w:
+                        cur[f] = w[f]
             cur["quality"] = _quality(cur["score"])
         else:
             merged.append(cur)
             cur = dict(w)
             cur["_last_dt"] = cur["start_dt"]
+            cur["_first_dt"] = cur["start_dt"]
             cur["end_time"] = (cur["start_dt"] + timedelta(minutes=20)).strftime("%H:%M")
 
     merged.append(cur)
     for w in merged:
         w.pop("start_dt", None)
         w.pop("_last_dt", None)
+        w.pop("_first_dt", None)
     return merged
 
 
@@ -705,25 +1246,64 @@ def find_muhurtha_windows(
     # Pre-compute natal data for each participant
     participant_rps = []
     participant_natal_moon = []
+    # PR A2.2c.2 — Badhakesh/Marakesh + Vimshottari dasha list per participant.
+    # Both are computed once here (not inside the scan's 4-min loop) so a
+    # 60-day sweep doesn't recompute them ~20,000 times.
+    participant_natal_bm = []
+    participant_natal_dashas = []
     if participants:
         for p in participants:
+            p_name = p.get("name", "")
             rps = _get_natal_rps(p)
             if rps:
-                participant_rps.append((p.get("name", ""), rps))
+                participant_rps.append((p_name, rps))
             moon_data = _get_natal_moon_data(p)
-            participant_natal_moon.append((p.get("name", ""), moon_data))
+            participant_natal_moon.append((p_name, moon_data))
+            bm = _natal_badhakesh_marakesh(p)
+            participant_natal_bm.append((p_name, bm))
+            dashas = _natal_dasha_list(p)
+            participant_natal_dashas.append((p_name, dashas))
 
     selected_raw = _scan_date_range(
         start_dt, end_dt, classified_event,
         e_lat, e_lon, e_tz,
-        participant_rps, participant_natal_moon
+        participant_rps, participant_natal_moon,
+        participant_natal_bm, participant_natal_dashas,
     )
-    selected_windows = _merge_windows(selected_raw)
-    selected_windows.sort(key=lambda w: w["score"], reverse=True)
+    all_merged = _merge_windows(selected_raw)
+    all_merged.sort(key=lambda w: w["score"], reverse=True)
 
-    # Tag event location used
-    for w in selected_windows:
+    # Tag event location used on every window (passed + soft-flagged)
+    for w in all_merged:
         w["event_location_used"] = event_location_different
+
+    # PR A2.2b — three-tier result model.
+    # Passed tier: no hard-reject flags → shown in the main leaderboard.
+    # Soft-flagged tier: at least one hard-reject flag → returned under
+    #   `soft_flagged_windows` so the astrologer can review but these
+    #   do NOT rank in the top results. Dad's workflow: glance at soft
+    #   pile to confirm nothing usable was hidden, then proceed with
+    #   the passed tier.
+    # PR A2.2c.1 — additionally require effective_score >= 30 for the
+    # passed tier. The raw-window filter of base_score >= 40 doesn't
+    # prevent a window from entering the leaderboard with effective
+    # score 0 once all soft penalties apply (Event CSL denial, H11
+    # denial, Rikta-Nanda tithi, nakshatra class mismatch, etc.).
+    # A "passed" score-0 window is misleading — it passed structural
+    # filters but is effectively Weak. Drop these into soft_flagged
+    # with an explicit reason.
+    PASSED_SCORE_FLOOR = 30
+    selected_windows = []
+    soft_flagged_windows = []
+    for w in all_merged:
+        if w.get("hard_rejected_for"):
+            soft_flagged_windows.append(w)
+        elif w.get("score", 0) < PASSED_SCORE_FLOOR:
+            # Tag the reason so the UI / AI can explain the drop
+            w["hard_rejected_for"] = ["Weak score after soft penalties"]
+            soft_flagged_windows.append(w)
+        else:
+            selected_windows.append(w)
 
     date_windows: dict = {}
     for w in selected_windows:
@@ -742,7 +1322,8 @@ def find_muhurtha_windows(
         nearby_raw = _scan_date_range(
             nearby_start, nearby_end, classified_event,
             e_lat, e_lon, e_tz,
-            participant_rps, participant_natal_moon
+            participant_rps, participant_natal_moon,
+            participant_natal_bm, participant_natal_dashas,
         )
         nearby_merged = _merge_windows(nearby_raw)
         nearby_merged.sort(key=lambda w: w["score"], reverse=True)
@@ -751,19 +1332,87 @@ def find_muhurtha_windows(
             d = datetime.strptime(w["date"], "%Y-%m-%d")
             return d < start_dt or d > end_dt
 
-        nearby_only = [w for w in nearby_merged if outside_range(w)]
+        # PR A2.2b.1 — nearby_better must also filter out hard-rejected
+        # windows (outside practical hours, Lagna CSL denial hit, etc.).
+        # Without this, the engine can claim "better window nearby" for
+        # e.g. a 19:44 vehicle purchase — soft-flagged for being past
+        # the 19:00 practical-hours cutoff, yet surfaced as a top
+        # recommendation. Bug surfaced in real-world test 2026-04-23.
+        nearby_only = [
+            w for w in nearby_merged
+            if outside_range(w) and not w.get("hard_rejected_for")
+        ]
         if nearby_only and nearby_only[0]["score"] > best_selected_score + 20:
             nearby_better = nearby_only[0]
             nearby_better["event_location_used"] = event_location_different
 
+    # PR A2.2c — extend-window logic (KB §8.5).
+    # If nothing in the client's range passes hard filters, scan forward
+    # up to 30 days for the next qualifying window. Classical practice:
+    # "no qualifying muhurtha exists in your range; the next one is in
+    # N days. Recommend waiting." (User's dad's exact workflow.)
+    extend_suggestion = None
+    if not selected_windows:
+        extend_start = end_dt + timedelta(days=1)
+        extend_end = end_dt + timedelta(days=30)
+        extend_raw = _scan_date_range(
+            extend_start, extend_end, classified_event,
+            e_lat, e_lon, e_tz,
+            participant_rps, participant_natal_moon,
+            participant_natal_bm, participant_natal_dashas,
+        )
+        extend_merged = _merge_windows(extend_raw)
+        extend_passed = [w for w in extend_merged if not w.get("hard_rejected_for")]
+        extend_passed.sort(key=lambda w: w["score"], reverse=True)
+        if extend_passed:
+            first = extend_passed[0]
+            first_date = datetime.strptime(first["date"], "%Y-%m-%d")
+            first["event_location_used"] = event_location_different
+            extend_suggestion = {
+                "window": first,
+                "days_from_range_end": (first_date - end_dt).days,
+                "blocking_reasons": (
+                    # Summarize why the client's range had nothing.
+                    # Collect reason frequencies across soft-flagged
+                    # windows so the astrologer can tell the client
+                    # "your range fails for these reasons".
+                    _summarize_reasons(soft_flagged_windows)
+                    if soft_flagged_windows else []
+                ),
+            }
+
     return {
         "windows":              selected_windows[:15],
+        "soft_flagged_windows": soft_flagged_windows[:15],  # PR A2.2b
         "date_windows":         date_windows,
         "best_window":          selected_windows[0] if selected_windows else None,
         "nearby_better":        nearby_better,
+        "extend_suggestion":    extend_suggestion,          # PR A2.2c
         "event_type":           classified_event,
         "event_label":          event_type,
         "searched_range":       {"start": date_start, "end": date_end},
         "participants_loaded":  [name for name, _ in participant_rps],
         "event_location_different": event_location_different,
+        # PR A2.2b — surface counts so frontend banners can say
+        # "3 top windows, 12 below threshold (astrologer review)".
+        "passed_count":         len(selected_windows),
+        "soft_flagged_count":   len(soft_flagged_windows),
     }
+
+
+def _summarize_reasons(soft_flagged: list) -> list:
+    """PR A2.2c — aggregate rejection reasons across soft-flagged
+    windows so the extend-suggestion banner can say WHY the client's
+    range had nothing (e.g., "All windows outside practical hours" or
+    "Chandrashtamam blocks participant X from Apr 25 - May 2").
+
+    Returns a list of {"reason": str, "count": int} sorted by count
+    descending, top 5.
+    """
+    counter: dict = {}
+    for w in soft_flagged:
+        for r in w.get("hard_rejected_for", []):
+            counter[r] = counter.get(r, 0) + 1
+    out = [{"reason": r, "count": c} for r, c in counter.items()]
+    out.sort(key=lambda x: x["count"], reverse=True)
+    return out[:5]

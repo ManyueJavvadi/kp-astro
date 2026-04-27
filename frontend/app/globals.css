@@ -3989,6 +3989,119 @@ textarea:focus-visible {
   margin-left: 8px;
 }
 
+/* ─── PR A2.1 — Drag-to-zone overlay ─── */
+/* Rendered while the user presses-and-holds the orb and drags their
+   finger toward a zone. pointer-events: none so the orb keeps pointer
+   capture; we hit-test the finger position via math. */
+.command-zone-overlay {
+  position: fixed;
+  inset: 16px;
+  z-index: 58;                         /* below sheet (60/61), above content */
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 10px;
+  pointer-events: none;
+  /* translucent dim-plate behind the grid */
+  background: radial-gradient(ellipse at center, rgba(10,14,23,0.55), rgba(10,14,23,0.82));
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-radius: 16px;
+  padding: 10px;
+  box-sizing: border-box;
+  opacity: 0;
+  transform: scale(0.985);
+  transition: opacity 140ms ease, transform 160ms cubic-bezier(0.2,0.8,0.2,1);
+}
+.command-zone-overlay.is-entering {
+  opacity: 1;
+  transform: scale(1);
+}
+.command-zone-overlay.is-exiting {
+  opacity: 0;
+  transform: scale(0.985);
+  transition: opacity 180ms ease, transform 200ms ease;
+}
+
+.command-zone-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.03);
+  color: var(--muted);
+  transition: background 120ms ease, border-color 120ms ease,
+              color 120ms ease, transform 140ms cubic-bezier(0.2,0.8,0.2,1);
+  min-width: 0;
+  min-height: 0;
+}
+.command-zone-cell.is-active {
+  background: rgba(201,169,110,0.16);
+  border-color: rgba(201,169,110,0.62);
+  color: var(--accent);
+  transform: scale(1.035);
+  box-shadow: 0 0 0 1px rgba(201,169,110,0.28), 0 6px 24px rgba(201,169,110,0.16);
+}
+.command-zone-cell.is-cancel {
+  background: rgba(255,255,255,0.015);
+  border-color: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.35);
+}
+.command-zone-cell.is-cancel.is-active {
+  background: rgba(248,113,113,0.1);
+  border-color: rgba(248,113,113,0.45);
+  color: rgba(248,113,113,0.95);
+  box-shadow: 0 0 0 1px rgba(248,113,113,0.22);
+}
+
+.command-zone-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.04);
+  color: inherit;
+}
+.command-zone-cell.is-active .command-zone-icon {
+  background: rgba(201,169,110,0.18);
+}
+.command-zone-cell.is-cancel.is-active .command-zone-icon {
+  background: rgba(248,113,113,0.14);
+}
+
+.command-zone-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  text-align: center;
+  max-width: 100%;
+  padding: 0 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Zone coach mark reuses .command-orb-coach positioning; just a
+   modifier class for slightly different copy styling. */
+.command-orb-coach.command-orb-coach-zone {
+  background: rgba(201,169,110,0.95);
+  color: #0a0e17;
+  font-weight: 600;
+}
+
+/* Orb while zone-drag is active — stop its breath/hover so it feels
+   "pinned". Preserves position; just calms down the animation. */
+.command-orb.is-zone-drag {
+  animation: none !important;
+  transform: scale(1.05);
+  transition: transform 140ms ease;
+}
+
 /* ─── Mobile activation ─── */
 @media (max-width: 819px) {
   /* Show the orb */
