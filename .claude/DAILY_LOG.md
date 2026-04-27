@@ -156,13 +156,14 @@ Lagna Scorpio 24°40' Jyeshtha (Rahu sub). Mercury exalted in Virgo H10. Venus d
 9. **Honest confidence calibration** — Expected Distribution benchmark in `confidence_methodology.md`.
 10. **Sensitive prediction protocol** — death taboo'd (RULE 15); harm-reduction framing for mental-health/addiction/divorce.
 
-### Next PR: A1.3-fix-11 — Output structure refactor (DESIGN LOCKED, CODE NOT STARTED)
+### A1.3-fix-11 — Output structure refactor + chat UI polish (✅ SHIPPED `d60527b`)
 
-User and Claude designed the output refactor at end-of-arc. Plan in `HANDOFF-analysis-tab.md` §Pending. Summary:
-- Astrologer mode: 7 sections → **5 sections** (Verdict / Structural Evidence / Timing / Patterns + Remedies / Client-Facing). Tables instead of prose for structured data. ~35% token reduction.
-- User mode: 7 sections → **3 sections** (What the chart says / When / What to do). Deferred to A1.3e UX polish.
-- 5a Pre-answered Q's kept as Q/A format (max 3, per user request — do NOT fold into prose). 5b client summary kept as continuous prose. Both inside Section 5.
-- Most logic already exists (sookshma fire-rank, decision support, conflict flags, intercepted-sign callout, remedies trigger). Fix-11 is mostly system prompt + formatter rendering, not new compute.
+Final structural pass on the analysis arc. Three parallel deliverables:
+- **Backend** — system prompt 7→5 sections (Verdict / Structural Evidence / Timing / Patterns+Remedies / Client-Facing with 5a Q/A + 5b prose). Tables-first per design discussion. Estimated ~35% output token reduction. Q/A format kept in 5a per user explicit ask.
+- **Frontend** — chat-feel UI polish: AI avatar dot (gold gradient "D"), typing dots animation, copy button on AI bubbles (hover-revealed), topic-strip auto-collapse after first question, suggested follow-up chips on latest AI message, starter question chips in empty state, topic-aware loading message ("Analyzing వివాహం..."), hover affordances.
+- **Documentation** — NEW `.claude/HANDOFF-analysis-tab.md` (350 lines, principle stack P1-P10 + arc record + Web-V vs Engine-V methodology preserved + status). BACKLOG.md + DAILY_LOG.md updated.
+
+Total arc: **12 PRs, ~7,500 lines, 33 system-prompt rules, 6 KB files, 5 compute modules, 72 gaps surfaced + 68 closed.** Analysis tab is structurally + presentationally COMPLETE.
 
 ### Pending after fix-11
 

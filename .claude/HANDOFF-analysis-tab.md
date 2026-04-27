@@ -122,6 +122,7 @@ The user invented an adversarial debate format that surfaced gaps systematically
 | A1.3-fix-8 | `4abe6ce` | audit-2 | 17 features: intercepted signs detection (Placidus quirk — Manyue has Leo in H9 + Aquarius in H3), stellium detection, lagna lord disposition with per-house notes, divisional charts D7/D9/D10/D12 + vargottama-D10, decision_support_score with verdict + ledger, flag_dasha_conflicts (Vimsottari↔Yogini convergence/conflict), Sookshma fire-score ranking, **personality_psychology.md** (4-pillar framework + 27-nakshatra archetypes + free-form topic routing + intent classification), **remedies.md** (KP parihara framework — behavioural-first, per-planet, topic-specific, KP gemstone guard rule), 9 new free-form topics added to TOPIC_TO_FILE. RULES 28/29/30/31 added. |
 | A1.3-fix-9 | `4235ced` | audit-3-fixes | 15 items: transit_rules.txt added to ADVANCED_FILES (was orphaned 156-line KB), `_TOPIC_CACHE` wired into load_knowledge (200KB I/O killed per query), bare except cleanup with logging, `/quick-insights` brought to feature parity with `/analyze`, silent fallback exception logging, RULES 20+21 reordered to numeric position, dead functions removed, `pratyantardashas_current_ad` redundancy dropped, **Anthropic prompt caching for follow-ups (~90% input-token reduction within 5-min cache TTL)**, RULE 10 strengthened with PLACEMENT VERIFICATION (kills "Sun in H6 vs H9" hallucinations), RULE 28 mandates intercepted-sign call-out in Section 2, RULE 31 remedies auto-trigger criteria explicit, `get_cusp_sign_type` topic-scoped (no "Virgo barren" in career), RULE 17 age-consistency clause, **RULE 21B PAD-vs-Sookshma neutral framing** (the calibration commitment) |
 | A1.3-fix-10 | `aa31528` | audit-3 | 10 items: Tenali leak removed from general.txt, `detect_topic` 11→30 topics synced with TOPIC_TO_FILE, decision_support penalties (Step 4 D2, TENSION sub-denial, low SAV — score now realistic 86 not 100), confidence_methodology.md gains Expected Distribution benchmark, combustion borderline ±2°→±1°, RULE 19 de-duplication discipline, RULE 19 conflicting-signals panel mandatory on TENSION/MIXED/CONTRA, sookshma fire-score ranking emitted in formatter, `verify_past_event(date, topic)` helper, session memory anchor in conversation history, transit_rules.txt RP integration |
+| **A1.3-fix-11** | **`d60527b`** | **final structural** | **Backend: 7→5 section system prompt refactor (Verdict / Structural Evidence / Timing / Patterns+Remedies / Client-Facing with 5a Q/A + 5b Summary). Tables-first per design discussion. Estimated -35% output tokens. Frontend: chat-feel UI polish — AI avatar dot, typing dots animation, copy button on AI bubbles, topic-strip auto-collapse after first question, suggested follow-up chips on latest AI message, starter question chips in empty state, topic-aware loading message, hover affordances. NEW handoff doc + BACKLOG/DAILY_LOG updated.** |
 
 **Cumulative**: 34 system-prompt rules, 6 new KB files, 5 compute modules, ~6,500 lines added.
 
@@ -168,9 +169,9 @@ These are the structural facts that come up in every test. Useful to know when v
 
 ---
 
-## Pending — fix-11: Output structure refactor (DESIGNED, NOT YET IMPLEMENTED)
+## ~~Pending~~ ✅ SHIPPED — fix-11: Output structure refactor + chat UI polish (commit `d60527b`)
 
-User and Claude hashed out an output-structure refactor at end of arc. Plan locked, code not yet shipped. **This is the next PR.**
+User and Claude hashed out an output-structure refactor at end of arc. **Shipped in commit `d60527b` on the final day of the arc.** Section structure + chat UI polish + this handoff doc all landed in the same PR.
 
 ### Decision: Option B (5 sections, astrologer mode) + Option C (3 sections, user mode)
 
@@ -337,13 +338,20 @@ frontend/
 
 ---
 
-## Status block
+## Status block (UPDATED at fix-11 ship)
 
-- **Last PR pushed to develop**: `aa31528` (PR A1.3-fix-10) on third-audit cleanup day.
+- **Last PR pushed to develop**: `d60527b` (PR A1.3-fix-11) — final structural pass.
+- **Total arc**: 12 PRs (`76368a2` → `d60527b`), ~7,500 lines added.
 - **Branch**: `develop`. Worktree: `claude/eager-elbakyan` at `C:\Users\manyu\kp-astro\.claude\worktrees\eager-elbakyan`.
 - **Tests**: backend has only `test_muhurtha_engine.py` so far. Analysis-tab compute is verified via manual smoke tests at end of each PR (smoke-test code logged in commit messages).
 - **In flight**: nothing committed-but-unpushed. Working directory has only `.claude/settings.local.json` modifications (irrelevant).
-- **Next PR**: A1.3-fix-11 — output structure refactor to Option B (5 sections + tables). Design locked; code not yet started.
+- **Status**: **STRUCTURALLY + PRESENTATIONALLY COMPLETE**. Backend = 33 rules + 5-section output + 6 KB files + 5 compute modules. Frontend = chat-feel UI polished (avatar dot, typing dots, copy button, topic auto-collapse, suggested follow-ups, starter questions).
+- **Next PRs** (for future sessions):
+  1. **Real-world calibration** — record actual outcomes vs engine predictions when user's contract / marriage / kids events occur
+  2. **A1.3e** — frontend confidence-bar visualization, source-citation expandables, life-arc timeline (deferred from fix-11 — backend support exists)
+  3. **A1.4 / A1.5** — Transit research audit + accuracy fixes (rest of Track A.1)
+  4. **A1.8 / A1.9** — Match research audit + accuracy fixes
+  5. **Track B** — auth + CRM + billing (deferred pending pricing-research session)
 
 ---
 

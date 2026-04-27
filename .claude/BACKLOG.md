@@ -241,9 +241,9 @@ Every tool goes through the same four phases. No tool skips a phase.
 | **A1.0** | Horary research audit | `.claude/research/horary-audit.md` (no code) | ✅ shipped |
 | A1.1 | Horary engine accuracy fixes | `backend/app/services/horary_engine.py` + pytest golden + reference case | ✅ shipped |
 | A1.2 | Panchang research audit + fixes | `.claude/research/panchang-audit.md` | ✅ shipped (PR A1.2a–d) |
-| **A1.3** | **Analysis tab KB overhaul + accuracy** (originally not planned — opened mid-track after user testing) | See `.claude/HANDOFF-analysis-tab.md` for the 11-PR arc | ✅ shipped (`76368a2` → `aa31528`, fix-1 through fix-10) |
-| **A1.3-fix-11** | **Output structure refactor — Option B (5 sections + tables) + Option C (3 sections in user mode)** | Design locked in HANDOFF-analysis-tab.md §Pending; code not yet started | ⏳ NEXT PR |
-| A1.3e | UX polish for Analysis tab — confidence bar, source-citation expandables, conflicting-signals panel rendering, life-arc timeline visualization | frontend changes only | ⏳ queued |
+| **A1.3** | **Analysis tab KB overhaul + accuracy** (originally not planned — opened mid-track after user testing) | See `.claude/HANDOFF-analysis-tab.md` for the 12-PR arc | ✅ shipped (`76368a2` → `d60527b`, fix-1 through fix-11) |
+| ~~A1.3-fix-11~~ | ~~Output structure refactor + chat UI polish~~ | ~~design locked~~ | ✅ **shipped** `d60527b` — 5-section refactor + chat-feel UI (avatar dot, typing dots, copy button, topic auto-collapse, suggested follow-ups) |
+| A1.3e | UX polish for Analysis tab — confidence-bar visual, source-citation expandables, conflicting-signals panel rendering, life-arc timeline visualization, user-mode 3-section format | frontend changes only (backend support exists) | ⏳ queued — deferred from fix-11 |
 | A1.4 | Transit research audit | `.claude/research/transit-audit.md` | ⏳ pending |
 | A1.5 | Transit engine accuracy fixes | `backend/app/services/transit_engine.py` + tests | ⏳ pending |
 | A1.6 | Muhurtha research audit | `.claude/research/muhurtha-audit.md` | ✅ shipped (PR A2.2a–f) |
