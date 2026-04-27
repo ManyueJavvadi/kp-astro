@@ -75,8 +75,35 @@ H5 CUSP RULES:
 "Childbirth: Houses 2, 5 and 11. Sub lord of H5 cusp signifying 2, 5 and 11."
 "Children DENIED: If sub lord of H5 cusp signifies 1, 4 and 10 → never have a child."
 
+FRUITFUL vs BARREN SIGN OVERLAY (KSK STRICT — both conditions required):
+═════════════════════════════════════════════════════════════════════
+KSK strict children rule combines TWO conditions, both of which must hold:
+
+  CONDITION 1 — House signification: H5 sub lord signifies H2 + H5 + H11
+  CONDITION 2 — Sign nature of H5 cusp / H5 sub lord:
+
+    FRUITFUL SIGNS (water signs — favor childbirth):
+      Cancer (Karka), Scorpio (Vrischika), Pisces (Meena)
+    SEMI-FRUITFUL: Taurus, Libra (give children but fewer / late)
+    BARREN SIGNS (block or restrict childbirth):
+      Aries (Mesha), Gemini (Mithuna), Leo (Simha),
+      Virgo (Kanya), Capricorn (Makara)
+
+  Verdict matrix:
+    Signification YES + Fruitful sign     → STRONGLY PROMISED
+    Signification YES + Barren sign       → CONDITIONAL — IVF / medical assistance often required, fewer children
+    Signification NO  + Fruitful sign     → DENIED (signs alone don't grant)
+    Signification NO  + Barren sign       → DENIED (both layers reject)
+
+  Why both required: KSK rejects sign-based "fruit" reasoning as the
+  sole criterion (that is Parashari karaka thinking). Sign nature is
+  applied AS AN OVERLAY on top of valid CSL signification, never as a
+  replacement for it.
+
 KARAKA: Jupiter is the natural karaka for children.
 "Jupiter must be well-placed and not afflicted for childbirth promise."
+NOTE: Jupiter is CONTEXT only. Even debilitated Jupiter does not deny
+children if H5 CSL signifies 2/5/11 in a fruitful sign. KSK strict.
 
 TIMING FOR CHILDREN:
 For childbirth, the dasha period must activate H2, H5, and H11 simultaneously.
@@ -132,16 +159,26 @@ Rahu AD: Unconventional or foreign property
 PART 4: WEALTH AND FINANCIAL MATTERS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-RELEVANT HOUSES:
-PRIMARY: H2 (accumulated wealth, savings), H11 (income, gains, profits)
-SUPPORTING: H10 (profession/earnings source), H6 (service income)
-NEGATING: H8 (debt), H12 (losses, expenditure)
+RELEVANT HOUSES (KSK STRICT — wealth is 2/6/11, NOT 2/6/10/11):
+PRIMARY: H2 (accumulated wealth) + H6 (gains via competitors / loans / service / debt collected) + H11 (gains/profits)
+NOTE: H10 is RELEVANT FOR PROFESSION, not for wealth. KSK separates them:
+  - 2/6/10 = job/service salary (career)
+  - 2/7/10 = business income (career)
+  - 2/6/11 = WEALTH ACCUMULATION (this section)
+DENIAL: H1 (12th from H2 — loss of wealth), H8 (debt), H12 (loss/expenditure)
 
-H2 CUSP FOR WEALTH:
+H2 CUSP FOR WEALTH (KSK Reader, verbatim):
 "H2 sub lord in star of planet in H6 and H11 → very good financial status."
-"In houses H2 and H10 → moderate affluence."
+"In houses H2 and H10 → moderate affluence (career-driven, not accumulated wealth)."
 "In houses H1 and H3 → just satisfactory financial condition."
-"Improving houses (1, 2, 3, 6, 10, 11) are favorable from financial point of view."
+
+The 2/6/11 trinity is the KSK-canonical wealth set:
+  - H2 = the wealth itself (savings, capital)
+  - H6 = the mechanism by which wealth flows in (debt collection,
+        service-based income, gains via overcoming competitors)
+  - H11 = realised gain (the wealth has actually arrived)
+The IMPROVING houses (1, 2, 3, 6, 10, 11) are a CONTEXTUAL overlay
+useful as tiebreaker — they are not the primary verdict.
 
 WEALTH ACCUMULATION vs INCOME:
 H2 = saved wealth (bank balance, assets)

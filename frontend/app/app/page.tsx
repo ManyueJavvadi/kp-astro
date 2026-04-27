@@ -411,7 +411,7 @@ export default function Home() {
     setChartLoading(true);
     try {
       if (mode === "astrologer") {
-        const res = await axios.post(`${API_URL}/astrologer/workspace`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: timezoneOffset });
+        const res = await axios.post(`${API_URL}/astrologer/workspace`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: timezoneOffset, gender: birthDetails.gender || "" });
         setWorkspaceData(res.data);
       } else {
         const res = await axios.post(`${API_URL}/chart/generate`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: timezoneOffset });
@@ -457,7 +457,7 @@ export default function Home() {
     const topicLabel = TOPICS.find(t => t.id === topic)?.te || topic;
     try {
       // Topic analysis always starts fresh — no prior history for the first message
-      const res = await axios.post(`${API_URL}/astrologer/analyze`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: timezoneOffset, topic, question: `Complete KP analysis for ${topic}`, history: [], language: backendLang() });
+      const res = await axios.post(`${API_URL}/astrologer/analyze`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: timezoneOffset, gender: birthDetails.gender || "", topic, question: `Complete KP analysis for ${topic}`, history: [], language: backendLang() });
       setAnalysisMessages(prev => [...prev, { q: `${topicLabel} — Full Analysis`, a: res.data.answer, isTopic: true }]);
     } catch {
       setAnalysisMessages(prev => [...prev, { q: topicLabel, a: "Analysis failed. Please try again.", isTopic: true }]);
@@ -473,6 +473,7 @@ export default function Home() {
         name: birthDetails.name, date: formattedDate, time: getTime24(),
         latitude: birthDetails.latitude, longitude: birthDetails.longitude,
         timezone_offset: timezoneOffset,
+        gender: birthDetails.gender || "",
         topics: ["marriage", "job", "health", "foreign_travel", "children", "education", "property", "wealth"],
         language: backendLang(),
       });
@@ -489,7 +490,7 @@ export default function Home() {
       // CRITICAL FIX: pass ALL prior messages (including topic analysis) as history
       // This prevents the AI from repeating reasoning already given
       const history = analysisMessages.slice(-6).map(m => ({ question: m.q, answer: m.a }));
-      const res = await axios.post(`${API_URL}/astrologer/analyze`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: timezoneOffset, topic: activeTopic || "general", question: q, history, language: backendLang() });
+      const res = await axios.post(`${API_URL}/astrologer/analyze`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: timezoneOffset, gender: birthDetails.gender || "", topic: activeTopic || "general", question: q, history, language: backendLang() });
       setAnalysisMessages(prev => [...prev, { q, a: res.data.answer }]);
     } catch { } finally { setAnalysisLoading(false); }
   };

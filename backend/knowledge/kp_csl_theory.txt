@@ -102,6 +102,70 @@ Final CSL significations: H3, H7, H12, H11, H9, H4
 H7 ✓ and H11 ✓ from "yes" list → MARRIAGE PROMISED
 
 ================================================================
+STAR–SUB HARMONY — THE LAYERED READING (KSK CORE INSIGHT)
+================================================================
+
+The 4-step UNION above gives the COMPLETE signification set, but it
+hides a critical structural detail: WHICH layer the houses come from.
+KSK's strict rule: the STAR layer declares the NATURE of the matter,
+the SUB layer DECIDES whether it permits fructification. Read them
+SEPARATELY before unioning.
+
+LAYER SPLIT (do this for every CSL analysis):
+  STAR layer signifies = Houses from CSL's STAR LORD (occupation + ownership)
+                       + Houses from CSL itself's occupation
+                       (the "what does this position promote" reading)
+  SUB layer signifies  = Houses from CSL's SUB LORD (occupation + ownership)
+                       (the "is it permitted to happen" reading)
+
+HARMONY VERDICTS (use the layer split, not just the union):
+  HARMONY (++): Both layers point to the topic's RELEVANT houses → strongest promise
+  ALIGNED (+) : Sub points to relevant, Star is mixed → still promised
+  TENSION (-) : Star points to relevant, Sub points to denial → DENIAL DOMINATES
+  CONTRA (-) : Star points to denial, Sub points to relevant → fires WITH friction
+  DENIED (--) : Both layers point to denial houses → DENIED
+
+WORKED EXAMPLE — STAR–SUB HARMONY (continuing the marriage example):
+
+  H7 CSL = Saturn (in star of Mercury, in sub of Mars)
+
+  STAR layer (Mercury):
+    Mercury occupies H11, owns H7 + H4
+    → STAR layer signifies: H11, H7, H4
+    → For marriage (relevant: 2,7,11; denial: 1,6,10):
+       H7 + H11 are RELEVANT, H4 is neutral.
+       STAR LAYER STRONGLY POINTS TO MARRIAGE.
+
+  SUB layer (Mars):
+    Mars occupies H1, owns H6 + H11
+    → SUB layer signifies: H1, H6, H11
+    → For marriage:
+       H1 + H6 are DENIAL, H11 is RELEVANT.
+       SUB LAYER MIXED — leans denial (2 of 3 are denial houses).
+
+  HARMONY READING: TENSION (star says yes, sub leans block).
+  Verdict: Marriage will struggle — strongest STAR push ensures the
+  matter stays "alive", but the SUB layer (the deciding gate) is
+  mostly closed. Event fires only in bhuktis where the sub's H11
+  thread (Mars's H11 ownership) is activated and the H1/H6 thread is
+  dormant.
+
+  NAIVE 4-STEP UNION would say: "CSL touches H1, H4, H6, H7, H11 —
+  conditional marriage." The STAR–SUB layered reading exposes that the
+  *deciding* layer is mostly denial — a far more accurate picture.
+
+WHEN TO STATE STAR–SUB HARMONY IN PREDICTIONS:
+For every Analysis-tab prediction that uses CSL verdicts, the answer
+must explicitly identify:
+  - Houses from the STAR layer (and which are relevant vs denial)
+  - Houses from the SUB layer (and which are relevant vs denial)
+  - The harmony score (HARMONY / ALIGNED / TENSION / CONTRA / DENIED)
+  - Bhukti-level firing window based on which layer activates
+
+This is what separates KSK-grade analysis from naive 4-step UNION.
+The user MUST see the layer split, not just a flat list of houses.
+
+================================================================
 WHEN CSL GIVES CONDITIONAL RESULT
 ================================================================
 

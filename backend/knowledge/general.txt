@@ -88,6 +88,87 @@ as a CONTEXTUAL framework, NOT as an absolute rule. In KP:
 REFERENCE: KSK Reader 1, "no planet is inherently good or bad — house signification context decides".
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 2.5: STAR–SUB HARMONY — THE TENSION BETWEEN LAYERS (CORE KSK INSIGHT)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+KP is NOT a 4-step UNION operation in which any signified house counts
+equally. KP is a TENSION between two layers: the Star Lord declares the
+nature of the matter, the Sub Lord decides whether it actually fructifies.
+
+THE TWO-LAYER ARCHITECTURE (KSK Reader I, verbatim spirit):
+  LAYER 1 — STAR LORD (the WHAT):
+    The star lord of a planet (or of a cusp's sub lord) tells you the
+    NATURE of the result the planet/cusp will deliver. It answers:
+    "What kind of matter does this position promote?"
+
+  LAYER 2 — SUB LORD (the WHETHER):
+    The sub lord, sitting INSIDE the star, tells you whether that matter
+    will actually be PERMITTED to fructify. It answers:
+    "Is the result favorable or denied?"
+
+KSK's exact phrasing: "The Star-Lord indicates the nature of the result.
+The Sub-Lord is the deciding factor — whether the result is favorable or
+not." (Reader I, Sub Lord chapter.)
+
+WHY 4-STEP UNION ALONE IS WRONG:
+A naive 4-step UNION treats all signified houses as additive — "the CSL
+signifies 7 AND 1, both touching." That hides the tension. KSK's strict
+reading is:
+  - If STAR signifies the relevant house but SUB signifies the denial
+    house → DENIAL DOMINATES (sub is the deciding layer).
+  - If STAR signifies the denial house but SUB signifies the relevant
+    house → THE EVENT FIRES with friction (sub overrides star).
+  - If BOTH layers signify relevant houses → STRONGLY PROMISED, smooth.
+  - If BOTH layers signify denial houses → DENIED.
+
+STAR–SUB HARMONY SCORE (use this when writing predictions):
+  HARMONY (++): Both star and sub signify relevant houses → strongest
+  ALIGNED (+) : Sub signifies relevant, star is neutral or weak relevant
+  TENSION (-) : Star signifies relevant but sub signifies denial → BLOCK
+  CONTRA (-) : Star signifies denial but sub signifies relevant → fires
+              with friction (event happens, may have side-effects)
+  DENIED (--): Both layers signify denial houses
+
+THIS IS WHY DUAL-SIGNIFICATION IS NOT "SOFT DELAY":
+When the CSL signifies BOTH relevant + denial houses, do NOT call it a
+"delayed" event. KSK strict rule:
+  - Identify which signification comes from the STAR layer vs SUB layer
+  - Event FIRES in bhuktis of the layer that points to relevant houses
+  - Event is BLOCKED in bhuktis of the layer that points to denial houses
+This is bhukti-level precision, not vague delay.
+
+WORKED EXAMPLE (marriage, H7 CSL):
+  H7 cusp sub lord = Saturn, in star of Mercury, in sub of Mars.
+  Saturn (the planet itself) — occupies H10, owns H1 + H2.
+  Mercury (Saturn's STAR LORD) — occupies H11, owns H7 + H4.
+  Mars (Saturn's SUB LORD) — occupies H1, owns H6 + H11.
+
+  STAR layer (Mercury) signifies: H11, H7, H4 → 7 and 11 are RELEVANT for
+    marriage. STAR points to MARRIAGE PROMISED.
+  SUB layer (Mars) signifies: H1, H6, H11 → 1 and 6 are DENIAL for
+    marriage; 11 is relevant. SUB is mixed but leans denial.
+
+  HARMONY READING: Star strongly relevant, Sub mixed-leans-denial.
+  Verdict: TENSION (star says yes, sub blocks). Event possible only when
+  the running bhukti emphasises the 11 thread of the sub (Mars's H11
+  ownership) and de-emphasises the 1/6 thread.
+
+  This is far more precise than "CSL touches 1, 6, 7, 11 → conditional
+  marriage." The naive UNION reading would miss that Mars (the deciding
+  layer) is mostly denial-pointing.
+
+WHEN TO STATE STAR–SUB HARMONY EXPLICITLY:
+For every prediction in the Analysis tab, when explaining the CSL
+verdict, state:
+  - Which houses come from the STAR layer
+  - Which houses come from the SUB layer
+  - The harmony score (HARMONY / ALIGNED / TENSION / CONTRA / DENIED)
+  - Which bhuktis fire vs block based on the layer split
+
+This is the discriminator between average KP analysis and KSK-grade
+analysis. It is the single biggest accuracy lever in the engine.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 SECTION 3: COMPLETE HOUSE SIGNIFICATIONS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 

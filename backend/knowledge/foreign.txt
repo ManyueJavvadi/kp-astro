@@ -17,6 +17,16 @@ PRIMARY: H12 (permanent stay in foreign land/isolation from homeland)
 SUPPORTING: H3 (short journeys start), H9 (long journey), H11 (gains abroad)
 KEY RULE: H12 prominently connected with H3, H9 = foreign settlement
 
+CUSP-SUB-LORD PRIORITY (KSK strict — read these in order):
+  For TRAVEL (visiting): H9 cusp sub lord is primary gate
+  For SETTLEMENT (permanent move): H12 cusp sub lord is primary gate
+  For STUDY ABROAD: H4 cusp sub lord must connect to H9 + H12
+  For WORK ABROAD: H10 cusp sub lord (or H6 if service-job) must
+                   connect to H9 + H12
+NEVER decide "settles abroad" off H9 alone — H9 indicates the journey,
+H12 indicates the staying. KSK strict requires the H12 cusp sub lord
+to confirm the STAY, otherwise the prediction is travel only.
+
 STUDY ABROAD:
 Houses: H4 (education/institution), H9 (higher education/overseas), H12 (foreign land)
 H4 sub lord connected to H9 and H12 = education in foreign country

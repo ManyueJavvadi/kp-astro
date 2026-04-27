@@ -30,6 +30,7 @@ class WorkspaceRequest(BaseModel):
     latitude: float
     longitude: float
     timezone_offset: float = 5.5
+    gender: str = ""  # PR A1.3a — frontend now sends gender so AI doesn't guess from name
 
 class AnalysisRequest(BaseModel):
     name: str
@@ -38,10 +39,22 @@ class AnalysisRequest(BaseModel):
     latitude: float
     longitude: float
     timezone_offset: float = 5.5
+    gender: str = ""  # PR A1.3a — male/female/other; "" if unknown
     topic: str
     question: str = ""
     history: list = []
     language: str = "telugu_english"
+
+
+# PR A1.3a — helper to compute current age in years from a YYYY-MM-DD birth string
+def _compute_age_years(birth_date_str: str) -> int:
+    try:
+        bd = datetime.strptime(birth_date_str, "%Y-%m-%d")
+        today = datetime.utcnow()
+        years = today.year - bd.year - ((today.month, today.day) < (bd.month, bd.day))
+        return max(0, years)
+    except Exception:
+        return 0
 
 
 # ── House calculation ─────────────────────────────────────────
@@ -470,6 +483,12 @@ def analyze_topic(request: AnalysisRequest):
 
     chart_data = {
         "name": request.name,
+        # PR A1.3a — pass gender + birth_date + computed age so the LLM
+        # never has to guess from name (caused "PCOD" for males) or skip
+        # age-conditional rules (caused "if you are 30+" hedging).
+        "gender": request.gender or "",
+        "birth_date": request.date,
+        "age_years": _compute_age_years(request.date),
         "chart_summary": {"planets": chart["planets"], "cusps": chart["cusps"]},
         "promise_analysis": promise,
         "timing_analysis": timing,
@@ -528,6 +547,7 @@ class QuickInsightsRequest(BaseModel):
     latitude: float
     longitude: float
     timezone_offset: float = 5.5
+    gender: str = ""  # PR A1.3a — same gender wiring as /analyze
     topics: list = ["marriage", "career", "health"]
     language: str = "telugu_english"
 
@@ -565,6 +585,10 @@ def quick_insights(request: QuickInsightsRequest):
 
     chart_data = {
         "name": request.name,
+        # PR A1.3a — gender + age so quick-insights also stops guessing.
+        "gender": request.gender or "",
+        "birth_date": request.date,
+        "age_years": _compute_age_years(request.date),
         "chart_summary": {"planets": chart["planets"], "cusps": chart["cusps"]},
         "current_dasha": {
             "mahadasha": current_md,

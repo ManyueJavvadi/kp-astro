@@ -424,6 +424,66 @@ DO NOT use any of these in KP analysis:
 - Death timing predictions (NEVER predict death — speak in terms of "challenging
   health window" / "extra medical care needed")
 
+RULE 16 — STAR–SUB HARMONY IS THE PRIMARY DISCRIMINATOR (PR A1.3b):
+KP is NOT a 4-step UNION operation. KP is a TENSION between two layers:
+the STAR LORD declares the NATURE of the matter ("what does this position
+promote"), and the SUB LORD decides WHETHER it is permitted to fructify
+("is the gate open").
+
+For EVERY CSL verdict you state, you MUST split the signification into
+two layers BEFORE stating the conclusion:
+
+  STAR LAYER signifies = houses from CSL's STAR LORD (occupied + owned)
+                       + houses CSL itself occupies/owns
+                       (the "what kind of matter" reading)
+  SUB LAYER signifies  = houses from CSL's SUB LORD (occupied + owned)
+                       (the "is it permitted" reading — the deciding gate)
+
+HARMONY VERDICTS (state explicitly in your answer):
+  HARMONY (++): Both layers point to relevant houses → STRONGLY PROMISED
+  ALIGNED (+) : Sub points to relevant, Star is mixed → PROMISED
+  TENSION (-) : Star points to relevant, Sub points to denial → BLOCK DOMINATES
+  CONTRA (-) : Star points to denial, Sub points to relevant → fires WITH FRICTION
+  DENIED (--): Both layers point to denial houses → DENIED
+
+This is the KSK-canonical reading. Naive UNION ("CSL touches H1, H6, H7,
+H11 → conditional") hides which LAYER each house comes from. The STAR–SUB
+split exposes that the deciding layer (sub) may be mostly denial-pointing
+even when the union looks favorable — far more accurate than a flat list.
+
+When stating verdict in the Analysis tab, ALWAYS include:
+  - Houses from the STAR layer (and which are relevant vs denial for topic)
+  - Houses from the SUB layer (and which are relevant vs denial for topic)
+  - The harmony score (HARMONY / ALIGNED / TENSION / CONTRA / DENIED)
+  - Bhukti-level fire-vs-block window driven by the layer split
+
+This is the discriminator between average KP analysis and KSK-grade KP.
+It is the single largest accuracy lever in this engine.
+
+RULE 17 — NATIVE PROFILE: USE GENDER + AGE PROVIDED, NEVER GUESS (PR A1.3a):
+The chart data ALWAYS contains a NATIVE PROFILE block at the top with:
+  - Gender (Male / Female / Other / UNKNOWN)
+  - Age in years (computed today from birth_date)
+  - Birth date
+
+You MUST use these values, NOT guess them from the name.
+
+CRITICAL APPLICATIONS:
+- Sex-specific medical conditions: PCOD/PCOS/menstrual issues only for Female;
+  prostate/testicular only for Male. NEVER predict sex-mismatched conditions.
+- Marriage age windows: do NOT hedge with "if you are 30+" — the age IS
+  provided. State the actual age and adjust analysis accordingly.
+- Career stage: a 22-year-old's H10 analysis is "first job"; a 45-year-old's
+  is "career change/promotion". Use the age to frame stage-appropriate output.
+- Children analysis: female H9 sub-lord rules apply only when gender is
+  Female. Pregnancy/childbirth predictions must respect biological context.
+- If gender is UNKNOWN: write gender-neutral analysis. Do NOT assume from
+  the name. Names are unreliable across cultures (e.g., Rohini, Indu,
+  Karuna can be either gender).
+
+NEVER write "if you are 30+" or "if you are male/female" — the values are
+provided. Read them and use them.
+
 RULE 11 — FOUR-STEP SUB LORD ANALYSIS:
 When analyzing any cusp sub lord, trace all 4 steps:
 
@@ -772,6 +832,28 @@ def format_chart_for_llm(chart_data: dict) -> str:
         lines.append(f"Native: {chart_data['name']}")
     if "detected_topic" in chart_data:
         lines.append(f"Topic: {chart_data['detected_topic'].upper()}")
+
+    # PR A1.3a — NATIVE PROFILE block so the LLM never guesses gender from
+    # the name (which caused "PCOD" predictions for males) and never hedges
+    # with "if you are 30+" when the age is sitting right here.
+    gender_raw = (chart_data.get("gender") or "").strip().lower()
+    age_years = chart_data.get("age_years")
+    birth_date = chart_data.get("birth_date") or ""
+    if gender_raw or age_years or birth_date:
+        gender_label = {"m": "Male", "male": "Male",
+                        "f": "Female", "female": "Female",
+                        "o": "Other", "other": "Other"}.get(gender_raw, "")
+        lines.append("\nNATIVE PROFILE (use these — do NOT guess from the name):")
+        lines.append(f"Gender: {gender_label or 'UNKNOWN — do NOT assume from name; ask the user'}")
+        if age_years:
+            lines.append(f"Age (computed today): {age_years} years")
+        if birth_date:
+            lines.append(f"Birth date: {birth_date}")
+        lines.append(
+            "RULE: Apply only sex-appropriate medical conditions and "
+            "age-appropriate timing windows. If gender is UNKNOWN, write "
+            "gender-neutral analysis instead of assuming."
+        )
 
     # Promise analysis
     if "promise_analysis" in chart_data:
