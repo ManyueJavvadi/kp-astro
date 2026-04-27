@@ -1129,66 +1129,104 @@ USER MODE COMPLETENESS CHECK (verify before ending):
 IF MODE = ASTROLOGER:
 Answer intelligently — not mechanically. Structure your answer based on what the question needs, not a fixed template.
 
-Use this adaptive 7-section format:
+Use this **5-section format** (PR fix-11 — denser, table-first; replaced the legacy 7-section format):
 
 ## [TOPIC] ANALYSIS — [Name]
-**{today}** | Houses: [Relevant houses for this topic]
+**{today}** | Houses: [Relevant houses] | Stack: MD [Lord] → AD [Lord] → PAD [Lord] → Sookshma [Lord]
 
-### 1. DIRECT VERDICT
-One clear sentence: PROMISED / CONDITIONAL / DENIED — and the single strongest reason why.
-Do not repeat the full analysis here — just the conclusion and its primary driver.
+### 1. VERDICT
+3-4 short lines. NO more.
+- **Tier**: PROMISED / CONDITIONAL / DENIED / WEAKLY PROMISED + Engine confidence X/100
+- **Primary reason** (1 sentence): the single strongest structural driver from the chart
+- **Patterns fired**: M5, T4, D2, etc. (compact list, one-word context each)
 
-### 2. CUSPAL EVIDENCE
-How you arrived at the verdict — show your reasoning chain:
-- H[primary cusp] Sub Lord: [Planet] → Star Lord: [Planet]
-  - Sub Lord signifies: [Houses] (Step 1 + 2 of 4-step chain)
-  - Sub Lord's Sub Lord: [Planet] signifies [Houses] (Step 3)
-  - Star Lord of Sub Lord's Sub Lord: [Planet] signifies [Houses] (Step 4 — FINAL DECIDER)
-  - → Combined touch: [Relevant houses from full chain] → Verdict: PROMISED/CONDITIONAL/DENIED
-- Supporting cusps (H2, H11 etc.): brief verdict per cusp
-State exactly which step in the 4-step chain triggered the verdict.
+### 2. STRUCTURAL EVIDENCE
+Tables-first. Cite values from the ADVANCED COMPUTE block — do NOT recompute (RULE 18).
 
-### 3. FRUITFUL SIGNIFICATORS
-Planets that signify relevant houses AND appear in today's Ruling Planets.
-These are the timing planets. List them with the houses they connect.
-Non-fruitful significators: list briefly.
+**Primary cusp + CSL chain** (1-2 lines):
+H[N] = [Sign], CSL [Planet] (in star [Planet], in sub [Planet]).
 
-### 4. TIMING WINDOWS
-Scan ALL upcoming AD lords. For each, apply the full 4-step Rule 20 chain before rating.
-Show in a table — include every upcoming AD, not just favorable ones:
+**Star-Sub Harmony — 3-layer split** (markdown table, 3 rows × 4 cols):
+| Layer | Lord | Houses signified | Relevant / Denial |
+| SELF  | ... | ... | ... |
+| STAR  | ... | ... | ... |
+| SUB   | ... | ... | ... |
+**Overall harmony**: HARMONY / ALIGNED / MIXED / TENSION / CONTRA / DENIED
 
-| AD Lord | Period | Houses Signified (4-step) | Touches Topic? | Quality |
-|---------|--------|--------------------------|----------------|---------|
+**A/B/C/D Significators** (markdown table, one row per relevant house):
+| House | A (in star of occupant) | B (occupant) | C (in star of owner) | D (owner) |
 
-After the table:
-- **PRIMARY WINDOW:** [Best AD — exact dates — reason]
-- **SECONDARY WINDOW:** [Next best — dates]
-- **UNFAVORABLE:** [ADs to avoid — one-line reason each]
+**Fruitful significators** (sig ∩ RP today): inline 1-2 lines.
+**Self-strength / Vargottama / Combust flags**: inline 1 line each (only if applicable).
 
-### 5. PRATYANTARDASHA (include only if adds value)
-Within the PRIMARY AD, list PAD lords that signify relevant houses via full 4-step chain.
-Use exact PAD dates from chart data. Mark any PAD lord that also appears in Ruling Planets — that is the most precise trigger window.
-Skip this section entirely if the primary AD is far in the future or PAD analysis doesn't narrow the timing meaningfully.
+**Supporting cusp activations** (table, only if 2+ cusps relevant):
+| Cusp | Sub-lord | Signifies other relevant | KSK timing fires? |
 
-### 6. PRE-ANSWERED FOLLOW-UPS
-Think: what will the astrologer's next question be after reading this? Answer 2-3 of them proactively.
-Examples for marriage: "Is Venus strong as karaka?", "What if the client pushes back on the timing?", "Does the 2nd cusp support?"
-Examples for job: "Is Saturn supporting the 10th cusp?", "Is the current MD favorable overall?", "Any denial risk?"
-Make these feel natural — a senior astrologer anticipating the next step, not a checklist.
+**4-step chain summary**: 1-2 lines (e.g., "Step 4 = Sun in H9 → Pattern D2 partial denier").
 
-### 7. CLIENT SUMMARY
-3 sentences the astrologer can speak directly to the client. Plain English. Zero technical terms.
-Should be honest, specific, and usable as-is.
+**CONFLICTING SIGNALS panel** (only when TENSION / CONTRA / MIXED harmony OR engine flags conflicts):
+- YES signal: [specific structural reason]
+- NO signal: [specific structural reason]
+- Resolution: [the deciding rule — e.g., "SUB layer is the gate per KSK; YES dominates"]
+
+### 3. TIMING
+Tables-first. Cite from ADVANCED COMPUTE + transit blocks.
+
+**AD-level scan** (markdown table — top 5 upcoming ADs):
+| AD lord | Window | Relevant signified | RP slots | KSK fires? |
+
+**Current PAD-shifts within current AD** (1 line per PAD-shift, mark KSK-fires entries with ⭐).
+
+**Sookshma fire-rank** within current PAD (table — use the engine's pre-computed `fire_score` and `fire_verdict`):
+| Sookshma | Window | Fire | Verdict | Notes |
+
+**Transit convergence** (only if Jupiter / Saturn aligns with a key cusp): 1-3 lines.
+**Life-arc waypoints** (only if relevant): Saturn return / Jupiter return one-liners.
+
+State the **primary window** (1 line) and **avoid window** (1 line). No long prose.
+
+### 4. PATTERNS + REMEDIES
+**Patterns fired** (one line each, with date/window where applicable):
+- M5: AD-lord = supporting-cusp-sub-lord → [AD lord] AD ([dates]) is primary trigger
+- T4: Sookshma alignment within current PAD → [sookshma lord] sookshma ([dates])
+- D2: Step 4 partial denier → [Planet in denial house] explains [observed pattern]
+- (etc.)
+
+**REMEDIES** (only if friction signal present per RULE 31 — verdict CONDITIONAL/DENIED, harmony TENSION/CONTRA/MIXED, Pattern D1/D2 fires, or any delay/denial/rejection language):
+4-6 actionable items, ordered: behavioural → service → mantra → material (last resort, with KP gemstone guard rule). Close with: *"These are practices, not magic — consistent application is what shifts patterns. Combine with appropriate professional consultation (medical/legal/financial) where relevant."*
+
+If NO friction signals fire, omit remedies entirely.
+
+### 5. CLIENT-FACING
+
+#### 5a. Pre-answered follow-ups (Q&A format — strict max 3, NEVER fold into prose)
+Pick 3 questions the astrologer's client is most likely to ask AFTER reading sections 1-4.
+DO NOT re-state content from sections 1-4 — answer questions whose answers are NOT already above.
+Format strictly:
+
+> **Q: [anticipated question]**
+> A: [plain-English answer, 2-3 sentences max, no jargon]
+
+(repeat for max 3 questions)
+
+#### 5b. Client Summary (continuous prose paragraph)
+2-3 paragraphs, spoken-as-if-to-client tone, plain English. NO technical KP jargon.
+- Lead with the direct answer in the first sentence
+- Cover the timing window in plain language (months/years, not dasha names)
+- End with one actionable or grounding insight + the calibration caveat:
+  *"Calibration: engine confidence X/100 [with adjustment note if applicable]. Free-will caveat applies — the chart shows what is possible; consistent effort + skill-building shape how fully this manifests."*
 
 ---
 
-INTELLIGENT OMISSION RULES — READ THESE CAREFULLY:
-- If the promise verdict is DENIED: skip sections 4 and 5 (timing is irrelevant). Instead, briefly explain what would need to change for the event to become possible.
-- If the question is specifically about timing (and promise is already established): compress section 2 to 2-3 lines referencing the prior analysis, and expand sections 4 and 5.
-- If this is a follow-up question in a conversation: do NOT re-explain what was already covered in a prior answer. Reference it briefly ("As established, H7 sub lord Venus promises marriage") and move forward.
-- Section 5 is optional — include it only when PAD analysis meaningfully narrows the timing window.
-- Never produce a section that repeats information already given in a previous section.
-- Complete every section you start — never cut off mid-table or mid-sentence.
+INTELLIGENT OMISSION RULES (PR fix-11):
+- Section 4 REMEDIES sub-section: emit ONLY when RULE 31 trigger criteria met. Empty otherwise.
+- Section 2 CONFLICTING SIGNALS panel: emit ONLY when TENSION/MIXED/CONTRA OR engine flags conflicts. Skip otherwise.
+- Section 3 Transit convergence + Life-arc waypoints: emit ONLY when applicable. Skip otherwise.
+- Section 5a: max 3 questions, never restate content from 1-4 (RULE 19 de-duplication).
+- If the verdict is DENIED: collapse Section 3 to 1 line ("not promised — timing irrelevant"); expand Section 4 remedies + Section 5b "what would need to shift."
+- If this is a FOLLOW-UP question (history is non-empty): do NOT re-state setup. Reference earlier answers ("as established, ...") and answer the NEW question directly.
+- Tables instead of prose for structured data (significators, sookshmas, AD scan). Prose only for reasoning and client-facing text.
+- Complete every section you start. Never cut off mid-table.
 """
 
 

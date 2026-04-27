@@ -109,3 +109,75 @@ User opened a new track focused on **correctness of the KP engines**, not UI. Fu
 - **Write golden-snapshot tests BEFORE each accuracy fix.** No existing backend tests (confirmed via `find backend -name "test_*.py"`). Test harness approach: capture current engine output for a known chart, diff after changes, show user the delta.
 - **Ayanamsa check is the first audit step** for every tool. KP-specific ayanamsa ≠ Lahiri. If the engine is on Lahiri, everything is slightly off by design.
 - **Ruling Planets = user's current time + astrologer's current location**, not natal. Confirmed with user (relayed from his father). May need client-side geolocation plumbing per tool — small frontend+API contract change.
+
+---
+
+## 2026-04-21+ → ~2026-04-27 — Analysis Tab arc (multi-day, single continuous flow)
+
+User reopened the Analysis tab mid-Track-A.1 after testing it and finding (a) gender wasn't reaching the LLM, (b) age wasn't reaching the LLM, (c) `KNOWLEDGE_DIR` path bug meant LLM had been receiving ZERO KB content for months, (d) predictions felt thin compared to a real KP astrologer's reading.
+
+That triggered the **A1.3 analysis-tab arc** — 11 PRs over ~7 days that took the Analysis tab from broken to structurally complete KSK-strict KP analysis. Full record at `.claude/HANDOFF-analysis-tab.md`.
+
+### Arc summary (11 PRs, all merged to develop via fast-forward)
+
+| PR | Commit | Scope (one-line) |
+|---|---|---|
+| A1.3 foundation | `76368a2` | KNOWLEDGE_DIR path fix + 7 deep-dive .md files |
+| A1.3a + A1.3b | `11219b2` | Gender/age wiring + Star-Sub Harmony + KSK verbatim per-topic |
+| A1.3c + A1.3d + Sookshma | `7599948` | Advanced compute (8 fns) + Sookshma 4th-level + pattern library + gold standards |
+| A1.3-fix | `d15df10` | 11 audit fixes (latency + correctness + consistency) |
+| A1.3-fix-5 | `eb4fd4c` | KSK strict timing trigger (supporting cusp sub-lord) — fixed karaka-AD bias |
+| A1.3-fix-6 | `879dd8e` | 15 features: aspects, combustion, conjunction, pada, 8L, partner profile, Ashtakavarga, transits, Sade Sati |
+| A1.3-fix-7 | `fe1c309` | 8 features: gandanta, nakshatra-class, dignity, vargottama, Yogini Dasha, planetary returns |
+| A1.3-fix-8 | `4abe6ce` | 17 features: intercepted signs, stellium, lagna lord, divisionals, decision support, conflict flags, personality KB, remedies KB |
+| A1.3-fix-9 | `4235ced` | 15 items: prompt caching (~90% input reduction on follow-ups), KB cache wiring, RULE 10/17/28/31 strengthening, RULE 21B PAD-vs-Sookshma neutral |
+| A1.3-fix-10 | `aa31528` | 10 items: Tenali leak fix, detect_topic 11→30 topics, decision penalties (100→86), confidence calibration, sookshma fire-rank, verify_past_event, session memory anchor |
+
+**Cumulative**: ~6,500 lines added, 34 system-prompt rules, 6 KB files, 5 compute modules, 72 gaps surfaced + addressed across 3 Web-V vs Engine-V audit rounds.
+
+### User's invention preserved: Web-V vs Engine-V audit format
+
+🌐 Web-V = full literature + reasoning. 🤖 Engine-V = our codebase as-shipped. Compare both to find gaps. Reuse this format on every future tab audit.
+
+### Calibration chart used throughout: Manyue, 09/09/2000, 12:31 PM, Tenali AP, male
+
+Lagna Scorpio 24°40' Jyeshtha (Rahu sub). Mercury exalted in Virgo H10. Venus debilitated in Virgo H10. Sun + Mars in H9. Saturn + Jupiter in H6 Taurus. Rahu H8 Gemini (vargottama). **Leo intercepted in H9, Aquarius intercepted in H3** (key insight). Currently Saturn AD just begun (Mar 17, 2026 → Jan 21, 2029).
+
+### Decisions locked across the arc (NEVER undo without explicit user approval)
+
+1. **KSK strict over Parashari** — CSL is THE gate, karaka is CONTEXT only.
+2. **Star-Sub Harmony** is the single biggest accuracy lever (3-layer split SELF/STAR/SUB).
+3. **KSK strict bhukti rule** for dual signification (RULE 11).
+4. **KSK strict timing trigger** = AD lord IS sub-lord of relevant cusp + chain signifies others (RULE 21).
+5. **PAD vs Sookshma neutrality** (RULE 21B) — added after a sycophantic-shift incident. **The engine never pivots its reading because another astrologer said something different.**
+6. **Universality** — every fix audited against universal-vs-chart-specific bias. No injected outcomes.
+7. **NATIVE PROFILE** (gender + age + birth_date) reaches LLM as structured data (RULE 17).
+8. **Anti-Parashari guardrails** — 17 explicit rejections in `ksk_rejections.md`.
+9. **Honest confidence calibration** — Expected Distribution benchmark in `confidence_methodology.md`.
+10. **Sensitive prediction protocol** — death taboo'd (RULE 15); harm-reduction framing for mental-health/addiction/divorce.
+
+### Next PR: A1.3-fix-11 — Output structure refactor (DESIGN LOCKED, CODE NOT STARTED)
+
+User and Claude designed the output refactor at end-of-arc. Plan in `HANDOFF-analysis-tab.md` §Pending. Summary:
+- Astrologer mode: 7 sections → **5 sections** (Verdict / Structural Evidence / Timing / Patterns + Remedies / Client-Facing). Tables instead of prose for structured data. ~35% token reduction.
+- User mode: 7 sections → **3 sections** (What the chart says / When / What to do). Deferred to A1.3e UX polish.
+- 5a Pre-answered Q's kept as Q/A format (max 3, per user request — do NOT fold into prose). 5b client summary kept as continuous prose. Both inside Section 5.
+- Most logic already exists (sookshma fire-rank, decision support, conflict flags, intercepted-sign callout, remedies trigger). Fix-11 is mostly system prompt + formatter rendering, not new compute.
+
+### Pending after fix-11
+
+- **A1.3e** — UX polish (frontend confidence bar, source-citation expandables, conflicting-signals panel rendering, life-arc timeline)
+- **Real-world calibration** — when user's contract / marriage / kids actually happen, record diff vs engine prediction
+- **A1.4-A1.5 / A1.8-A1.9** — Transit + Match research audits (rest of Track A.1 queue)
+- **Track B** — auth + CRM + billing (still deferred pending pricing-research session)
+
+### Notes for future Claude
+
+- **READ `.claude/HANDOFF-analysis-tab.md` FIRST** if touching anything in `backend/app/services/llm_service.py`, `kp_advanced_compute.py`, `kp_transit_compute.py`, `kp_yogini_dasha.py`, `backend/knowledge/*`, or `backend/app/routers/astrologer.py`.
+- The 10 principle commitments (P1-P10 in HANDOFF) are sacrosanct. Don't undo them without explicit user approval.
+- The Web-V vs Engine-V audit format is the user's invention. Reuse it for every future tab audit.
+- Anthropic prompt caching is wired in `get_prediction()`. Expect ~90% input-token reduction on follow-up questions within 5-min cache TTL. Don't undo this.
+- All compute is pre-computed in `compute_advanced_for_topic` + `compute_transit_bundle` + Yogini orchestrator. RULE 18 mandates LLM CITES these directly without recomputing.
+- Every fix in fix-1 through fix-10 was checked against universal-vs-chart-specific bias. Future PRs MUST do the same audit before shipping.
+- Calibration chart (Manyue) facts logged in HANDOFF §Calibration findings — useful for sanity-checking output.
+- **Smoke tests at end of each PR** — manual Python smoke tests are logged in commit messages. Reproduce them when validating future changes.

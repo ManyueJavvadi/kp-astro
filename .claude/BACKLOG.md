@@ -165,7 +165,7 @@ Before starting each PR: **read the developv2 reference file first** (per Pre-PR
 | PR19 | Mobile responsive pass (all tabs) | `frontend/app/app/layout.tsx` drawer pattern |
 | PR20 | Legal pages (`/privacy`, `/terms`) + footer links | `frontend/app/privacy/page.tsx`, `frontend/app/terms/page.tsx`, `frontend/components/legal/shell.tsx` |
 
-**Analysis tab = permanently skipped** per user: *"Analysis tab is perfect, don't touch."*
+**Analysis tab — UPDATE**: ~~permanently skipped~~ — user reopened it on 2026-04-20+ after testing the AI output. Found the LLM was getting ZERO KB content (KNOWLEDGE_DIR path bug) + gender wasn't reaching the LLM + predictions felt thin. That triggered the **A1.3 analysis-tab arc** — 11 PRs (`76368a2` → `aa31528`) that took it from broken to **structurally complete KSK-strict KP analysis** (34 system-prompt rules, 6 KB files, 5 compute modules, 3 audit rounds). See `.claude/HANDOFF-analysis-tab.md` for the full record. Next PR: A1.3-fix-11 output structure refactor.
 
 **Track A status as of 2026-04-20**: COMPLETE. PR13–PR26 all shipped to develop. Mobile CommandOrb + swipe-dismiss + masked inputs + legal pages all in production. Next track is A.1 below.
 
@@ -236,19 +236,21 @@ Every tool goes through the same four phases. No tool skips a phase.
 
 ### PR queue
 
-| PR | Scope | First deliverable |
-|---|---|---|
-| **A1.0** | Horary research audit | `.claude/research/horary-audit.md` (no code) |
-| A1.1 | Horary engine accuracy fixes | `backend/app/services/horary_engine.py` + pytest golden + reference case |
-| A1.2 | Panchang research audit | `.claude/research/panchang-audit.md` |
-| A1.3 | Panchang engine accuracy fixes | `backend/app/services/panchangam_engine.py` + tests |
-| A1.4 | Transit research audit | `.claude/research/transit-audit.md` |
-| A1.5 | Transit engine accuracy fixes | `backend/app/services/transit_engine.py` + tests |
-| A1.6 | Muhurtha research audit | `.claude/research/muhurtha-audit.md` |
-| A1.7 | Muhurtha engine accuracy fixes | `backend/app/services/muhurtha_engine.py` + tests |
-| A1.8 | Match research audit | `.claude/research/match-audit.md` |
-| A1.9 | Match engine accuracy fixes | `backend/app/services/match_engine.py` + tests |
-| A1.10 | Cross-tab regression sweep | Verify Analysis output unchanged (or approved-changed) across all natal charts in the test harness |
+| PR | Scope | First deliverable | Status |
+|---|---|---|---|
+| **A1.0** | Horary research audit | `.claude/research/horary-audit.md` (no code) | ✅ shipped |
+| A1.1 | Horary engine accuracy fixes | `backend/app/services/horary_engine.py` + pytest golden + reference case | ✅ shipped |
+| A1.2 | Panchang research audit + fixes | `.claude/research/panchang-audit.md` | ✅ shipped (PR A1.2a–d) |
+| **A1.3** | **Analysis tab KB overhaul + accuracy** (originally not planned — opened mid-track after user testing) | See `.claude/HANDOFF-analysis-tab.md` for the 11-PR arc | ✅ shipped (`76368a2` → `aa31528`, fix-1 through fix-10) |
+| **A1.3-fix-11** | **Output structure refactor — Option B (5 sections + tables) + Option C (3 sections in user mode)** | Design locked in HANDOFF-analysis-tab.md §Pending; code not yet started | ⏳ NEXT PR |
+| A1.3e | UX polish for Analysis tab — confidence bar, source-citation expandables, conflicting-signals panel rendering, life-arc timeline visualization | frontend changes only | ⏳ queued |
+| A1.4 | Transit research audit | `.claude/research/transit-audit.md` | ⏳ pending |
+| A1.5 | Transit engine accuracy fixes | `backend/app/services/transit_engine.py` + tests | ⏳ pending |
+| A1.6 | Muhurtha research audit | `.claude/research/muhurtha-audit.md` | ✅ shipped (PR A2.2a–f) |
+| A1.7 | Muhurtha engine accuracy fixes | `backend/app/services/muhurtha_engine.py` + tests | ✅ shipped |
+| A1.8 | Match research audit | `.claude/research/match-audit.md` | ⏳ pending |
+| A1.9 | Match engine accuracy fixes | `backend/app/services/match_engine.py` + tests | ⏳ pending |
+| A1.10 | Cross-tab regression sweep | Verify Analysis output unchanged (or approved-changed) across all natal charts in the test harness | ⏳ pending |
 
 Each audit PR is pure markdown — zero code risk. Each accuracy PR is small, focused, testable, revertible. Same small-PR discipline as Track A.
 

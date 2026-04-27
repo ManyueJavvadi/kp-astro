@@ -123,17 +123,137 @@ select option {
 }
 .slide-in { animation: slideIn 0.2s ease; }
 
-/* Chat bubbles */
+/* Chat bubbles — PR fix-11 polish */
 .chat-bubble-ai {
   background: var(--card);
   border: 0.5px solid var(--border2);
   border-radius: 4px 14px 14px 14px;
+  position: relative;
+  transition: border-color 0.18s ease;
+}
+.chat-bubble-ai:hover {
+  border-color: rgba(201,169,110,0.32);
 }
 .chat-bubble-user {
   background: rgba(201,169,110,0.08);
   border: 0.5px solid rgba(201,169,110,0.2);
   border-radius: 14px 4px 14px 14px;
+  box-shadow: 0 1px 0 rgba(201,169,110,0.04);
 }
+
+/* Chat AI avatar dot */
+.chat-ai-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: #09090f;
+  flex-shrink: 0;
+  box-shadow: 0 0 12px rgba(201,169,110,0.18);
+}
+
+/* Typing dots — replaces static spinner for chat-feel */
+.typing-dots {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+.typing-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.4;
+  animation: typing-pulse 1.2s ease-in-out infinite;
+}
+.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typing-pulse {
+  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-2px); }
+}
+
+/* Topic strip when chat is active — compact horizontal scroll */
+.topic-strip {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 6px 2px 8px;
+  scrollbar-width: thin;
+}
+.topic-strip::-webkit-scrollbar { height: 4px; }
+.topic-strip::-webkit-scrollbar-thumb { background: rgba(201,169,110,0.2); border-radius: 4px; }
+.topic-chip {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border-radius: 14px;
+  border: 0.5px solid var(--border2);
+  background: var(--card);
+  cursor: pointer;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  color: var(--text);
+  white-space: nowrap;
+}
+.topic-chip:hover { border-color: rgba(201,169,110,0.4); background: var(--surface2); }
+.topic-chip.active {
+  background: rgba(201,169,110,0.15);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Suggested follow-up chips after AI response */
+.followup-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 4px;
+}
+.followup-chip {
+  padding: 5px 12px;
+  border-radius: 12px;
+  border: 0.5px solid var(--border2);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+.followup-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(201,169,110,0.06);
+}
+
+/* Copy button on AI bubbles */
+.copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: var(--surface2);
+  border: 0.5px solid var(--border2);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 10px;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+.chat-bubble-ai:hover .copy-btn { opacity: 1; }
+.copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+.copy-btn.copied { color: #34d399; border-color: rgba(52,211,153,0.3); }
 
 /* Pill / badge */
 .kp-pill {

@@ -6498,13 +6498,15 @@ export default function Home() {
               {/* ANALYSIS — chat bubble design + quick insights */}
               {activeTab === "analysis" && (
                 <div className="tab-content" style={{ display: "flex", flexDirection: "column", height: "100%", gap: 0 }}>
-                  {/* Topic pills + language */}
+                  {/* Topics — full grid before chat starts, compact horizontal strip after */}
                   <div style={{ marginBottom: "0.75rem", flexShrink: 0 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                      <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" as const }}>Topics</div>
+                      <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" as const }}>
+                        {analysisMessages.length > 0 ? `Topics · ${activeTopic ? TOPICS.find(t => t.id === activeTopic)?.te || activeTopic : "switch anytime"}` : "Topics"}
+                      </div>
                       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                         {analysisMessages.length > 0 && (
-                          <button onClick={() => { setAnalysisMessages([]); setActiveTopic(""); }} style={{ background: "transparent", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "3px 10px", fontSize: 11, color: "var(--muted)", cursor: "pointer" }}>Clear</button>
+                          <button onClick={() => { setAnalysisMessages([]); setActiveTopic(""); }} style={{ background: "transparent", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "3px 10px", fontSize: 11, color: "var(--muted)", cursor: "pointer" }}>{t("Clear", "క్లియర్")}</button>
                         )}
                         <div style={{ display: "flex", background: "var(--surface2)", borderRadius: 6, border: "0.5px solid var(--border2)", overflow: "hidden" }}>
                           {([["english", "EN"], ["telugu_english", "తె+EN"]] as const).map(([val, label]) => (
@@ -6513,53 +6515,119 @@ export default function Home() {
                         </div>
                       </div>
                     </div>
-                    {/* Topic cards with quick insight preview */}
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
-                      {TOPICS.map(t => (
-                        <button key={t.id} onClick={() => handleTopicAnalysis(t.id)} disabled={analysisLoading}
-                          style={{ padding: "10px 6px", borderRadius: 10, border: `0.5px solid ${activeTopic === t.id ? "var(--accent)" : "var(--border2)"}`, background: activeTopic === t.id ? "rgba(201,169,110,0.15)" : "var(--card)", cursor: analysisLoading ? "default" : "pointer", fontFamily: "inherit", textAlign: "center", transition: "all 0.2s" }}
-                          onMouseEnter={e => { if (activeTopic !== t.id) (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(201,169,110,0.4)"; }}
-                          onMouseLeave={e => { if (activeTopic !== t.id) (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border2)"; }}>
-                          <div style={{ fontSize: 22, marginBottom: 4 }}>{TOPIC_EMOJI[t.id]}</div>
-                          <div style={{ fontSize: 11, color: activeTopic === t.id ? "var(--accent)" : "var(--text)", fontWeight: activeTopic === t.id ? 500 : 400 }}>{t.te}</div>
-                          {quickInsights[t.id] && (
-                            <div style={{ fontSize: 9, color: "var(--muted)", marginTop: 4, lineHeight: 1.4, textAlign: "left" }}>
-                              {quickInsights[t.id].split("\n")[0]?.slice(0, 60)}…
-                            </div>
-                          )}
-                        </button>
-                      ))}
-                    </div>
+                    {/* Before chat starts: full 4×2 grid */}
+                    {analysisMessages.length === 0 ? (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
+                        {TOPICS.map(tp => (
+                          <button key={tp.id} onClick={() => handleTopicAnalysis(tp.id)} disabled={analysisLoading}
+                            style={{ padding: "10px 6px", borderRadius: 10, border: `0.5px solid ${activeTopic === tp.id ? "var(--accent)" : "var(--border2)"}`, background: activeTopic === tp.id ? "rgba(201,169,110,0.15)" : "var(--card)", cursor: analysisLoading ? "default" : "pointer", fontFamily: "inherit", textAlign: "center", transition: "all 0.2s" }}
+                            onMouseEnter={e => { if (activeTopic !== tp.id) (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(201,169,110,0.4)"; }}
+                            onMouseLeave={e => { if (activeTopic !== tp.id) (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border2)"; }}>
+                            <div style={{ fontSize: 22, marginBottom: 4 }}>{TOPIC_EMOJI[tp.id]}</div>
+                            <div style={{ fontSize: 11, color: activeTopic === tp.id ? "var(--accent)" : "var(--text)", fontWeight: activeTopic === tp.id ? 500 : 400 }}>{tp.te}</div>
+                            {quickInsights[tp.id] && (
+                              <div style={{ fontSize: 9, color: "var(--muted)", marginTop: 4, lineHeight: 1.4, textAlign: "left" }}>
+                                {quickInsights[tp.id].split("\n")[0]?.slice(0, 60)}…
+                              </div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      // Once chat is active: compact horizontal topic strip
+                      <div className="topic-strip">
+                        {TOPICS.map(tp => (
+                          <button key={tp.id} onClick={() => handleTopicAnalysis(tp.id)} disabled={analysisLoading}
+                            className={`topic-chip ${activeTopic === tp.id ? "active" : ""}`}>
+                            <span style={{ fontSize: 14 }}>{TOPIC_EMOJI[tp.id]}</span>
+                            <span>{tp.te}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* Chat messages — bubble style */}
                   <div style={{ flex: 1, overflowY: "auto", minHeight: 0, paddingRight: 2 }}>
                     {analysisMessages.length === 0 && !analysisLoading && (
-                      <div style={{ textAlign: "center", padding: "2rem 1rem" }}>
-                        <div style={{ fontSize: 28, marginBottom: 8 }}>⬆</div>
-                        <div style={{ fontSize: 14, color: "var(--muted)", marginBottom: 4 }}>పై నుండి అంశాన్ని ఎంచుకోండి</div>
-                        <div style={{ fontSize: 11, color: "var(--muted)", opacity: 0.6 }}>or type your question below</div>
+                      <div style={{ textAlign: "center", padding: "2.25rem 1rem 1.25rem" }}>
+                        <div style={{ fontSize: 32, marginBottom: 10, color: "var(--accent)", opacity: 0.7 }}>↑</div>
+                        <div style={{ fontSize: 14, color: "var(--muted)", marginBottom: 4 }}>{t("Pick a topic above", "పై నుండి అంశాన్ని ఎంచుకోండి")}</div>
+                        <div style={{ fontSize: 11, color: "var(--muted)", opacity: 0.6, marginBottom: 18 }}>{t("or type your question below", "లేదా మీ ప్రశ్నను క్రింద టైప్ చేయండి")}</div>
+                        {/* Suggested starter questions */}
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", maxWidth: 520, margin: "0 auto" }}>
+                          {[
+                            { en: "When will I get married?", te: "నాకు వివాహం ఎప్పుడు?" },
+                            { en: "What career suits my chart?", te: "నా చార్ట్‌కు ఏ కెరీర్ సరిపోతుంది?" },
+                            { en: "Tell me about my personality", te: "నా వ్యక్తిత్వం గురించి చెప్పండి" },
+                            { en: "Should I move abroad?", te: "నేను విదేశాలకు వెళ్లాలా?" },
+                          ].map((q, i) => (
+                            <button key={i}
+                              onClick={() => { setChatQ(t(q.en, q.te)); }}
+                              className="followup-chip">
+                              {t(q.en, q.te)}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     )}
                     {analysisMessages.map((msg, i) => (
-                      <div key={i} style={{ marginBottom: "1rem" }} className="fade-in">
+                      <div key={i} style={{ marginBottom: "1.25rem" }} className="fade-in">
                         {/* User question bubble — right aligned */}
-                        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}>
+                        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
                           <div className="chat-bubble-user" style={{ padding: "8px 14px", maxWidth: "72%", fontSize: 12, color: "#d0d0d8", lineHeight: 1.5 }}>
-                            {msg.isTopic && <span style={{ fontSize: 9, color: "var(--accent)", display: "block", marginBottom: 2 }}>◈ Topic Analysis</span>}
+                            {msg.isTopic && <span style={{ fontSize: 9, color: "var(--accent)", display: "block", marginBottom: 2 }}>◈ {t("Topic Analysis", "అంశ విశ్లేషణ")}</span>}
                             {msg.q}
                           </div>
                         </div>
-                        {/* AI answer bubble — left aligned */}
-                        <div className="chat-bubble-ai md-body" style={{ padding: "1rem 1.25rem", maxWidth: "94%" }}>
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.a}</ReactMarkdown>
+                        {/* AI answer bubble — left aligned, with avatar dot + copy button */}
+                        <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                          <div className="chat-ai-dot" title="DevAstroAI">D</div>
+                          <div className="chat-bubble-ai md-body" style={{ padding: "1rem 1.25rem", maxWidth: "calc(94% - 34px)", flex: 1 }}>
+                            <button
+                              className="copy-btn"
+                              data-copy-id={`copy-${i}`}
+                              onClick={(e) => {
+                                navigator.clipboard.writeText(msg.a);
+                                const btn = e.currentTarget as HTMLButtonElement;
+                                btn.textContent = "✓ Copied";
+                                btn.classList.add("copied");
+                                setTimeout(() => {
+                                  btn.textContent = "Copy";
+                                  btn.classList.remove("copied");
+                                }, 1500);
+                              }}
+                            >Copy</button>
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.a}</ReactMarkdown>
+                            {/* Suggested follow-up chips on the LATEST AI message only */}
+                            {i === analysisMessages.length - 1 && !analysisLoading && (
+                              <div className="followup-chips">
+                                {[
+                                  { en: "When exactly within this window?", te: "ఈ విండోలో సరిగ్గా ఎప్పుడు?" },
+                                  { en: "Show timing in plain English", te: "సాధారణ భాషలో సమయం చూపించండి" },
+                                  { en: "What should I do now?", te: "ఇప్పుడు నేను ఏమి చేయాలి?" },
+                                ].map((q, j) => (
+                                  <button key={j}
+                                    onClick={() => { setChatQ(t(q.en, q.te)); }}
+                                    className="followup-chip">
+                                    {t(q.en, q.te)}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}
                     {analysisLoading && (
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--muted)", fontSize: 13, padding: "0.75rem 1rem" }}>
-                        <div style={{ width: 10, height: 10, borderRadius: "50%", border: "1.5px solid var(--accent)", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
-                        {activeTopic ? `Analyzing ${activeTopic}...` : "Thinking..."}
+                      <div style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "0.5rem 0" }}>
+                        <div className="chat-ai-dot">D</div>
+                        <div className="chat-bubble-ai" style={{ padding: "0.85rem 1.1rem" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--muted)", fontSize: 12 }}>
+                            <span className="typing-dots"><span /><span /><span /></span>
+                            <span>{activeTopic ? t(`Analyzing ${TOPICS.find(tp => tp.id === activeTopic)?.te || activeTopic}…`, `${TOPICS.find(tp => tp.id === activeTopic)?.te || activeTopic} విశ్లేషిస్తున్నాను…`) : t("Thinking…", "ఆలోచిస్తున్నాను…")}</span>
+                          </div>
+                        </div>
                       </div>
                     )}
                     <div ref={chatEndRef} />
