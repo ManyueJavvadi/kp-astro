@@ -155,39 +155,28 @@ def _read_kb_file(filename: str, section_label: str) -> str:
         return ""
 
 
-def load_knowledge(topic: str) -> str:
-    # PR A1.3-fix-9 — cache assembled topic-string. Same topic = same KB content,
-    # so re-reading 26 files per query was wasteful.
-    if topic in _TOPIC_CACHE:
-        return _TOPIC_CACHE[topic]
+# PR A1.3-fix-12 — KB split into UNIVERSAL + TOPIC for stable cache prefix.
+# Old single-block layout invalidated the entire KB cache on any topic switch
+# (job → marriage). Split lets the universal core (~22K tokens, identical
+# across all topics) stay cached while only the topic-specific block (~10K
+# tokens) re-writes on a topic change. See get_prediction() for the
+# breakpoint ordering rationale.
 
-    topic_file = TOPIC_TO_FILE.get(topic, "general.txt")
+def load_universal_kb() -> str:
+    """
+    Universal KB content — IDENTICAL across all topics. Cache-stable forever
+    within a session. Includes general.txt + all ADVANCED_FILES.
+    Roughly 22K tokens.
+    """
+    if "_universal" in _TOPIC_CACHE:
+        return _TOPIC_CACHE["_universal"]
+
     content: list = []
 
-    # general.txt — always loaded as core principles
     general_section = _read_kb_file("general.txt", "CORE KP PRINCIPLES")
     if general_section:
         content.append(general_section)
 
-    # topic-specific file (skip if it's general.txt — already loaded)
-    if topic_file != "general.txt":
-        topic_section = _read_kb_file(
-            topic_file, f"KP RULES FOR {topic.upper()}"
-        )
-        if topic_section:
-            content.append(topic_section)
-
-    # PR A1.3 — Topic-specific deep-dive files (children/health/profession/family).
-    for deep_file in TOPIC_DEEP_DIVE.get(topic, []):
-        section_name = (
-            deep_file.replace(".md", "").replace(".txt", "")
-            .upper().replace("_", " ")
-        )
-        deep_section = _read_kb_file(deep_file, f"{section_name} (DEEP DIVE)")
-        if deep_section:
-            content.append(deep_section)
-
-    # Always load advanced KP theory files (foundational, every query).
     for adv_file in ADVANCED_FILES:
         section_name = (
             adv_file.replace(".md", "").replace(".txt", "")
@@ -198,8 +187,63 @@ def load_knowledge(topic: str) -> str:
             content.append(adv_section)
 
     assembled = "\n\n".join(content)
-    _TOPIC_CACHE[topic] = assembled
+    _TOPIC_CACHE["_universal"] = assembled
     return assembled
+
+
+def load_topic_kb(topic: str) -> str:
+    """
+    Topic-specific KB content — VARIES per topic. Includes the topic file
+    from TOPIC_TO_FILE and any TOPIC_DEEP_DIVE entries.
+    Returns empty string if topic has no specific content (e.g., "general"
+    routes to general.txt which is already in universal_kb).
+    Roughly 10-15K tokens for most topics, 0 for "general".
+    """
+    cache_key = f"_topic_{topic}"
+    if cache_key in _TOPIC_CACHE:
+        return _TOPIC_CACHE[cache_key]
+
+    topic_file = TOPIC_TO_FILE.get(topic, "general.txt")
+    content: list = []
+
+    # topic-specific file (skip if it's general.txt — already in universal_kb)
+    if topic_file != "general.txt":
+        topic_section = _read_kb_file(
+            topic_file, f"KP RULES FOR {topic.upper()}"
+        )
+        if topic_section:
+            content.append(topic_section)
+
+    # Topic-specific deep-dive files (children/health/profession/family).
+    for deep_file in TOPIC_DEEP_DIVE.get(topic, []):
+        section_name = (
+            deep_file.replace(".md", "").replace(".txt", "")
+            .upper().replace("_", " ")
+        )
+        deep_section = _read_kb_file(deep_file, f"{section_name} (DEEP DIVE)")
+        if deep_section:
+            content.append(deep_section)
+
+    assembled = "\n\n".join(content)
+    _TOPIC_CACHE[cache_key] = assembled
+    return assembled
+
+
+def load_knowledge(topic: str) -> str:
+    """
+    Backwards-compat wrapper — combines universal_kb + topic_kb into a single
+    string. Used by call sites that don't need the cache split. New
+    cache-aware code paths should call load_universal_kb() and
+    load_topic_kb() directly so each can sit in its own cache block.
+
+    PR A1.3-fix-9 — original combined assembled-string.
+    PR A1.3-fix-12 — re-implemented as wrapper over the split functions.
+    """
+    universal = load_universal_kb()
+    topic_specific = load_topic_kb(topic)
+    if topic_specific:
+        return f"{universal}\n\n{topic_specific}"
+    return universal
 
 
 # ================================================================
@@ -1300,7 +1344,10 @@ def get_prediction(chart_data: dict, question: str, history: list = [], mode: st
         detected_topic = detect_topic(question)
     chart_data["detected_topic"] = detected_topic
 
-    knowledge = load_knowledge(detected_topic)
+    # PR A1.3-fix-12 — KB split into universal + topic for stable cache prefix.
+    # See get_prediction() body below for the breakpoint ordering.
+    universal_kb = load_universal_kb()
+    topic_kb = load_topic_kb(detected_topic)
     chart_summary = format_chart_for_llm(chart_data)
 
     # Build conversation history — pass answers only, strip time-specific question context
@@ -1329,16 +1376,48 @@ def get_prediction(chart_data: dict, question: str, history: list = [], mode: st
         messages.append({"role": "user", "content": clean_question})
         messages.append({"role": "assistant", "content": prev.get("answer", "")})
 
-    # PR A1.3-fix-9 — Anthropic prompt caching for follow-up questions.
-    # Stable segments (KB + chart_summary) are tagged with cache_control.
-    # On the first call, billed full price. On follow-ups within the 5-min
-    # cache TTL, those segments are charged at 10% of input cost.
-    # Empirical impact: ~90% input-token reduction on follow-ups; ~30-50%
-    # latency reduction (TTFT). Quality: zero impact (semantically identical).
-    user_blocks = [
+    # PR A1.3-fix-12 — cache breakpoint REORDERING for cross-topic cache hits.
+    #
+    # Why the previous fix-9 layout failed (dashboard showed 2.4% cache read
+    # ratio + 0.82× write amortization): KB and chart_summary blocks were
+    # placed inside the LATEST user message, AFTER the conversation history.
+    # Anthropic's prompt cache is prefix-based — a cache hit requires the
+    # request prefix UP TO the cache_control marker to match a previously-
+    # cached prefix. Conversation history grows by 2 messages per turn,
+    # which invalidated the prefix every turn. The KB and chart cache
+    # writes were paid for but never amortized (writes = 0.82× reads,
+    # exactly what the dashboard showed).
+    #
+    # New layout: stable blocks live in the SYSTEM message (which sits
+    # BEFORE all conversation history). Within the system array, blocks
+    # are ordered MOST-STABLE → MOST-VARIABLE so the prefix stays valid
+    # for as many follow-up questions as possible:
+    #
+    #   1. system_prompt (~13K)  — only date varies daily
+    #   2. chart_summary (~30K)  — stable per chart, all session
+    #   3. universal_kb (~22K)   — IDENTICAL across all topics (the key
+    #                              cross-topic-cache win — Q1 job and Q2
+    #                              marriage hit the same universal cache)
+    #   4. topic_kb (~10K)       — varies per topic (only this block re-
+    #                              writes on a topic switch)
+    #
+    # Conversation history goes in messages[] AFTER all four cache
+    # breakpoints, so its turn-by-turn growth no longer invalidates them.
+    #
+    # Cache TTL: 5-minute ephemeral on all blocks (Anthropic default).
+    # 1-hour TTL is a future optimization (requires anthropic-beta header).
+    #
+    # Expected impact:
+    #   - Follow-up same-topic: ~67% cost reduction (4/4 blocks hit)
+    #   - Follow-up cross-topic: ~50-65% cost reduction (3/4 blocks hit;
+    #     only topic_kb re-writes)
+    #   - First call of session: ~equal to today (cache writes paid)
+    #   - Quality: zero impact (semantically identical request to LLM)
+
+    system_blocks = [
         {
             "type": "text",
-            "text": f"KP KNOWLEDGE BASE:\n{knowledge}",
+            "text": get_system_prompt(),
             "cache_control": {"type": "ephemeral"},
         },
         {
@@ -1348,9 +1427,29 @@ def get_prediction(chart_data: dict, question: str, history: list = [], mode: st
         },
         {
             "type": "text",
-            "text": f"""---
+            "text": f"---\n\nKP UNIVERSAL KNOWLEDGE BASE:\n{universal_kb}",
+            "cache_control": {"type": "ephemeral"},
+        },
+    ]
+    if topic_kb:
+        # Only emit a 4th block when the topic has specific content. For
+        # "general" topic, topic_kb is empty and we skip — keeps the
+        # cache prefix shorter and avoids a no-op breakpoint.
+        system_blocks.append(
+            {
+                "type": "text",
+                "text": (
+                    f"---\n\nKP TOPIC-SPECIFIC KNOWLEDGE "
+                    f"({detected_topic.upper()}):\n{topic_kb}"
+                ),
+                "cache_control": {"type": "ephemeral"},
+            }
+        )
 
-MODE: {mode.upper()}
+    user_blocks = [
+        {
+            "type": "text",
+            "text": f"""MODE: {mode.upper()}
 CURRENT QUESTION: {question}
 
 IMPORTANT: Answer THIS question independently. Do not assume any timeframe from previous questions.
@@ -1361,19 +1460,11 @@ Perform complete KP analysis. Format output for {mode.upper()} mode as instructe
 
     max_tokens = 16000 if mode == "astrologer" else 4000
 
-    # PR A1.3-fix-9 — system prompt also cached (37k chars, never changes
-    # across requests). Largest single cache target.
     message = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=max_tokens,
         temperature=0,
-        system=[
-            {
-                "type": "text",
-                "text": get_system_prompt(),
-                "cache_control": {"type": "ephemeral"},
-            }
-        ],
+        system=system_blocks,
         messages=messages,
     )
 
