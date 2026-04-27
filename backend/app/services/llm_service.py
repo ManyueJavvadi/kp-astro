@@ -540,7 +540,7 @@ CRITICAL APPLICATIONS:
 NEVER write "if you are 30+" or "if you are male/female" — the values are
 provided. Read them and use them.
 
-RULE 18 — USE THE ENGINE'S ADVANCED COMPUTE BLOCK (PR A1.3c):
+RULE 18 — USE THE ENGINE'S ADVANCED COMPUTE BLOCK (PR A1.3c + fix-5):
 For every Analysis-tab question, the chart data contains an
 "ADVANCED KP COMPUTE FOR TOPIC: X" block with pre-computed:
   - Relevant + denial houses for the topic
@@ -551,6 +551,13 @@ For every Analysis-tab question, the chart data contains an
   - Star–Sub Harmony layer split + verdict
   - RP overlap on MD/AD + each upcoming AD
   - Engine confidence score 0–100
+  - SUPPORTING CUSP SUB-LORD CHAINS (PR fix-5) — for every relevant
+    house, its sub-lord and 4-step chain. KSK timing rule fires when
+    AD-lord = sub-lord of relevant cusp AND chain signifies other relevant.
+  - UPCOMING AD-LORD = SUPPORTING-CUSP-SUB-LORD TRIGGERS — pre-flagged
+    list of upcoming ADs that match this KSK rule. Use these directly
+    for timing-window predictions; do NOT default to "wait for Venus AD"
+    (that's karaka-bias and a Parashari leak — KSK rejects it).
 
 You MUST use these values directly:
   - Cite A/B/C/D levels by name. "Mercury is an A-level significator of
@@ -591,6 +598,35 @@ For every Analysis-tab question:
 
 When in doubt about format or depth, re-read the gold standard examples
 and match their tone, structure, and explicit pattern naming.
+
+RULE 21 — KSK STRICT TIMING TRIGGER: AD-LORD = SUPPORTING-CUSP-SUB-LORD (PR fix-5):
+
+KSK Reader (Marriage chapter, generalises to all topics): "Marriage
+fructifies in the joint period of significators of 2, 7 and 11. When
+the AD lord IS THE SUB-LORD of one of these cusps AND its chain
+signifies the other two relevant cusps, that AD is the primary
+trigger window."
+
+This generalises:
+- Marriage: AD lord = sub-lord of 2, 7, or 11 (chain must signify other two)
+- Career: AD lord = sub-lord of 2, 6, 10, or 11 (chain must signify others)
+- Children: AD lord = sub-lord of 2, 5, or 11 (chain must signify others)
+- Wealth: AD lord = sub-lord of 2, 6, or 11
+
+THE KARAKA-AD BIAS YOU MUST AVOID:
+Many predictions wrongly default to "wait for Venus AD for marriage" or
+"wait for Jupiter AD for children" — that's PARASHARI karaka thinking.
+KSK strict says the SUB-LORD activation is primary. If a non-karaka AD
+lord (e.g., Mercury) is the sub-lord of H2 and H11 AND its chain
+signifies H7, then Mercury AD is the marriage AD — even though Mercury
+is not the marriage karaka.
+
+WHEN TO STATE THIS RULE EXPLICITLY:
+For every timing prediction, scan the AD-LORD = SUPPORTING-CUSP-SUB-LORD
+TRIGGERS block in the ADVANCED COMPUTE. If any upcoming AD has
+ksk_timing_active=YES, that AD is a primary trigger window. Cite it by
+name (Pattern M5 for marriage). Combine with Star-Sub Harmony verdict
++ Pattern M6 (Jupiter Gocharya) for the full timing picture.
 
 RULE 20 — FOUR-STEP SUB LORD ANALYSIS (was RULE 11; renumbered in fix-1):
 When analyzing any cusp sub lord, trace all 4 steps:
@@ -1153,6 +1189,41 @@ def format_chart_for_llm(chart_data: dict) -> str:
                 f"(rel={h.get('sub_relevant', [])}, denial={h.get('sub_denial', [])})"
             )
             lines.append(f"  HARMONY VERDICT: {h.get('harmony')}")
+
+        # PR A1.3-fix-5 — Supporting cusp sub-lord activations (KSK timing rule)
+        # Without this block the LLM only saw H7's CSL for marriage timing
+        # and missed the H2/H11 sub-lord activation that often fires earlier.
+        sup_cusps = adv.get("supporting_cusp_activations") or []
+        if sup_cusps:
+            lines.append(
+                "\nSUPPORTING CUSP SUB-LORD CHAINS (KSK timing rule — AD lord that is "
+                "the SUB-LORD of any of these AND signifies the OTHER relevant houses "
+                "is the marriage/career/etc trigger):"
+            )
+            for sc in sup_cusps:
+                marker = "PRIMARY" if sc.get("is_primary") else "supporting"
+                lines.append(
+                    f"  H{sc['house']} ({marker}) sub-lord = {sc['sub_lord']} → "
+                    f"signifies {sc.get('signified_houses', [])} "
+                    f"(rel:{sc.get('signified_relevant', [])}, "
+                    f"den:{sc.get('signified_denial', [])}); "
+                    f"signifies-other-relevant={sc.get('signifies_other_relevant', [])} "
+                    f"→ KSK-timing-trigger={'YES' if sc.get('ksk_timing_active') else 'no'}"
+                )
+
+        # PR A1.3-fix-5 — AD-lord-as-supporting-cusp-sub-lord triggers
+        ad_triggers = adv.get("ad_sublord_triggers") or []
+        if ad_triggers:
+            lines.append(
+                "\nUPCOMING AD-LORD = SUPPORTING-CUSP-SUB-LORD TRIGGERS (KSK Reader timing rule):"
+            )
+            for t in ad_triggers:
+                primary_tag = " [PRIMARY CUSP]" if t.get("is_primary_cusp") else ""
+                ksk_tag = "  ⭐ KSK-fires" if t.get("ksk_timing_active") else ""
+                lines.append(
+                    f"  {t['antardasha_lord']:9} ({t['start']} → {t['end']}): "
+                    f"activates H{t['activates_house']}{primary_tag}{ksk_tag}"
+                )
 
         # RP overlap on MD/AD + upcoming ADs
         rp_o = adv.get("rp_overlap") or {}

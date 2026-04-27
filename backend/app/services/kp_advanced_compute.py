@@ -329,6 +329,95 @@ def harmony_for_topic_primary_cusp(
     return result
 
 
+# ── Supporting-cusp sub-lord activation (PR A1.3-fix-5) ─────────────
+# KSK Reader strict timing rule: an event fructifies when an AD lord
+# is the SUB-LORD of one of the topic's relevant cusps AND that
+# sub-lord chain signifies the other relevant houses. The previous
+# compute only looked at the PRIMARY cusp (H7 for marriage); this
+# function adds the supporting cusps (H2, H11 for marriage; H6+H2+H11
+# for career; H2+H11 for children; etc.) so the LLM sees ALL three
+# gates and can correctly identify when the AD lord activates them.
+
+def compute_supporting_cusp_activations(
+    topic: str,
+    planets: dict,
+    cusps: dict,
+    planet_positions: dict,
+) -> List[Dict[str, object]]:
+    """
+    For each RELEVANT house of the topic (not just primary), compute the
+    sub-lord and its 4-step chain. Returns a list of {house, sub_lord,
+    signified_houses, signifies_relevant, is_primary} entries.
+
+    LLM uses this to apply the KSK rule:
+      "Marriage fructifies when AD/PAD lord is the SUB-LORD of one of
+       2/7/11 AND that sub-lord signifies the other relevant houses."
+    """
+    if topic not in HOUSE_TOPICS or not cusps:
+        return []
+    relevant = HOUSE_TOPICS[topic]
+    denial = TOPIC_DENIAL.get(topic, [])
+    rel_set = set(relevant)
+    den_set = set(denial)
+
+    out: List[Dict[str, object]] = []
+    for idx, house in enumerate(relevant):
+        cusp = cusps.get(f"House_{house}", {})
+        sub_lord = cusp.get("sub_lord")
+        if not sub_lord or sub_lord not in planets:
+            continue
+
+        # Compute 4-step UNION of the sub-lord's signification
+        p = planets[sub_lord]
+        star_lord = p.get("star_lord")
+        signified: set = set()
+        # Self
+        if sub_lord in planet_positions:
+            signified.add(planet_positions[sub_lord])
+        signified.update(get_houses_owned_by_planet(sub_lord, cusps))
+        # Star
+        if star_lord and star_lord in planet_positions:
+            signified.add(planet_positions[star_lord])
+        if star_lord:
+            signified.update(get_houses_owned_by_planet(star_lord, cusps))
+        # Sub of sub
+        sub_sub = p.get("sub_lord")
+        if sub_sub and sub_sub != sub_lord and sub_sub in planet_positions:
+            signified.add(planet_positions[sub_sub])
+        if sub_sub:
+            signified.update(get_houses_owned_by_planet(sub_sub, cusps))
+        # Rahu/Ketu proxy
+        if sub_lord in ("Rahu", "Ketu"):
+            try:
+                rk = get_rahu_ketu_significations(
+                    sub_lord, planets, cusps, planet_positions
+                )
+                for h in rk.get("all_signified_houses", []) or []:
+                    if isinstance(h, int) and 1 <= h <= 12:
+                        signified.add(h)
+            except Exception:
+                pass
+
+        signed_rel = sorted(signified & rel_set)
+        signed_den = sorted(signified & den_set)
+
+        # KSK strict timing test: does this sub-lord signify the OTHER
+        # relevant houses (excluding the cusp it's the sub-lord of)?
+        other_rel = sorted((signified & rel_set) - {house})
+
+        out.append({
+            "house": house,
+            "is_primary": (idx == 0),
+            "sub_lord": sub_lord,
+            "signified_houses": sorted(signified),
+            "signified_relevant": signed_rel,
+            "signified_denial": signed_den,
+            "signifies_other_relevant": other_rel,
+            "ksk_timing_active": len(other_rel) >= 1,  # KSK rule fires
+        })
+    return out
+
+
 # ── RP overlap per Antardasha lord ──────────────────────────────────
 
 def compute_rp_overlap(planet: str, ruling_planets_list: List[dict]) -> int:
@@ -481,6 +570,29 @@ def compute_advanced_for_topic(
         csl_self_strength=csl_self,
     )
 
+    # PR A1.3-fix-5 — supporting cusp sub-lord activations (KSK timing rule)
+    supporting_cusps = compute_supporting_cusp_activations(
+        topic, planets, cusps, planet_positions,
+    )
+
+    # Identify which AD lords IN the upcoming antardasha sequence are
+    # also sub-lords of one of the topic's relevant cusps. This is the
+    # KSK strict timing trigger: AD-lord = supporting-cusp-sub-lord.
+    cusp_sublords = {sc["sub_lord"]: sc for sc in supporting_cusps}
+    ad_sublord_triggers: List[Dict[str, object]] = []
+    for ad in upcoming_antardashas or []:
+        ad_lord = ad.get("antardasha_lord")
+        if ad_lord and ad_lord in cusp_sublords:
+            sc = cusp_sublords[ad_lord]
+            ad_sublord_triggers.append({
+                "antardasha_lord": ad_lord,
+                "start": ad.get("start"),
+                "end":   ad.get("end"),
+                "activates_house": sc["house"],
+                "is_primary_cusp": sc["is_primary"],
+                "ksk_timing_active": sc["ksk_timing_active"],
+            })
+
     return {
         "topic": topic,
         "relevant_houses": relevant_houses,
@@ -490,6 +602,8 @@ def compute_advanced_for_topic(
         "self_strength":         self_strength,
         "primary_cusp_sign_type": primary_cusp_sign,
         "star_sub_harmony":      harmony,
+        "supporting_cusp_activations": supporting_cusps,  # PR A1.3-fix-5
+        "ad_sublord_triggers":         ad_sublord_triggers,  # PR A1.3-fix-5
         "rp_overlap": {
             "md":  {"lord": current_md_lord, "slots": md_overlap},
             "ad":  {"lord": current_ad_lord, "slots": ad_overlap},

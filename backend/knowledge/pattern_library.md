@@ -31,6 +31,28 @@ reasoning), **What to say** (verdict template), and **Caveats**.
 - **Verdict**: "H7 in [sign] (fixed) plus strong CSL signification = stable single marriage."
 - **Caveats**: Fixed sign alone is NOT enough — must combine with CSL signifying relevant houses.
 
+### Pattern M5: AD-lord = supporting-cusp-sub-lord (PRIMARY KSK TIMING TRIGGER) ⭐
+- **Look for**: An upcoming AD lord that IS the sub-lord of H2, H7, or H11, AND whose 4-step chain signifies the OTHER two relevant cusps
+- **Why**: KSK Reader (Marriage chapter, verbatim): *"Marriage fructifies in the joint period of significators of 2, 7 and 11. When the AD lord IS THE SUB-LORD of any one of these cusps AND its chain signifies the other two, that AD is the primary marriage-trigger window."*
+- **Why this matters more than karaka-AD**: Many charts have Mercury or Jupiter (not Venus) as the H2 + H11 sub-lord. In such charts, Mercury AD or Jupiter AD will trigger marriage YEARS before the Venus AD — and the chart's natural marriage timing IS that earlier AD, not Venus AD. Karaka-bias (waiting for Venus AD) is a PARASHARI leak that KSK rejects.
+- **Verdict template**: "[Planet] is the sub-lord of H[2/7/11] AND signifies H[other relevant cusps]. Per KSK strict timing, [Planet]'s AD ([start]→[end]) is the primary marriage-trigger window. Marriage most likely fires in this AD's [Venus or Jupiter or supporting-significator] PAD."
+- **Caveats**:
+  - The sub-lord must signify AT LEAST one of the OTHER relevant cusps (not just be the sub-lord cosmetically)
+  - If the sub-lord chain signifies ONLY denial houses, it does not trigger marriage
+  - Combine with star-sub harmony of H7 CSL — both must be aligned
+- **Engine support**: The `ad_sublord_triggers` block in ADVANCED COMPUTE lists every upcoming AD lord that is a marriage-cusp sub-lord. The `ksk_timing_active` flag is true when the AD lord's chain signifies other relevant cusps.
+
+### Pattern M6: Jupiter Gocharya through H11 (transit-based marriage fulfillment)
+- **Look for**: A future window where Jupiter is transiting through the native's H11 cusp sign, AND the running AD/PAD has any marriage signification
+- **Why**: KSK Reader (later editions): Jupiter's transit through H11 (the gain/fulfillment house) activates the marriage completion signal. When dasha + transit both point to H11 simultaneously, that is the PEAK marriage-firing window.
+- **Why H11 specifically**: H1 = self awareness; H7 = matter present; H11 = matter ARRIVES (gain). Jupiter on H11 is the "arrival" trigger.
+- **Verdict template**: "Jupiter transits H11 ([sign]) from [date] to [date]. This overlaps with [running AD/PAD]. The convergence of dasha + transit makes [overlap window] the peak marriage-firing window."
+- **Caveats**:
+  - Jupiter transit alone (without dasha support) does NOT fire marriage
+  - Jupiter transit through H7 is also a trigger but weaker than H11
+  - Saturn simultaneously transiting H7 can delay even with Jupiter on H11
+- **Cycle reference**: Jupiter takes ~12 years through the zodiac, ~1 year per sign. Each native gets ONE Jupiter-on-H11 per ~12 years. Mark this window — it's a once-per-decade marriage-completion trigger.
+
 ---
 
 ## CHILDREN — Fructification Patterns

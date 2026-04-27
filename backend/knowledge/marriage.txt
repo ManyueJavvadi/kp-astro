@@ -46,8 +46,28 @@ COMPLETE H7 SUB LORD SIGNIFICATION RULES:
 - Signifies 5, 8, 12 → Partner benefits while native loses
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SECTION 3: SUPPORTING CUSPS ANALYSIS
+SECTION 3: SUPPORTING CUSPS — THE TIMING TRIGGERS (KSK STRICT — CRITICAL)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PR A1.3-fix-5 added emphasis: the H2 and H11 sub-lord activations are
+NOT just confirming-the-promise rules. They are the PRIMARY TIMING
+TRIGGERS for when marriage actually fructifies. The 7th cusp sub-lord
+(verified via Star-Sub Harmony) tells you IF; the 2nd and 11th cusp
+sub-lords tell you WHEN.
+
+═══════════════════════════════════════════════════════════════════════
+KSK STRICT TIMING RULE FOR MARRIAGE (Reader, Marriage chapter):
+═══════════════════════════════════════════════════════════════════════
+"Marriage fructifies in the joint period (Mahadasha-Antardasha-
+Pratyantardasha) of the SIGNIFICATORS of houses 2, 7 and 11.
+Specifically, when the AD lord IS THE SUB-LORD of one of 2, 7, or 11
+AND signifies the other two relevant houses through its star/sub
+chain, that AD is the PRIMARY MARRIAGE-TRIGGER WINDOW."
+
+This rule explicitly does NOT require the karaka (Venus) to be
+the AD lord. Mercury, Jupiter, or any other planet can trigger
+marriage IF it is the sub-lord of 2, 7 or 11 AND its chain signifies
+the other two cusps.
 
 H2 CUSP SUB LORD FOR MARRIAGE:
 "If the sub lord of the 2nd cusp signifies 7 and 11, predict marriage."
@@ -55,12 +75,41 @@ H2 sub lord connected to H7 and H11 = marriage arrangements will be fulfilled.
 H2 sub lord connected to H5 and H11 = childbirth (family creation aspect).
 H2 sub lord connected to H7 only = marriage for financial/practical reasons.
 
+→ TIMING APPLICATION: When the H2 sub-lord is itself the running AD
+   lord (or PAD lord), THAT is a primary marriage trigger window.
+   Do not wait for the karaka's AD to show up — H2-sub-lord's own AD
+   is sufficient if its chain signifies 7 and 11.
+
 H11 CUSP SUB LORD FOR MARRIAGE:
 H11 is the FULFILLMENT house — for marriage to COMPLETE (not just be promised),
 H11 must also signify the relevant houses.
 H11 sub lord connected to H7 and H2 = marriage fulfills family desires.
 H11 sub lord connected to H7 alone = marriage happens but family support limited.
 H11 connected to H8 = marriage fulfillment comes after obstacles.
+
+→ TIMING APPLICATION: When the H11 sub-lord is the running AD lord
+   AND its chain signifies H7 and H2, marriage fructifies in that AD.
+   This is often a STRONGER trigger than the karaka AD because H11 is
+   the "result/gain" house — fulfillment requires H11 activation.
+
+DOUBLE-CUSP-SUB-LORD CASE (KSK PEAK-TIMING SIGNAL):
+If the same planet is the sub-lord of TWO of the marriage cusps
+(e.g., H2 sub = H11 sub = Mercury), then THAT planet's AD is a
+peak marriage-firing window. Both gates open simultaneously when
+that planet runs as MD/AD/PAD.
+
+GOCHARYA (TRANSIT) MARRIAGE TRIGGERS:
+KSK Reader (later editions) acknowledges Jupiter's transit as a
+secondary timing confirmation:
+- Jupiter transit through H1 (Lagna) or H7 = marriage trigger if
+  dasha supports
+- Jupiter transit through H2 = family-arrangement trigger
+- Jupiter transit through H11 = marriage-fulfillment trigger
+  (the "completion" signal — strongest of the four)
+- Saturn transit through H7 generally DELAYS marriage during that
+  ~2.5 year period
+The strongest timing is when DASHA + TRANSIT both fire on the
+same houses. A favorable AD with Jupiter on H11 = peak window.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 SECTION 4: VENUS — THE MARRIAGE KARAKA
