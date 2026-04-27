@@ -16,8 +16,24 @@ For Business (Self-employment):
 PRIMARY HOUSES: H10 (career/action), H7 (partners/public dealings)
 SUPPORTING HOUSES: H2 (wealth), H11 (profits)
 
-DENIAL HOUSES FOR JOB: H1, H5, H9, H12
-If dasha lord signifies 1, 5, 9, 12 (instead of 2, 6, 10, 11) → job unlikely in that period
+DENIAL HOUSES FOR JOB:
+PRIMARY DENIAL (12th-from-relevant logic — strongest negation):
+- H1 (12th from H2 — loss of income)
+- H5 (12th from H6 — loss of service/employment)
+- H9 (12th from H10 — loss of profession/status)
+- H12 (universal loss/expenditure)
+
+SECONDARY DENIAL (problem indicators):
+- H8 (stress, sudden disruption, sometimes job loss with no fallback)
+- H3 (12th from H4 — loss of stability) — minor
+
+When CSL signifies the PRIMARY denial set (1, 5, 9, 12) AND has no relevant-house touch:
+→ DENIED.
+
+When CSL signifies BOTH primary denial AND relevant houses:
+→ CONDITIONAL — apply KSK strict bhukti rule:
+  - Bhuktis of relevant-house significators → job offer/promotion fires
+  - Bhuktis of denial-house significators → job lost / change failed / interview rejection
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 SECTION 2: H10 CUSPAL SUB LORD ANALYSIS — CAREER GATE

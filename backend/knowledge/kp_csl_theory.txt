@@ -24,18 +24,46 @@ Step 1: Identify the CSL of the relevant house cusp
   - For health: CSL of H1 and H6
   - For litigation: CSL of H6
 
-Step 2: Find what houses the CSL SIGNIFIES
-  A planet signifies a house when:
-    Level 1 (L1): It OCCUPIES that house (strongest)
-    Level 2 (L2): It RULES that house (sign lord of cusp)
-    Level 3 (L3): It is in the STAR of a planet that occupies that house
-    Level 4 (L4): It is in the STAR of the house lord
+Step 2: Find what houses the CSL SIGNIFIES — A/B/C/D/E HIERARCHY (KSK Reader V)
 
-  CRITICAL: The CSL's significations are determined by:
-  (a) Which house the CSL is SITTING IN → signifies that house
-  (b) Which houses the CSL RULES as sign lord → signifies those
-  (c) The CSL's own STAR LORD and what houses IT signifies → adds those
-  (d) The CSL's own SUB LORD and what that signifies → adds one level deeper
+  The KSK-canonical order of significator strength (strongest to weakest):
+
+  LEVEL A (~100% strength — STRONGEST):
+    Planets in the CONSTELLATION (nakshatra) of the OCCUPANT of the house.
+    Example: H7 has Mars occupying it. Any planet in Mars's nakshatra
+    (Mrigashira, Chitra, or Dhanishtha) becomes an A-level significator of H7.
+
+  LEVEL B (~75% strength):
+    OCCUPANTS of the house themselves.
+    Example: Mars occupying H7 = B-level significator of H7.
+
+  LEVEL C (~50% strength):
+    Planets in the CONSTELLATION (nakshatra) of the OWNER (sign lord) of the house.
+    Example: H7 cusp falls in Libra (lord = Venus). Any planet in Venus's
+    nakshatra (Bharani, P-Phalguni, P-Ashadha) becomes a C-level significator.
+
+  LEVEL D (~25% strength — WEAKEST main level):
+    OWNER (sign lord) of the house cusp itself.
+    Example: H7 cusp in Libra → Venus is the owner → D-level significator of H7.
+
+  LEVEL E (~10% strength — usually omitted):
+    Planets CONJOINED with (within 3.33°) or aspecting any A-D significator.
+
+  IMPORTANT:
+  - The percentages are MODERN convenience, not KSK's own. KSK gives only the ordinal
+    ranking. Use percentages as rule-of-thumb only.
+  - One A-level significator generally outweighs three D-level significators.
+  - When CSL is A-level for relevant houses AND D-level for denial houses → STRONGLY PROMISED.
+  - When CSL is D-level for relevant AND A-level for denial → WEAKLY PROMISED + obstacles.
+
+  CSL'S SIGNIFICATION CHAIN — 4 STEPS (UNION):
+  (a) Which house the CSL is SITTING IN (occupation)
+  (b) Which houses the CSL RULES as sign lord
+  (c) The CSL's own STAR LORD's occupied + ruled houses
+  (d) The CSL's own SUB LORD's occupied + ruled houses (deepest layer)
+
+  The UNION of houses from (a)-(d) is the "complete signification set" of the CSL.
+  Compare this set against the topic's RELEVANT and DENIAL houses to derive verdict.
 
 Step 3: Check the union of all CSL significations vs topic houses
   If the UNION includes ALL the "yes" houses for the topic → PROMISED

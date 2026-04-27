@@ -52,6 +52,29 @@ KEY RULE: The event happens when MD + AD + PAD lords ALL signify the topic.
   If MD signifies but AD doesn't → wait for the right AD within this MD
   If MD + AD signify but PAD doesn't → wait for the right PAD
 
+KSK STRICT BHUKTI-LEVEL DUAL-SIGNIFICATION RULE (CRITICAL):
+═══════════════════════════════════════════════════════════
+Direct quote from KSK Reader (children example):
+"If the Dasa Lord is the significator of 2nd, 5th, or 11th, AND 1st, 4th, or 10th
+(indicating childbirth AND its denial), then DURING THE BHUKTI of the significator
+of 1st, 4th, or 10th, there will be NO childbirth."
+
+This is the bhukti-level precision KSK demands:
+- When a dasha/bhukti lord signifies BOTH relevant + denial houses, the event
+  does NOT happen "with delay" or "softly conditional"
+- Instead: the event FIRES during bhuktis of relevant-house significators
+- And is BLOCKED during bhuktis of denial-house significators
+- The same MD lord can produce the event in some bhuktis and block it in others
+
+WHEN ANSWERING TIMING QUESTIONS:
+1. Identify the running MD lord's signification set
+2. If MD signifies BOTH relevant + denial houses, list each upcoming AD/PAD individually:
+   - AD lords signifying relevant houses → list as "EVENT CAN FIRE in this window"
+   - AD lords signifying denial houses → list as "EVENT BLOCKED in this window"
+3. Do NOT give a blanket "delayed by 2 years" — give bhukti-by-bhukti precision
+
+This is what separates accurate KP from generic Vedic timing.
+
 SCANNING THE FULL AD SEQUENCE:
 Always scan ALL remaining ADs in the current MD, not just the current one.
 The event window is the AD period where the AD lord is a topic significator.

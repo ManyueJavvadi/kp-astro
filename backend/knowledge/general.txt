@@ -29,22 +29,63 @@ SECTION 2: THE CUSPAL SUB LORD — MOST IMPORTANT RULE
 The sub lord of a house cusp determines whether that house's matter fructifies.
 This is the PRIMARY GATE. No favorable dasha can override a closed primary gate.
 
-HOW TO READ A CUSP SUB LORD:
-Step 1: Find the sub lord of the relevant cusp
-Step 2: Find which nakshatra (star) the sub lord is placed in
-Step 3: Find what houses the star lord of that sub lord signifies
-Step 4: Also check what houses the sub lord itself owns and occupies
-Step 5: The combined signification tells you what the cusp "connects to"
+HOW TO READ A CUSP SUB LORD (4-step expansion of significations):
+Step 1: Find the sub lord of the relevant cusp.
+Step 2: Find ALL houses signified by that sub lord through:
+  (a) Houses the sub lord OCCUPIES
+  (b) Houses the sub lord OWNS (sign lordship)
+  (c) Houses occupied/owned by the sub lord's STAR LORD
+  (d) Houses occupied/owned by the star lord of step (c) — the deepest layer
+Step 3: The UNION of all houses from steps (a)-(d) is the "signification set" of the CSL.
+Step 4: Compare this set against the topic's RELEVANT houses (promise) and DENIAL houses (obstruction).
 
-PROMISE VERDICT RULES:
-- STRONGLY PROMISED: Sub lord connects to all relevant houses
-- PROMISED: Sub lord connects to primary relevant house
-- CONDITIONAL: Sub lord has mixed connection — relevant + some obstacles
-- DELAYED: Sub lord connects to relevant houses + obstacle houses (6,8,12)
-- DENIED: Sub lord ONLY connects to houses that negate the matter
+NOTE ON 3-STEP VS 4-STEP THEORY:
+KSK's original Reader uses primarily a 3-step chain (Planet → Star Lord → Sub Lord, with sub lord
+as the final decider). The "4-step theory" (extending to "star lord of sub lord") was proposed
+by Sunil Gondhalekar post-KSK. Most modern KP software uses the 4-step expansion above to
+maximize signification capture. We follow the 4-step expansion in this engine.
 
-IMPROVING HOUSES (support most life events): 1, 2, 3, 6, 10, 11
-NEGATING HOUSES (obstruct or end matters): 4, 5, 8, 9, 12
+PROMISE VERDICT — 5-TIER SCALE (use this exact scale, not binary):
+
+1. STRONGLY PROMISED:
+   - CSL is an A-level or B-level significator of multiple relevant houses
+   - ZERO denial-house touch
+   - Event happens with smoothness, in the natural dasha window
+
+2. PROMISED:
+   - CSL signifies AT LEAST ONE relevant house (any A/B/C/D level)
+   - Denial-house touch is minimal or absent
+   - Event happens, may have minor delays
+
+3. CONDITIONAL (Dual Signification — KSK strict rule applies):
+   - CSL signifies BOTH relevant AND denial houses
+   - Per KSK Reader: event FIRES during bhuktis of relevant-house significators,
+     and is BLOCKED during bhuktis of denial-house significators
+   - This is bhukti-level precision, NOT a soft "happens with delay"
+   - When stating verdict: enumerate WHICH bhuktis fire vs which block
+
+4. WEAKLY PROMISED:
+   - CSL signifies relevant houses only at C-level or D-level (weak)
+   - Multiple bhuktis may pass without fruition
+   - Event likely only in specific high-confirmation windows (RP overlap)
+
+5. DENIED:
+   - CSL has ZERO connection to any relevant house at any level
+   - Only signifies denial houses
+   - Event will not happen in this lifetime
+   - **DENIAL IS RARE** — only declare denial when there is truly zero relevant signification
+
+UPACHAYA / NEGATING HOUSES (CONTEXTUAL — not absolute):
+KP recognizes the traditional Upachaya concept (improving houses 1, 2, 3, 6, 10, 11)
+as a CONTEXTUAL framework, NOT as an absolute rule. In KP:
+  - No house is INHERENTLY good or bad — context determines effect
+  - The cusp sub lord's signification of the topic's RELEVANT houses is what matters
+  - Upachaya houses are useful when CSL signification is ambiguous as a tiebreaker
+  - DO NOT declare an event "denied" simply because the CSL touches "negating" houses 4, 5, 8, 9, 12 —
+    those are denial houses ONLY for specific topics (e.g., 5/9 are negation for job, but 5 is RELEVANT for children)
+  - Always determine denial houses from the TOPIC, not from the generic Upachaya list
+
+REFERENCE: KSK Reader 1, "no planet is inherently good or bad — house signification context decides".
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 SECTION 3: COMPLETE HOUSE SIGNIFICATIONS
@@ -158,50 +199,122 @@ H12 (VYAYA — Losses/Foreign Settlement): Expenditures, losses, foreign land,
     - For foreign settlement: H12 sub lord signifying 9 and 12 → overseas possible
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SECTION 4: SIGNIFICATOR HIERARCHY — 4 LEVELS
+SECTION 4: SIGNIFICATOR HIERARCHY — A/B/C/D/E LEVELS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-For any house, collect significators in this order (strongest to weakest):
-Level 1: Planets OCCUPYING the house (strongest)
-Level 2: LORD of the house (sign lord of the cusp)
-Level 3: Planets in the STAR OF OCCUPANTS of the house
-Level 4: Planets in the STAR OF THE HOUSE LORD
+REFERENCE: KSK Reader V (1971 ed.) pp. 148-154 — "Order of Significators"
+
+For any house, collect significators in this order (STRONGEST to WEAKEST):
+
+LEVEL A (strongest, ~100% strength):
+  Planets in the CONSTELLATION (nakshatra) of the OCCUPANT of the house
+  Reasoning: such a planet "becomes a pipeline" for the occupant's house results
+
+LEVEL B (strong, ~75% strength):
+  OCCUPANTS of the house themselves
+  Direct presence in the house gives strong signification
+
+LEVEL C (moderate, ~50% strength):
+  Planets in the CONSTELLATION (nakshatra) of the OWNER (sign lord) of the house
+
+LEVEL D (weak, ~25% strength):
+  OWNER (sign lord) of the house cusp itself
+
+LEVEL E (very weak, ~10% strength — usually omitted):
+  Planets CONJOINED with or ASPECTED by any A-D significator
+
+NOTE: KSK's original Reader gives the ORDER (A>B>C>D) but does NOT assign exact percentages.
+The 100/75/50/25 percentages are modern practitioner convention, used as rule-of-thumb
+for relative weighting. Treat as ordinal first, percentages second.
+
+KEY PRINCIPLE — "ONE A BEATS THREE D's":
+A single A-level significator of relevant houses is generally stronger than three
+D-level significators. When a CSL is a D-level significator of relevant houses BUT
+an A-level significator of denial houses, the verdict tilts toward DENIED/CONDITIONAL,
+not PROMISED — even if the relevant-house "count" is higher.
 
 FRUITFUL SIGNIFICATORS:
-Those that appear in BOTH the significator list AND the Ruling Planets list.
-These are the planets that will actually trigger the event.
+Those that appear in BOTH the significator list AND the Ruling Planets list at the
+query moment. These are the planets that will actually trigger the event in the
+current dasha-bhukti window. RP-overlap is the strongest timing confirmation KP offers.
+
+SELF-SIGNIFICATOR (planet in own star):
+When a planet is placed in one of its OWN 3 nakshatras (e.g., Sun in Krittika/U-Phalguni/
+U-Ashadha), it becomes a SELF-SIGNIFICATOR — the primary significator of its house with
+undiluted purity. This rule applies regardless of other significators.
+Also: when no other planet occupies a planet's 3 stars, that planet becomes
+"self-strength" significator for its own house.
+
+CONJUNCTION (3.33° threshold):
+Two planets within 3.33° (one sub-division width) are considered CONJUNCT in KP.
+The conjoined planet acts as an agent of the planet it conjoins, taking on its
+house significations.
 
 RAHU AND KETU SPECIAL RULES:
-- Rahu/Ketu act as agents for the planet they are in conjunction with
-- If no conjunction: they act as agents for the sign lord of their position
-- Rahu is MORE powerful than the planet it conjoins
-- Rahu in H7 = strong marriage significator (acts for H7 matters)
-- Ketu represents separation, moksha, sudden endings, spiritual withdrawal
-- Ketu in H2 = emotional uncertainty about family/marriage matters
-- When Rahu's star lord is a strong marriage significator, Rahu becomes even stronger
+Priority order of Rahu/Ketu signification (KSK Reader 2):
+1. Conjoined planet (within 3.33°) — TAKES OVER fully; Rahu/Ketu express that planet's houses
+2. Planet aspecting Rahu/Ketu — secondary proxy
+3. Star (nakshatra) lord of Rahu/Ketu — tertiary proxy
+4. Sign lord (dispositor) — last priority, only when above are absent
+
+Rahu/Ketu OWN no signs (they only own nakshatras: Rahu owns Ardra, Swati, Shatabhisha;
+Ketu owns Ashwini, Magha, Mula). They are pure proxies.
+
+When Rahu/Ketu's nakshatra is UNTENANTED (no planet occupies it), only the proxy chain
+(conjunct → aspect → star lord → sign lord) applies. When TENANTED, the tenant adds
+its own signification.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SECTION 5: RULING PLANETS (RP) — DIVINE CONFIRMATION
+SECTION 5: RULING PLANETS (RP) — TIMING CONFIRMATION
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Ruling Planets at the moment of query — 5 factors:
+Ruling Planets at the moment of query/judgment — 7 factors (KSK + modern):
+
+KSK ORIGINAL 5 (Reader 4):
 1. Day lord (lord of the weekday)
-2. Lagna sign lord (lord of the ascendant sign at query time)
-3. Lagna star lord (lord of the nakshatra of the rising degree)
-4. Moon sign lord (lord of Moon's current sign)
-5. Moon star lord (lord of Moon's current nakshatra)
+2. Moon sign lord
+3. Moon star lord
+4. Lagna sign lord (at query time + place)
+5. Lagna star lord
 
-HOW TO USE RULING PLANETS:
-- Events are triggered by dasha/antardasha lords that are ALSO Ruling Planets
-- A significator NOT in Ruling Planets may still be relevant but timing is weaker
-- The BEST timing window = when a dasha lord is both a relevant significator AND a RP
-- Ruling Planets change hourly — they represent the cosmic moment of the question
+MODERN ADDITIONS (used by most current KP software):
+6. Lagna SUB lord
+7. Moon SUB lord
 
-OVERRIDE RULE:
-If a planet is BOTH a strong significator of relevant houses AND appears in
-Ruling Planets, it can partially override a weak cusp sub lord.
-Example: Venus as Lagna Star Lord AND H7 lord AND in Ruling Planets = can
-overcome even a conditional H7 sub lord for marriage promise.
+Our engine uses the 7-slot modern version. Both are legitimate KP — sub lords
+were added because they are the deciding factors in CSL analysis, so it's
+natural to include them in RP analysis too.
+
+HOW TO USE RULING PLANETS IN NATAL ANALYSIS:
+- RPs are computed at QUERY TIME at the ASTROLOGER'S CURRENT location (not natal)
+- They represent the cosmic stamp of the moment the question is asked
+- Events fire when the running Dasha/Bhukti lord is ALSO an RP at query time
+- RP-Dasha OVERLAP RULE: when current MD or AD lord is also an RP AND signifies
+  the relevant houses → strongest timing confirmation KP offers
+- A significator NOT in Ruling Planets may still produce results, but with weaker
+  timing certainty
+- Ruling Planets change hourly — they are dynamic, not natal
+
+NO KARAKA OVERRIDE — KP REJECTS PARASHARI KARAKA-CENTRIC REASONING:
+KSK explicitly stated: "no planet is inherently good or bad — house significations
+matter above everything." This means:
+
+- A weak/debilitated Venus does NOT prevent marriage if the 7th CSL is favorable
+- A strong/exalted Jupiter does NOT guarantee children if the 5th CSL is unfavorable
+- Karakas (Venus = marriage, Jupiter = children, Mars = property, Mercury = education)
+  are CONTEXTUAL information ONLY — they describe the natural significator, not the
+  deciding factor
+
+The CUSP SUB LORD is the deciding factor. Karakas are secondary.
+
+When a karaka happens to be the CSL of its own karaka-house, that's a strong signal
+(because the CSL is favorable AND happens to be the natural karaka). But the strength
+comes from the CSL signification, NOT from the karaka identity.
+
+RULING PLANETS RETROGRADE:
+If a Ruling Planet is in the star or sub of a retrograde planet, it should be
+DISCARDED from the RP list (per KSK Reader rule for horary). For natal-time
+RP analysis, this rule applies less strictly but is worth noting for confirmation.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 SECTION 6: TIMING — DASHA/ANTARDASHA/PRATYANTARDASHA

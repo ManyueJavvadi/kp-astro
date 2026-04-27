@@ -11,24 +11,67 @@ client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 # KNOWLEDGE BASE LOADER
 # ================================================================
 
-KNOWLEDGE_DIR = os.path.join(os.path.dirname(__file__), "..", "knowledge")
+# PR A1.3 — KNOWLEDGE_DIR was miswired. __file__ is backend/app/services/llm_service.py;
+# ".." goes up to backend/app; "knowledge" appended = backend/app/knowledge (DOES NOT EXIST).
+# The actual KB files live at backend/knowledge/. Two ".." needed.
+# This silent bug meant the Analysis LLM had been receiving ZERO knowledge content
+# since the Analysis tab was first built. Fixed here.
+KNOWLEDGE_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "knowledge")
 
 TOPIC_TO_FILE = {
     "marriage": "marriage.txt",
     "job": "job.txt",
+    "career": "job.txt",
+    "profession": "job.txt",          # alias to job.txt
     "foreign_travel": "foreign.txt",
     "foreign_settle": "foreign.txt",
     "education": "other_topics.txt",
     "children": "other_topics.txt",
+    "fertility": "other_topics.txt",  # alias maps to other_topics + children_detailed.md (deep load)
     "property": "other_topics.txt",
     "wealth": "other_topics.txt",
+    "finance": "other_topics.txt",
     "litigation": "other_topics.txt",
     "health": "health.txt",
     "divorce": "divorce.txt",
+    # PR A1.3 — relative-related topic aliases route to parents_family + bhavat_bhavam
+    "parents": "health.txt",
+    "mother": "health.txt",
+    "father": "health.txt",
+    "spouse": "marriage.txt",
+    "siblings": "other_topics.txt",
+    "general": "general.txt",
 }
 
-# Advanced KP files always loaded alongside topic-specific file
-ADVANCED_FILES = ["kp_csl_theory.txt", "timing_confirmation.txt", "planet_natures.txt"]
+# PR A1.3 — Topic-specific deep-dive files (loaded ALONGSIDE the topic file).
+# These contain detailed, gender-aware, multi-axis analysis for the topic.
+TOPIC_DEEP_DIVE = {
+    "children":   ["children_detailed.md"],
+    "fertility":  ["children_detailed.md"],
+    "health":     ["health_detailed.md"],
+    "job":        ["profession_detailed.md"],
+    "career":     ["profession_detailed.md"],
+    "profession": ["profession_detailed.md"],
+    # Relative analysis ALWAYS pulls in parents_family + bhavat_bhavam
+    "parents":    ["parents_family.md", "bhavat_bhavam.md"],
+    "mother":     ["parents_family.md", "bhavat_bhavam.md"],
+    "father":     ["parents_family.md", "bhavat_bhavam.md"],
+    "spouse":     ["parents_family.md", "bhavat_bhavam.md"],
+    "siblings":   ["parents_family.md", "bhavat_bhavam.md"],
+}
+
+# Advanced KP files always loaded alongside topic-specific file (every query).
+# These are foundational — every analysis benefits from them.
+# PR A1.3 — added bhavat_bhavam.md (relative analysis), multi_factor_queries.md
+# (combined questions), ksk_rejections.md (anti-Parashari guardrails).
+ADVANCED_FILES = [
+    "kp_csl_theory.txt",
+    "timing_confirmation.txt",
+    "planet_natures.txt",
+    "bhavat_bhavam.md",           # PR A1.3 — house-from-house methodology for relatives
+    "multi_factor_queries.md",    # PR A1.3 — handling combined questions
+    "ksk_rejections.md",          # PR A1.3 — what NOT to use (anti-Parashari)
+]
 
 def load_knowledge(topic: str) -> str:
     general_path = os.path.join(KNOWLEDGE_DIR, "general.txt")
@@ -46,12 +89,22 @@ def load_knowledge(topic: str) -> str:
                 content.append(f"=== KP RULES FOR {topic.upper()} ===\n" + f.read())
     except:
         pass
-    # Always load advanced KP theory files
+    # PR A1.3 — Topic-specific deep-dive files (children/health/profession/family).
+    # Loaded only when the topic actually requires them, to keep prompt size manageable.
+    for deep_file in TOPIC_DEEP_DIVE.get(topic, []):
+        deep_path = os.path.join(KNOWLEDGE_DIR, deep_file)
+        try:
+            with open(deep_path, "r", encoding="utf-8") as f:
+                section_name = deep_file.replace(".md", "").replace(".txt", "").upper().replace("_", " ")
+                content.append(f"=== {section_name} (DEEP DIVE) ===\n" + f.read())
+        except:
+            pass
+    # Always load advanced KP theory files (foundational, every query).
     for adv_file in ADVANCED_FILES:
         adv_path = os.path.join(KNOWLEDGE_DIR, adv_file)
         try:
             with open(adv_path, "r", encoding="utf-8") as f:
-                section_name = adv_file.replace(".txt", "").upper().replace("_", " ")
+                section_name = adv_file.replace(".md", "").replace(".txt", "").upper().replace("_", " ")
                 content.append(f"=== {section_name} ===\n" + f.read())
         except:
             pass
@@ -111,19 +164,49 @@ If the user disagrees with your analysis, do NOT change your verdict
 unless they provide new factual information about their chart.
 Stand by chart evidence. Sycophancy = wrong analysis.
 
-RULE 5 — PROMISE VERDICT — EXACT KP RULES (NEVER DEVIATE FROM THESE):
+RULE 5 — PROMISE VERDICT — 5-TIER SCALE WITH A/B/C/D STRENGTH (PR A1.3):
 
 UNIVERSAL "ANY ONE" THRESHOLD:
 For ANY topic, the event is PROMISED if the sub lord of the primary cusp
 signifies AT LEAST ONE relevant house through its complete chain.
 It does NOT need to signify all relevant houses. ANY ONE is sufficient.
 
-THREE VERDICTS:
-PROMISED: Sub lord touches ANY ONE relevant house → event will happen.
-CONDITIONAL: Sub lord touches relevant houses AND denial houses → event
-  happens but with obstacles/delays. NOT the same as DENIED.
-DENIED: Sub lord has ZERO connection to any relevant house AND only signifies
-  denial houses. DENIAL IS RARE — only when truly zero relevant house touch.
+FIVE-TIER VERDICT SCALE (use this exact scale per CSL signification level):
+
+1. STRONGLY PROMISED:
+   CSL is an A-level or B-level significator of multiple relevant houses,
+   with ZERO denial-house touch. Event happens smoothly.
+
+2. PROMISED:
+   CSL signifies at least ONE relevant house at any level (A/B/C/D).
+   Denial-house touch minimal/absent. Event happens, may have minor delays.
+
+3. CONDITIONAL (KSK STRICT BHUKTI RULE — see below):
+   CSL signifies BOTH relevant AND denial houses simultaneously.
+   Per KSK Reader: event FIRES during bhuktis of relevant-house significators,
+   and is BLOCKED during bhuktis of denial-house significators.
+   This is BHUKTI-LEVEL precision, not "soft happens with delay".
+   When stating verdict: enumerate WHICH bhuktis fire vs which block.
+
+4. WEAKLY PROMISED:
+   CSL signifies relevant houses only at C-level or D-level (weak strength).
+   Multiple bhuktis may pass without fruition. Event likely only in specific
+   high-confirmation windows (RP overlap required for timing certainty).
+
+5. DENIED (rare):
+   CSL has ZERO connection to any relevant house at any level.
+   Only signifies denial houses. Event will not happen.
+   RARE — only declare denial when there is truly zero relevant signification.
+
+A/B/C/D SIGNIFICATOR STRENGTH (KSK Reader V):
+A (~100%) = Planets in star of OCCUPANT of the house — STRONGEST
+B (~75%)  = OCCUPANTS of the house themselves
+C (~50%)  = Planets in star of OWNER (sign lord) of the house
+D (~25%)  = OWNER of the house cusp itself — WEAKEST main level
+
+ONE A-LEVEL TYPICALLY OUTWEIGHS THREE D-LEVELS.
+When CSL is A/B for relevant + D for denial → STRONGLY PROMISED.
+When CSL is D for relevant + A for denial → WEAKLY PROMISED with strong obstacles.
 
 RELEVANT AND DENIAL HOUSES BY TOPIC:
 
@@ -257,6 +340,89 @@ Use ONLY the house significations provided in the "HOUSE SIGNIFICATORS" section.
 NEVER say "Mercury signifies H8 and H10" unless shown in the provided data.
 NEVER infer significations from general KP knowledge or planet nature.
 The chart data is pre-calculated and authoritative. Trust it completely.
+
+RULE 11 — KSK STRICT BHUKTI-LEVEL RULE FOR DUAL SIGNIFICATION (PR A1.3):
+Direct quote from KSK Reader:
+"If the Dasa Lord is the significator of the 2nd, 5th, or 11th, AND 1st, 4th, or 10th
+(indicating childbirth AND its denial), then DURING THE BHUKTI of the significator
+of the 1st, 4th, or 10th, there will be NO childbirth."
+
+When the CSL or current dasha lord signifies BOTH relevant AND denial houses for a topic:
+- The event does NOT happen "with delay" or "softly conditional"
+- Instead: event FIRES during bhuktis of relevant-house significators
+- And is BLOCKED during bhuktis of denial-house significators
+- Same MD lord can produce the event in some bhuktis and block it in others
+
+WHEN ANSWERING TIMING QUESTIONS:
+1. Identify if MD/AD lord signifies BOTH relevant + denial houses
+2. If yes, list each upcoming bhukti individually:
+   - Bhuktis of relevant-house significators → "EVENT CAN FIRE in this window"
+   - Bhuktis of denial-house significators → "EVENT BLOCKED in this window"
+3. Do NOT give blanket "delayed by 2 years" — give bhukti-level precision
+
+This is what separates accurate KP from generic Vedic timing.
+
+RULE 12 — KARAKAS ARE CONTEXT, NEVER OVERRIDE CSL (PR A1.3):
+KSK explicitly rejected Parashari karaka-centric reasoning.
+
+- Even DEBILITATED Venus does NOT prevent marriage if H7 CSL is favorable
+- Even EXALTED Jupiter does NOT save children if H5 CSL is unfavorable
+- Karakas (Venus=marriage, Jupiter=children, Mars=property, Mercury=education)
+  are CONTEXTUAL information ONLY — they describe natural significator, not deciding factor
+
+The CSL is the deciding factor. Karaka tells you about QUALITY, not promise.
+
+NEVER write "strong Venus rescues weak H7 CSL — marriage promised". This is
+Parashari contamination. CSL signification IS the verdict.
+
+RULE 13 — RELATIVE/FAMILY QUESTIONS USE BHAVAT BHAVAM (PR A1.3):
+When user asks about a person OTHER than the native (mother, father, spouse,
+child, sibling, employer), DO NOT apply native's house list directly.
+
+Use Bhavat Bhavam ("house from house") translation — see BHAVAT BHAVAM section
+in knowledge base.
+
+Quick reference:
+- Mother's matters → use H4 as new H1
+- Father's matters → use H9 as new H1
+- Spouse's matters → use H7 as new H1
+- Child's matters → use H5 as new H1
+- Sibling (younger) → use H3 as new H1
+- Sibling (elder) → use H11 as new H1
+
+Example: "Will my mother's health improve?"
+- Mother's body = native's H4 (her H1)
+- Mother's recovery = native's H8 (her H5) + native's H2 (her H11)
+- Mother's disease = native's H9 (her H6)
+- CSL of native's H4 is the primary gate for mother's health verdict
+
+RULE 14 — MULTI-FACTOR QUERIES (PR A1.3):
+When user asks about MULTIPLE topics simultaneously ("marriage AND job",
+"career AND finances", "everything in next 5 years"):
+
+1. Identify each topic separately
+2. Address each topic's verdict + houses individually
+3. Synthesize: which dasha bhukti aligns BOTH topics' relevant houses
+4. Give specific timeline showing when topics overlap favorably
+5. Honest caveats when topics conflict in timing
+
+See MULTI FACTOR QUERIES section in knowledge base for templates.
+
+RULE 15 — REJECTED PARASHARI RULES (PR A1.3 — see KSK REJECTIONS in KB):
+DO NOT use any of these in KP analysis:
+- Sign-based aspects (KP uses stellar/sub-lord aspects only)
+- Rashi-level analysis (KP works at sub-lord level — same sign different sub = different verdict)
+- Exaltation/debilitation as primary verdict (irrelevant in KP)
+- Karaka-based override (rejected — see Rule 12)
+- Yoga names (Raja Yoga, Gajakesari, etc. — unreliable per KSK)
+- Friendship/enmity tables between planets (irrelevant in KP)
+- Generic gemstone recommendations (KP has specific rule — Asc/H11 sub lord must NOT
+  connect to 6, 8, 12)
+- Lahiri ayanamsa (KP requires KP Ayanamsa)
+- Whole-sign or Bhava Chalit houses (KP requires Placidus)
+- Divisional charts D9/D10 as primary (KP is D1 sub-lord based)
+- Death timing predictions (NEVER predict death — speak in terms of "challenging
+  health window" / "extra medical care needed")
 
 RULE 11 — FOUR-STEP SUB LORD ANALYSIS:
 When analyzing any cusp sub lord, trace all 4 steps:

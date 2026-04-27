@@ -82,12 +82,27 @@ Weak Venus (delays marriage):
 - Venus in H12 (isolation) → bed pleasures separate from legal marriage
 - Venus in star of planet in 6, 8, or 12
 
-CRITICAL OVERRIDE RULE:
-Even if H7 sub lord shows conditional/weak promise, if Venus is:
-- The lord of H7 AND H11
-- AND appears as Ruling Planet (Lagna Star Lord or Moon Star Lord)
-→ Venus's strength PARTIALLY OVERRIDES the weak H7 sub lord
-→ Verdict becomes CONDITIONAL rather than DENIED
+VENUS IS CONTEXT, NOT OVERRIDE — STRICT KP RULE:
+═══════════════════════════════════════════════════
+KSK explicitly stated KP rejects Parashari karaka-centric reasoning.
+Direct quote: "no planet is inherently good or bad — house signification matters above everything."
+
+This means:
+- Even DEBILITATED Venus does NOT prevent marriage if H7 CSL is favorable
+- Even EXALTED Venus does NOT save marriage if H7 CSL is unfavorable
+- Venus's strength is CONTEXT — it tells you about the QUALITY of marriage,
+  not whether it WILL HAPPEN
+
+The CSL of H7 is the deciding factor. Venus is contextual information ONLY.
+
+WHEN VENUS-CONTEXT MATTERS (quality, not promise):
+- Strong Venus + favorable H7 CSL → very happy, smooth marriage
+- Weak Venus + favorable H7 CSL → marriage happens but with friction in romance/intimacy
+- Strong Venus + unfavorable H7 CSL → person attracts partners but no legal marriage
+- Weak Venus + unfavorable H7 CSL → no marriage; if forced, unhappy
+
+DO NOT use Venus strength to "rescue" a weak H7 CSL verdict from DENIED to CONDITIONAL.
+The CSL signification is what determines promise. Period.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 SECTION 5: H7 SUB LORD — EACH PLANET'S MEANING FOR MARRIAGE

@@ -7,11 +7,33 @@ Source: K.S. Krishnamurti KP Readers + Vaastuinternational.com Rules
 PART 1: EDUCATION
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-RELEVANT HOUSES:
-School/College education: H4 (educational institution)
-Higher education/University: H9 (higher learning, research)
-Success in studies: H11 (fulfillment, passing)
-All education requires: H4, H9, H11 all connected
+RELEVANT HOUSES (LEVEL-BASED — different requirements per education level):
+
+EDUCATION PROMISE TIER 1 (any one for any-level promise):
+  H4 sub lord in star of Mercury or Jupiter = education is promised at all
+  Without this base, formal education is doubtful regardless of other houses
+
+EDUCATION PROMISE TIER 2 (basic / school-level — up to 12th std):
+  H4 sub lord signifying H4 + H11 (just the institution + completion)
+  Two-house connection sufficient for basic schooling
+
+EDUCATION PROMISE TIER 3 (higher / college / graduation):
+  H4 sub lord signifying H4 + H9 + H11 (institution + higher learning + completion)
+  ALL THREE needed for university-level education
+
+EDUCATION PROMISE TIER 4 (research / doctorate):
+  H9 sub lord signifying H4 + H9 + H11 + connection to Jupiter
+  Plus the native NOT being in barren signs at H9
+
+DENIAL HOUSES: H3 (break in study), H8 (interruption/scandal), H10 (status without education),
+  H12 (interruption from foreign / hospital / jail)
+
+KSK STRICT BHUKTI RULE applies — when CSL signifies both relevant + denial houses,
+the relevant-house bhuktis bring admission/exam success, denial-house bhuktis bring breaks.
+
+COMPETITIVE EXAMS / DEPARTMENTAL EXAMS:
+Add H6 (overcoming competition) and H10 (interview / authority assessment) to the
+relevant set. Now needs H4 + H6 + H9 + H10 + H11 connection in dasha.
 
 H4 CUSP FOR EDUCATION:
 "Sub lord of H4 cusp is in star of Mercury or Jupiter → promises education."
