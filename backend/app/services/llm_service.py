@@ -107,6 +107,10 @@ ADVANCED_FILES = [
     "bhavat_bhavam.md",           # PR A1.3 — house-from-house methodology for relatives
     "multi_factor_queries.md",    # PR A1.3 — handling combined questions
     "ksk_rejections.md",          # PR A1.3 — what NOT to use (anti-Parashari)
+    # PR A1.3d — pattern recognition + worked examples + confidence calibration
+    "pattern_library.md",         # named KP patterns the LLM should detect
+    "gold_standard_examples.md",  # 3 master-format complete analyses
+    "confidence_methodology.md",  # how the engine's 0-100 score is computed
 ]
 
 def load_knowledge(topic: str) -> str:
@@ -318,14 +322,27 @@ ALWAYS perform your own complete cuspal sub lord analysis using the house cusps
 and significators provided. Your verdict overrides the pre-calculation hint.
 NEVER base your final promise verdict solely on the pre-calculation.
 
-RULE 7 — DASHA HIERARCHY MUST BE RESPECTED (MD → AD → PAD):
+RULE 7 — DASHA HIERARCHY MUST BE RESPECTED (MD → AD → PAD → SOOKSHMA):
+A favorable Sookshma (sub-PAD) lord CANNOT override an unfavorable PAD lord.
 A favorable PAD lord CANNOT override an unfavorable AD lord.
 A favorable AD lord CANNOT override a total-denier MD lord.
 
-AD MUST SUPPORT PAD:
-For an event to occur in a PAD window, the AD lord must signify the relevant
-houses (at least partially). If AD lord has zero relevant house touch, NO PAD
-within that AD can produce the event regardless of how strong the PAD lord is.
+THE 4-LEVEL DASHA STACK:
+  Mahadasha (MD)  — years scale (the main era)
+  Antardasha (AD) — months to ~2 years (the sub-era)
+  Pratyantardasha (PAD) — weeks to months (the window)
+  Sookshma (SD)   — days to weeks (the day-precision sub-window)
+
+The chart data ALWAYS contains SOOKSHMA SEQUENCES for every PAD within
+the current AD (9 PADs × 9 sookshmas = 81 day-precision windows). Use
+these to pinpoint specific weeks within a PAD when an event is most
+likely to fire. NEVER tell the user "the chart data does not provide
+sub-PAD dates" — they are in the prompt under "SOOKSHMA SEQUENCES".
+
+AD MUST SUPPORT PAD MUST SUPPORT SOOKSHMA:
+For an event to occur in a Sookshma window, ALL of MD + AD + PAD + SD
+lords should signify relevant houses. The more layers that signify, the
+sharper the firing window.
 
 MD TOTAL DENIER CHECK:
 Before declaring any AD/PAD window as active, check the MD lord.
@@ -519,6 +536,58 @@ CRITICAL APPLICATIONS:
 
 NEVER write "if you are 30+" or "if you are male/female" — the values are
 provided. Read them and use them.
+
+RULE 18 — USE THE ENGINE'S ADVANCED COMPUTE BLOCK (PR A1.3c):
+For every Analysis-tab question, the chart data contains an
+"ADVANCED KP COMPUTE FOR TOPIC: X" block with pre-computed:
+  - Relevant + denial houses for the topic
+  - A/B/C/D significator hierarchy per relevant house (KSK Reader V)
+  - Fruitful significators (significator ∩ Ruling Planets)
+  - Self-strength flags (planets in own star — pure-result)
+  - Primary cusp sign type (movable/fixed/dual + fruitful/barren)
+  - Star–Sub Harmony layer split + verdict
+  - RP overlap on MD/AD + each upcoming AD
+  - Engine confidence score 0–100
+
+You MUST use these values directly:
+  - Cite A/B/C/D levels by name. "Mercury is an A-level significator of
+    H7" is correct. "Mercury signifies H7" is too flat — always state
+    the level.
+  - Cite the fruitful significators explicitly — these are the strongest
+    timing triggers (significator AND currently ruling).
+  - State the Star–Sub Harmony score (HARMONY/ALIGNED/MIXED/TENSION/
+    CONTRA/DENIED). Never write a CSL verdict without naming the score.
+  - For each upcoming AD, cite its RP overlap count + slot names. Higher
+    slots = riper timing. This is how you rank upcoming windows.
+  - For the engine confidence, cite it in section 1 of your output.
+    You may adjust ±10 only with explicit KSK reasoning (see
+    confidence_methodology.md for allowed adjustments).
+
+DO NOT recompute these values yourself — the engine has done the math
+correctly. Your job is to interpret, name patterns, and explain in
+KSK terms. Recomputation wastes tokens and risks contradiction.
+
+RULE 19 — PATTERN RECOGNITION + GOLD-STANDARD STRUCTURE (PR A1.3d):
+The KB contains pattern_library.md and gold_standard_examples.md.
+
+For every Analysis-tab question:
+  1. Scan pattern_library.md for any pattern whose conditions match
+     the chart's compute output (A/B/C/D, harmony, fruitful sigs, RP
+     overlaps, sign types).
+  2. Name every fired pattern by its ID (M1, C2, J3, T1, etc.) and
+     cite it in your analysis. Pattern naming is what distinguishes
+     a deep KSK reading from a generic significator scan.
+  3. If multiple patterns fire, list them in order of strength (RP-
+     confirmed patterns first).
+  4. Follow the 7-section structure shown in gold_standard_examples.md
+     EXACTLY: Direct Verdict / Cuspal Evidence / Fruitful Significators
+     / Timing Windows / Pratyantardasha / Pre-answered follow-ups /
+     Client summary.
+  5. Always include the engine's confidence score in section 1 (Direct
+     Verdict) and the calibration caveat in the Client summary.
+
+When in doubt about format or depth, re-read the gold standard examples
+and match their tone, structure, and explicit pattern naming.
 
 RULE 11 — FOUR-STEP SUB LORD ANALYSIS:
 When analyzing any cusp sub lord, trace all 4 steps:
@@ -910,17 +979,23 @@ def format_chart_for_llm(chart_data: dict) -> str:
         lines.append(f"Pre-calculation hint (VERIFY with your own cuspal analysis): {verdict} — {strength}")
         lines.append("IMPORTANT: This backend check is simplified — it may say DENIED when the real answer is CONDITIONAL. Always do your own full cuspal sub lord analysis using the house cusps and significators below. Your analysis overrides this hint.")
 
-    # Current dasha — MD + AD + PAD
+    # Current dasha — MD + AD + PAD + Sookshma (PR A1.3c-extras)
     if "current_dasha" in chart_data:
         d = chart_data["current_dasha"]
         md = d.get("mahadasha", {})
         ad = d.get("antardasha", {})
         pad = d.get("pratyantardasha", {})
+        sd = d.get("sookshma", {}) or {}
         lines.append(f"\nCURRENT DASHA:")
         lines.append(f"Mahadasha: {md.get('lord')} ({md.get('start')} → {md.get('end')})")
         lines.append(f"Antardasha: {ad.get('antardasha_lord')} ({ad.get('start')} → {ad.get('end')})")
         if pad:
             lines.append(f"Pratyantardasha (PAD): {pad.get('pratyantardasha_lord')} ({pad.get('start')} → {pad.get('end')})")
+        if sd and sd.get("sookshma_lord"):
+            lines.append(
+                f"Sookshma (sub-PAD): {sd.get('sookshma_lord')} "
+                f"({sd.get('start')} → {sd.get('end')}) — day-precision window"
+            )
 
     # CRITICAL — full antardasha sequence
     if "upcoming_antardashas" in chart_data:
@@ -942,6 +1017,26 @@ def format_chart_for_llm(chart_data: dict) -> str:
                     f"{pad.get('start')} → {pad.get('end')}"
                 )
 
+    # PR A1.3c-extras — Sookshma (sub-PAD / 4th level) for each PAD of the
+    # current AD. This is the day-precision layer the LLM uses to identify
+    # specific weeks within a PAD when an event is most likely to fire.
+    if chart_data.get("sookshmas_current_ad"):
+        lines.append(
+            f"\nSOOKSHMA SEQUENCES (sub-PAD / 4th level — day-precision) "
+            f"FOR EACH PAD WITHIN CURRENT ANTARDASHA:"
+        )
+        for pad_lord, sookshmas in chart_data["sookshmas_current_ad"].items():
+            if not sookshmas:
+                continue
+            pad_start = sookshmas[0].get("start") if sookshmas else ""
+            pad_end   = sookshmas[-1].get("end") if sookshmas else ""
+            lines.append(f"  [{pad_lord} PAD] {pad_start} → {pad_end}:")
+            for sd in sookshmas:
+                lines.append(
+                    f"    Sookshma {sd.get('sookshma_lord')}: "
+                    f"{sd.get('start')} → {sd.get('end')}"
+                )
+
     # Timing analysis
     if "timing_analysis" in chart_data:
         t = chart_data["timing_analysis"]
@@ -960,6 +1055,91 @@ def format_chart_for_llm(chart_data: dict) -> str:
         lines.append(f"Moon Sign Lord: {rp.get('moon_sign_lord')}")
         lines.append(f"Moon Star Lord: {rp.get('moon_star_lord')}")
         lines.append(f"All RPs: {rp.get('ruling_planets')}")
+
+    # PR A1.3c — Advanced compute block (A/B/C/D, harmony, fruitful, RP overlap, confidence)
+    if chart_data.get("advanced_compute"):
+        adv = chart_data["advanced_compute"]
+        topic_label = (adv.get("topic") or "").upper()
+        lines.append(f"\nADVANCED KP COMPUTE FOR TOPIC: {topic_label}")
+        lines.append(f"Relevant houses: {adv.get('relevant_houses', [])}")
+        lines.append(f"Denial houses (KSK strict): {adv.get('denial_houses', [])}")
+
+        # A/B/C/D significator levels per relevant house
+        sig_levels = adv.get("significators_by_level") or {}
+        if sig_levels:
+            lines.append("\nA/B/C/D SIGNIFICATOR HIERARCHY (KSK Reader V — A strongest):")
+            for house, levels in sig_levels.items():
+                a = levels.get("A") or []
+                b = levels.get("B") or []
+                c = levels.get("C") or []
+                d = levels.get("D") or []
+                lines.append(
+                    f"  H{house}:  A={a or '—'}  B={b or '—'}  C={c or '—'}  D={d or '—'}"
+                )
+
+        # Fruitful significators (significator ∩ Ruling Planets)
+        fruitful = adv.get("fruitful_significators") or []
+        lines.append(
+            f"\nFRUITFUL SIGNIFICATORS (significator ∩ RP — strongest timing): "
+            f"{fruitful or 'NONE — no significator is currently ruling, weaker timing'}"
+        )
+
+        # Self-strength flags (in own star = pure-result planet)
+        ss = adv.get("self_strength") or {}
+        ss_planets = [p for p, v in ss.items() if v]
+        if ss_planets:
+            lines.append(f"SELF-STRENGTH PLANETS (in own star — pure results): {ss_planets}")
+
+        # Primary cusp sign type (KSK overlay)
+        cs = adv.get("primary_cusp_sign_type") or {}
+        if cs:
+            lines.append(
+                f"PRIMARY CUSP SIGN: {cs.get('sign')} "
+                f"({cs.get('movability')}, {cs.get('fruitfulness')})"
+            )
+
+        # Star-Sub Harmony of the primary cusp's CSL
+        h = adv.get("star_sub_harmony") or {}
+        if h:
+            lines.append(
+                f"\nSTAR–SUB HARMONY (H{h.get('primary_cusp')} CSL = {h.get('csl_planet')}, "
+                f"in star of {h.get('star_lord')}, in sub of {h.get('sub_lord')}):"
+            )
+            lines.append(
+                f"  STAR layer signifies: {h.get('star_houses', [])} "
+                f"(rel={h.get('star_relevant', [])}, denial={h.get('star_denial', [])})"
+            )
+            lines.append(
+                f"  SUB layer signifies:  {h.get('sub_houses', [])} "
+                f"(rel={h.get('sub_relevant', [])}, denial={h.get('sub_denial', [])})"
+            )
+            lines.append(f"  HARMONY VERDICT: {h.get('harmony')}")
+
+        # RP overlap on MD/AD + upcoming ADs
+        rp_o = adv.get("rp_overlap") or {}
+        md_o = rp_o.get("md") or {}
+        ad_o = rp_o.get("ad") or {}
+        lines.append(
+            f"\nRP OVERLAP — MD lord {md_o.get('lord')}: {md_o.get('slots', 0)} RP slots; "
+            f"AD lord {ad_o.get('lord')}: {ad_o.get('slots', 0)} RP slots"
+        )
+        upcoming = rp_o.get("upcoming_antardashas") or []
+        if upcoming:
+            lines.append("UPCOMING ANTARDASHA RP-RIPENESS (higher slots = riper timing):")
+            for u in upcoming:
+                lines.append(
+                    f"  {u.get('antardasha_lord')} ({u.get('start')} → {u.get('end')}): "
+                    f"{u.get('rp_overlap', 0)} RP slots {u.get('rp_slots') or ''}"
+                )
+
+        # Per-topic confidence
+        conf = adv.get("confidence_score")
+        if conf is not None:
+            lines.append(
+                f"\nENGINE CONFIDENCE FOR THIS TOPIC: {conf}/100  "
+                f"(synthesised from promise + harmony + fruitful sigs + RP overlap; "
+                f"calibration is conservative — your KSK reasoning may justify ±10)"
+            )
 
     # Planet positions
     if "chart_summary" in chart_data:

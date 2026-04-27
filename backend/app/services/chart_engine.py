@@ -893,6 +893,67 @@ def get_current_pratyantardasha(pratyantardashas: list) -> dict:
     return pratyantardashas[-1]
 
 
+# ============================================================
+# PR A1.3c-extras — SOOKSHMA DASHA (4th-level / sub-PAD)
+# Day-precision windows. Used by Analysis tab to pinpoint the
+# specific weeks within a PAD where an event is most likely to fire.
+# ============================================================
+
+def calculate_sookshma_dashas(pratyantardasha: dict) -> list:
+    """
+    Calculate the 9 Sookshma Dashas (sub-PAD / 4th-level periods)
+    within a single Pratyantardasha.
+
+    Sookshma duration = PAD total duration × (sookshma_lord_years / 120)
+    Sequence starts from the PAD lord itself (same recursive Vimshottari rule
+    used for AD inside MD and PAD inside AD).
+
+    Typical scale: a 30-day PAD has Sookshmas of 2-5 days each.
+    """
+    from datetime import datetime, timedelta
+
+    pad_lord = pratyantardasha["pratyantardasha_lord"]
+    pad_start = datetime.strptime(pratyantardasha["start"], "%Y-%m-%d")
+    pad_end = datetime.strptime(pratyantardasha["end"], "%Y-%m-%d")
+    pad_total_days = (pad_end - pad_start).days
+
+    start_index = DASHA_SEQUENCE.index(pad_lord)
+
+    sookshmas = []
+    current_date = pad_start
+
+    for i in range(9):
+        sookshma_lord = DASHA_SEQUENCE[(start_index + i) % 9]
+        proportion = DASHA_YEARS[sookshma_lord] / TOTAL_DASHA_YEARS
+        sookshma_days = pad_total_days * proportion
+        end_date = current_date + timedelta(days=sookshma_days)
+
+        sookshmas.append({
+            "mahadasha_lord":      pratyantardasha.get("mahadasha_lord"),
+            "antardasha_lord":     pratyantardasha.get("antardasha_lord"),
+            "pratyantardasha_lord": pad_lord,
+            "sookshma_lord":       sookshma_lord,
+            "start": current_date.strftime("%Y-%m-%d"),
+            "end":   end_date.strftime("%Y-%m-%d"),
+        })
+
+        current_date = end_date
+
+    return sookshmas
+
+
+def get_current_sookshma(sookshmas: list) -> dict:
+    """Find currently running Sookshma (sub-PAD) period."""
+    from datetime import datetime
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    for sd in sookshmas:
+        if sd["start"] <= today <= sd["end"]:
+            return sd
+
+    return sookshmas[-1] if sookshmas else {}
+
+
 def get_upcoming_pratyantardashas(pratyantardashas: list, limit: int = 9) -> list:
     """Return current + upcoming PADs (not past ones)."""
     from datetime import datetime

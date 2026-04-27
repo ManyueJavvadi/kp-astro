@@ -464,6 +464,16 @@ def analyze_topic(request: AnalysisRequest):
         ad_lord = ad["antardasha_lord"]
         all_ad_pratyantardashas[ad_lord] = calculate_pratyantardashas(ad)
 
+    # PR A1.3c-extras — Sookshma Dasha (sub-PAD / 4th-level) for the
+    # current AD only. 9 PADs × 9 sookshmas = 81 entries; capped here.
+    # Going further (every PAD of every AD) would explode prompt size.
+    from app.services.chart_engine import calculate_sookshma_dashas, get_current_sookshma
+    sookshmas_current_ad: dict = {}
+    for pad in pratyantardashas:
+        pad_lord = pad.get("pratyantardasha_lord")
+        sookshmas_current_ad[pad_lord] = calculate_sookshma_dashas(pad)
+    current_sookshma = get_current_sookshma(sookshmas_current_ad.get(current_pad.get("pratyantardasha_lord"), [])) if current_pad else {}
+
     from app.services.chart_engine import (
         check_promise, check_dasha_relevance, get_all_house_significators
     )
@@ -481,6 +491,29 @@ def analyze_topic(request: AnalysisRequest):
     from app.services.chart_engine import get_planet_house_positions
     planet_positions = get_planet_house_positions(chart["planets"], chart["cusps"])
 
+    # PR A1.3c — advanced KP compute: A/B/C/D significator labels,
+    # fruitful significators (sig ∩ RP), self-strength flags, cusp sign
+    # types, Star-Sub harmony score, RP overlap per AD, topic confidence.
+    from app.services.kp_advanced_compute import compute_advanced_for_topic
+    promise_verdict_hint = (
+        "STRONGLY PROMISED" if promise.get("is_promised")
+        else "WEAKLY PROMISED"
+    )
+    # PR A1.3c — extract {slot, planet} list from rp_context.slot_assignments
+    # (the canonical 7-slot shape used by the RP engine).
+    rp_list = (ruling_planets.get("rp_context", {}) or {}).get("slot_assignments", []) if isinstance(ruling_planets, dict) else []
+    advanced = compute_advanced_for_topic(
+        topic=topic,
+        planets=chart["planets"],
+        cusps=chart["cusps"],
+        planet_positions=planet_positions,
+        ruling_planets_list=rp_list,
+        current_md_lord=(current_md or {}).get("lord"),
+        current_ad_lord=(current_ad or {}).get("antardasha_lord"),
+        upcoming_antardashas=antardashas,
+        promise_verdict=promise_verdict_hint,
+    )
+
     chart_data = {
         "name": request.name,
         # PR A1.3a — pass gender + birth_date + computed age so the LLM
@@ -496,13 +529,16 @@ def analyze_topic(request: AnalysisRequest):
             "mahadasha": current_md,
             "antardasha": current_ad,
             "pratyantardasha": current_pad,
+            "sookshma": current_sookshma,        # PR A1.3c-extras
         },
         "upcoming_antardashas": antardashas,
         "pratyantardashas_current_ad": pratyantardashas,
         "all_ad_pratyantardashas": all_ad_pratyantardashas,
+        "sookshmas_current_ad": sookshmas_current_ad,  # PR A1.3c-extras
         "ruling_planets": ruling_planets,
         "significators": all_significators,
         "planet_positions": planet_positions,
+        "advanced_compute": advanced,  # PR A1.3c
     }
 
     # Build language instruction with Telugu planet name reference
@@ -583,6 +619,16 @@ def quick_insights(request: QuickInsightsRequest):
     csl_chains = compute_csl_chains(cusps_list, planets_list)
     csl_text = format_csl_chains_for_llm(csl_chains)
 
+    # PR A1.3c — Ruling Planets + advanced compute for quick-insights too.
+    # Quick-insights previously had no RPs, which contributed to vague timing
+    # output. Compute once, attach per-topic advanced bundles in the loop.
+    ruling_planets = get_ruling_planets(
+        request.latitude, request.longitude, request.timezone_offset,
+    )
+    rp_list = (ruling_planets.get("rp_context", {}) or {}).get("slot_assignments", []) if isinstance(ruling_planets, dict) else []
+
+    from app.services.kp_advanced_compute import compute_advanced_for_topic
+
     chart_data = {
         "name": request.name,
         # PR A1.3a — gender + age so quick-insights also stops guessing.
@@ -596,6 +642,7 @@ def quick_insights(request: QuickInsightsRequest):
             "pratyantardasha": current_pad,
         },
         "upcoming_antardashas": antardashas[:9],
+        "ruling_planets": ruling_planets,           # PR A1.3c
         "significators": all_significators,
         "planet_positions": planet_positions,
         "csl_chains_text": csl_text,
@@ -604,6 +651,18 @@ def quick_insights(request: QuickInsightsRequest):
     results = {}
     for topic in request.topics:
         try:
+            # PR A1.3c — per-topic advanced compute (A/B/C/D, harmony, etc.)
+            chart_data["advanced_compute"] = compute_advanced_for_topic(
+                topic=topic,
+                planets=chart["planets"],
+                cusps=chart["cusps"],
+                planet_positions=planet_positions,
+                ruling_planets_list=rp_list,
+                current_md_lord=(current_md or {}).get("lord"),
+                current_ad_lord=(current_ad or {}).get("antardasha_lord"),
+                upcoming_antardashas=antardashas[:9],
+                promise_verdict=None,
+            )
             insight = get_quick_insights(chart_data, topic, request.language)
             results[topic] = insight
         except Exception as e:
