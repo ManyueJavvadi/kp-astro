@@ -589,6 +589,382 @@ def get_d9_sign(longitude: float) -> str:
     return sign_names[(start + nav_in_sign) % 12]
 
 
+# ── Intercepted signs (PR fix-8, #28) ───────────────────────────────
+# Placidus often produces intercepted signs (a sign that begins AND
+# ends within one house with no cusp falling in it). The intercepted
+# sign's lord rules part of that house but is "buried" — its effects
+# manifest LATER than expected, often after a triggering dasha unlocks
+# them.
+
+def detect_intercepted_signs(cusps: dict) -> Dict[str, object]:
+    """
+    For each sign 0..11, find which house its longitude range falls in.
+    A sign is INTERCEPTED if no cusp falls within its 30° range AND it
+    sits entirely between two cusp boundaries.
+
+    Returns:
+        intercepted_signs: list of {sign, lord, in_house, opposite_sign,
+                                    opposite_lord, opposite_in_house}
+        is_intercepted_chart: bool
+    """
+    if not cusps or "House_1" not in cusps:
+        return {"intercepted_signs": [], "is_intercepted_chart": False}
+
+    sign_names = [
+        "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
+        "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces",
+    ]
+    sign_lords = SIGN_LORDS  # imported from chart_engine
+
+    cusp_lons = [
+        cusps.get(f"House_{i}", {}).get("cusp_longitude", 0) % 360
+        for i in range(1, 13)
+    ]
+    cusp_signs = [int(l / 30) for l in cusp_lons]
+
+    # Which signs DO have a cusp falling in them?
+    signs_with_cusp = set(cusp_signs)
+    intercepted_idx = [i for i in range(12) if i not in signs_with_cusp]
+
+    out: List[Dict[str, object]] = []
+    for sidx in intercepted_idx:
+        # Find which house contains this sign's range
+        sign_start = sidx * 30.0
+        sign_mid   = sign_start + 15.0
+        # Walk cusps to find the house containing sign_mid
+        house = 0
+        for h in range(12):
+            start = cusp_lons[h]
+            end   = cusp_lons[(h + 1) % 12]
+            if end < start:  # wraps 360
+                if sign_mid >= start or sign_mid < end:
+                    house = h + 1
+                    break
+            else:
+                if start <= sign_mid < end:
+                    house = h + 1
+                    break
+
+        opposite_sidx = (sidx + 6) % 12
+        out.append({
+            "sign":              sign_names[sidx],
+            "lord":              sign_lords[sidx],
+            "in_house":          house,
+            "opposite_sign":     sign_names[opposite_sidx],
+            "opposite_lord":     sign_lords[opposite_sidx],
+            "note": (
+                f"Sign {sign_names[sidx]} (lord {sign_lords[sidx]}) is intercepted in "
+                f"H{house} — its themes are 'buried' and surface later in life, "
+                f"typically when {sign_lords[sidx]}'s dasha or transit through "
+                f"{sign_names[sidx]} activates them."
+            ),
+        })
+
+    return {
+        "intercepted_signs": out,
+        "is_intercepted_chart": len(out) > 0,
+    }
+
+
+# ── Stellium detection (PR fix-8, #43) ──────────────────────────────
+# A stellium = 3+ planets in the same house, especially when their
+# longitudes are tightly clustered. It concentrates the house's
+# themes powerfully.
+
+def detect_stelliums(
+    planet_positions: dict,
+    planets: dict,
+) -> List[Dict[str, object]]:
+    """
+    Returns list of stelliums:
+        {house, planets, longitude_range_deg, tightness}
+    where tightness is "tight" (<10° spread), "loose" (10-25°), or
+    "wide" (25°+).
+    """
+    by_house: Dict[int, List[str]] = {}
+    for p, h in planet_positions.items():
+        if 1 <= h <= 12:
+            by_house.setdefault(h, []).append(p)
+
+    out: List[Dict[str, object]] = []
+    for h, plist in by_house.items():
+        if len(plist) < 3:
+            continue
+        lons = [planets[p].get("longitude", 0) for p in plist]
+        lons_sorted = sorted(lons)
+        # Spread = max - min, considering ~30° per sign
+        spread = lons_sorted[-1] - lons_sorted[0]
+        if spread > 180:  # crosses 0/360
+            spread = 360 - spread
+        tight = "tight" if spread < 10 else ("loose" if spread < 25 else "wide")
+        out.append({
+            "house":               h,
+            "planets":             plist,
+            "longitude_spread_deg": round(spread, 2),
+            "tightness":           tight,
+            "note": f"Stellium in H{h}: {plist} concentrate this house's themes powerfully ({tight} cluster)",
+        })
+    return out
+
+
+# ── Lagna lord position auto-flag (PR fix-8, #44) ──────────────────
+
+LAGNA_LORD_HOUSE_NOTES = {
+    1:  "Lagna lord in own house — strong self-centered identity, robust health, self-reliant",
+    2:  "Lagna lord in H2 — wealth + family-driven identity, voice/speech-oriented",
+    3:  "Lagna lord in H3 — communication-driven identity, sibling-bonded, courage-defined",
+    4:  "Lagna lord in H4 — home/mother-anchored identity, real-estate inclination",
+    5:  "Lagna lord in H5 — creativity/children/intelligence-driven identity, romantic/playful",
+    6:  "Lagna lord in H6 — service/work-grind identity, health-conscious, may be debt-prone",
+    7:  "Lagna lord in H7 — partner-defined identity, public-facing, marriage-central",
+    8:  "Lagna lord in H8 — transformative/research identity, hidden depths, occult-leaning",
+    9:  "Lagna lord in H9 — fortune-blessed identity, philosophical, lineage-connected, often abroad",
+    10: "Lagna lord in H10 — career-defined identity, status-driven, public recognition primary",
+    11: "Lagna lord in H11 — gain-oriented identity, network-driven, friend-circle central",
+    12: "Lagna lord in H12 — introspective/foreign/spiritual identity, sacrifice-prone",
+}
+
+
+def lagna_lord_disposition(
+    cusps: dict,
+    planets: dict,
+    planet_positions: dict,
+) -> Dict[str, object]:
+    """Surface lagna lord's house position with interpretive note."""
+    if not cusps or "House_1" not in cusps:
+        return {"available": False}
+    lagna_lord = get_sign_lord_for_house(1, cusps)
+    if not lagna_lord or lagna_lord not in planets:
+        return {"available": False, "lagna_lord": lagna_lord}
+    house = planet_positions.get(lagna_lord, 0)
+    lp = planets[lagna_lord]
+    return {
+        "available":    True,
+        "lagna_lord":   lagna_lord,
+        "house":        house,
+        "sign":         lp.get("sign"),
+        "nakshatra":    lp.get("nakshatra"),
+        "star_lord":    lp.get("star_lord"),
+        "sub_lord":     lp.get("sub_lord"),
+        "note":         LAGNA_LORD_HOUSE_NOTES.get(house, ""),
+    }
+
+
+# ── Divisional charts D7, D10, D12 (PR fix-8, #35) ─────────────────
+# Similar formula to D9: each sign of 30° divides into N parts of
+# 30/N each. Sign assignment varies by sign type (movable/fixed/dual).
+
+SIGN_NAMES_DIV = [
+    "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
+    "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces",
+]
+
+
+def get_d10_sign(longitude: float) -> str:
+    """
+    D10 (Dasamsa) — 10 divisions of 3° each.
+    Used for career deep-dive.
+    Movable signs start D10 from same sign. Fixed start from 9th. Dual from 5th.
+    (Same starting-rule as D9 by Parashari convention.)
+    """
+    lon = longitude % 360
+    sidx = int(lon / 30)
+    pos_in_sign = lon - sidx * 30
+    div_idx = int(pos_in_sign / 3.0)
+    movable = {0, 3, 6, 9}; fixed = {1, 4, 7, 10}
+    if sidx in movable:    start = sidx
+    elif sidx in fixed:    start = (sidx + 8) % 12
+    else:                  start = (sidx + 4) % 12
+    return SIGN_NAMES_DIV[(start + div_idx) % 12]
+
+
+def get_d7_sign(longitude: float) -> str:
+    """
+    D7 (Saptamsa) — 7 divisions of 30/7 ≈ 4.286° each.
+    Used for children deep-dive.
+    Odd signs (Aries, Gemini, Leo, Libra, Sagittarius, Aquarius) start
+    from same sign. Even signs start from the 7th sign.
+    """
+    lon = longitude % 360
+    sidx = int(lon / 30)
+    pos_in_sign = lon - sidx * 30
+    div_idx = int(pos_in_sign / (30.0 / 7))
+    if div_idx > 6: div_idx = 6
+    if sidx % 2 == 0:   # odd signs (1st, 3rd, ... — 0-indexed even)
+        start = sidx
+    else:
+        start = (sidx + 6) % 12
+    return SIGN_NAMES_DIV[(start + div_idx) % 12]
+
+
+def get_d12_sign(longitude: float) -> str:
+    """
+    D12 (Dwadasamsa) — 12 divisions of 2.5° each.
+    Used for parents deep-dive.
+    All signs start D12 from themselves.
+    """
+    lon = longitude % 360
+    sidx = int(lon / 30)
+    pos_in_sign = lon - sidx * 30
+    div_idx = int(pos_in_sign / 2.5)
+    if div_idx > 11: div_idx = 11
+    return SIGN_NAMES_DIV[(sidx + div_idx) % 12]
+
+
+# ── Decision support framework (PR fix-8, #29) ─────────────────────
+# Aggregates all chart signals into a weighted go/no-go score for
+# binary "should I do X" questions.
+
+def decision_support_score(advanced: Dict[str, object]) -> Dict[str, object]:
+    """
+    For binary "should I do X" questions, produce a structured ledger:
+        signal | weight | direction (+/-) | contribution
+    Sums to a 0..100 go/no-go score with conflict-flagging.
+    """
+    if not advanced:
+        return {"available": False}
+    contributions: List[Dict[str, object]] = []
+    score = 50  # neutral baseline
+
+    # Promise verdict via confidence_score
+    conf = advanced.get("confidence_score", 50)
+    delta_conf = (conf - 50)  # -50..+50 contribution
+    contributions.append({
+        "signal": "Promise + harmony + fruitful + RP overlap composite (engine confidence)",
+        "weight": 0.5,
+        "direction": "+" if delta_conf > 0 else "-",
+        "contribution": round(delta_conf * 0.5, 1),
+        "raw": conf,
+    })
+    score += delta_conf * 0.5
+
+    # Star-Sub Harmony
+    h = advanced.get("star_sub_harmony") or {}
+    harmony_score_map = {"HARMONY": 15, "ALIGNED": 10, "MIXED": 0, "TENSION": -10, "CONTRA": -8, "DENIED": -15}
+    h_delta = harmony_score_map.get(h.get("harmony", "MIXED"), 0)
+    contributions.append({
+        "signal": f"Star-Sub Harmony = {h.get('harmony', 'MIXED')}",
+        "weight": 1.0,
+        "direction": "+" if h_delta > 0 else ("-" if h_delta < 0 else "neutral"),
+        "contribution": h_delta,
+    })
+    score += h_delta
+
+    # AD-sublord triggers (KSK timing rule)
+    triggers = advanced.get("ad_sublord_triggers") or []
+    fires = sum(1 for t in triggers if t.get("ksk_timing_active"))
+    if fires:
+        contributions.append({
+            "signal": f"{fires} upcoming AD lord(s) match supporting-cusp-sub-lord (KSK timing fires)",
+            "weight": 1.0,
+            "direction": "+",
+            "contribution": min(10, fires * 5),
+        })
+        score += min(10, fires * 5)
+
+    # Fruitful significators
+    fruitful = advanced.get("fruitful_significators") or []
+    if len(fruitful) >= 3:
+        contributions.append({
+            "signal": f"{len(fruitful)} fruitful significators (sig ∩ RP) — strong timing readiness",
+            "weight": 0.5,
+            "direction": "+",
+            "contribution": 8,
+        })
+        score += 8
+    elif len(fruitful) == 0:
+        contributions.append({
+            "signal": "0 fruitful significators — no timing trigger active right now",
+            "weight": 0.5,
+            "direction": "-",
+            "contribution": -5,
+        })
+        score -= 5
+
+    score = max(0, min(100, score))
+    verdict = (
+        "STRONG GO" if score >= 75 else
+        "LEAN GO" if score >= 60 else
+        "MIXED" if score >= 40 else
+        "LEAN NO" if score >= 25 else
+        "STRONG NO"
+    )
+
+    return {
+        "available":     True,
+        "score":         round(score, 1),
+        "verdict":       verdict,
+        "contributions": contributions,
+    }
+
+
+# ── Conflict flagging — Vimsottari vs Yogini disagreement (PR fix-8, #39) ──
+
+def flag_dasha_conflicts(
+    advanced: Dict[str, object],
+    yogini_data: Dict[str, object],
+) -> List[str]:
+    """
+    Identify cases where Vimsottari's KSK-fires AD has a Yogini lord
+    that is NOT a significator → reduce confidence by 5-10.
+    """
+    out: List[str] = []
+    flat_sigs = []
+    for h in (advanced.get("relevant_houses") or []):
+        for level in ("A", "B", "C", "D"):
+            flat_sigs.extend(advanced.get("significators_by_level", {}).get(h, {}).get(level, []) or [])
+    flat_sigs = set(flat_sigs)
+
+    triggers = advanced.get("ad_sublord_triggers") or []
+    xc = (yogini_data or {}).get("vimsottari_xcheck") or []
+    xc_by_lord = {x.get("ad_lord"): x for x in xc}
+    for t in triggers:
+        if not t.get("ksk_timing_active"):
+            continue
+        ad_lord = t.get("antardasha_lord")
+        x = xc_by_lord.get(ad_lord)
+        if not x:
+            continue
+        yog_lord = x.get("yogini_at_start")
+        if yog_lord and yog_lord not in flat_sigs:
+            out.append(
+                f"⚠️ CONFLICT: Vimsottari AD {ad_lord} ({t['start']} → {t['end']}) "
+                f"fires KSK rule, BUT concurrent Yogini lord {yog_lord} is NOT a "
+                f"topic significator → systems disagree, reduce confidence by 5-10."
+            )
+        elif yog_lord and yog_lord in flat_sigs:
+            out.append(
+                f"✓ CONVERGENCE: Vimsottari AD {ad_lord} + Yogini {yog_lord} BOTH "
+                f"signify topic ({t['start']} → {t['end']}) — peak window."
+            )
+    return out
+
+
+def compute_divisional_charts(planets: dict) -> Dict[str, Dict[str, str]]:
+    """
+    Returns:
+        {planet: {d1, d7, d9, d10, d12, vargottama_d9, vargottama_d10}}
+    """
+    out: Dict[str, Dict[str, str]] = {}
+    for pname, p in planets.items():
+        lon = p.get("longitude", 0)
+        d1 = p.get("sign", "")
+        d9 = get_d9_sign(lon)
+        d10 = get_d10_sign(lon)
+        d7 = get_d7_sign(lon)
+        d12 = get_d12_sign(lon)
+        out[pname] = {
+            "d1":              d1,
+            "d7":              d7,
+            "d9":              d9,
+            "d10":             d10,
+            "d12":             d12,
+            "vargottama_d9":   d1 == d9,
+            "vargottama_d10":  d1 == d10,
+        }
+    return out
+
+
 def detect_vargottama(planets: dict) -> Dict[str, Dict[str, object]]:
     """A planet is vargottama if D1 sign == D9 sign — strength multiplier."""
     out: Dict[str, Dict[str, object]] = {}
@@ -1268,6 +1644,12 @@ def compute_advanced_for_topic(
     moon_lon_local = (planets or {}).get("Moon", {}).get("longitude", 0)
     moon_gandanta = is_in_gandanta(moon_lon_local)
 
+    # PR A1.3-fix-8 — structural anomaly detection
+    intercepted     = detect_intercepted_signs(cusps)
+    stelliums       = detect_stelliums(planet_positions, planets)
+    lagna_lord_disp = lagna_lord_disposition(cusps, planets, planet_positions)
+    divisionals     = compute_divisional_charts(planets)
+
     # SAV strength of the topic's relevant houses — additional fitness signal
     sav_relevant: Dict[int, int] = {}
     if ashtakavarga.get("available"):
@@ -1310,4 +1692,9 @@ def compute_advanced_for_topic(
         "lagna_gandanta":   lagna_gandanta,
         "lagna_nakshatra_class": lagna_nak_class,
         "moon_gandanta":    moon_gandanta,
+        # PR A1.3-fix-8
+        "intercepted_signs":  intercepted,
+        "stelliums":          stelliums,
+        "lagna_lord_disposition": lagna_lord_disp,
+        "divisional_charts":  divisionals,
     }

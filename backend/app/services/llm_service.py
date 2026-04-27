@@ -80,6 +80,16 @@ TOPIC_TO_FILE = {
     "spouse": "marriage.txt",
     "siblings": "general.txt",  # was other_topics.txt; siblings deep-dive lives in parents_family.md
     "general": "general.txt",
+    # PR A1.3-fix-8 — personality + free-form topics
+    "personality": "general.txt",
+    "fame":        "general.txt",
+    "creativity":  "general.txt",
+    "spirituality":"general.txt",
+    "addiction":   "general.txt",
+    "mental_health": "general.txt",
+    "friendship":  "general.txt",
+    "decision":    "general.txt",
+    "comparison":  "general.txt",
 }
 
 # PR A1.3 — Topic-specific deep-dive files (loaded ALONGSIDE the topic file).
@@ -114,6 +124,9 @@ ADVANCED_FILES = [
     "pattern_library.md",         # named KP patterns the LLM should detect
     "gold_standard_examples.md",  # 3 master-format complete analyses
     "confidence_methodology.md",  # how the engine's 0-100 score is computed
+    # PR A1.3-fix-8 — personality + remedies (always loaded; many topics route to general.txt)
+    "personality_psychology.md",  # personality reading + free-form topic routing + intent
+    "remedies.md",                # KP parihara — behavioural-first remedies framework
 ]
 
 def load_knowledge(topic: str) -> str:
@@ -685,6 +698,90 @@ The chart data includes a YOGINI DASHA CROSS-CHECK block (parallel
 - PLANETARY RETURNS: Saturn return ~age 28-30 = first major adult
   pivot. Jupiter returns every 12 years = expansion phases. Cite
   these as life-arc waypoints when the topic spans 5+ years.
+
+RULE 28 — STRUCTURAL ANOMALY DETECTION (PR fix-8):
+The chart data may include flags for:
+  - INTERCEPTED SIGNS (Placidus quirk; sign with no cusp falling in
+    its 30° range — themes "buried" in that house, surface late when
+    sign-lord's dasha activates)
+  - STELLIUMS (3+ planets in one house — concentrated theme firing)
+  - LAGNA LORD DISPOSITION (the lord of H1 placed in another house
+    — defines which life area carries the self most strongly)
+
+When these flags are present, ALWAYS cite them in the prediction. They
+are HIGH-SIGNAL structural features that color every other reading.
+Examples:
+  - Intercepted sign in H10 → career-themes that surface only after
+    a specific dasha activation
+  - Stellium in H10 with Mercury+Venus → career is concentrated (but
+    may also have "all-eggs-in-one-basket" risk)
+  - Lagna lord in H9 → fortune-blessed self, philosophical, often
+    abroad-leaning life arc
+
+RULE 29 — DECISION SUPPORT + CONFLICT FLAGS (PR fix-8):
+For binary "should I do X" / "is now a good time" questions:
+  - Use the DECISION SUPPORT LEDGER block in the chart_data — it has
+    a 0-100 composite score with weighted contributions
+  - Cite the score + verdict (STRONG GO / LEAN GO / MIXED / LEAN NO /
+    STRONG NO) in the answer
+  - List the top 3 contributions (positive + negative) so the user
+    sees the reasoning
+For timing predictions:
+  - Use DASHA CONFLICT / CONVERGENCE FLAGS — when Vimsottari and
+    Yogini agree → CONVERGENCE (peak window). When they disagree →
+    flag the conflict and reduce confidence by 5-10.
+
+RULE 30 — PERSONALITY + FREE-FORM TOPICS (PR fix-8):
+For personality questions ("what kind of person am I?"), use the
+4-pillar framework from personality_psychology.md:
+  Pillar 1: Lagna (sign + nakshatra + sub lord + lagna lord position)
+  Pillar 2: Moon (sign + nakshatra + house + aspects)
+  Pillar 3: Sun (sign + house + nakshatra)
+  Pillar 4: Mercury (sign + nakshatra + combust state)
+
+For free-form topics ("fame", "creativity", "spirituality", etc.):
+  Use the topic-routing table in personality_psychology.md to identify
+  which houses + planets to analyze. Topics not in the fixed list
+  route to "general.txt" but the personality_psychology.md provides
+  structured routing.
+
+For multi-axis questions ("X vs Y"):
+  Score each axis independently and present a side-by-side comparison.
+
+RULE 31 — INTENT-SHAPED OUTPUT + REMEDIES (PR fix-8):
+INFER the user's INTENT from question phrasing and shape output:
+  - "Tell me everything" → all 7 sections, balanced depth
+  - "Specific yes/no" → tight verdict + 2-3 primary signals
+  - "When?" → expand timing/PAD/sookshma sections
+  - "Why?" → expand cuspal-evidence/causal-chain
+  - "Should I?" → use decision-support format (RULE 29)
+  - "Compare X vs Y" → side-by-side table
+  - "What kind of [partner/career/etc.]?" → profile-focused
+
+REMEDIES SECTION:
+For predictions showing delay/denial/friction patterns, ADD a brief
+remedies section per remedies.md framework. Order: behavioural →
+service → mantra → material (last resort, with KP gemstone guard rule:
+gemstone contraindicated if H1 OR H11 sub lord signifies 6/8/12).
+Keep remedies section to 4-6 actionable items max. Always state:
+"These are practices, not magic — consistent application is what
+shifts patterns. Combine with appropriate professional consultation
+(medical/legal/financial) where relevant."
+
+SENSITIVE PREDICTION PROTOCOL:
+For sensitive areas (mental health, addiction, fertility loss,
+divorce, severe career failure):
+  - State the chart pattern factually
+  - Frame as a tendency/risk window, not a certainty
+  - Add harm-reduction suggestions
+  - Recommend appropriate professional consultation (therapist,
+    medical doctor, lawyer, financial advisor) FIRST, astrology
+    second
+  - Never use fear-mongering language
+
+For death-related questions: per RULE 15, NEVER predict death timing.
+Speak in terms of "challenging health window — recommend extra
+medical care during X period."
 
 RULE 21 — KSK STRICT TIMING TRIGGER: AD-LORD = SUPPORTING-CUSP-SUB-LORD (PR fix-5):
 
@@ -1455,6 +1552,67 @@ def format_chart_for_llm(chart_data: dict) -> str:
                 lines.append(f"  LAGNA in gandanta — {lg.get('zone')} ({lg.get('side')}) → identity/transformation tests")
             if mg.get("in_gandanta"):
                 lines.append(f"  MOON in gandanta — {mg.get('zone')} ({mg.get('side')}) → emotional/anxiety zones")
+
+        # PR A1.3-fix-8 — Intercepted signs (Placidus structural feature)
+        intc = adv.get("intercepted_signs") or {}
+        if intc.get("is_intercepted_chart"):
+            lines.append("\nINTERCEPTED SIGNS (Placidus quirk — sign 'buried' inside a house, themes surface late):")
+            for s in intc.get("intercepted_signs", []):
+                lines.append(
+                    f"  {s.get('sign')} (lord {s.get('lord')}) intercepted in H{s.get('in_house')} "
+                    f"— {s.get('note', '')}"
+                )
+
+        # PR A1.3-fix-8 — Stellium detection
+        stelliums = adv.get("stelliums") or []
+        if stelliums:
+            lines.append("\nSTELLIUMS (3+ planets concentrated in one house — high-signal pattern):")
+            for s in stelliums:
+                lines.append(
+                    f"  H{s.get('house')} stellium: {s.get('planets')} "
+                    f"(spread {s.get('longitude_spread_deg')}°, {s.get('tightness')}) — {s.get('note', '')}"
+                )
+
+        # PR A1.3-fix-8 — Lagna lord disposition
+        ll = adv.get("lagna_lord_disposition") or {}
+        if ll.get("available"):
+            lines.append(
+                f"\nLAGNA LORD DISPOSITION: {ll.get('lagna_lord')} in H{ll.get('house')} "
+                f"({ll.get('sign')}, nakshatra {ll.get('nakshatra')}) — {ll.get('note', '')}"
+            )
+
+        # PR A1.3-fix-8 — Divisional charts (D7/D9/D10/D12)
+        dvc = adv.get("divisional_charts") or {}
+        if dvc:
+            lines.append("\nDIVISIONAL CHARTS (D7=children, D9=marriage/strength, D10=career, D12=parents):")
+            for p, d in dvc.items():
+                vargs = []
+                if d.get("vargottama_d9"): vargs.append("D9-vargottama")
+                if d.get("vargottama_d10"): vargs.append("D10-vargottama")
+                vmark = f" [{', '.join(vargs)}]" if vargs else ""
+                lines.append(
+                    f"  {p:8} D1={d.get('d1'):11} D7={d.get('d7'):11} D9={d.get('d9'):11} "
+                    f"D10={d.get('d10'):11} D12={d.get('d12'):11}{vmark}"
+                )
+
+        # PR A1.3-fix-8 — Decision support framework (only emit if asked)
+        # Note: this is computed lazily based on chart_data; emit when present.
+        ds = chart_data.get("decision_support") or {}
+        if ds.get("available"):
+            lines.append("\nDECISION SUPPORT LEDGER (for 'should I do X' questions):")
+            lines.append(f"  Composite score: {ds.get('score')}/100 — verdict: {ds.get('verdict')}")
+            for c in ds.get("contributions", []):
+                lines.append(
+                    f"  - {c.get('signal'):60} | weight {c.get('weight')} | {c.get('direction')} | "
+                    f"contribution {c.get('contribution')}"
+                )
+
+        # PR A1.3-fix-8 — Conflict flags (Vimsottari ↔ Yogini disagreements)
+        cf = chart_data.get("dasha_conflicts") or []
+        if cf:
+            lines.append("\nDASHA CONFLICT / CONVERGENCE FLAGS (cross-system check):")
+            for f in cf:
+                lines.append(f"  {f}")
 
     # PR A1.3-fix-6 — Transit bundle (current transits + Sade Sati + key cusp transits + upcoming)
 

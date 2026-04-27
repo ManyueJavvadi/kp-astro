@@ -564,6 +564,17 @@ def analyze_topic(request: AnalysisRequest):
     except Exception:
         yogini_data = {}
 
+    # PR A1.3-fix-8 — decision support + conflict flags
+    try:
+        from app.services.kp_advanced_compute import (
+            decision_support_score, flag_dasha_conflicts,
+        )
+        decision_data = decision_support_score(advanced)
+        conflict_flags = flag_dasha_conflicts(advanced, yogini_data)
+    except Exception:
+        decision_data = {}
+        conflict_flags = []
+
     chart_data = {
         "name": request.name,
         # PR A1.3a — pass gender + birth_date + computed age so the LLM
@@ -592,6 +603,8 @@ def analyze_topic(request: AnalysisRequest):
         "advanced_compute": advanced,  # PR A1.3c
         "transits": transits,          # PR A1.3-fix-6
         "yogini_dasha": yogini_data,   # PR A1.3-fix-7
+        "decision_support": decision_data,   # PR A1.3-fix-8
+        "dasha_conflicts": conflict_flags,   # PR A1.3-fix-8
     }
 
     # Build language instruction with Telugu planet name reference
