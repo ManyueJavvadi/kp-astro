@@ -41,15 +41,10 @@ Don't generalize from sign.
 
 ## 3. KSK Rejected: Exaltation / Debilitation as Primary
 
-**Wrong (Parashari)**: "Saturn is exalted in Libra so it gives good results.
-Mars is debilitated in Cancer so weak."
-
-**Right (KP)**: Exaltation and debilitation are IRRELEVANT in KP. A debilitated
-planet with strong sub-lord connection to topic-favorable houses gives FULL
-results. An exalted planet with bad CSL connection gives NO results.
-
-NEVER say "your debilitated Mars means..." in a KP analysis. Talk only about
-which houses Mars signifies.
+NEVER use "exalted" or "debilitated" as the verdict driver. The full rule
++ worked examples live in `planet_natures.txt` → "EXALTATION AND
+DEBILITATION IN KP" section. Talk only about which houses the planet
+signifies.
 
 ---
 

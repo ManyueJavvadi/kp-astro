@@ -124,12 +124,37 @@ ADVANCED_FILES = [
     "pattern_library.md",         # named KP patterns the LLM should detect
     "gold_standard_examples.md",  # 3 master-format complete analyses
     "confidence_methodology.md",  # how the engine's 0-100 score is computed
-    # PR A1.3-fix-8 — personality + remedies (always loaded; many topics route to general.txt)
-    "personality_psychology.md",  # personality reading + free-form topic routing + intent
+    # PR A1.3-fix-8 — remedies always loaded (small, broadly relevant when
+    # any friction signal fires; RULE 31 trigger is universal across topics).
     "remedies.md",                # KP parihara — behavioural-first remedies framework
     # PR A1.3-fix-9 — transit interpretation rules (was orphaned 156-line KB never loaded)
     "transit_rules.txt",          # KP transit (Gocharya) interpretation principles
 ]
+
+# PR A1.3-fix-13 — conditional KB files (loaded only when topic matches
+# the relevance set). Each ~2-3K tokens; saves cache-read cost per
+# question on topics that don't need them.
+#
+# personality_psychology.md (~2.3K tokens):
+#   Heavy framework for psyche / behaviour / archetype questions.
+#   Marriage / job / health questions don't reference psychological
+#   archetypes — the file mostly burns tokens for those topics.
+#
+# Note: this file moves OUT of universal_kb INTO topic_kb when relevant.
+# Keeps universal_kb cache-stable (the whole point of fix-12) while
+# trimming token-waste on irrelevant-topic queries.
+CONDITIONAL_KB_FILES: dict = {
+    "personality_psychology.md": {
+        "personality",
+        "fame",
+        "creativity",
+        "spirituality",
+        "decision",
+        "friendship",
+        "addiction",
+        "mental_health",
+    },
+}
 
 import logging
 _log = logging.getLogger("llm_service.kb")
@@ -223,6 +248,19 @@ def load_topic_kb(topic: str) -> str:
         deep_section = _read_kb_file(deep_file, f"{section_name} (DEEP DIVE)")
         if deep_section:
             content.append(deep_section)
+
+    # PR A1.3-fix-13 — conditional KB files (B1). Files like
+    # personality_psychology.md are loaded ONLY when the topic is in
+    # their relevance set, saving ~2-3K tokens per non-relevant query.
+    for cond_file, relevant_topics in CONDITIONAL_KB_FILES.items():
+        if topic in relevant_topics:
+            section_name = (
+                cond_file.replace(".md", "").replace(".txt", "")
+                .upper().replace("_", " ")
+            )
+            cond_section = _read_kb_file(cond_file, section_name)
+            if cond_section:
+                content.append(cond_section)
 
     assembled = "\n\n".join(content)
     _TOPIC_CACHE[cache_key] = assembled
@@ -1404,37 +1442,58 @@ def get_prediction(chart_data: dict, question: str, history: list = [], mode: st
     # Conversation history goes in messages[] AFTER all four cache
     # breakpoints, so its turn-by-turn growth no longer invalidates them.
     #
-    # Cache TTL: 5-minute ephemeral on all blocks (Anthropic default).
-    # 1-hour TTL is a future optimization (requires anthropic-beta header).
+    # Cache TTL strategy (PR A1.3-fix-13 — extended cache TTL):
+    #   1h on: system_prompt, chart_summary, universal_kb
+    #          (these never change within a session; 1h amortizes the
+    #          write penalty across long astrologer consultations and
+    #          across the natural 5-30 minute gaps between client
+    #          questions).
+    #   5m on: topic_kb
+    #          (varies per topic; topic switches happen mid-session, so
+    #          5m's smaller write penalty is the right trade).
+    #
+    # Cost math for 1h vs 5m on a stable block:
+    #   - 1h cache write: 2.0× input price (vs 1.25× for 5m)
+    #   - 1h cache read:  0.1× (same as 5m)
+    #   - Break-even: any 2nd use within an hour. Astrologer sessions
+    #     reliably exceed this — typical session is 5-15 questions over
+    #     20-45 min on the same chart.
+    #
+    # Beta header `extended-cache-ttl-2025-04-11` is required for the
+    # `ttl: "1h"` field.
     #
     # Expected impact:
     #   - Follow-up same-topic: ~67% cost reduction (4/4 blocks hit)
-    #   - Follow-up cross-topic: ~50-65% cost reduction (3/4 blocks hit;
-    #     only topic_kb re-writes)
+    #   - Follow-up cross-topic: ~50-65% cost reduction (3/4 blocks hit)
     #   - First call of session: ~equal to today (cache writes paid)
+    #   - 5-30min gaps between questions: no cache-rewrite tax (was a
+    #     hidden hot loss with 5m TTL — user pauses to think → cache
+    #     expires → next question pays write again)
     #   - Quality: zero impact (semantically identical request to LLM)
 
     system_blocks = [
         {
             "type": "text",
             "text": get_system_prompt(),
-            "cache_control": {"type": "ephemeral"},
+            "cache_control": {"type": "ephemeral", "ttl": "1h"},
         },
         {
             "type": "text",
             "text": f"---\n\nCHART DATA:\n{chart_summary}",
-            "cache_control": {"type": "ephemeral"},
+            "cache_control": {"type": "ephemeral", "ttl": "1h"},
         },
         {
             "type": "text",
             "text": f"---\n\nKP UNIVERSAL KNOWLEDGE BASE:\n{universal_kb}",
-            "cache_control": {"type": "ephemeral"},
+            "cache_control": {"type": "ephemeral", "ttl": "1h"},
         },
     ]
     if topic_kb:
         # Only emit a 4th block when the topic has specific content. For
         # "general" topic, topic_kb is empty and we skip — keeps the
         # cache prefix shorter and avoids a no-op breakpoint.
+        # 5m TTL because topic switches mid-session — smaller write penalty
+        # is the right trade vs the chance of a topic-revisit within 1h.
         system_blocks.append(
             {
                 "type": "text",
@@ -1460,12 +1519,15 @@ Perform complete KP analysis. Format output for {mode.upper()} mode as instructe
 
     max_tokens = 16000 if mode == "astrologer" else 4000
 
+    # PR A1.3-fix-13 — beta header required for `ttl: "1h"` on ephemeral
+    # cache blocks. Without it, the API rejects the ttl field.
     message = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=max_tokens,
         temperature=0,
         system=system_blocks,
         messages=messages,
+        extra_headers={"anthropic-beta": "extended-cache-ttl-2025-04-11"},
     )
 
     return message.content[0].text
