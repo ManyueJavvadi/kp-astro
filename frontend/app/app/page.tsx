@@ -438,10 +438,14 @@ export default function Home() {
     const currentQuestion = question;
     setQuestion("");
     try {
+      // PR A1.3-fix-14 — gender now wired through so the NATIVE PROFILE
+      // block reaches the LLM (kills the PCOD-for-male bug for general
+      // user mode that astrologer mode had already fixed in fix-1).
       const res = await axios.post(`${API_URL}/prediction/ask`, {
         name: birthDetails.name, date: formattedDate, time: getTime24(),
         latitude: birthDetails.latitude, longitude: birthDetails.longitude,
-        timezone_offset: timezoneOffset, topic: "auto", question: currentQuestion, mode: "user",
+        timezone_offset: timezoneOffset, gender: birthDetails.gender || "",
+        topic: "auto", question: currentQuestion, mode: "user",
         history: messages.slice(-4).map(m => ({ question: m.question, answer: m.answer }))
       });
       setMessages(prev => [...prev, { id: Date.now().toString(), question: currentQuestion, answer: res.data.answer, analysis: res.data.analysis, timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }]);

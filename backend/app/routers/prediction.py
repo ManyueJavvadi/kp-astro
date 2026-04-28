@@ -1,20 +1,36 @@
+"""
+prediction.py — General-user analysis endpoint.
+
+PR A1.3-fix-14: REVAMPED to use the shared `chart_pipeline.build_full_chart_data`
+so general user mode now has IDENTICAL structural accuracy to astrologer mode.
+
+Before this rev:
+  /prediction/ask was missing compute_advanced_for_topic, transit bundle,
+  Yogini Dasha, decision_support_score, sookshma fire-rank, gender, and
+  age. The PCOD-for-male hallucination + age-hedging bugs (fixed for
+  astrologer mode in PR A1.3a) were still active for general users.
+
+After this rev:
+  Backend compute is identical for both routes. Only the LLM output
+  format differs (plain English narrative for user mode vs 7-section
+  structured for astrologer mode), driven by the existing
+  `IF MODE = USER:` branch in the system prompt.
+"""
+
 from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import List
+
 from app.services.llm_service import get_prediction, detect_topic
-from app.services.chart_engine import (
-    generate_chart, calculate_dashas, get_current_dasha,
-    calculate_antardashas, get_current_antardasha,
-    calculate_pratyantardashas, get_current_pratyantardasha,
-    check_promise, check_dasha_relevance, get_ruling_planets,
-    get_all_house_significators
-)
+from app.services.chart_pipeline import build_full_chart_data
 
 router = APIRouter()
+
 
 class HistoryItem(BaseModel):
     question: str
     answer: str
+
 
 class PredictionRequest(BaseModel):
     name: str
@@ -23,104 +39,83 @@ class PredictionRequest(BaseModel):
     latitude: float
     longitude: float
     timezone_offset: float = 5.5
+    # PR A1.3-fix-14 — gender now wired through to backend so the
+    # NATIVE PROFILE block reaches the LLM. Without this, the AI guesses
+    # gender from name (caused PCOD predictions for males).
+    gender: str = ""
     topic: str = "auto"
     question: str
     history: List[HistoryItem] = []
     mode: str = "user"
 
+
 @router.post("/ask")
 def ask_prediction(request: PredictionRequest):
-
-    chart = generate_chart(
-        request.date, request.time,
-        request.latitude, request.longitude,
-        request.timezone_offset
+    # Topic detection — same Haiku call used by astrologer mode. Detected
+    # topic feeds into advanced_compute_for_topic so significators are
+    # weighted for the right life domain.
+    topic = (
+        request.topic
+        if request.topic and request.topic != "auto"
+        else detect_topic(request.question)
     )
-
-    moon_longitude = chart["planets"]["Moon"]["longitude"]
-
-    dashas = calculate_dashas(
-        request.date, request.time,
-        moon_longitude, request.timezone_offset
-    )
-    current_md = get_current_dasha(dashas)
-    antardashas = calculate_antardashas(current_md)
-    current_ad = get_current_antardasha(antardashas)
-
-    # PAD calculation for current AD
-    pratyantardashas = calculate_pratyantardashas(current_ad)
-    current_pad = get_current_pratyantardasha(pratyantardashas)
-    all_ad_pratyantardashas = {}
-    for ad in antardashas:
-        ad_lord = ad["antardasha_lord"]
-        all_ad_pratyantardashas[ad_lord] = calculate_pratyantardashas(ad)
-
-    topic = detect_topic(request.question)
     print(f"[{request.mode.upper()}] Topic: {topic} | Q: {request.question}")
 
-    promise = check_promise(topic, chart["cusps"], chart["planets"])
-    timing = check_dasha_relevance(
-        topic, current_md, current_ad,
-        chart["planets"], chart["cusps"]
+    # Single shared pipeline — same compute as /astrologer/analyze.
+    chart_data = build_full_chart_data(
+        name=request.name,
+        date=request.date,
+        time=request.time,
+        latitude=request.latitude,
+        longitude=request.longitude,
+        timezone_offset=request.timezone_offset,
+        gender=request.gender,
+        topic=topic,
     )
-    # PR A1.1: lat/lon/tz now required for correct RPs.
-    ruling_planets = get_ruling_planets(
-        request.latitude, request.longitude, request.timezone_offset,
-    )
-    all_significators = get_all_house_significators(chart["planets"], chart["cusps"])
 
-    # Use proper house position calculation — chart["planets"] has no "house" key
-    from app.services.chart_engine import get_planet_house_positions
-    planet_positions = get_planet_house_positions(chart["planets"], chart["cusps"])
-
-    chart_data = {
-        "name": request.name,
-        "chart_summary": {
-            "planets": chart["planets"],
-            "cusps": chart["cusps"]
-        },
-        "promise_analysis": promise,
-        "timing_analysis": timing,
-        "current_dasha": {
-            "mahadasha": current_md,
-            "antardasha": current_ad,
-            "pratyantardasha": current_pad,
-        },
-        "upcoming_antardashas": antardashas,
-        "pratyantardashas_current_ad": pratyantardashas,  # all 9 PADs within current AD
-        "all_ad_pratyantardashas": all_ad_pratyantardashas,
-        "ruling_planets": ruling_planets,
-        "significators": all_significators,
-        "planet_positions": planet_positions,
-    }
+    # Strip internal-only keys before passing to LLM formatter / response.
+    chart_raw = chart_data.pop("_chart_raw")
+    chart_data.pop("_moon_longitude", None)
 
     answer = get_prediction(
         chart_data,
         request.question,
         [{"question": h.question, "answer": h.answer} for h in request.history],
-        mode=request.mode
+        mode=request.mode,
+        topic=topic,  # PR A1.3-fix-1 — skip detect_topic re-call inside get_prediction
     )
 
+    # Response shape — backwards-compat with existing frontend, but now
+    # includes the rich engine signals so the user-mode UI can render
+    # confidence bars, timing strips, active-question panels, etc.
     return {
         "question": request.question,
         "answer": answer,
         "analysis": {
             "name": request.name,
-            "promise_analysis": promise,
-            "timing_analysis": timing,
-            "current_dasha": {
-                "mahadasha": current_md,
-                "antardasha": current_ad,
-                "pratyantardasha": current_pad,
-            },
-            "ruling_planets": ruling_planets,
-            "significators": all_significators,
-            "planet_positions": planet_positions,
+            "gender": chart_data.get("gender", ""),
+            "age_years": chart_data.get("age_years", 0),
+            "birth_date": chart_data.get("birth_date", ""),
+            "promise_analysis": chart_data.get("promise_analysis", {}),
+            "timing_analysis": chart_data.get("timing_analysis", {}),
+            "current_dasha": chart_data.get("current_dasha", {}),
+            "upcoming_antardashas": chart_data.get("upcoming_antardashas", []),
+            "ruling_planets": chart_data.get("ruling_planets", {}),
+            "significators": chart_data.get("significators", {}),
+            "planet_positions": chart_data.get("planet_positions", {}),
+            # PR A1.3-fix-14 — expose advanced compute summary fields the
+            # new user-mode UI will render (verdict card, confidence bar,
+            # timing strip, active-question panel).
+            "advanced_compute": chart_data.get("advanced_compute", {}),
+            "decision_support": chart_data.get("decision_support", {}),
+            "dasha_conflicts": chart_data.get("dasha_conflicts", []),
+            "transits": chart_data.get("transits", {}),
+            "yogini_dasha": chart_data.get("yogini_dasha", {}),
             "chart_summary": {
-                "planets": chart["planets"],
-                "cusps": chart["cusps"]
-            }
+                "planets": chart_raw["planets"],
+                "cusps": chart_raw["cusps"],
+            },
         },
         "mode": request.mode,
-        "detected_topic": topic
+        "detected_topic": topic,
     }

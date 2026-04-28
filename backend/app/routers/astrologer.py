@@ -445,191 +445,28 @@ def get_workspace(request: WorkspaceRequest):
 
 @router.post("/analyze")
 def analyze_topic(request: AnalysisRequest):
-    chart = generate_chart(
-        request.date, request.time,
-        request.latitude, request.longitude,
-        request.timezone_offset
-    )
-    moon_longitude = chart["planets"]["Moon"]["longitude"]
-    dashas = calculate_dashas(request.date, request.time, moon_longitude, request.timezone_offset)
-    current_md = get_current_dasha(dashas)
-    antardashas = calculate_antardashas(current_md)
-    current_ad = get_current_antardasha(antardashas)
-
-    # PAD calculation
-    pratyantardashas = calculate_pratyantardashas(current_ad)
-    current_pad = get_current_pratyantardasha(pratyantardashas)
-    all_ad_pratyantardashas = {}
-    for ad in antardashas:
-        ad_lord = ad["antardasha_lord"]
-        all_ad_pratyantardashas[ad_lord] = calculate_pratyantardashas(ad)
-
-    # PR A1.3c-extras — Sookshma Dasha (sub-PAD / 4th-level).
-    # Current AD: full coverage (9 PADs × 9 sookshmas = 81 entries).
-    # Next 2 ADs: forward-looking timing for "when in 2028" questions.
-    # PR A1.3-fix-4 (N2): extended from current AD only to current + next 2.
-    from app.services.chart_engine import calculate_sookshma_dashas, get_current_sookshma
-    sookshmas_current_ad: dict = {}
-    for pad in pratyantardashas:
-        pad_lord = pad.get("pratyantardasha_lord")
-        sookshmas_current_ad[pad_lord] = calculate_sookshma_dashas(pad)
-    current_sookshma = get_current_sookshma(sookshmas_current_ad.get(current_pad.get("pratyantardasha_lord"), [])) if current_pad else {}
-
-    # Forward sookshmas — next 2 ADs after the current one.
-    sookshmas_upcoming_ads: dict = {}
-    try:
-        # Locate current AD's index in the antardashas list.
-        current_ad_lord = current_ad.get("antardasha_lord") if current_ad else None
-        cur_idx = next(
-            (i for i, a in enumerate(antardashas)
-             if a.get("antardasha_lord") == current_ad_lord
-             and a.get("start") == current_ad.get("start")),
-            -1,
-        )
-        for offset in (1, 2):
-            j = cur_idx + offset
-            if 0 <= j < len(antardashas):
-                future_ad = antardashas[j]
-                future_pads = calculate_pratyantardashas(future_ad)
-                ad_label = f"{future_ad.get('antardasha_lord')} ({future_ad.get('start')} → {future_ad.get('end')})"
-                sookshmas_upcoming_ads[ad_label] = {
-                    pad.get("pratyantardasha_lord"): calculate_sookshma_dashas(pad)
-                    for pad in future_pads
-                }
-    except Exception:
-        # Never block /analyze if forward-sookshma compute hits an edge case.
-        sookshmas_upcoming_ads = {}
-
-    from app.services.chart_engine import (
-        check_promise, check_dasha_relevance, get_all_house_significators
-    )
-
+    # PR A1.3-fix-14 — refactored to use the shared chart_pipeline so
+    # /astrologer/analyze and /prediction/ask have identical compute.
+    # The 200+ lines of compute orchestration that used to live here now
+    # live in chart_pipeline.build_full_chart_data().
+    from app.services.chart_pipeline import build_full_chart_data
     topic = request.topic
-    promise = check_promise(topic, chart["cusps"], chart["planets"])
-    timing = check_dasha_relevance(topic, current_md, current_ad, chart["planets"], chart["cusps"])
-    # PR A1.1: RPs now require lat/lon/tz — see /workspace endpoint above.
-    ruling_planets = get_ruling_planets(
-        request.latitude, request.longitude, request.timezone_offset,
-    )
-    all_significators = get_all_house_significators(chart["planets"], chart["cusps"])
-
-    # Use proper house position calculation — chart["planets"] has no "house" key
-    from app.services.chart_engine import get_planet_house_positions
-    planet_positions = get_planet_house_positions(chart["planets"], chart["cusps"])
-
-    # PR A1.3c + fix-6 — advanced KP compute (A/B/C/D, harmony, RP, topic
-    # confidence, supporting cusp triggers, aspects, combustion, conjunctions,
-    # pada, 8th lord, partner profile, Ashtakavarga) + transit bundle
-    # (current transits, Sade Sati, key cusp transits, upcoming windows).
-    from app.services.kp_advanced_compute import compute_advanced_for_topic
-    from app.services.kp_transit_compute  import compute_transit_bundle
-    promise_verdict_hint = (
-        "STRONGLY PROMISED" if promise.get("is_promised")
-        else "WEAKLY PROMISED"
-    )
-    # PR A1.3c — extract {slot, planet} list from rp_context.slot_assignments
-    # (the canonical 7-slot shape used by the RP engine).
-    rp_list = (ruling_planets.get("rp_context", {}) or {}).get("slot_assignments", []) if isinstance(ruling_planets, dict) else []
-    advanced = compute_advanced_for_topic(
+    chart_data = build_full_chart_data(
+        name=request.name,
+        date=request.date,
+        time=request.time,
+        latitude=request.latitude,
+        longitude=request.longitude,
+        timezone_offset=request.timezone_offset,
+        gender=request.gender,
         topic=topic,
-        planets=chart["planets"],
-        cusps=chart["cusps"],
-        planet_positions=planet_positions,
-        ruling_planets_list=rp_list,
-        current_md_lord=(current_md or {}).get("lord"),
-        current_ad_lord=(current_ad or {}).get("antardasha_lord"),
-        upcoming_antardashas=antardashas,
-        promise_verdict=promise_verdict_hint,
     )
-
-    # PR A1.3-fix-6 + fix-7 — transit bundle (now also includes planetary returns)
-    # PR A1.3-fix-9 — log fallback exceptions instead of swallowing silently
-    import logging
-    _log = logging.getLogger("astrologer.analyze")
-    try:
-        transits = compute_transit_bundle(chart["cusps"], moon_longitude, chart["planets"])
-    except Exception as e:
-        _log.warning("compute_transit_bundle failed (degrading silently): %s", e)
-        transits = {}
-
-    # PR A1.3-fix-7 — Yogini Dasha cross-check (parallel 36-yr cycle)
-    try:
-        from app.services.kp_yogini_dasha import (
-            calculate_yogini_dashas, get_current_yogini, cross_check_with_vimsottari,
-        )
-        yogini_list = calculate_yogini_dashas(request.date, request.time, moon_longitude)
-        current_yogini = get_current_yogini(yogini_list)
-        yogini_xcheck = cross_check_with_vimsottari(yogini_list, antardashas[:9])
-        yogini_data = {
-            "current":           current_yogini,
-            "next_3_yoginis":    yogini_list[1:4] if len(yogini_list) > 1 else [],
-            "vimsottari_xcheck": yogini_xcheck,
-        }
-    except Exception as e:
-        _log.warning("Yogini Dasha compute failed (degrading silently): %s", e)
-        yogini_data = {}
-
-    # PR A1.3-fix-8 — decision support + conflict flags
-    try:
-        from app.services.kp_advanced_compute import (
-            decision_support_score, flag_dasha_conflicts,
-        )
-        decision_data = decision_support_score(advanced)
-        conflict_flags = flag_dasha_conflicts(advanced, yogini_data)
-    except Exception as e:
-        _log.warning("decision_support / flag_dasha_conflicts failed (degrading silently): %s", e)
-        decision_data = {}
-        conflict_flags = []
-
-    # PR A1.3-fix-10 (#12) — pre-rank sookshmas by fire-score so AI
-    # doesn't recompute ad-hoc for "best week" questions.
-    try:
-        from app.services.kp_advanced_compute import rank_sookshmas_by_fire_score
-        ranked_sookshmas_current_ad = {}
-        for pad_lord, sookshmas in sookshmas_current_ad.items():
-            ranked_sookshmas_current_ad[pad_lord] = rank_sookshmas_by_fire_score(
-                sookshmas,
-                advanced.get("relevant_houses", []),
-                advanced.get("denial_houses", []),
-                chart["planets"], chart["cusps"], planet_positions,
-                rp_list,
-                advanced.get("vargottama", {}),
-            )
-    except Exception as e:
-        _log.warning("Sookshma ranking failed: %s", e)
-        ranked_sookshmas_current_ad = sookshmas_current_ad
-
-    chart_data = {
-        "name": request.name,
-        # PR A1.3a — pass gender + birth_date + computed age so the LLM
-        # never has to guess from name (caused "PCOD" for males) or skip
-        # age-conditional rules (caused "if you are 30+" hedging).
-        "gender": request.gender or "",
-        "birth_date": request.date,
-        "age_years": _compute_age_years(request.date),
-        "chart_summary": {"planets": chart["planets"], "cusps": chart["cusps"]},
-        "promise_analysis": promise,
-        "timing_analysis": timing,
-        "current_dasha": {
-            "mahadasha": current_md,
-            "antardasha": current_ad,
-            "pratyantardasha": current_pad,
-            "sookshma": current_sookshma,        # PR A1.3c-extras
-        },
-        "upcoming_antardashas": antardashas,
-        # PR A1.3-fix-9 — `pratyantardashas_current_ad` removed (dup of all_ad_pratyantardashas[current_ad_lord])
-        "all_ad_pratyantardashas": all_ad_pratyantardashas,
-        "sookshmas_current_ad": ranked_sookshmas_current_ad,  # PR A1.3-fix-10 #12: pre-ranked
-        "sookshmas_upcoming_ads": sookshmas_upcoming_ads,  # PR A1.3-fix-4 (N2)
-        "ruling_planets": ruling_planets,
-        "significators": all_significators,
-        "planet_positions": planet_positions,
-        "advanced_compute": advanced,  # PR A1.3c
-        "transits": transits,          # PR A1.3-fix-6
-        "yogini_dasha": yogini_data,   # PR A1.3-fix-7
-        "decision_support": decision_data,   # PR A1.3-fix-8
-        "dasha_conflicts": conflict_flags,   # PR A1.3-fix-8
-    }
+    # Strip internal-only keys (raw chart + moon_long) — not consumed by
+    # get_prediction or the response payload.
+    chart_data.pop("_chart_raw", None)
+    chart_data.pop("_moon_longitude", None)
+    promise = chart_data.get("promise_analysis", {})
+    timing = chart_data.get("timing_analysis", {})
 
     # Build language instruction with Telugu planet name reference
     lang_instruction = ""
