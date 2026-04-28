@@ -450,21 +450,85 @@ export default function Home() {
     setLoading(true);
     const currentQuestion = question;
     setQuestion("");
+
+    // PR A1.3-fix-16 — streaming SSE flow.
+    //   1. Insert empty AI message immediately (id = msgId).
+    //   2. Hit /prediction/ask-stream and parse SSE events:
+    //        event: analysis  → set msg.analysis (renders verdict
+    //                            card shell while text streams)
+    //        event: chunk     → append data.text to msg.answer
+    //        event: done      → stream complete
+    //        event: error     → fallback message
+    //   3. HeroVerdictCard renders progressively as text arrives.
+    //      TTFT goes from 60-120s to 1-2s.
+    const msgId = Date.now().toString();
+    setMessages(prev => [...prev, {
+      id: msgId,
+      question: currentQuestion,
+      answer: "",
+      analysis: null,
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    }]);
+
     try {
-      // PR A1.3-fix-14 — gender now wired through so the NATIVE PROFILE
-      // block reaches the LLM (kills the PCOD-for-male bug for general
-      // user mode that astrologer mode had already fixed in fix-1).
-      const res = await axios.post(`${API_URL}/prediction/ask`, {
-        name: birthDetails.name, date: formattedDate, time: getTime24(),
-        latitude: birthDetails.latitude, longitude: birthDetails.longitude,
-        timezone_offset: timezoneOffset, gender: birthDetails.gender || "",
-        topic: "auto", question: currentQuestion, mode: "user",
-        history: messages.slice(-4).map(m => ({ question: m.question, answer: m.answer }))
+      const response = await fetch(`${API_URL}/prediction/ask-stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: birthDetails.name, date: formattedDate, time: getTime24(),
+          latitude: birthDetails.latitude, longitude: birthDetails.longitude,
+          timezone_offset: timezoneOffset, gender: birthDetails.gender || "",
+          topic: "auto", question: currentQuestion, mode: "user",
+          history: messages.slice(-4).map(m => ({ question: m.question, answer: m.answer })),
+        }),
       });
-      setMessages(prev => [...prev, { id: Date.now().toString(), question: currentQuestion, answer: res.data.answer, analysis: res.data.analysis, timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }]);
+
+      if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`);
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        // SSE frames terminated by \n\n. Each frame may contain
+        // an `event:` line and a `data:` line.
+        let nlIdx;
+        while ((nlIdx = buffer.indexOf("\n\n")) !== -1) {
+          const frame = buffer.slice(0, nlIdx);
+          buffer = buffer.slice(nlIdx + 2);
+          const lines = frame.split("\n");
+          let evtName = "message";
+          let dataStr = "";
+          for (const ln of lines) {
+            if (ln.startsWith("event:")) evtName = ln.slice(6).trim();
+            else if (ln.startsWith("data:")) dataStr += ln.slice(5).trim();
+          }
+          if (!dataStr) continue;
+          try {
+            const data = JSON.parse(dataStr);
+            if (evtName === "analysis") {
+              setMessages(prev => prev.map(m => m.id === msgId ? { ...m, analysis: data } : m));
+            } else if (evtName === "chunk" && typeof data.text === "string") {
+              setMessages(prev => prev.map(m => m.id === msgId ? { ...m, answer: m.answer + data.text } : m));
+            } else if (evtName === "error") {
+              setMessages(prev => prev.map(m => m.id === msgId
+                ? { ...m, answer: m.answer || "Something went wrong. Please try again." }
+                : m));
+            }
+          } catch { /* malformed SSE frame — skip */ }
+        }
+      }
     } catch {
-      setMessages(prev => [...prev, { id: Date.now().toString(), question: currentQuestion, answer: "Something went wrong. Please try again.", analysis: null, timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }]);
-    } finally { setLoading(false); }
+      setMessages(prev => prev.map(m => m.id === msgId
+        ? { ...m, answer: m.answer || "Something went wrong. Please try again." }
+        : m));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleTopicAnalysis = async (topic: string) => {

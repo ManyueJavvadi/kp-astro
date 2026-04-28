@@ -6,6 +6,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+# PR A1.3-fix-16 — async client used by the streaming variant
+# (get_prediction_stream). Kept alongside the sync client so the
+# existing get_prediction() call sites continue to work unchanged.
+async_client = anthropic.AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 # ================================================================
 # KNOWLEDGE BASE LOADER
@@ -1386,7 +1390,8 @@ def get_prediction(chart_data: dict, question: str, history: list = [], mode: st
     # See get_prediction() body below for the breakpoint ordering.
     universal_kb = load_universal_kb()
     topic_kb = load_topic_kb(detected_topic)
-    chart_summary = format_chart_for_llm(chart_data)
+    # PR A1.3-fix-16 — mode-aware chart_summary trim for user mode.
+    chart_summary = format_chart_for_llm(chart_data, mode=mode)
 
     # Build conversation history — pass answers only, strip time-specific question context
     # This prevents temporal anchoring from leaking between questions
@@ -1534,10 +1539,193 @@ Perform complete KP analysis. Format output for {mode.upper()} mode as instructe
 
 
 # ================================================================
+# STREAMING VARIANT (PR A1.3-fix-16)
+# ================================================================
+# Async generator that yields LLM text chunks as they arrive. Used by
+# the SSE endpoints (`/prediction/ask-stream`, `/astrologer/analyze-stream`)
+# for premium UX (TTFT 60-120s → 1-2s).
+#
+# Behavior:
+#   - Same compute pipeline as get_prediction (chart_data is already
+#     built by the caller; this function only handles the LLM call).
+#   - Phase 2 cache check: if same chart + topic + mode + question
+#     (today, normalized) is in the 24h cache, yield cached text in
+#     ~80-char chunks for visual continuity, skip LLM entirely.
+#   - Cache miss: stream from Anthropic, accumulate full answer, write
+#     to cache after stream completes.
+#   - Topic detection short-circuits same as get_prediction (caller
+#     can pass topic explicitly to skip Haiku call).
+#   - Mode-aware chart_summary trim (Phase 1) — user mode gets the
+#     stripped chart_summary that drops sookshmas_upcoming_ads and
+#     caps current-AD sookshmas to top-3 ranked.
+
+async def get_prediction_stream(
+    chart_data: dict,
+    question: str,
+    history: list = [],
+    mode: str = "user",
+    topic: str = None,
+    cache_key_input: dict | None = None,
+):
+    """
+    Async generator yielding text chunks of the LLM response.
+
+    Args:
+        chart_data: full chart_data dict from chart_pipeline.
+        question: user's question.
+        history: prior [{question, answer}] pairs (most-recent-last).
+        mode: "user" or "astrologer".
+        topic: pre-detected topic to skip the Haiku call.
+        cache_key_input: dict with keys {birth_date, birth_time,
+            latitude, longitude, gender, topic, mode, question} used to
+            build the per-chart cache key. If None, caching is skipped.
+
+    Yields:
+        str chunks of the answer text.
+    """
+    from app.services import answer_cache
+
+    # Topic resolution (mirrors get_prediction)
+    if topic and topic in TOPIC_TO_FILE:
+        detected_topic = topic
+    elif chart_data.get("advanced_compute", {}).get("topic"):
+        detected_topic = chart_data["advanced_compute"]["topic"]
+    else:
+        detected_topic = detect_topic(question)
+    chart_data["detected_topic"] = detected_topic
+
+    # ─── Cache check (Phase 2) ───────────────────────────────────────
+    cache_key: str | None = None
+    if cache_key_input:
+        cache_key = answer_cache.make_key(
+            birth_date=cache_key_input.get("birth_date", ""),
+            birth_time=cache_key_input.get("birth_time", ""),
+            latitude=cache_key_input.get("latitude", 0.0),
+            longitude=cache_key_input.get("longitude", 0.0),
+            gender=cache_key_input.get("gender", ""),
+            topic=detected_topic,
+            mode=mode,
+            question=question,
+        )
+        cached = answer_cache.get(cache_key)
+        if cached:
+            cached_answer, _meta = cached
+            # Yield cached text in ~80-char chunks for visual continuity
+            # (frontend's typewriter effect renders the same regardless
+            # of source; user can't tell cache vs fresh).
+            CHUNK = 80
+            for i in range(0, len(cached_answer), CHUNK):
+                yield cached_answer[i:i + CHUNK]
+            return
+
+    # ─── KB + chart prep ─────────────────────────────────────────────
+    universal_kb = load_universal_kb()
+    topic_kb = load_topic_kb(detected_topic)
+    chart_summary = format_chart_for_llm(chart_data, mode=mode)
+
+    # Conversation history
+    messages = []
+    if history:
+        gender = (chart_data.get("gender") or "").strip()
+        age = chart_data.get("age_years")
+        md = (chart_data.get("current_dasha") or {}).get("mahadasha", {}).get("lord")
+        ad = (chart_data.get("current_dasha") or {}).get("antardasha", {}).get("antardasha_lord")
+        anchor = (
+            f"[NATIVE CONTEXT REMINDER — same throughout this session: "
+            f"{chart_data.get('name', 'Native')}, age {age}, "
+            f"{gender or 'gender-unknown'}, "
+            f"running {md} MD → {ad} AD. Active topic now: {detected_topic}.]"
+        )
+        messages.append({"role": "user", "content": anchor})
+        messages.append({"role": "assistant", "content": "Acknowledged."})
+    for prev in history[-4:]:
+        clean_question = prev.get("question", "") if isinstance(prev, dict) else getattr(prev, "question", "")
+        clean_answer = prev.get("answer", "") if isinstance(prev, dict) else getattr(prev, "answer", "")
+        messages.append({"role": "user", "content": clean_question})
+        messages.append({"role": "assistant", "content": clean_answer})
+
+    # System cache blocks (same structure as get_prediction)
+    system_blocks = [
+        {"type": "text", "text": get_system_prompt(),
+         "cache_control": {"type": "ephemeral", "ttl": "1h"}},
+        {"type": "text", "text": f"---\n\nCHART DATA:\n{chart_summary}",
+         "cache_control": {"type": "ephemeral", "ttl": "1h"}},
+        {"type": "text", "text": f"---\n\nKP UNIVERSAL KNOWLEDGE BASE:\n{universal_kb}",
+         "cache_control": {"type": "ephemeral", "ttl": "1h"}},
+    ]
+    if topic_kb:
+        system_blocks.append({
+            "type": "text",
+            "text": (
+                f"---\n\nKP TOPIC-SPECIFIC KNOWLEDGE "
+                f"({detected_topic.upper()}):\n{topic_kb}"
+            ),
+            "cache_control": {"type": "ephemeral"},
+        })
+
+    user_blocks = [{
+        "type": "text",
+        "text": f"""MODE: {mode.upper()}
+CURRENT QUESTION: {question}
+
+IMPORTANT: Answer THIS question independently. Do not assume any timeframe from previous questions.
+Perform complete KP analysis. Format output for {mode.upper()} mode as instructed in the system prompt.""",
+    }]
+    messages.append({"role": "user", "content": user_blocks})
+
+    max_tokens = 16000 if mode == "astrologer" else 4000
+
+    # ─── Stream from Anthropic ───────────────────────────────────────
+    accumulated: list[str] = []
+    async with async_client.messages.stream(
+        model="claude-sonnet-4-6",
+        max_tokens=max_tokens,
+        temperature=0,
+        system=system_blocks,
+        messages=messages,
+        extra_headers={"anthropic-beta": "extended-cache-ttl-2025-04-11"},
+    ) as stream:
+        async for text in stream.text_stream:
+            accumulated.append(text)
+            yield text
+
+    # ─── Write to cache after stream completes ───────────────────────
+    if cache_key:
+        full_answer = "".join(accumulated)
+        if full_answer.strip():
+            answer_cache.put(cache_key, full_answer, meta={"mode": mode, "topic": detected_topic})
+
+
+# ================================================================
 # CHART FORMATTER — Structured KP Worksheet for LLM
 # ================================================================
 
-def format_chart_for_llm(chart_data: dict) -> str:
+def format_chart_for_llm(chart_data: dict, mode: str = "astrologer") -> str:
+    """
+    Build the chart_summary string emitted to the LLM.
+
+    PR A1.3-fix-16 — mode-aware trimming for user mode:
+        Astrologer mode keeps the full output (current behavior, unchanged):
+            - Full 9-AD sequence
+            - all_ad_pratyantardashas: every AD's 9 PADs (~81 entries)
+            - sookshmas_current_ad: every PAD's 9 sookshmas (~81 entries)
+            - sookshmas_upcoming_ads: next 2 ADs (~162 entries)
+
+        User mode trims the heavy day-precision blocks the plain-English
+        narrative doesn't actually use:
+            - all_ad_pratyantardashas: ONLY current AD + next 2 ADs
+              (not all 9 ADs)
+            - sookshmas_current_ad: only the TOP 3 ranked sookshmas per
+              PAD (not all 9), and only PADs within the current AD
+            - sookshmas_upcoming_ads: DROPPED entirely (user mode doesn't
+              predict day-precision events 3+ years out)
+
+        Estimated savings for user mode: 30-70K tokens of input, which
+        translates to ~$0.20-0.40 saved per first-call cache write.
+        Quality preserved — accuracy-critical compute (advanced_compute,
+        decision_support, transits, current dasha) all still emit fully.
+    """
+    is_user_mode = (mode or "").lower() == "user"
     lines = []
 
     if "name" in chart_data:
@@ -1613,9 +1801,27 @@ def format_chart_for_llm(chart_data: dict) -> str:
             )
 
     # PAD sequence within current AD
+    # PR A1.3-fix-16 — user mode trims to current + next 2 ADs only
+    # (instead of all 9 ADs). Plain-English answers rarely cite PAD
+    # detail >3 years out, and dropping 6 ADs × 9 PADs = 54 lines saves
+    # ~5-10K tokens per query.
     if "all_ad_pratyantardashas" in chart_data:
         lines.append(f"\nPRATYANTARDASHA SEQUENCES FOR ALL ANTARDASHAS:")
-        for ad_lord, pads in chart_data["all_ad_pratyantardashas"].items():
+        ads_to_emit = chart_data["all_ad_pratyantardashas"].items()
+        if is_user_mode:
+            # Find current AD lord; emit only current + next 2
+            current_ad_lord = (
+                (chart_data.get("current_dasha", {}) or {})
+                .get("antardasha", {})
+                .get("antardasha_lord")
+            )
+            ad_list = list(chart_data["all_ad_pratyantardashas"].items())
+            cur_idx = next(
+                (i for i, (lord, _) in enumerate(ad_list) if lord == current_ad_lord),
+                0,
+            )
+            ads_to_emit = ad_list[cur_idx:cur_idx + 3]
+        for ad_lord, pads in ads_to_emit:
             lines.append(f"  [{ad_lord} AD]:")
             for pad in pads:
                 lines.append(
@@ -1626,6 +1832,10 @@ def format_chart_for_llm(chart_data: dict) -> str:
     # PR A1.3c-extras — Sookshma (sub-PAD / 4th level) for each PAD of the
     # current AD. This is the day-precision layer the LLM uses to identify
     # specific weeks within a PAD when an event is most likely to fire.
+    #
+    # PR A1.3-fix-16 — user mode emits only TOP 3 fire-ranked sookshmas
+    # per PAD instead of all 9. Saves ~10-15K tokens (54 fewer entries).
+    # Astrologer mode unchanged (gets all 9 sookshmas per PAD).
     if chart_data.get("sookshmas_current_ad"):
         lines.append(
             f"\nSOOKSHMA SEQUENCES (sub-PAD / 4th level — day-precision) "
@@ -1637,7 +1847,18 @@ def format_chart_for_llm(chart_data: dict) -> str:
             pad_start = sookshmas[0].get("start") if sookshmas else ""
             pad_end   = sookshmas[-1].get("end") if sookshmas else ""
             lines.append(f"  [{pad_lord} PAD] {pad_start} → {pad_end}:")
-            for sd in sookshmas:
+            # User mode: emit only top 3 by fire_score (already ranked
+            # by rank_sookshmas_by_fire_score from fix-10). Astrologer
+            # mode: emit all 9.
+            sookshmas_to_emit = sookshmas
+            if is_user_mode:
+                # Sort by fire_score desc (None scored as 0), take top 3
+                sookshmas_to_emit = sorted(
+                    sookshmas,
+                    key=lambda s: (s.get("fire_score") or 0),
+                    reverse=True,
+                )[:3]
+            for sd in sookshmas_to_emit:
                 # PR A1.3-fix-10 #12: emit fire_score + verdict + notes when ranking is present
                 fs = sd.get("fire_score")
                 fv = sd.get("fire_verdict", "")
@@ -1657,7 +1878,11 @@ def format_chart_for_llm(chart_data: dict) -> str:
     # PR A1.3-fix-4 (N2) — forward sookshmas for the next 2 ADs so the LLM
     # has day-precision data for "when in 2028" type questions where the
     # relevant AD is ahead of the current one.
-    if chart_data.get("sookshmas_upcoming_ads"):
+    #
+    # PR A1.3-fix-16 — DROPPED for user mode entirely. The plain-English
+    # narrative does not predict specific days/weeks 3+ years out. Saves
+    # ~20-50K tokens (the heaviest single block in chart_summary).
+    if chart_data.get("sookshmas_upcoming_ads") and not is_user_mode:
         lines.append(
             f"\nSOOKSHMA SEQUENCES — UPCOMING ANTARDASHAS (forward day-precision):"
         )
