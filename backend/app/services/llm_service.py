@@ -135,6 +135,38 @@ ADVANCED_FILES = [
     "transit_rules.txt",          # KP transit (Gocharya) interpretation principles
 ]
 
+# PR A1.3-fix-18 — User-mode lean KB.
+# Astrologer mode loads the full ADVANCED_FILES set (12 files, ~40K
+# tokens) because the 7-section structured output uses pattern names,
+# 4-step chains, confidence methodology, gold-standard worked
+# examples, etc. — all of which are pedagogical scaffolding for
+# Sonnet's deep reasoning.
+#
+# User mode is plain-English narration of pre-computed engine
+# verdicts (Haiku translation task). It only needs the *accuracy
+# guardrails* and core KP foundation. Files dropped from user mode:
+#   - timing_confirmation.txt   (engine handles timing)
+#   - bhavat_bhavam.md          (only relative-questions context)
+#   - multi_factor_queries.md   (rare combined queries)
+#   - pattern_library.md        (user mode doesn't cite pattern names)
+#   - gold_standard_examples.md (7-section astrologer-format examples)
+#   - confidence_methodology.md (user just sees the score)
+#   - remedies.md               (engine triggers remedies if needed)
+#   - transit_rules.txt         (engine handles transits)
+#
+# Files KEPT for user mode (the accuracy backbone):
+#   - kp_csl_theory.txt    — CSL methodology, central to verdict
+#   - planet_natures.txt   — plain-English translation of planets
+#   - ksk_rejections.md    — anti-Parashari guard (prevents Vedic leak)
+#   - general.txt          — core KP principles (always loaded)
+#
+# Saves ~18K tokens of cache writes per first user-mode call.
+USER_MODE_ADVANCED_FILES = [
+    "kp_csl_theory.txt",
+    "planet_natures.txt",
+    "ksk_rejections.md",
+]
+
 # PR A1.3-fix-13 — conditional KB files (loaded only when topic matches
 # the relevance set). Each ~2-3K tokens; saves cache-read cost per
 # question on topics that don't need them.
@@ -191,14 +223,27 @@ def _read_kb_file(filename: str, section_label: str) -> str:
 # tokens) re-writes on a topic change. See get_prediction() for the
 # breakpoint ordering rationale.
 
-def load_universal_kb() -> str:
+def load_universal_kb(mode: str = "astrologer") -> str:
     """
-    Universal KB content — IDENTICAL across all topics. Cache-stable forever
-    within a session. Includes general.txt + all ADVANCED_FILES.
-    Roughly 22K tokens.
+    Universal KB content — IDENTICAL across all topics within a mode.
+    Cache-stable forever within a session.
+
+    PR A1.3-fix-18 — mode-aware:
+      - mode="astrologer": general.txt + all 12 ADVANCED_FILES
+        (~40K tokens). Loaded for the 7-section structured output.
+      - mode="user":       general.txt + 3 USER_MODE_ADVANCED_FILES
+        (kp_csl_theory + planet_natures + ksk_rejections, ~22K tokens).
+        Lean KB sufficient for Haiku narration of pre-computed
+        engine verdicts in plain English.
+
+    Each mode has its own cache key in _TOPIC_CACHE so they don't
+    collide. Astrologer mode behavior is unchanged from fix-13.
     """
-    if "_universal" in _TOPIC_CACHE:
-        return _TOPIC_CACHE["_universal"]
+    is_user_mode = (mode or "").lower() == "user"
+    cache_key = "_universal_user" if is_user_mode else "_universal"
+
+    if cache_key in _TOPIC_CACHE:
+        return _TOPIC_CACHE[cache_key]
 
     content: list = []
 
@@ -206,7 +251,8 @@ def load_universal_kb() -> str:
     if general_section:
         content.append(general_section)
 
-    for adv_file in ADVANCED_FILES:
+    files = USER_MODE_ADVANCED_FILES if is_user_mode else ADVANCED_FILES
+    for adv_file in files:
         section_name = (
             adv_file.replace(".md", "").replace(".txt", "")
             .upper().replace("_", " ")
@@ -216,7 +262,7 @@ def load_universal_kb() -> str:
             content.append(adv_section)
 
     assembled = "\n\n".join(content)
-    _TOPIC_CACHE["_universal"] = assembled
+    _TOPIC_CACHE[cache_key] = assembled
     return assembled
 
 
@@ -1387,8 +1433,9 @@ def get_prediction(chart_data: dict, question: str, history: list = [], mode: st
     chart_data["detected_topic"] = detected_topic
 
     # PR A1.3-fix-12 — KB split into universal + topic for stable cache prefix.
-    # See get_prediction() body below for the breakpoint ordering.
-    universal_kb = load_universal_kb()
+    # PR A1.3-fix-18 — universal_kb now mode-aware: user mode gets the
+    # 4-file lean KB (~22K tokens), astrologer gets full 12-file kit (~40K).
+    universal_kb = load_universal_kb(mode=mode)
     topic_kb = load_topic_kb(detected_topic)
     # PR A1.3-fix-16 — mode-aware chart_summary trim for user mode.
     chart_summary = format_chart_for_llm(chart_data, mode=mode)
@@ -1638,7 +1685,8 @@ async def get_prediction_stream(
             return
 
     # ─── KB + chart prep ─────────────────────────────────────────────
-    universal_kb = load_universal_kb()
+    # PR A1.3-fix-18 — mode-aware universal KB (user mode = 4-file lean kit).
+    universal_kb = load_universal_kb(mode=mode)
     topic_kb = load_topic_kb(detected_topic)
     chart_summary = format_chart_for_llm(chart_data, mode=mode)
 
