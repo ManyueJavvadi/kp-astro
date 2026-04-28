@@ -1,10 +1,19 @@
 """
-answer_cache.py — Per-chart 24h LLM answer cache (PR A1.3-fix-16).
+answer_cache.py — Per-chart 24h LLM answer cache.
 
-Same chart + same topic + same calendar day + same question + same mode
-deterministically produces the same answer (because the engine compute
-is deterministic for a fixed birth chart, and the system prompt's date
-field is the same within a calendar day).
+PR A1.3-fix-16: initial in-memory LRU cache with TTL.
+PR A1.3-fix-17: cache audit fixes
+  - Added timezone_offset to cache key (rare but real collision risk:
+    same birth_time but different TZ → different chart, was same key)
+  - Switched date-roll boundary from UTC to IST (since this is an
+    Indian-targeting product; IST midnight is what users perceive as
+    "today" rolling over, not UTC midnight which is 5:30 AM IST)
+  - Added stats() exposure path so admin endpoint can inspect hit rate
+
+Same chart + same topic + same IST calendar day + same question + same
+mode deterministically produces the same answer (because the engine
+compute is deterministic for a fixed birth chart, and the system
+prompt's date field is the same within a calendar day).
 
 Caching the LLM output server-side for 24 hours saves cost on:
   - User refreshing the page and re-asking the same question
@@ -16,8 +25,8 @@ Implementation: simple in-memory dict with TTL. Resets on backend
 restart. Later upgrade to Redis when scale demands persistence.
 
 Cache key = SHA256 of:
-  birth_date | birth_time | latitude | longitude | gender | topic |
-  today_date_iso | mode | normalized_question
+  birth_date | birth_time | latitude | longitude | timezone_offset |
+  gender | topic | today_ist_iso | mode | normalized_question
 
 Question normalization is intentionally minimal (lowercase + strip
 whitespace) so substantive question changes miss the cache. We err on
@@ -25,6 +34,9 @@ the side of MISSING (compute fresh) rather than serving wrong cached
 content for a different question.
 
 Capacity: 1024 entries (~5MB at 5KB output each). LRU eviction.
+Thread safety: relies on Python asyncio's single-threaded event loop.
+NOT safe under multi-threaded concurrent access — add a lock if you
+move to a thread-pool model.
 """
 
 from __future__ import annotations
@@ -33,13 +45,18 @@ import hashlib
 import logging
 import time
 from collections import OrderedDict
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 _log = logging.getLogger("answer_cache")
 
 _TTL_SECONDS = 24 * 60 * 60  # 24 hours
 _MAX_ENTRIES = 1024
+
+# PR A1.3-fix-17 — Indian-targeting product → IST midnight is the
+# "today changed" boundary, not UTC midnight. Hardcoding +5:30 to avoid
+# pytz dependency.
+_IST = timezone(timedelta(hours=5, minutes=30))
 
 
 class _LRUCache:
@@ -100,12 +117,25 @@ def _normalize_question(q: str) -> str:
     return " ".join((q or "").strip().lower().split())
 
 
+def _today_ist() -> str:
+    """Return today's date in IST as YYYY-MM-DD.
+
+    PR A1.3-fix-17 — switched from UTC to IST. Cache rolls at IST
+    midnight (00:00 IST = 18:30 UTC previous day). This matches what
+    Indian users perceive as "today changed" and aligns with the
+    system prompt's `TODAY'S DATE` field which dasha calculations
+    depend on.
+    """
+    return datetime.now(_IST).strftime("%Y-%m-%d")
+
+
 def make_key(
     *,
     birth_date: str,
     birth_time: str,
     latitude: float,
     longitude: float,
+    timezone_offset: float,
     gender: str,
     topic: str,
     mode: str,
@@ -113,16 +143,22 @@ def make_key(
 ) -> str:
     """Build the cache key. today_date is included so caches roll over
     daily — important because the engine's "current dasha" output and
-    "today's date" in the system prompt change at midnight."""
-    today = datetime.utcnow().strftime("%Y-%m-%d")
+    "today's date" in the system prompt change at IST midnight.
+
+    PR A1.3-fix-17 — added timezone_offset. Without it, two users with
+    same birth_time but different TZ would collide (rare but real:
+    same chart name + birth time + lat/lon, different TZ = different
+    chart, was same cache key).
+    """
     raw = "|".join([
         birth_date or "",
         birth_time or "",
         f"{latitude:.4f}",
         f"{longitude:.4f}",
+        f"{timezone_offset:.2f}",
         (gender or "").lower(),
         (topic or "").lower(),
-        today,
+        _today_ist(),
         (mode or "").lower(),
         _normalize_question(question),
     ])

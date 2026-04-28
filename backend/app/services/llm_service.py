@@ -1526,8 +1526,23 @@ Perform complete KP analysis. Format output for {mode.upper()} mode as instructe
 
     # PR A1.3-fix-13 — beta header required for `ttl: "1h"` on ephemeral
     # cache blocks. Without it, the API rejects the ttl field.
+    #
+    # PR A1.3-fix-17 — model selection by mode:
+    #   - astrologer mode → Sonnet 4.6 (7-section structured output with
+    #     dense KP shorthand needs Sonnet's reasoning depth)
+    #   - user mode       → Haiku 4.5 (plain-English narration of
+    #     pre-computed engine output is a translation task; Haiku is
+    #     ~3× cheaper across input/output/cache and 2-3× faster)
+    #
+    # Accuracy preservation: structural verdicts come from the engine
+    # compute (advanced_compute, decision_support, etc) which is
+    # deterministic. The LLM is presentation layer for user mode. Risk
+    # of model swap: slightly less polished prose. Mitigation: A/B
+    # verification before this rolls to production.
+    model_id = "claude-haiku-4-5" if mode == "user" else "claude-sonnet-4-6"
+
     message = client.messages.create(
-        model="claude-sonnet-4-6",
+        model=model_id,
         max_tokens=max_tokens,
         temperature=0,
         system=system_blocks,
@@ -1602,6 +1617,10 @@ async def get_prediction_stream(
             birth_time=cache_key_input.get("birth_time", ""),
             latitude=cache_key_input.get("latitude", 0.0),
             longitude=cache_key_input.get("longitude", 0.0),
+            # PR A1.3-fix-17 — pass timezone_offset to prevent TZ-collision
+            # bug (same birth_time + lat/lon but different TZ = different
+            # chart, was producing same cache key).
+            timezone_offset=cache_key_input.get("timezone_offset", 5.5),
             gender=cache_key_input.get("gender", ""),
             topic=detected_topic,
             mode=mode,
@@ -1676,9 +1695,13 @@ Perform complete KP analysis. Format output for {mode.upper()} mode as instructe
     max_tokens = 16000 if mode == "astrologer" else 4000
 
     # ─── Stream from Anthropic ───────────────────────────────────────
+    # PR A1.3-fix-17 — Haiku for user mode, Sonnet for astrologer mode.
+    # See get_prediction() above for full rationale.
+    model_id = "claude-haiku-4-5" if mode == "user" else "claude-sonnet-4-6"
+
     accumulated: list[str] = []
     async with async_client.messages.stream(
-        model="claude-sonnet-4-6",
+        model=model_id,
         max_tokens=max_tokens,
         temperature=0,
         system=system_blocks,

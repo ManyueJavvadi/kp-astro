@@ -193,11 +193,14 @@ async def ask_prediction_stream(request: PredictionRequest):
     }
 
     # Phase 2 cache key inputs
+    # PR A1.3-fix-17 — added timezone_offset (was missing; two users
+    # with same birth_time but different TZ could collide).
     cache_input = {
         "birth_date": request.date,
         "birth_time": request.time,
         "latitude": request.latitude,
         "longitude": request.longitude,
+        "timezone_offset": request.timezone_offset,
         "gender": request.gender,
         "topic": topic,
         "mode": request.mode,
@@ -235,3 +238,19 @@ async def ask_prediction_stream(request: PredictionRequest):
             "X-Accel-Buffering": "no",  # disable proxy buffering for streams
         },
     )
+
+
+# ════════════════════════════════════════════════════════════════
+# Cache stats endpoint (PR A1.3-fix-17 — admin / debugging)
+# ════════════════════════════════════════════════════════════════
+# Lets us verify hit rate after launch. Call:
+#   GET /prediction/cache-stats
+# Returns: {entries, hits, misses, hit_rate_pct}.
+# Not auth-protected for now — fine because the endpoint reveals only
+# aggregate counts, not any cached content. Add basic auth before
+# exposing publicly.
+
+@router.get("/cache-stats")
+def cache_stats():
+    from app.services import answer_cache
+    return answer_cache.stats()
