@@ -290,3 +290,109 @@ Even if cusp sub lord is strong, if the karaka is afflicted:
 - Children: Jupiter afflicted → delays in childbirth even with good H5 sub lord
 - Career: Mercury/Saturn afflicted → career obstacles even with good H10 sub lord
 - Property: Mars afflicted → property obstacles even with good H4 sub lord
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 9: WEALTH TYPE CLASSIFICATION (PR A1.3-fix-19)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Section 4 covers wealth promise. Real questions need wealth-TYPE distinction:
+
+EARNED WEALTH (self-acquired through career):
+  H2 sub lord signifying H6 + H10 + H11 (service + career + gain)
+  Strong Mercury or Sun in chain (skill/authority)
+  H10 + H11 dasha alignment
+
+INHERITED WEALTH (from parents/family):
+  H4 (mother property) or H8 (legacy/transformation) + H2
+  H4 sub lord signifying H2 + H8 = mother-side inheritance
+  H9 sub lord signifying H2 + H8 = father-side inheritance
+  Saturn or Jupiter often involved (long-term family wealth)
+  Specific timing: parental dasha (Sun/Moon) + H8 activation
+
+WINDFALL / SPECULATION (lottery, stocks, gambling):
+  H5 (speculation) + H8 (sudden) + H11 (gain)
+  H5 sub lord signifying H2 + H6 + H11 = profitable speculation
+  Rahu involvement often = unexpected windfall
+  Jupiter + Mercury + H5 = stock market gains
+  CAVEAT: Speculation gains are dasha-specific; don't predict permanent wealth from this alone
+
+REAL ESTATE / PROPERTY-DERIVED WEALTH:
+  H4 + H11 + Mars combination
+  Property appreciation: H4 sub lord active in long-running dasha
+  Selling property for gain: H10 + H11 (10th = sale; 11th = gain)
+
+BUSINESS / SELF-EMPLOYMENT WEALTH:
+  H7 + H10 + H11 (partnerships + profession + gain)
+  Lord of H10 strong + H7 sub lord active
+
+LOAN / DEBT EXPOSURE:
+  H6 + H8 (debt + obstacle)
+  H6 sub lord signifying H2 (incoming loan) or H12 (outgoing repayment)
+  Saturn affliction = long-term debt
+  Mars affliction = aggressive collection / disputes
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 10: PROPERTY TYPE (PR A1.3-fix-19)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SELF-PURCHASED HOME:
+  H4 + H11 + H12 (effort + gain + investment)
+  H4 sub lord active + Mars favourable
+
+INHERITED PROPERTY:
+  H4 + H8 (legacy)
+  H8 sub lord signifying H4 + H2
+
+MULTIPLE PROPERTIES:
+  H4 in dual sign + multiple planet involvement
+  H4 sub lord in fixed sign with strong significators = stable multi-property
+
+PROPERTY ABROAD:
+  H4 + H9 + H12 connection (already covered in foreign.txt; cross-reference)
+
+TIMING FOR PROPERTY EVENTS:
+  Mars dasha = strongest acquisition trigger
+  Saturn dasha = construction / structured building
+  Venus dasha = comfort property (vehicles/luxury home)
+  Jupiter dasha = expansion / new property
+  Rahu dasha = unconventional / foreign property
+
+SALE OF PROPERTY:
+  H10 sub lord signifies H3 + H10 = sale activated
+  H10 + H11 = sale with gain
+  H10 + H12 = sale at loss
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 11: SPECIFIC-DATE QUESTION FRAMEWORK (PR A1.3-fix-19)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+When user asks Will [event X] happen by [specific date Y]? :
+
+Step 1: Identify the topic and its relevant houses
+Step 2: Compute the dasha (MD/AD/PAD/Sookshma) at date Y
+Step 3: Check whether AD lord at date Y signifies the relevant houses
+        AND not the denial houses
+Step 4: Check whether PAD lord at date Y aligns with significators
+Step 5: Check whether Sookshma fire-rank for that specific week is high
+Step 6: Cross-check with Ruling Planets at moment of ASKING the question
+Step 7: Verdict matrix:
+        AD aligned + PAD aligned + Sookshma high + RP overlap = HIGH probability
+        3 of 4 align = MODERATE probability (likely with some delay)
+        2 of 4 align = LOW probability (likely deferred)
+        1 or 0 align = the date is unsupported by chart structure
+
+Output format:
+  If aligned: Yes, the chart structure supports [event] around [date].
+              Specifically: [evidence].
+  If misaligned: Date Y does not strongly align. The structurally
+                  supported window is [actual window from analysis].
+                  Reason: [specific dasha mismatch].
+  If genuinely uncertain: KP cannot confidently answer this specific
+                          date. The closest favorable window is [X].
+
+CAVEAT: Always note that human action / external administrative timing
+can shift events within a window. KP gives structural probability, not
+calendar certainty.

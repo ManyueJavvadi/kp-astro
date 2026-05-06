@@ -101,3 +101,91 @@ Step 7: Identify if current/upcoming dasha period triggers divorce houses
 Step 8: Check for reconciliation periods (H2/H7/H11 ADs after discord)
 Step 9: Give timing verdict — when is the peak discord/separation period?
 Step 10: Advise on reconciliation potential if H2/H7/H11 are strong
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 7: WHO INITIATES — NATIVE vs SPOUSE (PR A1.3-fix-19)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+When divorce is structurally indicated, the next question is who pulls the
+trigger? KP analyzes this through the H1 (self) vs H7 (spouse) chain at the
+divorce-firing moment.
+
+NATIVE INITIATES divorce:
+  H1 sub lord activated in the divorce AD
+  H1 + H6 connection in dasha (native dispute-driven)
+  Mars or Saturn signifying H1 in divorce period
+  Ascendant lord in H6 of divorce AD chart
+
+SPOUSE INITIATES divorce:
+  H7 sub lord activated in divorce AD
+  H7 + H12 connection (spouse leaves / abandons)
+  H7 lord in H6 of divorce AD chart
+  Ketu signifying H7 = sudden departure by spouse
+
+JOINT / MUTUAL CONSENT divorce:
+  Both H1 and H7 sub lords signify H6 in the same dasha
+  H11 connection = formal mutual filing
+  Mercury signifying both H1 and H7 = legal documentation jointly
+
+EXTERNAL INTERVENTION (family/legal forced separation):
+  H4 + H6 + H10 connection = family or court intervention
+  9L involvement = paternal/dharmic intervention
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 8: RECONCILIATION PROBABILITY (PR A1.3-fix-19)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Even when discord-AD is active, some couples reconcile. KP indicators:
+
+HIGH RECONCILIATION PROBABILITY:
+  - H2 + H7 + H11 strongly signified in next AD after discord AD
+  - Venus or Jupiter as next AD lord
+  - H7 sub lord NOT signifying H12 (no permanent loss)
+  - Native and spouse natal charts show common-friend bridge (mutual significators)
+
+MODERATE RECONCILIATION:
+  - Mixed dasha signals after discord period
+  - Family pressure (H4/H9 sub lord activation) post-discord
+  - Native re-evaluates (H8 sub lord turning to H2/H7 in following AD)
+
+LOW RECONCILIATION (likely permanent separation):
+  - H6 + H10 + H12 all signified strongly in extended dasha
+  - Saturn dominant in subsequent ADs (cold separation persists)
+  - Mars + Saturn aspect to H7 (irreconcilable)
+  - Native chart shows second-marriage indicators (H7 sub in dual sign + H2 strong)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 9: SECOND MARRIAGE TIMING POST-DIVORCE (PR A1.3-fix-19)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Post-divorce, when second marriage may happen:
+
+  H2 cusp sub lord signifying H7 + H11 = remarriage promised
+  H2 sub lord in dual sign + H7 connection = remarriage likely
+  H7 cusp sub lord in dual sign signifies H2 and H11 = multiple marriages
+
+Timing for remarriage (after divorce AD):
+  Next AD after divorce that activates H2 + H7 + H11
+  Typical gap: 2-7 years post-divorce in KP framework
+  Younger natives (in dasha terms): faster remarriage if Venus/Jupiter dominant
+  Older natives: longer gap, often companionship (H11) without legal H7
+
+LEGAL DIVORCE vs INFORMAL SEPARATION:
+  Legal (court) divorce: H6 + H10 + H11 (formal/legal element)
+  Informal (just living apart): H6 + H12 only, no H10
+  Common-law continuation: H7 still active even after physical separation
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 10: PUSHBACK DISCIPLINE (PR A1.3-fix-19)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+When user pushes back (e.g., my counsellor said we will reconcile but you
+said divorce):
+  Re-run the H6/H10/H12 vs H2/H7/H11 dasha activation check at the timing
+  in question. State which signals support which outcome. KP gives
+  STRUCTURAL PROBABILITY, not deterministic certainty. Acknowledge that
+  human will and active effort can shift moderate-probability outcomes.

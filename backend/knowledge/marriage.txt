@@ -329,3 +329,189 @@ Step 8: Scan all future ADs → rank them for marriage potential
 Step 9: Identify PRIMARY window (Venus AD usually strongest)
 Step 10: Identify PAD within primary window for precise timing
 Step 11: Give complete verdict with timeline from current date to best window
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 12: TYPE OF MARRIAGE — DETAILED CLASSIFICATION FRAMEWORK
+                              (PR A1.3-fix-19 — closing the love-vs-arranged gap)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The 4-line rule in Section 6 is INSUFFICIENT for love-vs-arranged questions.
+Real KP analysis requires checking FIVE distinct signals + applying override
+hierarchy. Apply this framework whenever the user asks ANY of:
+  - Will I have love or arranged marriage?
+  - Will I find my own partner?
+  - Will my parents arrange my match?
+  - Will I have love-cum-arranged marriage?
+  - Will it be inter-caste / inter-religion / cross-cultural?
+  - Where will I meet my partner?
+
+═══════════════════════════════════════════════════════════════════════
+THE FIVE SIGNALS TO CHECK (in this order):
+═══════════════════════════════════════════════════════════════════════
+
+SIGNAL 1: H5 PRESENCE in H7 CSL chain (love-tendency indicator)
+  Check whether H5 appears in any layer of the H7 CSL 4-step chain:
+    SELF (H7 CSL planet house occupation + ownership)
+    STAR (H7 CSL planet star lord houses)
+    SUB  (H7 CSL planet sub lord houses)
+    Step 4 (star lord of sub lord star)
+  If H5 in any layer = there is a structural LOVE-TENDENCY.
+  If H5 absent = no love-tendency; arranged path more likely.
+
+SIGNAL 2: 5L PLACEMENT QUALITY (THE CRITICAL OVERRIDE — most often missed)
+  Where does the 5th house lord (5L) sit? This OVERRIDES Signal 1.
+    5L in H5/H7/H11 own = strong LOVE marriage indicator (love affair fruits)
+    5L in H1/H2/H4/H9   = mild LOVE-tendency (depends on chain)
+    5L in H6            = LOVE AFFAIRS FAIL TO CULMINATE (separation house)
+                          Romance phase happens but does not lead to marriage.
+                          Family arrangement path takes over.
+    5L in H8            = HIDDEN/SCANDAL-PRONE love affairs that do not culminate
+    5L in H12           = LOVE AFFAIR ENDS IN LOSS (12th = expenditure/loss)
+    5L in H10           = Romance subordinated to career — neither pure love nor arranged
+    5L in H3            = Communication-based romance, often sibling/peer-mediated
+
+  CRITICAL RULE: If 5L is in H6/H8/H12, then EVEN IF Signal 1 (H5 in H7 CSL chain)
+  is positive, the love-marriage path is structurally NEGATED. Do NOT predict
+  love marriage just because H5 appears in CSL chain. Check 5L placement first.
+
+SIGNAL 3: H4 + H9 PARENTAL-MEDIATION CHECK (arranged-marriage indicator)
+  Check whether H4 (mother / parental home) AND H9 (father / dharma) appear
+  in the H7 CSL chain.
+    H4 in chain alone   = mother network mediates
+    H9 in chain alone   = father network mediates
+    BOTH H4 and H9      = strong family-mediated arranged marriage signature
+    NEITHER             = family role is minimal; native finds own partner
+
+  ADDITIONAL CHECK — H4 sub lord and H9 sub lord:
+    H4 sub lord signifies H7 = mother is involved in finding partner
+    H9 sub lord signifies H7 = father is involved in finding partner
+    Both H4 and H9 sub lords link to H7 = both parents actively mediating
+
+SIGNAL 4: MOON / FAMILY POSITION (family-driven indicator)
+  Moon represents family emotional life. Moon house position contributes:
+    Moon in H2/H4    = Strong family-driven marriage decision
+    Moon in H7/H11   = Marriage is emotionally joint decision
+    Moon in H5/H9    = Romance + dharma blended (love-cum-arranged tendency)
+    Moon in H8/H12   = Hidden/secretive romance (often ends sadly)
+    Moon in H1/H10   = Self-driven or career-tied marriage decision
+
+SIGNAL 5: 5L-7L RELATIONSHIP (the binder)
+  How are the 5th and 7th lords related?
+    5L = 7L (same planet)            = Strong LOVE-MARRIAGE signature
+    5L conjunct 7L (within 8 deg)    = Strong LOVE indicator
+    5L in 7L sign (parivartana)      = Mild love-link
+    7L in 5L sign (parivartana)      = Same — mild love link
+    5L and 7L in mutual aspect       = Love-conducive
+    5L and 7L unconnected            = No specific love indicator
+
+═══════════════════════════════════════════════════════════════════════
+APPLYING THE FIVE-SIGNAL DECISION TREE:
+═══════════════════════════════════════════════════════════════════════
+
+PURE LOVE MARRIAGE:
+  Signal 1: H5 in chain (preferably SUB or SELF layer)
+  Signal 2: 5L in H5/H7/H11 own (well-placed)
+  Signal 3: H4/H9 minimal in chain
+  Signal 4: Moon in H5/H7 (romance-driven)
+  Signal 5: 5L = 7L OR strong 5L-7L relationship
+  Verdict: Native finds own partner. Romance leads to marriage. Family
+            role is acceptance/blessing, not finding the match.
+
+PURE ARRANGED MARRIAGE:
+  Signal 1: H5 absent OR only weakly in chain
+  Signal 2: 5L afflicted (in 6/8/12) — love path closed
+  Signal 3: H4 + H9 BOTH in chain (parental mediation)
+  Signal 4: Moon in H2/H4 (family-driven)
+  Signal 5: No 5L-7L connection
+  Verdict: Family network finds the match. Native role is acceptance
+            after the match is presented. Native does not search for partner
+            independently.
+
+LOVE-CUM-ARRANGED:
+  Signal 1: H5 in chain
+  Signal 2: 5L well-placed (NOT in 6/8/12)
+  Signal 3: H4 OR H9 in chain (one parent involved)
+  Signal 4: Moon in H5/H9 (romance + dharma)
+  Signal 5: Mild 5L-7L link (not strong identity)
+  Verdict: Native meets partner through romantic connection BUT family
+            also approves and contributes to the arrangement.
+
+LOVE-AFFAIR-THAT-FAILS + ARRANGED LATER (THE COMMONLY MISCLASSIFIED CASE):
+  Signal 1: H5 in chain (love tendency exists)
+  Signal 2: 5L IN H6/H8/H12 (love path NEGATED — critical override)
+  Signal 3: H4 + H9 both in chain (family takes over)
+  Signal 4: Moon in H2 (family-driven)
+  Signal 5: No strong 5L-7L
+  Verdict: Native may have romantic interests early on but they do NOT
+            culminate in marriage. Marriage happens through family
+            arrangement. Native participates in selection (likes/approves
+            the match) but does NOT find the partner independently.
+
+  THIS IS THE CASE THAT IS OFTEN MISCLASSIFIED AS LOVE-CUM-ARRANGED by
+  practitioners who only check Signal 1 without applying Signal 2 override.
+
+FAMILY-MEDIATED WITH NATIVE ACCEPTANCE (most common Indian-context):
+  Signal 1: H5 absent OR negated by Signal 2
+  Signal 2: 5L afflicted OR 5L inactive
+  Signal 3: H4 + H9 in chain
+  Signal 4: Moon in H2 (family-driven)
+  Signal 5: H7 CSL chain has H11 (fulfillment via family)
+  Verdict: Family arranges, native confirms. The marriage happens only
+            after the native also approves the proposed match.
+
+═══════════════════════════════════════════════════════════════════════
+MEETING-PLACE INDICATORS (where partner is met):
+═══════════════════════════════════════════════════════════════════════
+
+The H7 CSL STAR LORD house position indicates WHERE the partner is met.
+This is a classical KP rule (Reader Marriage chapter):
+
+  Star lord in H1   = Native own initiative; meets through self
+  Star lord in H3   = Neighborhood, siblings contacts, short-distance
+  Star lord in H4   = Native home, mother circle, hometown
+  Star lord in H5   = Romantic / social setting, college
+  Star lord in H6   = Workplace, healthcare, service environment
+  Star lord in H7   = Public events, partnerships, formal introductions
+  Star lord in H9   = Religious / educational / abroad / dharma context
+  Star lord in H10  = Workplace specifically (career setting), formal
+  Star lord in H11  = Through friends, social network, common friend
+  Star lord in H12  = Foreign land, hidden/secret circumstances, hospital
+
+CAUTION: The star lord house position gives the network through which
+partner enters. It is NOT a literal you-will-meet-at-this-place. Always
+combine with Signal 3 (parental mediation) and Signal 5 (5L-7L) to
+calibrate. For pure-arranged marriages, the H7 CSL star is in H4/H9 contexts;
+for love marriages it is in H3/H5/H11 contexts.
+
+═══════════════════════════════════════════════════════════════════════
+CROSS-CULTURAL / INTER-CASTE / INTER-RELIGION INDICATORS:
+═══════════════════════════════════════════════════════════════════════
+
+  H7 CSL Rahu OR Rahu in chain          = Unconventional / inter-caste
+  H7 CSL connected to H9 / H12          = Foreign / different-region
+  H7 CSL in dual sign (Gem/Vir/Sag/Pis) = Different-background partner
+  Saturn affliction to H7               = Older partner OR widowed/divorcee
+  H9 sub lord touches H7                = Different-religion / different-dharma
+  H12 sub lord touches H7               = Foreign / abroad-based partner
+  Mars in H7 with Saturn aspect         = Inter-caste with social tension
+
+═══════════════════════════════════════════════════════════════════════
+OUTPUT REQUIREMENT FOR TYPE QUESTIONS:
+═══════════════════════════════════════════════════════════════════════
+
+When the user asks ANY love-vs-arranged question, you MUST present:
+
+  1. The verdict (one of the 5 categories above)
+  2. WHICH of the 5 signals voted for the verdict (cite specifically)
+  3. The OVERRIDE check explicitly:
+       Signal 1 says X, BUT Signal 2 (5L placement) overrides with Y, so...
+  4. Do NOT default to love-cum-arranged without explicit signal evidence
+  5. Cite the meeting-place inference from H7 CSL star lord house
+
+WHEN USER PUSHES BACK (cites another astrologer):
+  Re-run the FIVE SIGNAL CHECK from scratch. Do NOT just agree with the
+  pushback. State which signals support which conclusion. If after re-running
+  the analysis your verdict changes, explain WHY (which signal you missed
+  the first time). If after re-running it does not change, defend with the
+  specific signal evidence and acknowledge the pushback respectfully.
