@@ -1,6 +1,8 @@
 from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from datetime import datetime, timedelta
+import json
 import swisseph as swe
 from astral import LocationInfo
 from astral.sun import sun as astral_sun
@@ -16,7 +18,9 @@ from app.services.telugu_terms import (
     get_nakshatra_telugu, get_house_telugu,
     UI_LABELS, PLANETS_TELUGU
 )
-from app.services.llm_service import get_prediction, detect_topic, get_quick_insights
+from app.services.llm_service import (
+    get_prediction, get_prediction_stream, detect_topic, get_quick_insights,
+)
 from app.services.csl_chains import compute_csl_chains, format_csl_chains_for_llm
 from app.services.timezone_utils import resolve_timezone
 from app.services.chart_formatter import format_chart_for_frontend
@@ -535,6 +539,121 @@ If you cannot write a word in Telugu, write it in English instead.
     )
 
     return {"topic": topic, "answer": answer, "promise": promise, "timing": timing}
+
+
+# ════════════════════════════════════════════════════════════════
+# STREAMING ENDPOINT (PR A1.3-fix-22)
+# ════════════════════════════════════════════════════════════════
+# Server-Sent Events (SSE) variant of /analyze for astrologer mode.
+# Mirrors /prediction/ask-stream so the Analysis tab can show first
+# tokens in 1-2s instead of the prior 25-60s blocking wait.
+#
+# SSE event types yielded:
+#   - "meta"   — initial event with topic + promise + timing payload
+#                that powers the Analysis tab's verdict scaffolding.
+#                Sent FIRST so the UI can render the section shell
+#                before any LLM text arrives.
+#   - "chunk"  — text token from the LLM response. Frontend appends
+#                to the AI message bubble in real time.
+#   - "done"   — stream complete; signals frontend to stop reading.
+#   - "error"  — error during stream; frontend shows fallback.
+#
+# Same compute pipeline as /analyze, same Sonnet 4.6 model selection,
+# same Telugu lang_instruction, same RULE 32 output budget.
+
+@router.post("/analyze-stream")
+async def analyze_topic_stream(request: AnalysisRequest):
+    from app.services.chart_pipeline import build_full_chart_data
+
+    topic = request.topic
+    chart_data = build_full_chart_data(
+        name=request.name,
+        date=request.date,
+        time=request.time,
+        latitude=request.latitude,
+        longitude=request.longitude,
+        timezone_offset=request.timezone_offset,
+        gender=request.gender,
+        topic=topic,
+    )
+    chart_data.pop("_chart_raw", None)
+    chart_data.pop("_moon_longitude", None)
+    promise = chart_data.get("promise_analysis", {})
+    timing = chart_data.get("timing_analysis", {})
+
+    # Telugu language instruction (same as blocking /analyze)
+    lang_instruction = ""
+    if request.language == "telugu_english":
+        telugu_ref = build_telugu_reference()
+        lang_instruction = f"""
+
+LANGUAGE INSTRUCTIONS:
+Write analysis in Telugu mixed with English KP terms.
+CRITICAL SCRIPT RULE: Use ONLY Telugu script (Unicode range U+0C00–U+0C7F).
+NEVER use: Hindi/Devanagari (ह, क, म etc), Chinese, Japanese, or any other script.
+If you cannot write a word in Telugu, write it in English instead.
+
+- Explanations and sentences: Telugu script only
+- KP technical terms kept in English: Sub Lord, Cusp, Significator, Antardasha, Mahadasha, Ruling Planets, house numbers (H7, H2 etc), PROMISED, CONDITIONAL, DENIED
+- Planet names: USE TELUGU from this reference:
+{telugu_ref}
+- Example correct: "H7 యొక్క Sub Lord రాహువు, houses 2, 4, 8 ని signify చేస్తోంది"
+- Example correct: "శుక్రుడు H7 మరియు H11 lord కాబట్టి marriage కి strong significator"
+- NEVER write English planet names like Venus, Mars, Saturn — always use Telugu from the reference above"""
+
+    question = request.question or f"{topic} గురించి పూర్తి KP విశ్లేషణ చేయండి"
+    if lang_instruction:
+        question = question + lang_instruction
+
+    # Cache key inputs (Phase 2 24h answer cache — same shape as
+    # /prediction/ask-stream so the cache can dedupe across endpoints
+    # for identical natal+question+mode combinations).
+    cache_input = {
+        "birth_date": request.date,
+        "birth_time": request.time,
+        "latitude": request.latitude,
+        "longitude": request.longitude,
+        "timezone_offset": request.timezone_offset,
+        "gender": request.gender,
+        "topic": topic,
+        "mode": "astrologer",
+        "question": question,
+    }
+
+    meta_payload = {
+        "topic": topic,
+        "promise": promise,
+        "timing": timing,
+    }
+
+    async def event_stream():
+        try:
+            yield f"event: meta\ndata: {json.dumps(meta_payload, default=str)}\n\n"
+
+            async for chunk in get_prediction_stream(
+                chart_data,
+                question,
+                [{"question": h.get("question", ""), "answer": h.get("answer", "")}
+                 for h in (request.history or [])],
+                mode="astrologer",
+                topic=topic,
+                cache_key_input=cache_input,
+            ):
+                yield f"event: chunk\ndata: {json.dumps({'text': chunk})}\n\n"
+
+            yield "event: done\ndata: {}\n\n"
+        except Exception as e:
+            err_payload = json.dumps({"error": str(e)})
+            yield f"event: error\ndata: {err_payload}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",  # disable proxy buffering for streams
+        },
+    )
 
 
 # ── Quick Insights endpoint ───────────────────────────────────

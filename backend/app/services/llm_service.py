@@ -1131,6 +1131,46 @@ Speak in terms of "challenging health window — recommend extra
 medical care during X period."
 
 
+RULE 32 — OUTPUT BUDGET (PR A1.3-fix-22):
+
+Your answers must respect a token budget. Brevity is a constraint, not
+a suggestion. Bloat is a defect.
+
+ASTROLOGER MODE — TARGET ~2500 OUTPUT TOKENS (~1800-2000 words).
+  - The 7-section format is a SHAPE, not a length contract. Each section
+    earns its space by adding signal not present in earlier sections.
+  - DIRECT VERDICT = ONE sentence. CLIENT SUMMARY = 3 sentences max.
+  - CUSPAL EVIDENCE = 4 lines per cusp (not paragraphs). Use the exact
+    bullet shape shown in the OUTPUT FORMAT block. No restating chain
+    walks across multiple sections.
+  - TIMING WINDOWS = the table is the answer. The 3 callouts after the
+    table are ONE LINE each. Do not narrate what the table already shows.
+  - PRATYANTARDASHA = OMIT entirely if the primary AD is >18 months
+    away or if PAD doesn't narrow timing meaningfully (per existing
+    INTELLIGENT OMISSION RULES). Skipping is the default; including is
+    the exception.
+  - PRE-ANSWERED FOLLOW-UPS = 2-3 questions, ONE-PARAGRAPH answer each
+    (not a sub-section per follow-up).
+  - Tables compress better than prose. Prefer tables when listing >3
+    parallel items.
+  - On follow-up questions: do NOT re-explain context already covered
+    in prior turns. Reference it in one phrase ("As established, Venus
+    on H7 sub lord chain promises") and move forward.
+
+USER MODE — TARGET ~800 OUTPUT TOKENS (~500-600 words).
+  - 2-3 paragraphs is typical. 4 paragraphs only when the question
+    spans multiple distinct life areas.
+  - One direct-answer sentence first. One actionable insight last.
+    Everything between is the bridge.
+
+When in doubt, CUT. A tight 1500-token answer beats a sprawling
+3500-token answer. Senior astrologers value precision over volume.
+
+Hard wall: max_tokens is set to a ceiling above these targets. Hitting
+the ceiling means you wrote too much — you should never approach it
+under normal questions.
+
+
 RULE 33 — TYPE-CLASSIFICATION DISCIPLINE (PR A1.3-fix-19):
 
 When the user asks a TYPE question (not just yes/no), you MUST run the
@@ -1594,8 +1634,7 @@ def get_prediction(chart_data: dict, question: str, history: list = [], mode: st
     #     reliably exceed this — typical session is 5-15 questions over
     #     20-45 min on the same chart.
     #
-    # Beta header `extended-cache-ttl-2025-04-11` is required for the
-    # `ttl: "1h"` field.
+    # PR A1.3-fix-22 — `ttl: "1h"` is GA, no beta header needed.
     #
     # Expected impact:
     #   - Follow-up same-topic: ~67% cost reduction (4/4 blocks hit)
@@ -1652,11 +1691,14 @@ Perform complete KP analysis. Format output for {mode.upper()} mode as instructe
     ]
     messages.append({"role": "user", "content": user_blocks})
 
-    max_tokens = 16000 if mode == "astrologer" else 4000
+    # PR A1.3-fix-22 — output budget caps (RULE 32 in system prompt).
+    # Was 16000/4000 — unbounded sprawl meant astrologer answers ran
+    # 4000-6000 tokens regularly. RULE 32 now targets ~2500/~800; the
+    # max_tokens ceiling sits one notch above as a hard wall (Telugu
+    # tokenization is 2-3× per char vs English, so we leave headroom
+    # before the ceiling truncates legitimate Telugu output).
+    max_tokens = 3500 if mode == "astrologer" else 1200
 
-    # PR A1.3-fix-13 — beta header required for `ttl: "1h"` on ephemeral
-    # cache blocks. Without it, the API rejects the ttl field.
-    #
     # PR A1.3-fix-17 — model selection by mode:
     #   - astrologer mode → Sonnet 4.6 (7-section structured output with
     #     dense KP shorthand needs Sonnet's reasoning depth)
@@ -1666,18 +1708,19 @@ Perform complete KP analysis. Format output for {mode.upper()} mode as instructe
     #
     # Accuracy preservation: structural verdicts come from the engine
     # compute (advanced_compute, decision_support, etc) which is
-    # deterministic. The LLM is presentation layer for user mode. Risk
-    # of model swap: slightly less polished prose. Mitigation: A/B
-    # verification before this rolls to production.
+    # deterministic. The LLM is presentation layer for user mode.
     model_id = "claude-haiku-4-5" if mode == "user" else "claude-sonnet-4-6"
 
+    # PR A1.3-fix-22 — dropped `extra_headers={"anthropic-beta":
+    # "extended-cache-ttl-2025-04-11"}`. Per Anthropic docs the 1h TTL
+    # is GA — no beta header needed. Verified `ttl: "1h"` on cache blocks
+    # works without the header.
     message = client.messages.create(
         model=model_id,
         max_tokens=max_tokens,
         temperature=0,
         system=system_blocks,
         messages=messages,
-        extra_headers={"anthropic-beta": "extended-cache-ttl-2025-04-11"},
     )
 
     return message.content[0].text
@@ -1823,13 +1866,16 @@ Perform complete KP analysis. Format output for {mode.upper()} mode as instructe
     }]
     messages.append({"role": "user", "content": user_blocks})
 
-    max_tokens = 16000 if mode == "astrologer" else 4000
+    # PR A1.3-fix-22 — output budget caps (RULE 32). Same as get_prediction.
+    max_tokens = 3500 if mode == "astrologer" else 1200
 
     # ─── Stream from Anthropic ───────────────────────────────────────
     # PR A1.3-fix-17 — Haiku for user mode, Sonnet for astrologer mode.
     # See get_prediction() above for full rationale.
     model_id = "claude-haiku-4-5" if mode == "user" else "claude-sonnet-4-6"
 
+    # PR A1.3-fix-22 — dropped vestigial extended-cache-ttl-2025-04-11
+    # beta header. 1h TTL is GA per Anthropic docs.
     accumulated: list[str] = []
     async with async_client.messages.stream(
         model=model_id,
@@ -1837,7 +1883,6 @@ Perform complete KP analysis. Format output for {mode.upper()} mode as instructe
         temperature=0,
         system=system_blocks,
         messages=messages,
-        extra_headers={"anthropic-beta": "extended-cache-ttl-2025-04-11"},
     ) as stream:
         async for text in stream.text_stream:
             accumulated.append(text)

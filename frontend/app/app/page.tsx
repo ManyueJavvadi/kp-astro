@@ -535,18 +535,93 @@ export default function Home() {
     }
   };
 
+  // PR A1.3-fix-22 — astrologer SSE consumer.
+  // Streams from /astrologer/analyze-stream and appends chunks to the
+  // last message in `analysisMessages`. Caller is responsible for
+  // inserting the placeholder message before invoking this helper and
+  // for setAnalysisLoading(false) in finally.
+  //
+  // Returns false if the stream errored (caller can show fallback).
+  const streamAstrologerAnalysis = async (
+    topic: string,
+    question: string,
+    history: { question: string; answer: string }[],
+  ): Promise<boolean> => {
+    const formattedDate = getFormattedDate();
+    try {
+      const response = await fetch(`${API_URL}/astrologer/analyze-stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: birthDetails.name, date: formattedDate, time: getTime24(),
+          latitude: birthDetails.latitude, longitude: birthDetails.longitude,
+          timezone_offset: timezoneOffset, gender: birthDetails.gender || "",
+          topic, question, history, language: backendLang(),
+        }),
+      });
+      if (!response.ok || !response.body) return false;
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        let nlIdx;
+        while ((nlIdx = buffer.indexOf("\n\n")) !== -1) {
+          const frame = buffer.slice(0, nlIdx);
+          buffer = buffer.slice(nlIdx + 2);
+          const lines = frame.split("\n");
+          let evtName = "message";
+          let dataStr = "";
+          for (const ln of lines) {
+            if (ln.startsWith("event:")) evtName = ln.slice(6).trim();
+            else if (ln.startsWith("data:")) dataStr += ln.slice(5).trim();
+          }
+          if (!dataStr) continue;
+          try {
+            const data = JSON.parse(dataStr);
+            if (evtName === "chunk" && typeof data.text === "string") {
+              setAnalysisMessages(prev => prev.map((m, i) =>
+                i === prev.length - 1 ? { ...m, a: m.a + data.text } : m
+              ));
+            } else if (evtName === "error") {
+              return false;
+            }
+            // "meta" and "done" events: no UI update needed for the
+            // astrologer Analysis tab today (verdict scaffolding lives
+            // in workspaceData, not in per-message state). Reserved for
+            // future UI affordances.
+          } catch { /* malformed SSE frame — skip */ }
+        }
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   const handleTopicAnalysis = async (topic: string) => {
     if (!workspaceData) return;
     setActiveTopic(topic); setAnalysisLoading(true); setActiveTab("analysis");
-    const formattedDate = getFormattedDate();
     const topicLabel = TOPICS.find(t => t.id === topic)?.te || topic;
-    try {
-      // Topic analysis always starts fresh — no prior history for the first message
-      const res = await axios.post(`${API_URL}/astrologer/analyze`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: timezoneOffset, gender: birthDetails.gender || "", topic, question: `Complete KP analysis for ${topic}`, history: [], language: backendLang() });
-      setAnalysisMessages(prev => [...prev, { q: `${topicLabel} — Full Analysis`, a: res.data.answer, isTopic: true }]);
-    } catch {
-      setAnalysisMessages(prev => [...prev, { q: topicLabel, a: "Analysis failed. Please try again.", isTopic: true }]);
-    } finally { setAnalysisLoading(false); }
+    // Insert placeholder; SSE consumer appends chunks into its `a` field
+    setAnalysisMessages(prev => [...prev, { q: `${topicLabel} — Full Analysis`, a: "", isTopic: true }]);
+    const ok = await streamAstrologerAnalysis(
+      topic,
+      `Complete KP analysis for ${topic}`,
+      [],
+    );
+    if (!ok) {
+      // On failure: replace empty placeholder with error message
+      setAnalysisMessages(prev => prev.map((m, i) =>
+        i === prev.length - 1 && !m.a ? { ...m, a: "Analysis failed. Please try again." } : m
+      ));
+    }
+    setAnalysisLoading(false);
   };
 
   const loadQuickInsights = async () => {
@@ -570,14 +645,22 @@ export default function Home() {
   const handleWorkspaceChat = async () => {
     if (!chatQ.trim()) return;
     const q = chatQ; setChatQ(""); setAnalysisLoading(true); setActiveTab("analysis");
-    const formattedDate = getFormattedDate();
-    try {
-      // CRITICAL FIX: pass ALL prior messages (including topic analysis) as history
-      // This prevents the AI from repeating reasoning already given
-      const history = analysisMessages.slice(-6).map(m => ({ question: m.q, answer: m.a }));
-      const res = await axios.post(`${API_URL}/astrologer/analyze`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: timezoneOffset, gender: birthDetails.gender || "", topic: activeTopic || "general", question: q, history, language: backendLang() });
-      setAnalysisMessages(prev => [...prev, { q, a: res.data.answer }]);
-    } catch { } finally { setAnalysisLoading(false); }
+    // CRITICAL: pass ALL prior messages as history so the AI doesn't
+    // repeat reasoning already given. Snapshot BEFORE we append the
+    // placeholder so history doesn't include the empty new message.
+    const history = analysisMessages.slice(-6).map(m => ({ question: m.q, answer: m.a }));
+    setAnalysisMessages(prev => [...prev, { q, a: "" }]);
+    const ok = await streamAstrologerAnalysis(
+      activeTopic || "general",
+      q,
+      history,
+    );
+    if (!ok) {
+      setAnalysisMessages(prev => prev.map((m, i) =>
+        i === prev.length - 1 && !m.a ? { ...m, a: "Sorry, the analysis failed. Please try again." } : m
+      ));
+    }
+    setAnalysisLoading(false);
   };
 
   // Match AI analysis handlers
@@ -6690,7 +6773,18 @@ export default function Home() {
                                 }, 1500);
                               }}
                             >Copy</button>
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.a}</ReactMarkdown>
+                            {/* PR A1.3-fix-22 — streaming placeholder: render typing dots
+                                inline while the bubble is empty and streaming, then swap
+                                to markdown as chunks arrive. Avoids the duplicate-bubble
+                                glitch (empty placeholder + standalone loading-dots block). */}
+                            {i === analysisMessages.length - 1 && analysisLoading && !msg.a ? (
+                              <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--muted)", fontSize: 12 }}>
+                                <span className="typing-dots"><span /><span /><span /></span>
+                                <span>{activeTopic ? t(`Analyzing ${TOPICS.find(tp => tp.id === activeTopic)?.te || activeTopic}…`, `${TOPICS.find(tp => tp.id === activeTopic)?.te || activeTopic} విశ్లేషిస్తున్నాను…`) : t("Thinking…", "ఆలోచిస్తున్నాను…")}</span>
+                              </div>
+                            ) : (
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.a}</ReactMarkdown>
+                            )}
                             {/* Suggested follow-up chips on the LATEST AI message only */}
                             {i === analysisMessages.length - 1 && !analysisLoading && (
                               <div className="followup-chips">
@@ -6711,13 +6805,18 @@ export default function Home() {
                         </div>
                       </div>
                     ))}
-                    {analysisLoading && (
+                    {/* PR A1.3-fix-22 — standalone loading-dots block removed.
+                        Streaming now renders typing dots INSIDE the placeholder
+                        AI bubble (above) so there's no duplicate-bubble glitch.
+                        Fallback safety: if loading is true but no placeholder
+                        exists yet (race window), show a minimal indicator. */}
+                    {analysisLoading && analysisMessages.length === 0 && (
                       <div style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "0.5rem 0" }}>
                         <div className="chat-ai-dot">D</div>
                         <div className="chat-bubble-ai" style={{ padding: "0.85rem 1.1rem" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--muted)", fontSize: 12 }}>
                             <span className="typing-dots"><span /><span /><span /></span>
-                            <span>{activeTopic ? t(`Analyzing ${TOPICS.find(tp => tp.id === activeTopic)?.te || activeTopic}…`, `${TOPICS.find(tp => tp.id === activeTopic)?.te || activeTopic} విశ్లేషిస్తున్నాను…`) : t("Thinking…", "ఆలోచిస్తున్నాను…")}</span>
+                            <span>{t("Thinking…", "ఆలోచిస్తున్నాను…")}</span>
                           </div>
                         </div>
                       </div>
