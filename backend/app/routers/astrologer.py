@@ -46,6 +46,23 @@ class AnalysisRequest(BaseModel):
     language: str = "telugu_english"
 
 
+# PR A1.3-fix-20 — helper to compute Tara Chakra for the workspace endpoint.
+def _build_tara_chakra(janma_nakshatra: str) -> dict:
+    """Return Tara Chakra payload for the workspace response.
+
+    Includes the full 27-nakshatra chakra computed from the native's janma
+    (Moon's natal nakshatra). Today's-tara and transit-taras are computed
+    inside chart_pipeline.build_full_chart_data and are included in the
+    /astrologer/analyze response — but for the workspace endpoint (which
+    runs basic compute only), we surface just the foundational chakra.
+    """
+    try:
+        from app.services.kp_tara_chakra import compute_tara_chakra
+        return {"chakra": compute_tara_chakra(janma_nakshatra)}
+    except Exception:
+        return {"chakra": {"nakshatras": []}}
+
+
 # PR A1.3a — helper to compute current age in years from a YYYY-MM-DD birth string
 def _compute_age_years(birth_date_str: str) -> int:
     try:
@@ -417,6 +434,10 @@ def get_workspace(request: WorkspaceRequest):
         "panchangam_today": get_today_panchangam(request.timezone_offset, request.latitude, request.longitude),
         "panchangam_birth": get_birth_panchangam(request.date, request.time, request.timezone_offset, request.latitude, request.longitude),
         "csl_chains": compute_csl_chains(cusps_formatted, planets_formatted),
+        # PR A1.3-fix-20 — Tara Chakra (Navatara): native's full chakra
+        # relative to janma nakshatra. Today's tara + transit taras come
+        # from chart_pipeline (which has access to current_transits).
+        "tara_chakra": _build_tara_chakra(chart["planets"].get("Moon", {}).get("nakshatra", "")),
         "ui_labels": UI_LABELS,
         # Full mahadasha list for timeline visualization
         "dashas": [

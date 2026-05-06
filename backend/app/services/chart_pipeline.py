@@ -256,6 +256,33 @@ def build_full_chart_data(
         _log.warning("Sookshma ranking failed: %s", e)
         ranked_sookshmas_current_ad = sookshmas_current_ad
 
+    # ── 10b. Tara Chakra (PR A1.3-fix-20) ───────────────────────────
+    # Native's Janma Nakshatra is determined from natal Moon's nakshatra.
+    # Also compute today's Tara (current Moon's nakshatra → Tara for native)
+    # and transit Taras for each currently-transiting planet.
+    try:
+        from app.services.kp_tara_chakra import (
+            compute_tara_chakra, compute_today_tara, compute_transit_taras,
+        )
+        natal_moon_nak = chart["planets"].get("Moon", {}).get("nakshatra", "")
+        tara_chakra_full = compute_tara_chakra(natal_moon_nak)
+        today_tara = None
+        transit_taras: list = []
+        if transits.get("current_transits"):
+            cur_moon_nak = transits["current_transits"].get("Moon", {}).get("nakshatra", "")
+            today_tara = compute_today_tara(natal_moon_nak, cur_moon_nak)
+            transit_taras = compute_transit_taras(
+                natal_moon_nak, transits["current_transits"]
+            )
+        tara_data = {
+            "chakra": tara_chakra_full,
+            "today_tara": today_tara,
+            "transit_taras": transit_taras,
+        }
+    except Exception as e:
+        _log.warning("Tara Chakra compute failed: %s", e)
+        tara_data = {}
+
     # ── 11. Assemble chart_data dict ────────────────────────────────
     chart_data: dict[str, Any] = {
         "name": name,
@@ -288,6 +315,7 @@ def build_full_chart_data(
         "yogini_dasha": yogini_data,
         "decision_support": decision_data,
         "dasha_conflicts": conflict_flags,
+        "tara_chakra": tara_data,  # PR A1.3-fix-20
         # Raw chart for the response payload (kept separately so the
         # routers can return it to the frontend without re-running the
         # compute).

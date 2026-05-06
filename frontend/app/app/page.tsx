@@ -22,7 +22,11 @@ import HoraryRpDashaStrip from "./components/HoraryRpDashaStrip";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useLiveLocation } from "@/hooks/useLiveLocation";
 import { formatMaskedDate, formatMaskedTime } from "./lib/maskedInput";
-import SouthIndianChart from "./components/SouthIndianChart";
+// PR A1.3-fix-20 — RasiChart replaces SouthIndianChart with proper KP
+// sign-fixed layout + North/South/East tabs. Drop-in replacement.
+import RasiChart from "./components/RasiChart";
+const SouthIndianChart = RasiChart;  // backwards-compat alias for existing call sites
+import TaraChakraWidget from "./components/TaraChakraWidget";
 import DashaTimeline from "./components/DashaTimeline";
 import PanchangamCard from "./components/PanchangamCard";
 import PromiseBadge from "./components/PromiseBadge";
@@ -1904,6 +1908,13 @@ export default function Home() {
                       {/* OVERVIEW sub-tab — HouseOverviewGrid */}
                       {housesSubTab === "overview" && (
                         <div className="tab-content">
+                          {/* PR A1.3-fix-20 — Tara Chakra widget at top of Overview */}
+                          {workspaceData?.tara_chakra && (
+                            <TaraChakraWidget
+                              taraData={workspaceData.tara_chakra}
+                              todayMoonNakshatra={workspaceData?.panchangam_today?.nakshatra_en}
+                            />
+                          )}
                           <div style={{ display: "flex", gap: 12, alignItems: "start", flexWrap: "wrap" }}>
                             <div style={{ flex: 1, minWidth: 340 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>

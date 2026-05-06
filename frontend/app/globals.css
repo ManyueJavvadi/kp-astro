@@ -5668,3 +5668,460 @@ textarea:focus-visible {
   .user-empty-categories { grid-template-columns: 1fr; }
   .user-hero-sub { font-size: 10.5px; }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   RASI CHART (PR A1.3-fix-20)
+   Sign-fixed South Indian + diamond North Indian + East Indian.
+   Replaces the old house-cell SouthIndianChart layout.
+   ═══════════════════════════════════════════════════════════════ */
+
+.rasi-chart-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 580px;
+  margin: 0 auto;
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+
+.rasi-tabs {
+  display: inline-flex;
+  background: rgba(201,169,110,0.06);
+  border: 0.5px solid rgba(201,169,110,0.18);
+  border-radius: 8px;
+  padding: 3px;
+  margin-bottom: 14px;
+}
+.rasi-tab {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  padding: 6px 18px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 200ms;
+  font-family: inherit;
+  letter-spacing: 0.02em;
+}
+.rasi-tab:hover { color: var(--text); }
+.rasi-tab.is-active {
+  background: var(--accent);
+  color: #09090f;
+  font-weight: 600;
+}
+
+.rasi-chart-frame {
+  width: 100%;
+  border: 1px solid rgba(201,169,110,0.35);
+  border-radius: 4px;
+  background: rgba(201,169,110,0.02);
+  padding: 4px;
+  position: relative;
+  aspect-ratio: 1 / 1;
+}
+
+/* ── South Indian + East Indian: 4×4 grid ── */
+.rasi-grid-south,
+.rasi-grid-east {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  gap: 1px;
+  width: 100%;
+  height: 100%;
+}
+
+.rasi-cell {
+  background: rgba(201,169,110,0.015);
+  border: 0.5px solid rgba(201,169,110,0.18);
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: background 160ms, border-color 160ms;
+  min-height: 0;
+  overflow: hidden;
+}
+.rasi-cell:hover {
+  background: rgba(201,169,110,0.10);
+  border-color: rgba(201,169,110,0.35);
+}
+.rasi-cell.rasi-lagna {
+  background: rgba(201,169,110,0.07);
+  border-color: rgba(201,169,110,0.45);
+}
+.rasi-cell.rasi-selected {
+  background: rgba(201,169,110,0.20);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent) inset;
+}
+.rasi-cell-empty {
+  background: rgba(201,169,110,0.02);
+  border: 0.5px solid rgba(201,169,110,0.06);
+  cursor: default;
+  align-items: center;
+  justify-content: center;
+}
+.rasi-cell-empty:hover {
+  background: rgba(201,169,110,0.02);
+  border-color: rgba(201,169,110,0.06);
+}
+
+.rasi-cell-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+  min-height: 18px;
+}
+.rasi-sign-abbr {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+.rasi-cusp {
+  font-size: 9.5px;
+  color: var(--accent);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  background: rgba(201,169,110,0.08);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.rasi-cusp-lagna {
+  background: var(--accent);
+  color: #09090f;
+}
+.rasi-lagna-mark {
+  margin-left: auto;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.rasi-planets {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rasi-planet {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'DM Serif Display', serif;
+  letter-spacing: 0.01em;
+}
+.rasi-planet-deg {
+  font-size: 9px;
+  font-weight: 400;
+  font-family: 'DM Sans', sans-serif;
+  opacity: 0.55;
+  font-variant-numeric: tabular-nums;
+}
+.rasi-center-mark {
+  color: rgba(201,169,110,0.20);
+  font-size: 22px;
+  pointer-events: none;
+}
+
+/* ── North Indian: kite/diamond ── */
+.rasi-grid-north {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+.rasi-north-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.rasi-north-zone {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+  min-width: 60px;
+  transition: background 160ms;
+  text-align: center;
+  z-index: 2;
+}
+.rasi-north-zone:hover {
+  background: rgba(201,169,110,0.08);
+}
+.rasi-north-zone.rasi-lagna {
+  background: rgba(201,169,110,0.10);
+}
+.rasi-north-zone.rasi-selected {
+  background: rgba(201,169,110,0.22);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.rasi-north-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+.rasi-north-house {
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+.rasi-north-sign {
+  font-size: 9.5px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+.rasi-north-planets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+  justify-content: center;
+}
+
+/* ── Legend ── */
+.rasi-legend {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 14px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.rasi-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.rasi-legend-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.rasi-legend-asc {
+  background: rgba(201,169,110,0.45);
+  border: 1px solid var(--accent);
+}
+.rasi-legend-planet {
+  background: var(--accent);
+}
+
+/* ── Mobile responsive ── */
+@media (max-width: 720px) {
+  .rasi-chart-wrapper { max-width: 100%; }
+  .rasi-cell { padding: 4px 5px; }
+  .rasi-sign-abbr { font-size: 10px; }
+  .rasi-cusp { font-size: 8.5px; padding: 1px 3px; }
+  .rasi-planet { font-size: 11px; }
+  .rasi-planet-deg { font-size: 8px; }
+  .rasi-north-zone { min-width: 44px; padding: 4px 5px; }
+  .rasi-north-house { font-size: 10px; }
+  .rasi-north-sign { font-size: 8.5px; }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   TARA CHAKRA WIDGET (PR A1.3-fix-20)
+   ═══════════════════════════════════════════════════════════════ */
+
+.tara-widget {
+  background: linear-gradient(180deg, rgba(201,169,110,0.05) 0%, rgba(201,169,110,0.015) 100%);
+  border: 0.5px solid rgba(201,169,110,0.25);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+}
+.tara-widget-title {
+  font-size: 9.5px;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  margin: 0 0 10px 0;
+  font-weight: 500;
+}
+.tara-widget-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.tara-widget-key {
+  font-size: 10.5px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.tara-widget-value {
+  font-family: 'DM Serif Display', serif;
+  font-size: 16px;
+  color: var(--text);
+}
+.tara-widget-tara {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'DM Serif Display', serif;
+  font-size: 18px;
+  padding: 4px 12px;
+  border-radius: 6px;
+}
+.tara-favorable {
+  background: rgba(52,211,153,0.10);
+  border: 0.5px solid rgba(52,211,153,0.4);
+  color: #34d399;
+}
+.tara-unfavorable {
+  background: rgba(248,113,113,0.10);
+  border: 0.5px solid rgba(248,113,113,0.4);
+  color: #f87171;
+}
+.tara-neutral {
+  background: rgba(251,191,36,0.10);
+  border: 0.5px solid rgba(251,191,36,0.4);
+  color: #fbbf24;
+}
+.tara-widget-effect {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 6px;
+  font-style: italic;
+}
+.tara-widget-expand {
+  background: transparent;
+  border: 0.5px solid rgba(201,169,110,0.25);
+  color: var(--accent);
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 11px;
+  cursor: pointer;
+  margin-top: 12px;
+  font-family: inherit;
+  letter-spacing: 0.04em;
+}
+.tara-widget-expand:hover {
+  background: rgba(201,169,110,0.08);
+}
+
+/* Expanded chakra modal */
+.tara-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.tara-modal {
+  background: var(--bg);
+  border: 0.5px solid var(--border-strong);
+  border-radius: 14px;
+  max-width: 880px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 28px;
+  position: relative;
+}
+.tara-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: transparent;
+  border: 0.5px solid var(--border2);
+  color: var(--muted);
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}
+.tara-modal-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 22px;
+  color: var(--text);
+  margin: 0 0 6px 0;
+}
+.tara-modal-sub {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0 0 24px 0;
+}
+.tara-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.tara-cell {
+  background: rgba(255,255,255,0.02);
+  border: 0.5px solid var(--border2);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 11.5px;
+}
+.tara-cell.is-current {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent) inset;
+}
+.tara-cell.is-janma {
+  background: rgba(201,169,110,0.08);
+}
+.tara-cell-nakshatra {
+  font-family: 'DM Serif Display', serif;
+  font-size: 13px;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.tara-cell-tara {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.tara-section {
+  margin-top: 24px;
+}
+.tara-section-title {
+  font-size: 10px;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  margin: 0 0 10px 0;
+}
+.tara-transit-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.tara-transit-table th,
+.tara-transit-table td {
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 0.5px solid var(--border);
+}
+.tara-transit-table th {
+  color: var(--muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 500;
+}
