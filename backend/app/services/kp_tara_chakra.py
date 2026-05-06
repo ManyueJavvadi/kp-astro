@@ -252,3 +252,115 @@ def compute_today_tara(
     This is the headline daily-favorability indicator.
     """
     return compute_tara_for_nakshatra(janma_nakshatra, moon_current_nakshatra)
+
+
+# ════════════════════════════════════════════════════════════════
+# CHANDRA BALA (PR A1.3-fix-21)
+# ════════════════════════════════════════════════════════════════
+# Chandra Bala is the SECOND axis of muhurtha favorability, paired with
+# Tara Bala. Where Tara Bala uses NAKSHATRAS (27-nak / 9-tara), Chandra
+# Bala uses SIGNS (12-rashi). Both must be checked for full daily-
+# auspiciousness reading.
+#
+# The 12 sign positions from natal Moon's sign:
+#   1, 3, 6, 7, 10, 11 → favorable (Chandra Bala SUDDHA / GOOD)
+#   2, 5, 9            → unfavorable (Chandra Bala ASUDDHA / BAD)
+#   4, 8, 12           → mildly unfavorable (Chandra Bala MIDDLING)
+#
+# Some traditions are stricter: only 1, 3, 6, 7, 10, 11 are good; rest bad.
+
+SIGNS_12: list[str] = [
+    "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
+    "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces",
+]
+SIGNS_12_TE: list[str] = [
+    "మేషం", "వృషభం", "మిథున", "కర్కాటకం", "సింహం", "కన్య",
+    "తుల", "వృశ్చికం", "ధనుస్సు", "మకరం", "కుంభం", "మీనం",
+]
+
+CHANDRA_BALA_NATURE: dict[int, str] = {
+    1:  "favorable",      # Janma rashi (own sign) — neutral-to-favorable
+    2:  "unfavorable",    # Dhana from Moon — bad for muhurtha
+    3:  "favorable",      # Sahaja — favorable
+    4:  "mild_unfavor",   # Sukha — middling
+    5:  "unfavorable",    # Putra from Moon — bad
+    6:  "favorable",      # Ari — favorable for action
+    7:  "favorable",      # Yuvati — favorable for partnerships
+    8:  "mild_unfavor",   # Randhra — middling, watchful
+    9:  "unfavorable",    # Dharma — bad for material-action muhurtha
+    10: "favorable",      # Karma — favorable for career action
+    11: "favorable",      # Labha — favorable for gain-related action
+    12: "mild_unfavor",   # Vyaya — middling, expense
+}
+CHANDRA_BALA_EFFECT: dict[int, str] = {
+    1:  "Janma rashi — own sign. Neutral, generally favorable for stable activities.",
+    2:  "Dhana — wealth axis but unfavorable for new starts. Avoid major financial commitments.",
+    3:  "Sahaja — courage and effort. Favorable for action and short journeys.",
+    4:  "Sukha — comfort axis but middling for muhurtha. Avoid moves and home shifts.",
+    5:  "Putra — children/creativity but unfavorable for risky decisions and speculation.",
+    6:  "Ari — overcoming adversaries. Favorable for competitive action and disputes.",
+    7:  "Yuvati — partnerships. Favorable for marriage, contracts, public dealings.",
+    8:  "Randhra — transformation. Mildly unfavorable; avoid surgery if optional.",
+    9:  "Dharma — fortune axis but unfavorable for new material starts. Spiritual focus only.",
+    10: "Karma — career. Favorable for professional action and authority work.",
+    11: "Labha — gains. Highly favorable for income-related actions and partnerships.",
+    12: "Vyaya — expense. Mildly unfavorable; favorable only for spiritual/charity expenditure.",
+}
+
+
+def compute_chandra_bala(
+    natal_moon_sign: str,
+    target_sign: str,
+) -> dict[str, Any] | None:
+    """
+    Compute Chandra Bala for a target sign relative to native's natal Moon sign.
+    Used for: today's Moon transit favorability, transiting planet's sign.
+    """
+    if natal_moon_sign not in SIGNS_12 or target_sign not in SIGNS_12:
+        return None
+    natal_idx = SIGNS_12.index(natal_moon_sign)
+    target_idx = SIGNS_12.index(target_sign)
+    position = ((target_idx - natal_idx) % 12) + 1  # 1..12
+    nature = CHANDRA_BALA_NATURE[position]
+    return {
+        "natal_moon_sign": natal_moon_sign,
+        "target_sign": target_sign,
+        "position_from_natal_moon": position,
+        "nature": nature,
+        "effect": CHANDRA_BALA_EFFECT[position],
+    }
+
+
+def compute_today_chandra_bala(
+    natal_moon_sign: str,
+    moon_current_sign: str,
+) -> dict[str, Any] | None:
+    """Today's Chandra Bala (current Moon's sign relative to native's natal Moon)."""
+    return compute_chandra_bala(natal_moon_sign, moon_current_sign)
+
+
+# ════════════════════════════════════════════════════════════════
+# PARIHARAM (REMEDIES) FOR UNFAVORABLE TARAS (PR A1.3-fix-21)
+# ════════════════════════════════════════════════════════════════
+# When the day's Tara is unfavorable but action cannot be deferred,
+# classical KP/Vedic texts prescribe specific simple remedies (pariharam)
+# to mitigate. These are dietary or behavioural offerings, NOT mantras
+# or expensive rituals.
+
+TARA_PARIHARAM: dict[str, str] = {
+    "Janma":     "Eat or offer yellow pumpkin (gummadikaya). Mitigates Janma-tara dosha.",
+    "Vipat":     "Offer or eat jaggery (bellam). Reduces Vipat-tara obstacles.",
+    "Pratyari":  "Offer green gram or sesame seeds. Counters Pratyari adversaries.",
+    "Naidhana":  "Offer salt to a cow or feed jaggery-rice to dogs. Strongest dosha — most defer the action; if essential, observe additional caution and avoid critical decisions.",
+    # Favorable Taras — no pariharam needed (informational only)
+    "Sampat":    "Favorable. No remedy needed.",
+    "Kshema":    "Favorable. No remedy needed.",
+    "Sadhana":   "Favorable. No remedy needed.",
+    "Mitra":     "Favorable. No remedy needed.",
+    "Atimitra":  "Most auspicious. No remedy needed.",
+}
+
+
+def get_tara_pariharam(tara_name: str) -> str:
+    """Return classical pariharam (remedy) for a Tara, if applicable."""
+    return TARA_PARIHARAM.get(tara_name, "")

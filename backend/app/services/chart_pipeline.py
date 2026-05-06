@@ -256,31 +256,38 @@ def build_full_chart_data(
         _log.warning("Sookshma ranking failed: %s", e)
         ranked_sookshmas_current_ad = sookshmas_current_ad
 
-    # ── 10b. Tara Chakra (PR A1.3-fix-20) ───────────────────────────
-    # Native's Janma Nakshatra is determined from natal Moon's nakshatra.
-    # Also compute today's Tara (current Moon's nakshatra → Tara for native)
-    # and transit Taras for each currently-transiting planet.
+    # ── 10b. Tara Chakra + Chandra Bala (PR A1.3-fix-20 / fix-21) ────
+    # Tara Bala uses NAKSHATRAS (27/9-tara). Chandra Bala uses SIGNS
+    # (12-rashi). Both axes paired for full muhurtha favorability.
     try:
         from app.services.kp_tara_chakra import (
             compute_tara_chakra, compute_today_tara, compute_transit_taras,
+            compute_today_chandra_bala, TARA_PARIHARAM,
         )
         natal_moon_nak = chart["planets"].get("Moon", {}).get("nakshatra", "")
+        natal_moon_sign = chart["planets"].get("Moon", {}).get("sign", "")
         tara_chakra_full = compute_tara_chakra(natal_moon_nak)
         today_tara = None
+        today_chandra_bala = None
         transit_taras: list = []
         if transits.get("current_transits"):
             cur_moon_nak = transits["current_transits"].get("Moon", {}).get("nakshatra", "")
+            cur_moon_sign = transits["current_transits"].get("Moon", {}).get("sign", "")
             today_tara = compute_today_tara(natal_moon_nak, cur_moon_nak)
+            today_chandra_bala = compute_today_chandra_bala(natal_moon_sign, cur_moon_sign)
             transit_taras = compute_transit_taras(
                 natal_moon_nak, transits["current_transits"]
             )
         tara_data = {
             "chakra": tara_chakra_full,
+            "natal_moon_sign": natal_moon_sign,
             "today_tara": today_tara,
+            "today_chandra_bala": today_chandra_bala,
             "transit_taras": transit_taras,
+            "pariharam": TARA_PARIHARAM,
         }
     except Exception as e:
-        _log.warning("Tara Chakra compute failed: %s", e)
+        _log.warning("Tara/Chandra Bala compute failed: %s", e)
         tara_data = {}
 
     # ── 11. Assemble chart_data dict ────────────────────────────────

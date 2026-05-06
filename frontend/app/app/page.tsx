@@ -1795,7 +1795,7 @@ export default function Home() {
                       <div style={{ flexShrink: 0 }}>
                         {chartView === "chart" && (
                           <>
-                            <SectionEyebrow te="దక్షిణ భారత చార్ట్" en="South Indian Chart" />
+                            {/* PR fix-21 — title is rendered inside RasiChart now (dynamic per active style) */}
                             <SouthIndianChart
                               planets={workspaceData.planets}
                               cusps={workspaceData.cusps}

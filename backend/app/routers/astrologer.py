@@ -46,19 +46,28 @@ class AnalysisRequest(BaseModel):
     language: str = "telugu_english"
 
 
-# PR A1.3-fix-20 — helper to compute Tara Chakra for the workspace endpoint.
-def _build_tara_chakra(janma_nakshatra: str) -> dict:
-    """Return Tara Chakra payload for the workspace response.
+# PR A1.3-fix-20 / fix-21 — helper to compute Tara Chakra + Chandra Bala
+# for the workspace endpoint.
+def _build_tara_chakra(janma_nakshatra: str, natal_moon_sign: str = "") -> dict:
+    """Return Tara Chakra + Chandra Bala payload for the workspace response.
 
-    Includes the full 27-nakshatra chakra computed from the native's janma
-    (Moon's natal nakshatra). Today's-tara and transit-taras are computed
-    inside chart_pipeline.build_full_chart_data and are included in the
-    /astrologer/analyze response — but for the workspace endpoint (which
-    runs basic compute only), we surface just the foundational chakra.
+    Includes:
+      - Full 27-nakshatra chakra (Tara Bala)
+      - Native's natal Moon sign (for Chandra Bala compute on demand)
+      - Pariharam (remedies) per Tara
+    Today's-tara, transit-taras, and Chandra Bala for current Moon are
+    computed inside chart_pipeline.build_full_chart_data and surface in
+    the /astrologer/analyze response.
     """
     try:
-        from app.services.kp_tara_chakra import compute_tara_chakra
-        return {"chakra": compute_tara_chakra(janma_nakshatra)}
+        from app.services.kp_tara_chakra import (
+            compute_tara_chakra, TARA_PARIHARAM,
+        )
+        return {
+            "chakra": compute_tara_chakra(janma_nakshatra),
+            "natal_moon_sign": natal_moon_sign,
+            "pariharam": TARA_PARIHARAM,
+        }
     except Exception:
         return {"chakra": {"nakshatras": []}}
 
@@ -434,10 +443,15 @@ def get_workspace(request: WorkspaceRequest):
         "panchangam_today": get_today_panchangam(request.timezone_offset, request.latitude, request.longitude),
         "panchangam_birth": get_birth_panchangam(request.date, request.time, request.timezone_offset, request.latitude, request.longitude),
         "csl_chains": compute_csl_chains(cusps_formatted, planets_formatted),
-        # PR A1.3-fix-20 — Tara Chakra (Navatara): native's full chakra
-        # relative to janma nakshatra. Today's tara + transit taras come
-        # from chart_pipeline (which has access to current_transits).
-        "tara_chakra": _build_tara_chakra(chart["planets"].get("Moon", {}).get("nakshatra", "")),
+        # PR A1.3-fix-20 / fix-21 — Tara Chakra (Navatara) + Chandra Bala +
+        # Pariharam. Native's full chakra relative to janma nakshatra +
+        # natal Moon sign for Chandra Bala compute. Today's tara, transit
+        # taras, and Chandra Bala for current Moon come from
+        # chart_pipeline.build_full_chart_data (in /analyze response).
+        "tara_chakra": _build_tara_chakra(
+            chart["planets"].get("Moon", {}).get("nakshatra", ""),
+            chart["planets"].get("Moon", {}).get("sign", ""),
+        ),
         "ui_labels": UI_LABELS,
         # Full mahadasha list for timeline visualization
         "dashas": [
