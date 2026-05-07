@@ -4,6 +4,9 @@ import { useLanguage } from "@/lib/i18n";
 import { useSheetDrag } from "@/hooks/useSheetDrag";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { X } from "lucide-react";
+// Phase 7 / PR 18 — was rendering raw ISO dates in the dasha-period
+// rows under each house. Use the canonical period formatter.
+import { formatDashaPeriod } from "@/lib/format";
 
 export default function HousePanel({ house, cusps, significators, planets, rulingPlanets, antardashas, onClose }: {
   house: number; cusps: any[]; significators: any;
@@ -223,7 +226,7 @@ export default function HousePanel({ house, cusps, significators, planets, rulin
                 <span style={{ fontSize: 11, fontWeight: ad.is_current ? 600 : 400, color: PLANET_COLORS[ad.lord_en] || "var(--text)", minWidth: 55 }}>
                   {pick(ad.lord_en, ad.lord_te)}
                 </span>
-                <span style={{ fontSize: 10, color: "var(--muted)", flex: 1 }}>{ad.start} → {ad.end}</span>
+                <span style={{ fontSize: 10, color: "var(--muted)", flex: 1 }}>{formatDashaPeriod(ad.start, ad.end)}</span>
                 {ad.is_current && <span style={{ fontSize: 9, color: "var(--accent)" }}>← {t("Now", "ఇప్పుడు")}</span>}
               </div>
             ))}

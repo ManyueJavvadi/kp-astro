@@ -95,14 +95,17 @@ export function PlacePicker({
           lon: parseFloat(f.lon),
         };
       });
-      // Phase 4 / PR 8 — dedupe by (display, lat-4dp, lon-4dp). OSM
-      // returns duplicate relation IDs for the same physical place
-      // (town + municipality + railway station all match "Tenali").
+      // Phase 4 / PR 8 + Phase 7 / PR 17 — dedupe by display alone
+      // (normalised). Phase 4's lat/lon-keyed dedup let through a
+      // production-confirmed Tenali case where OSM returned two
+      // entries with the same display but different lat/lons. Display
+      // already carries state + country so distant Springfields keep
+      // distinct strings — only true duplicates collapse.
       const seen = new Set<string>();
       const items: PlacePick[] = [];
       for (const p of mapped) {
-        const key = `${p.display}|${p.lat.toFixed(4)}|${p.lon.toFixed(4)}`;
-        if (seen.has(key)) continue;
+        const key = (p.display ?? "").toLowerCase().replace(/\s+/g, " ").trim();
+        if (!key || seen.has(key)) continue;
         seen.add(key);
         items.push(p);
       }

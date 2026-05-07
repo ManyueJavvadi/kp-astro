@@ -1,6 +1,9 @@
 "use client";
 import { PLANET_COLORS } from "./constants";
 import { useLanguage } from "@/lib/i18n";
+// Phase 7 / PR 18 — replaces raw ISO `2021-02-09 → 2039-02-09` with
+// the canonical "Feb 2021 – Feb 2039" rendering used by the header.
+import { formatDashaPeriod } from "@/lib/format";
 
 export default function DashaTimeline({ mahadasha, antardashas }: { mahadasha: any; antardashas: any[] }) {
   const { lang, t } = useLanguage();
@@ -18,7 +21,7 @@ export default function DashaTimeline({ mahadasha, antardashas }: { mahadasha: a
           <span style={{ fontSize: 12, color: "var(--accent)", fontWeight: 600 }}>
             {pick(mahadasha, "lord")} {t("Mahadasha", "మహాదశ")}
           </span>
-          <span style={{ fontSize: 10, color: "var(--muted)" }}>{mahadasha.start} → {mahadasha.end}</span>
+          <span style={{ fontSize: 10, color: "var(--muted)" }}>{formatDashaPeriod(mahadasha.start, mahadasha.end)}</span>
         </div>
         <div style={{ background: "var(--surface2)", borderRadius: 4, height: 6, overflow: "hidden" }}>
           <div style={{ height: "100%", borderRadius: 4, background: `linear-gradient(90deg, ${PLANET_COLORS[mahadasha.lord_en] || "var(--accent)"}, transparent)`, width: `${pct}%`, transition: "width 0.5s" }} />
@@ -33,7 +36,7 @@ export default function DashaTimeline({ mahadasha, antardashas }: { mahadasha: a
               <span style={{ fontSize: 13, fontWeight: ad.is_current ? 600 : 400, color: ad.is_current ? PLANET_COLORS[ad.lord_en] || "var(--accent)" : "var(--text)", minWidth: 80 }}>
                 {pick(ad, "lord")}
               </span>
-              <span style={{ fontSize: 10, color: "var(--muted)", flex: 1 }}>{ad.start} → {ad.end}</span>
+              <span style={{ fontSize: 10, color: "var(--muted)", flex: 1 }}>{formatDashaPeriod(ad.start, ad.end)}</span>
               {ad.is_current && (
                 <span style={{ fontSize: 9, background: "rgba(201,169,110,0.2)", color: "var(--accent)", padding: "2px 6px", borderRadius: 3 }}>
                   {t("Now", "ప్రస్తుతం")}

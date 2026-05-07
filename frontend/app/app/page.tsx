@@ -27,6 +27,9 @@ import { formatMaskedDate, formatMaskedTime } from "./lib/maskedInput";
 // surface has one job (#A, #B, #F).
 import { TodayStrip } from "./components/workspace/TodayStrip";
 import { ChartContextStrip } from "./components/workspace/ChartContextStrip";
+// Phase 7 / PR 18 — date formatter for the Dasha tab MD/AD/PAD cards.
+// Wraps the same Phase 1 helper PersonHeroBanner uses.
+import { formatDate, formatDashaPeriod, stripSeconds } from "@/lib/format";
 // PR A1.3-fix-20 — RasiChart replaces SouthIndianChart with proper KP
 // sign-fixed layout + North/South/East tabs. Drop-in replacement.
 import RasiChart from "./components/RasiChart";
@@ -326,19 +329,22 @@ export default function Home() {
 
   // Phase 4 / PR 8 — dedupe Nominatim suggestions.
   // Stress-test finding #1: typing "Tenali" returned two identical
-  // "Tenali · Andhra Pradesh · India" rows in every place picker
-  // (onboarding, new chart, panchang city selector, match partner,
-  // muhurtha event location). Cause: OSM has multiple relation IDs for
-  // the same place (town + municipality + railway station) which all
-  // collapse to the same `parts.join(", ")` display string. Dedupe by
-  // (display, lat-rounded-4dp, lon-rounded-4dp) — keeps "Springfield IL"
-  // distinct from "Springfield MA" while collapsing the duplicates.
+  // "Tenali · Andhra Pradesh · India" rows in every place picker.
+  // Phase 7 / PR 17 — Phase 4's dedup keyed by (display + lat-4dp +
+  // lon-4dp) but live testing on production caught a case where OSM
+  // returned two entries for Tenali with **different** lat/lon
+  // (16.2378 vs 16.2516) and identical display strings — both
+  // survived dedup. Tightened to dedup by `display` alone (case- and
+  // whitespace-normalised). Display strings already include state +
+  // country, so distant Springfields keep distinct displays
+  // ("Springfield, Illinois, United States" vs "Springfield,
+  // Massachusetts, United States") — only true duplicates collapse.
   const dedupePlaces = useCallback((rows: PlaceSuggestion[]): PlaceSuggestion[] => {
     const seen = new Set<string>();
     const out: PlaceSuggestion[] = [];
     for (const r of rows) {
-      const key = `${r.display}|${r.lat.toFixed(4)}|${r.lon.toFixed(4)}`;
-      if (seen.has(key)) continue;
+      const key = (r.display ?? "").toLowerCase().replace(/\s+/g, " ").trim();
+      if (!key || seen.has(key)) continue;
       seen.add(key);
       out.push(r);
     }
@@ -2738,7 +2744,10 @@ export default function Home() {
                 const mdProg  = periodProgress(md?.start,  md?.end);
                 const adProg  = periodProgress(ad?.start,  ad?.end);
                 const padProg = periodProgress(pad?.start, pad?.end);
-                const fmt = (s?: string) => s?.slice(0, 10) ?? "—";
+                // Phase 7 / PR 18 — was rendering ISO `2021-02-09 → 2039-02-09`.
+                // Live test caught the inconsistency vs the header chips
+                // ("Feb 2039") elsewhere. Use the canonical formatter.
+                const fmt = (s?: string) => formatDate(s) || "—";
 
                 return (
                 <div className="tab-content">
@@ -3782,7 +3791,7 @@ export default function Home() {
                               <div className="pc2-element-meta">
                                 <div className="pc2-element-eyebrow">{t("Tithi", "తిథి")}</div>
                                 {pcData.tithi_ends_at && (
-                                  <div className="pc2-element-until-inline">{t("until", "వరకు")} {pcData.tithi_ends_at}</div>
+                                  <div className="pc2-element-until-inline">{t("until", "వరకు")} {stripSeconds(pcData.tithi_ends_at)}</div>
                                 )}
                               </div>
                             </div>
@@ -3916,7 +3925,7 @@ export default function Home() {
                               </div>
                               <div className="pc2-hora-lord">{lord}</div>
                             </div>
-                            <span className="pc2-hora-time">{pcData.current_hora.start} – {pcData.current_hora.end}</span>
+                            <span className="pc2-hora-time">{stripSeconds(pcData.current_hora.start)} – {stripSeconds(pcData.current_hora.end)}</span>
                           </div>
                         );
                       })()}
@@ -3926,10 +3935,12 @@ export default function Home() {
                         {/* LEFT: Sun/Moon times */}
                         <div className="pc2-celestial-grid">
                           {[
-                            { Icon: Sunrise,  color: "#fbbf24", label: t("Sunrise", "సూర్యోదయం"),   time: pcData.sunrise,             warm: true  },
-                            { Icon: Sunset,   color: "#fbbf24", label: t("Sunset", "సూర్యాస్తమయం"), time: pcData.sunset,              warm: true  },
-                            { Icon: Moon,     color: "#93c5fd", label: t("Moonrise", "చంద్రోదయం"),  time: pcData.moonrise,            warm: false },
-                            { Icon: MoonStar, color: "#93c5fd", label: t("Moonset", "చంద్రాస్తమయం"), time: pcData.moonset,             warm: false },
+                            // Phase 7 / PR 19 — strip backend seconds (`HH:MM:SS` → `HH:MM`).
+                            // Seconds aren't actionable for sunrise/moon timings.
+                            { Icon: Sunrise,  color: "#fbbf24", label: t("Sunrise", "సూర్యోదయం"),   time: stripSeconds(pcData.sunrise),  warm: true  },
+                            { Icon: Sunset,   color: "#fbbf24", label: t("Sunset", "సూర్యాస్తమయం"), time: stripSeconds(pcData.sunset),   warm: true  },
+                            { Icon: Moon,     color: "#93c5fd", label: t("Moonrise", "చంద్రోదయం"),  time: stripSeconds(pcData.moonrise), warm: false },
+                            { Icon: MoonStar, color: "#93c5fd", label: t("Moonset", "చంద్రాస్తమయం"), time: stripSeconds(pcData.moonset),  warm: false },
                           ].map(c => (
                             <div key={c.label} className={`pc2-celestial-card ${c.warm ? "warm" : "cool"}`} style={{ color: c.color }}>
                               <div className="pc2-celestial-icon"><c.Icon size={16} strokeWidth={1.8} /></div>
@@ -3959,7 +3970,7 @@ export default function Home() {
                                   <div className="pc2-time-row-label">{t("Brahma Muhurta", "బ్రహ్మ ముహూర్తం")}</div>
                                   <div className="pc2-time-row-sub">{t("Best for meditation & study", "ధ్యానం & అధ్యయనానికి ఉత్తమం")}</div>
                                 </div>
-                                <span className="pc2-time-row-value">{pcData.brahma_muhurta.start} – {pcData.brahma_muhurta.end}</span>
+                                <span className="pc2-time-row-value">{stripSeconds(pcData.brahma_muhurta.start)} – {stripSeconds(pcData.brahma_muhurta.end)}</span>
                               </div>
                             )}
                             {pcData.abhijit_muhurtha?.valid && (
@@ -3971,7 +3982,7 @@ export default function Home() {
                                   <div className="pc2-time-row-label">{t("Abhijit Muhurtha", "అభిజిత్ ముహూర్తం")}</div>
                                   <div className="pc2-time-row-sub">{t("Universally auspicious", "సార్వత్రికంగా శుభ")}</div>
                                 </div>
-                                <span className="pc2-time-row-value">{pcData.abhijit_muhurtha.start} – {pcData.abhijit_muhurtha.end}</span>
+                                <span className="pc2-time-row-value">{stripSeconds(pcData.abhijit_muhurtha.start)} – {stripSeconds(pcData.abhijit_muhurtha.end)}</span>
                               </div>
                             )}
                             {/* PR A1.2c — Amrit Kala (auspicious 1h36m window from Moon's nakshatra). */}
@@ -3984,7 +3995,7 @@ export default function Home() {
                                   <div className="pc2-time-row-label">{t("Amrit Kala", "అమృత కాలం")}</div>
                                   <div className="pc2-time-row-sub">{t("Highly auspicious nakshatra-derived window", "నక్షత్రం నుండి అత్యంత శుభ సమయం")}</div>
                                 </div>
-                                <span className="pc2-time-row-value">{pcData.amrit_kala}</span>
+                                <span className="pc2-time-row-value">{stripSeconds(pcData.amrit_kala)}</span>
                               </div>
                             )}
                           </div>
@@ -4002,7 +4013,7 @@ export default function Home() {
                                 <div className="pc2-time-row-label">Rahu Kalam</div>
                                 <div className="pc2-time-row-sub">{t("Avoid new ventures", "కొత్త పనులు నివారించండి")}</div>
                               </div>
-                              <span className="pc2-time-row-value">{pcData.rahu_kalam}</span>
+                              <span className="pc2-time-row-value">{stripSeconds(pcData.rahu_kalam)}</span>
                             </div>
                             <div className="pc2-time-row">
                               <div className="pc2-time-row-icon" style={{ background: "rgba(251,191,36,0.12)", color: "#fbbf24" }}>
@@ -4011,7 +4022,7 @@ export default function Home() {
                               <div className="pc2-time-row-body">
                                 <div className="pc2-time-row-label">Yamagandam</div>
                               </div>
-                              <span className="pc2-time-row-value">{pcData.yamagandam}</span>
+                              <span className="pc2-time-row-value">{stripSeconds(pcData.yamagandam)}</span>
                             </div>
                             <div className="pc2-time-row">
                               <div className="pc2-time-row-icon" style={{ background: "rgba(167,139,250,0.12)", color: "#a78bfa" }}>
@@ -4020,7 +4031,7 @@ export default function Home() {
                               <div className="pc2-time-row-body">
                                 <div className="pc2-time-row-label">Gulika Kalam</div>
                               </div>
-                              <span className="pc2-time-row-value">{pcData.gulika_kalam}</span>
+                              <span className="pc2-time-row-value">{stripSeconds(pcData.gulika_kalam)}</span>
                             </div>
                             {pcData.durmuhurtha?.map((dm: any, i: number) => (
                               <div key={i} className="pc2-time-row">
@@ -4030,7 +4041,7 @@ export default function Home() {
                                 <div className="pc2-time-row-body">
                                   <div className="pc2-time-row-label">{t(`Durmuhurtha ${i + 1}`, `దుర్ముహూర్తం ${i + 1}`)}</div>
                                 </div>
-                                <span className="pc2-time-row-value">{dm.start} – {dm.end}</span>
+                                <span className="pc2-time-row-value">{stripSeconds(dm.start)} – {stripSeconds(dm.end)}</span>
                               </div>
                             ))}
                             {/* PR A1.2c — Varjyam (avoid 1h36m window from Moon's nakshatra). */}
@@ -4043,7 +4054,7 @@ export default function Home() {
                                   <div className="pc2-time-row-label">{t("Varjyam", "వర్జ్యం")}</div>
                                   <div className="pc2-time-row-sub">{t("Avoid important actions", "ముఖ్యమైన పనులు నివారించండి")}</div>
                                 </div>
-                                <span className="pc2-time-row-value">{pcData.varjyam}</span>
+                                <span className="pc2-time-row-value">{stripSeconds(pcData.varjyam)}</span>
                               </div>
                             )}
                             {/* PR A1.2c — Night Rahu/Yama/Gulika (less commonly used but valuable). */}
@@ -4077,7 +4088,7 @@ export default function Home() {
                                   <div className="pc2-time-row-body">
                                     <div className="pc2-time-row-label">{t("Night Gulika", "రాత్రి గులిక")}</div>
                                   </div>
-                                  <span className="pc2-time-row-value">{pcData.gulika_kalam_night}</span>
+                                  <span className="pc2-time-row-value">{stripSeconds(pcData.gulika_kalam_night)}</span>
                                 </div>
                               </details>
                             )}
@@ -4106,10 +4117,39 @@ export default function Home() {
                       {pcData.choghadiya && pcData.choghadiya.length > 0 && (
                         <div className="pc-section">
                           <div className="pc2-section-title">{t("Choghadiya", "చోఘడియ")}</div>
+                          {/* Phase 7 / PR 20 — colour-quality legend.
+                              Dots inside each row had no visible legend
+                              before this PR; live test confirmed users can't
+                              decode green/red/purple at a glance. Kept tiny
+                              and right-aligned so it doesn't compete with
+                              the row content. */}
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: 14,
+                              alignItems: "center",
+                              flexWrap: "wrap",
+                              marginBottom: 8,
+                              fontSize: 10,
+                              color: "var(--muted)",
+                            }}
+                            aria-label={t("Choghadiya quality legend", "చోఘడియ నాణ్యత చిహ్నాలు")}
+                          >
+                            {[
+                              { color: "#34d399", label: t("Auspicious", "శుభ") },
+                              { color: "#f87171", label: t("Inauspicious", "అశుభ") },
+                              { color: "#a78bfa", label: t("Neutral", "తటస్థ") },
+                            ].map(item => (
+                              <span key={item.label} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                                <span aria-hidden style={{ width: 8, height: 8, borderRadius: "50%", background: item.color }} />
+                                {item.label}
+                              </span>
+                            ))}
+                          </div>
                           <div className="pc-half-grid">
                             {([
-                              { isDay: true,  color: "#fbbf24", title: t("Day", "పగలు"),  sub: t("Sunrise", "సూర్యోదయం"), subTime: pcData.sunrise, Icon: Sun },
-                              { isDay: false, color: "#93c5fd", title: t("Night", "రాత్రి"), sub: t("Sunset", "సూర్యాస్తమయం"), subTime: pcData.sunset, Icon: Moon },
+                              { isDay: true,  color: "#fbbf24", title: t("Day", "పగలు"),  sub: t("Sunrise", "సూర్యోదయం"), subTime: stripSeconds(pcData.sunrise), Icon: Sun },
+                              { isDay: false, color: "#93c5fd", title: t("Night", "రాత్రి"), sub: t("Sunset", "సూర్యాస్తమయం"), subTime: stripSeconds(pcData.sunset),  Icon: Moon },
                             ] as const).map(section => (
                               <div key={section.isDay ? "day" : "night"}>
                                 <div className="pc2-chog-head">
@@ -4145,7 +4185,7 @@ export default function Home() {
                                         }}>
                                         <span className="pc2-chog-dot" style={{ background: qColor }} aria-label={qLabel} />
                                         <span className="pc2-chog-name" style={{ color: c.is_current ? qColor : "var(--text)", fontWeight: c.is_current ? 700 : 500 }}>{c.name}</span>
-                                        <span className="pc2-chog-time">{c.start}–{c.end}</span>
+                                        <span className="pc2-chog-time">{stripSeconds(c.start)}–{stripSeconds(c.end)}</span>
                                         {c.is_current && (
                                           <span
                                             className="pc2-chog-active-badge"
