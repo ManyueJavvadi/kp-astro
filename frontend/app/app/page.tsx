@@ -78,6 +78,9 @@ export default function Home() {
   const [manualLat, setManualLat] = useState("");
   const [manualLon, setManualLon] = useState("");
   const [activeTab, setActiveTab] = useState("chart");
+  // Phase 8 / PR 23 — keyboard shortcut help overlay state. Toggled by
+  // pressing `?`; closed by Escape or any tab-switch key.
+  const [showKbHelp, setShowKbHelp] = useState(false);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   // PR A1.3-fix-24 — added optional `id` so SSE consumer can scope writes
   // to the specific message it owns. Without an id, two streams firing
@@ -287,6 +290,50 @@ export default function Home() {
       analyzeStreamAbortRef.current?.abort();
     };
   }, []);
+
+  // Phase 8 / PR 23 — global keyboard shortcuts.
+  //   1–8           switch active tab (Chart / Houses / Dasha / Analysis /
+  //                                    Panchang / Muhurtha / Match / Horary)
+  //   ? or shift+/  toggle the keyboard-shortcut help overlay
+  //   Esc          close help overlay
+  // Active inputs (textareas, inputs, contenteditable) are skipped so
+  // typing "1" inside the question textarea doesn't switch tabs.
+  useEffect(() => {
+    const isEditable = (el: EventTarget | null): boolean => {
+      const node = el as HTMLElement | null;
+      if (!node) return false;
+      const tag = node.tagName?.toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select") return true;
+      if ((node as HTMLElement).isContentEditable) return true;
+      return false;
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (isEditable(e.target)) return;
+      if (!setupDone) return;
+      // Help toggle.
+      if (e.key === "?" || (e.shiftKey && e.key === "/")) {
+        e.preventDefault();
+        setShowKbHelp(s => !s);
+        return;
+      }
+      if (e.key === "Escape" && showKbHelp) {
+        setShowKbHelp(false);
+        return;
+      }
+      // Number keys 1-8 → tabs.
+      const n = parseInt(e.key, 10);
+      if (!isNaN(n) && n >= 1 && n <= 8) {
+        const target = ["chart","houses","dasha","analysis","panchang","muhurtha","match","horary"][n - 1];
+        if (target) {
+          e.preventDefault();
+          setActiveTab(target);
+        }
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [setupDone, showKbHelp]);
 
   // PR A1.3-fix-15 — listen for follow-up chip clicks from HeroVerdictCard.
   // Component dispatches a `user-followup-click` CustomEvent with the
@@ -1556,6 +1603,95 @@ export default function Home() {
         </main>
       )}
 
+      {/* Phase 8 / PR 23 — keyboard shortcut help overlay.
+          Triggered by pressing `?` anywhere outside an editable field.
+          Esc or pressing `?` again closes it. Click outside also closes. */}
+      {showKbHelp && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(7,11,20,0.78)",
+            backdropFilter: "blur(6px)",
+            WebkitBackdropFilter: "blur(6px)",
+            zIndex: 200,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "1rem",
+          }}
+          onClick={() => setShowKbHelp(false)}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: "var(--surface)",
+              border: "0.5px solid rgba(201,169,110,0.3)",
+              borderRadius: 14,
+              padding: "1.75rem 2rem",
+              minWidth: 360,
+              maxWidth: 460,
+              boxShadow: "0 12px 40px rgba(0,0,0,0.5)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 20, color: "var(--text)" }}>
+                {t("Keyboard shortcuts", "కీబోర్డ్ షార్ట్‌కట్‌లు")}
+              </div>
+              <button
+                onClick={() => setShowKbHelp(false)}
+                aria-label={t("Close", "మూసివేయండి")}
+                style={{ background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: 4 }}
+              >×</button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "10px 16px", alignItems: "center", fontSize: 12.5 }}>
+              {[
+                { keys: ["1"], label: t("Chart", "చార్ట్") },
+                { keys: ["2"], label: t("Houses", "భావాలు") },
+                { keys: ["3"], label: t("Dasha", "దశ") },
+                { keys: ["4"], label: t("Analysis", "విశ్లేషణ") },
+                { keys: ["5"], label: t("Panchang", "పంచాంగం") },
+                { keys: ["6"], label: t("Muhurtha", "ముహూర్త") },
+                { keys: ["7"], label: t("Match", "సరిపోలన") },
+                { keys: ["8"], label: t("Horary", "ప్రశ్న") },
+                { keys: ["?"], label: t("Show / hide this help", "ఈ సహాయాన్ని చూపించు / దాచు") },
+                { keys: ["Esc"], label: t("Close help / modals", "మూసివేయి") },
+              ].map(row => (
+                <React.Fragment key={row.label}>
+                  <span style={{ display: "inline-flex", gap: 4 }}>
+                    {row.keys.map(k => (
+                      <kbd
+                        key={k}
+                        style={{
+                          fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                          fontSize: 11,
+                          padding: "3px 8px",
+                          borderRadius: 5,
+                          background: "rgba(201,169,110,0.10)",
+                          border: "0.5px solid rgba(201,169,110,0.35)",
+                          color: "var(--accent)",
+                          minWidth: 24,
+                          textAlign: "center",
+                        }}
+                      >
+                        {k}
+                      </kbd>
+                    ))}
+                  </span>
+                  <span style={{ color: "var(--text)" }}>{row.label}</span>
+                </React.Fragment>
+              ))}
+            </div>
+            <div style={{ marginTop: 16, paddingTop: 12, borderTop: "0.5px solid var(--border)", fontSize: 11, color: "var(--muted)", lineHeight: 1.55 }}>
+              {t(
+                "Shortcuts work everywhere except inside text fields. Tip — press ? again to dismiss.",
+                "టెక్స్ట్ ఫీల్డ్‌ల వెలుపల ఎక్కడైనా షార్ట్‌కట్‌లు పనిచేస్తాయి. చిట్కా — మూసివేయడానికి మళ్ళీ ? నొక్కండి."
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── ASTROLOGER WORKSPACE ── */}
       {/* Language preference modal */}
       {showLangModal && (
@@ -2131,9 +2267,15 @@ export default function Home() {
                 tab bar. Was previously a low-discoverability widget at
                 the bottom of the sidebar; now it's the FIRST thing the
                 eye hits, scoped to one job (today's panchang facts the
-                user checks daily). */}
+                user checks daily).
+                Phase 8 / PR 21 — every cell now jumps to the Panchang
+                tab on click, turning the read-only strip into a single-
+                click navigation shortcut for the daily ritual. */}
             {workspaceData?.panchangam_today && (
-              <TodayStrip data={workspaceData.panchangam_today} />
+              <TodayStrip
+                data={workspaceData.panchangam_today}
+                onJumpToPanchang={() => setActiveTab("panchang")}
+              />
             )}
 
             {/* Tabs */}

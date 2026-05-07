@@ -162,6 +162,15 @@ select option {
    class so we don't ship a `<style jsx>` block per-instance. */
 .kp-pa-btn:not([aria-disabled="true"]):hover { transform: translateY(-1px); }
 .kp-pa-btn:not([aria-disabled="true"]):active { transform: translateY(0); }
+/* Phase 8 / PR 21 — Today strip pills are clickable shortcuts into
+   Panchang. Subtle gold tint on hover/focus signals the affordance
+   without making the strip feel busy. */
+.today-strip-pill:hover,
+.today-strip-pill:focus-visible {
+  background: rgba(201,169,110,0.10);
+  color: #c9a96e;
+  outline: none;
+}
 @keyframes pulse-gold {
   0%, 100% { box-shadow: 0 0 0 0 rgba(201,169,110,0.3); }
   50%       { box-shadow: 0 0 0 6px rgba(201,169,110,0); }

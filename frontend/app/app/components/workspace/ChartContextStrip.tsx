@@ -44,16 +44,45 @@ export function ChartContextStrip({ workspaceData }: Props) {
     ? (lagnaCusp?.sign_en ?? wd.lagna_en ?? "—")
     : (lagnaCusp?.sign_te ?? lagnaCusp?.sign_en ?? wd.lagna_en ?? "—");
 
+  // Phase 8 / PR 22 — rich hover-tooltips on every chip. Native `title`
+  // attributes are the simplest way to expose secondary info without a
+  // popover library; lighter on the bundle and works on touch devices
+  // via long-press. The text is intentionally compact and KP-correct.
+  const lagnaTooltip = lagnaCusp
+    ? `${t("Lagna", "Lagna")}: ${lagnaCusp.sign_en ?? "—"}` +
+      (lagnaCusp.sub_lord_en ? ` · ${t("Sub Lord", "Sub Lord")}: ${lagnaCusp.sub_lord_en}` : "") +
+      (lagnaCusp.star_lord_en ? ` · ${t("Star Lord", "Star Lord")}: ${lagnaCusp.star_lord_en}` : "") +
+      (lagnaCusp.degree_in_sign != null ? ` · ${lagnaCusp.degree_in_sign.toFixed(2)}°` : "")
+    : undefined;
+
   const moonPlanet = wd.planets?.find((p: any) => p.planet_en === "Moon");
   const moonSign = lang === "en"
     ? (moonPlanet?.sign_en ?? "—")
     : (moonPlanet?.sign_te ?? moonPlanet?.sign_en ?? "—");
+  const moonTooltip = moonPlanet
+    ? `${t("Moon", "Moon")}: ${moonPlanet.sign_en ?? "—"}` +
+      (moonPlanet.nakshatra_en ? ` · ${moonPlanet.nakshatra_en}` : "") +
+      (moonPlanet.house ? ` · ${t("House", "House")} ${moonPlanet.house}` : "")
+    : undefined;
+
   const sunPlanet = wd.planets?.find((p: any) => p.planet_en === "Sun");
   const sunInfo = sunPlanet ? `H${sunPlanet.house} Sun` : "";
+  const sunTooltip = sunPlanet
+    ? `${t("Sun", "Sun")}: ${sunPlanet.sign_en ?? "—"}` +
+      (sunPlanet.nakshatra_en ? ` · ${sunPlanet.nakshatra_en}` : "") +
+      (sunPlanet.house ? ` · ${t("House", "House")} ${sunPlanet.house}` : "")
+    : undefined;
 
   const currentMD  = wd.current_dasha ?? wd.mahadasha;
   const currentAD  = wd.current_antardasha;
   const currentPAD = wd.current_pratyantardasha;
+
+  // Helpers for dasha tooltips with full period.
+  const dashaTooltip = (label: string, d: any): string | undefined => {
+    if (!d) return undefined;
+    const lord = d.lord_en ?? d.lord ?? "?";
+    return `${label} ${lord} · ${formatDashaPeriod(d.start, d.end)}`;
+  };
 
   const rpData = wd.ruling_planets;
   const rulingPlanets: { planet: string }[] = Array.isArray(rpData)
@@ -78,9 +107,9 @@ export function ChartContextStrip({ workspaceData }: Props) {
       }}
     >
       {/* Group 1 — chart anchor */}
-      <ChipPair label={t("Lagna", "లగ్న")} value={lagna as string} tint="gold" />
-      <ChipPair label={t("Moon", "చంద్ర")} value={moonSign as string} tint="blue" icon="☽" />
-      {sunInfo && <ChipPair label="" value={sunInfo} tint="amber" icon="☉" />}
+      <ChipPair label={t("Lagna", "లగ్న")} value={lagna as string} tint="gold" title={lagnaTooltip} />
+      <ChipPair label={t("Moon", "చంద్ర")} value={moonSign as string} tint="blue" icon="☽" title={moonTooltip} />
+      {sunInfo && <ChipPair label="" value={sunInfo} tint="amber" icon="☉" title={sunTooltip} />}
 
       <Divider />
 
@@ -90,6 +119,7 @@ export function ChartContextStrip({ workspaceData }: Props) {
           label="MD"
           planet={(currentMD as any).lord ?? (currentMD as any).lord_en ?? "?"}
           end={formatDashaPeriod(null, (currentMD as any).end)}
+          title={dashaTooltip(t("Mahadasha", "Mahadasha"), currentMD)}
         />
       )}
       {currentAD && (
@@ -97,6 +127,7 @@ export function ChartContextStrip({ workspaceData }: Props) {
           label="AD"
           planet={(currentAD as any).lord ?? (currentAD as any).lord_en ?? "?"}
           end={formatDashaPeriod(null, (currentAD as any).end)}
+          title={dashaTooltip(t("Antardasha", "Antardasha"), currentAD)}
         />
       )}
       {currentPAD && (
@@ -104,6 +135,7 @@ export function ChartContextStrip({ workspaceData }: Props) {
           label="PAD"
           planet={(currentPAD as any).lord ?? (currentPAD as any).lord_en ?? "?"}
           end={formatDashaPeriod(null, (currentPAD as any).end)}
+          title={dashaTooltip(t("Pratyantardasha", "Pratyantardasha"), currentPAD)}
         />
       )}
 
@@ -185,14 +217,17 @@ function DashaChip({
   label,
   planet,
   end,
+  title,
 }: {
   label: string;
   planet: string;
   end?: string;
+  title?: string;
 }) {
   const color = PLANET_COLORS[planet] ?? "var(--accent)";
   return (
     <span
+      title={title}
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -203,6 +238,7 @@ function DashaChip({
         border: `0.5px solid ${color}50`,
         fontSize: 11,
         fontWeight: 600,
+        cursor: title ? "help" : "default",
       }}
     >
       <span style={{ color: "var(--muted)", fontSize: 9 }}>{label}</span>
@@ -217,11 +253,13 @@ function ChipPair({
   value,
   tint,
   icon,
+  title,
 }: {
   label: string;
   value: string;
   tint: "gold" | "blue" | "amber";
   icon?: string;
+  title?: string;
 }) {
   const colors = {
     gold:  { bg: "rgba(201,169,110,0.08)", br: "rgba(201,169,110,0.2)", c: "#c9a96e" },
@@ -230,6 +268,7 @@ function ChipPair({
   }[tint];
   return (
     <span
+      title={title}
       style={{
         fontSize: 11,
         padding: "2px 8px",
@@ -239,6 +278,7 @@ function ChipPair({
         color: colors.c,
         fontWeight: 500,
         whiteSpace: "nowrap",
+        cursor: title ? "help" : "default",
       }}
     >
       {icon ? <span style={{ marginRight: 3 }}>{icon}</span> : null}
