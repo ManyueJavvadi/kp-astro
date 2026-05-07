@@ -172,6 +172,109 @@ select option {
   outline: none;
 }
 
+/* Phase 11 / PR 28 — Analysis bubble metadata row (timestamp + regen).
+   Subtle bottom strip, dim by default, brightens on hover. */
+.analysis-meta-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 0.5px solid rgba(255,255,255,0.05);
+  font-size: 10.5px;
+  color: rgba(150,150,160,0.55);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.analysis-regen-btn {
+  background: transparent;
+  border: 0.5px solid rgba(255,255,255,0.08);
+  color: rgba(150,150,160,0.7);
+  border-radius: 5px;
+  padding: 3px 10px;
+  font-size: 10.5px;
+  font-family: inherit;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transition: color 140ms, border-color 140ms, background 140ms;
+}
+.analysis-regen-btn:hover {
+  color: var(--accent);
+  border-color: rgba(201,169,110,0.4);
+  background: rgba(201,169,110,0.05);
+}
+.analysis-stop-btn:hover {
+  background: rgba(248,113,113,0.2) !important;
+}
+
+/* Phase 12 / PR 30 — right-rail TOC for the Analysis tab.
+   Sticky on the right; lists every assistant message with
+   topic labels + truncated chat questions. Items are buttons
+   that smooth-scroll to the corresponding message. The rail
+   only appears when there are 2+ messages so it doesn't
+   crowd a single-answer view. */
+.analysis-toc {
+  position: sticky;
+  top: 8px;
+  align-self: flex-start;
+  flex-shrink: 0;
+  width: 220px;
+  max-height: calc(100vh - 240px);
+  overflow-y: auto;
+  padding: 12px 12px 12px 14px;
+  background: rgba(255,255,255,0.015);
+  border: 0.5px solid var(--border);
+  border-radius: 10px;
+  font-size: 11px;
+  margin-left: 16px;
+}
+.analysis-toc-eyebrow {
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+.analysis-toc-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 6px 8px;
+  border-radius: 6px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+  margin-bottom: 2px;
+  line-height: 1.4;
+  border-left: 2px solid transparent;
+}
+.analysis-toc-item:hover {
+  background: rgba(201,169,110,0.06);
+  color: var(--accent);
+  border-left-color: rgba(201,169,110,0.5);
+}
+.analysis-toc-item.is-topic {
+  font-weight: 600;
+  color: var(--accent);
+}
+.analysis-toc-item.is-topic .analysis-toc-emoji {
+  margin-right: 5px;
+}
+.analysis-toc-item.is-followup {
+  font-size: 10.5px;
+  color: var(--muted);
+  padding-left: 18px;
+}
+@media (max-width: 1099px) {
+  .kp-hide-below-1100 { display: none !important; }
+}
+
 /* Phase 9 / PR 24 — workspace constellation background.
    Layered radial-gradients place ~14 tiny twinkling specks at fixed
    irrational positions (so it never reads as a regular grid). Opacity

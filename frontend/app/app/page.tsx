@@ -100,7 +100,10 @@ export default function Home() {
   // back-to-back interleave their chunks into whichever message ends up
   // at `prev[prev.length - 1]`. Renderers still use index keys; this is
   // metadata for the streaming layer only.
-  const [analysisMessages, setAnalysisMessages] = useState<{ id?: string; q: string; a: string; isTopic?: boolean }[]>([]);
+  // Phase 11 / PR 28 — added optional `t` (created-at ms) so each AI bubble
+  // can show a timestamp under it (#A16). Existing messages without `t`
+  // fall back gracefully — no migration needed.
+  const [analysisMessages, setAnalysisMessages] = useState<{ id?: string; q: string; a: string; isTopic?: boolean; t?: number }[]>([]);
   const [activeTopic, setActiveTopic] = useState("");
   const [chatQ, setChatQ] = useState("");
   const [analysisLang, setAnalysisLang] = useState<"english" | "telugu_english">("english");
@@ -912,7 +915,7 @@ export default function Home() {
     const targetId = (typeof crypto !== "undefined" && crypto.randomUUID)
       ? crypto.randomUUID()
       : `topic-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    setAnalysisMessages(prev => [...prev, { id: targetId, q: `${topicLabel} — Full Analysis`, a: "", isTopic: true }]);
+    setAnalysisMessages(prev => [...prev, { id: targetId, q: `${topicLabel} — Full Analysis`, a: "", isTopic: true, t: Date.now() }]);
     const ok = await streamAstrologerAnalysis(
       topic,
       `Complete KP analysis for ${topic}`,
@@ -958,7 +961,7 @@ export default function Home() {
     const targetId = (typeof crypto !== "undefined" && crypto.randomUUID)
       ? crypto.randomUUID()
       : `chat-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    setAnalysisMessages(prev => [...prev, { id: targetId, q, a: "" }]);
+    setAnalysisMessages(prev => [...prev, { id: targetId, q, a: "", t: Date.now() }]);
     const ok = await streamAstrologerAnalysis(
       activeTopic || "general",
       q,
@@ -1143,9 +1146,9 @@ export default function Home() {
 
   // Phase 6 / PR 15 — Analysis tab topic i18n carve-out (#6).
   // The TOPICS array used to carry only Telugu labels which leaked
-  // into the EN view (the topic grid was permanently Telugu-only).
-  // Now both languages are present; the render path picks via `lang`
-  // exactly like every other surface in the product.
+  // into the EN view. Both languages now present; render picks via `lang`.
+  // Phase 11 / PR 28 — added Finance + Legal so the Analysis grid matches
+  // the canonical Horary topic set (10 topics across both surfaces).
   const TOPICS = [
     { id: "marriage",       en: "Marriage",      te: "వివాహం" },
     { id: "job",            en: "Career",        te: "ఉద్యోగం" },
@@ -1155,11 +1158,14 @@ export default function Home() {
     { id: "education",      en: "Education",     te: "విద్య" },
     { id: "property",       en: "Property",      te: "ఆస్తి" },
     { id: "wealth",         en: "Wealth",        te: "సంపద" },
+    { id: "finance",        en: "Finance",       te: "ధనం" },
+    { id: "legal",          en: "Legal",         te: "న్యాయం" },
   ];
 
   const TOPIC_EMOJI: Record<string, string> = {
     marriage: "💍", job: "💼", health: "🏥", foreign_travel: "✈️",
     children: "👶", education: "📚", property: "🏠", wealth: "💰",
+    finance: "💵", legal: "⚖️",
   };
 
   const HOUSE_TOPICS: Record<number, string> = {
@@ -7536,15 +7542,31 @@ export default function Home() {
                 </div>
               )}
 
-              {/* ANALYSIS — chat bubble design + quick insights */}
+              {/* ANALYSIS — chat bubble design + quick insights.
+                  Phase 11 / PR 28 — Analysis polish batch:
+                    - Topic chip strip is now sticky so users can switch
+                      topics without scrolling to top in long sessions (#A6)
+                    - Clear button asks for confirmation before wiping
+                      conversation history (#A8)
+                    - Topic grid expanded to 10 to match Horary canon (#A9)
+                    - AI bubbles capped to 80ch readable width (#A17)
+                    - Timestamps under each AI bubble (#A16) */}
               {activeTab === "analysis" && (
                 <div className="tab-content" style={{ display: "flex", flexDirection: "column", height: "100%", gap: 0 }}>
                   {/* Topics — full grid before chat starts, compact horizontal strip after */}
-                  <div style={{ marginBottom: "0.75rem", flexShrink: 0 }}>
+                  <div
+                    style={{
+                      marginBottom: "0.75rem",
+                      flexShrink: 0,
+                      // Phase 11 / PR 28 (#A6) — sticky chip strip when chat is active.
+                      ...(analysisMessages.length > 0
+                        ? { position: "sticky" as const, top: 0, zIndex: 5, background: "var(--bg)", paddingTop: 8, paddingBottom: 8 }
+                        : {}),
+                    }}
+                  >
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                       <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" as const }}>
                         {(() => {
-                          // Phase 6 / PR 15 — Topics eyebrow now i18n-aware.
                           const tpHeading = t("Topics", "అంశాలు");
                           if (analysisMessages.length === 0) return tpHeading;
                           const active = TOPICS.find(tp => tp.id === activeTopic);
@@ -7555,7 +7577,20 @@ export default function Home() {
                       </div>
                       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                         {analysisMessages.length > 0 && (
-                          <button onClick={() => { setAnalysisMessages([]); setActiveTopic(""); }} style={{ background: "transparent", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "3px 10px", fontSize: 11, color: "var(--muted)", cursor: "pointer" }}>{t("Clear", "క్లియర్")}</button>
+                          <button
+                            onClick={() => {
+                              // Phase 11 / PR 28 (#A8) — confirm before destructive wipe.
+                              const ok = typeof window !== "undefined"
+                                ? window.confirm(t(
+                                    "Clear the entire analysis conversation? This cannot be undone.",
+                                    "మొత్తం విశ్లేషణ సంభాషణను తుడిచివేయాలా? దీన్ని తిరిగి పొందలేరు."
+                                  ))
+                                : true;
+                              if (!ok) return;
+                              setAnalysisMessages([]); setActiveTopic("");
+                            }}
+                            style={{ background: "transparent", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "3px 10px", fontSize: 11, color: "var(--muted)", cursor: "pointer" }}
+                          >{t("Clear", "క్లియర్")}</button>
                         )}
                         <div style={{ display: "flex", background: "var(--surface2)", borderRadius: 6, border: "0.5px solid var(--border2)", overflow: "hidden" }}>
                           {([["english", "EN"], ["telugu_english", "తె+EN"]] as const).map(([val, label]) => (
@@ -7599,6 +7634,12 @@ export default function Home() {
                     )}
                   </div>
 
+                  {/* Phase 12 / PR 30 — chat area + right-rail TOC.
+                      The TOC is power-user navigation for long sessions
+                      (#A5). Lists each AI bubble in order; clicking jumps
+                      to that message. Only shown after 2+ messages so a
+                      single-answer view stays uncluttered. */}
+                  <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
                   {/* Chat messages — bubble style */}
                   {/* PR A1.3-fix-25 — role=log + aria-live=polite so screen
                       readers announce streaming AI chunks as they arrive.
@@ -7633,7 +7674,7 @@ export default function Home() {
                       </div>
                     )}
                     {analysisMessages.map((msg, i) => (
-                      <div key={i} style={{ marginBottom: "1.25rem" }} className="fade-in">
+                      <div key={i} style={{ marginBottom: "1.25rem" }} className="fade-in" id={`analysis-msg-${msg.id ?? i}`}>
                         {/* User question bubble — right aligned */}
                         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
                           <div className="chat-bubble-user" style={{ padding: "8px 14px", maxWidth: "72%", fontSize: 12, color: "#d0d0d8", lineHeight: 1.5 }}>
@@ -7641,10 +7682,21 @@ export default function Home() {
                             {msg.q}
                           </div>
                         </div>
-                        {/* AI answer bubble — left aligned, with avatar dot + copy button */}
+                        {/* AI answer bubble — left aligned, with avatar dot + copy button.
+                            Phase 11 / PR 28 — capped readable width (#A17) so long answers
+                            don't stretch to ~120ch on wide monitors. 78ch ≈ classic
+                            book-column readability. The bubble keeps `flex: 1` so on
+                            narrow viewports it still fills available space. */}
                         <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
                           <div className="chat-ai-dot" title="DevAstroAI">D</div>
-                          <div className="chat-bubble-ai md-body" style={{ padding: "1rem 1.25rem", maxWidth: "calc(94% - 34px)", flex: 1 }}>
+                          <div
+                            className="chat-bubble-ai md-body"
+                            style={{
+                              padding: "1rem 1.25rem",
+                              maxWidth: "min(78ch, calc(94% - 34px))",
+                              flex: 1,
+                            }}
+                          >
                             <button
                               className="copy-btn"
                               data-copy-id={`copy-${i}`}
@@ -7675,9 +7727,88 @@ export default function Home() {
                                   const teLabel = tp?.te || activeTopic;
                                   return t(`Analyzing ${enLabel}…`, `${teLabel} విశ్లేషిస్తున్నాను…`);
                                 })()}</span>
+                                {/* Phase 11 / PR 29 (#A2) — Stop generation.
+                                    Aborts the in-flight SSE stream. Both the
+                                    topic-analysis and chat streams expose
+                                    AbortControllers via refs at the top of
+                                    page.tsx, so this is a tiny click handler
+                                    over those existing channels. */}
+                                <button
+                                  onClick={() => {
+                                    askStreamAbortRef.current?.abort();
+                                    analyzeStreamAbortRef.current?.abort();
+                                    setAnalysisLoading(false);
+                                  }}
+                                  className="analysis-stop-btn"
+                                  title={t("Stop generating this answer (Esc)", "జనరేషన్ ఆపండి (Esc)")}
+                                  style={{
+                                    marginLeft: 6,
+                                    padding: "3px 10px",
+                                    fontSize: 10.5,
+                                    background: "rgba(248,113,113,0.12)",
+                                    border: "0.5px solid rgba(248,113,113,0.4)",
+                                    color: "#f87171",
+                                    borderRadius: 5,
+                                    cursor: "pointer",
+                                    fontFamily: "inherit",
+                                    letterSpacing: "0.04em",
+                                    textTransform: "uppercase",
+                                  }}
+                                >■ {t("Stop", "ఆపండి")}</button>
                               </div>
                             ) : (
                               <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.a}</ReactMarkdown>
+                            )}
+                            {/* Phase 11 / PR 28 (#A16) — timestamp + Phase 11 / PR 29 (#A3) — Regenerate.
+                                Timestamp surfaces "when was this generated"; Regenerate
+                                re-fires the same topic/question against the same
+                                streaming endpoint. Only shown after the response
+                                finishes streaming. Subtle row, doesn't fight content. */}
+                            {msg.a && !(i === analysisMessages.length - 1 && analysisLoading) && (
+                              <div className="analysis-meta-row">
+                                {msg.t && (
+                                  <span title={new Date(msg.t).toLocaleString()}>
+                                    {(() => {
+                                      const mins = Math.floor((Date.now() - msg.t) / 60000);
+                                      if (mins < 1) return t("just now", "ఇప్పుడే");
+                                      if (mins < 60) return t(`${mins}m ago`, `${mins} నిమిషాల క్రితం`);
+                                      const hrs = Math.floor(mins / 60);
+                                      if (hrs < 24) return t(`${hrs}h ago`, `${hrs} గంటల క్రితం`);
+                                      const days = Math.floor(hrs / 24);
+                                      return t(`${days}d ago`, `${days} రోజుల క్రితం`);
+                                    })()}
+                                  </span>
+                                )}
+                                {!analysisLoading && (
+                                  <button
+                                    className="analysis-regen-btn"
+                                    title={t(
+                                      "Regenerate — drops this answer and re-fires the same prompt",
+                                      "మళ్ళీ తయారు చేయండి — ఈ సమాధానాన్ని తీసివేసి అదే ప్రశ్న మళ్ళీ అడుగుతుంది"
+                                    )}
+                                    onClick={() => {
+                                      const wasTopic = msg.isTopic;
+                                      const sameQ = msg.q;
+                                      // Drop this message + everything below it.
+                                      setAnalysisMessages(prev => prev.slice(0, i));
+                                      if (wasTopic) {
+                                        // Topic q is "<Label> — Full Analysis";
+                                        // reverse-lookup id from TOPICS.
+                                        const found = TOPICS.find(tp =>
+                                          sameQ.startsWith((lang === "en" ? tp.en : tp.te))
+                                        );
+                                        if (found) handleTopicAnalysis(found.id);
+                                      } else {
+                                        // Chat message — repopulate input so the
+                                        // user can re-submit with one Enter (avoids
+                                        // a stale-closure bug on handleWorkspaceChat
+                                        // which reads chatQ from React state).
+                                        setChatQ(sameQ);
+                                      }
+                                    }}
+                                  >↻ {t("Regenerate", "మళ్ళీ")}</button>
+                                )}
+                              </div>
                             )}
                             {/* Suggested follow-up chips on the LATEST AI message only */}
                             {i === analysisMessages.length - 1 && !analysisLoading && (
@@ -7716,6 +7847,51 @@ export default function Home() {
                       </div>
                     )}
                     <div ref={chatEndRef} />
+                  </div>
+
+                  {/* Phase 12 / PR 30 — right-rail TOC. Lists every
+                      message in order with a jump-scroll handler. Topic
+                      messages get the topic emoji + bold; chat messages
+                      get a light truncated preview. Hidden on viewports
+                      below 1100px (mobile/tablet) and when there are
+                      fewer than 2 messages. */}
+                  {analysisMessages.length >= 2 && (
+                    <nav
+                      className="analysis-toc kp-hide-below-1100"
+                      aria-label={t("Conversation outline", "సంభాషణ సూచిక")}
+                    >
+                      <div className="analysis-toc-eyebrow">
+                        {t("Outline", "సూచిక")}
+                      </div>
+                      {analysisMessages.map((msg, i) => {
+                        const isTopic = !!msg.isTopic;
+                        // For topic messages, find the topic to grab the emoji.
+                        const topic = isTopic
+                          ? TOPICS.find(tp =>
+                              msg.q.startsWith((lang === "en" ? tp.en : tp.te))
+                            )
+                          : undefined;
+                        const emoji = topic ? TOPIC_EMOJI[topic.id] : "·";
+                        const preview = isTopic
+                          ? (topic ? (lang === "en" ? topic.en : topic.te) : msg.q)
+                          : msg.q.length > 38 ? `${msg.q.slice(0, 38)}…` : msg.q;
+                        return (
+                          <button
+                            key={msg.id ?? i}
+                            type="button"
+                            className={`analysis-toc-item ${isTopic ? "is-topic" : "is-followup"}`}
+                            onClick={() => {
+                              const el = document.getElementById(`analysis-msg-${msg.id ?? i}`);
+                              if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                            }}
+                          >
+                            {isTopic && <span className="analysis-toc-emoji">{emoji}</span>}
+                            {preview}
+                          </button>
+                        );
+                      })}
+                    </nav>
+                  )}
                   </div>
                 </div>
               )}
