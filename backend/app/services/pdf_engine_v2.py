@@ -876,38 +876,90 @@ def _section_pratyantardashas(workspace: dict, s: dict) -> list:
 
 # ─── Section: Tara Chakra + Chandra Bala ──────────────────────────────────
 def _section_tara_chakra(workspace: dict, s: dict) -> list:
+    """Renders the native's full Navatara cycle from `tara_chakra` dict.
+
+    Real shape (from production /astrologer/workspace):
+        tara_chakra = {
+            "natal_moon_sign": "Capricorn",
+            "chakra": {
+                "janma_nakshatra": "Uttara Ashadha",
+                "janma_nakshatra_te": "...",
+                "nakshatras": [           # ← LIST of 27
+                    {
+                        "name": "Ashwini", "name_te": "...",
+                        "index": 0, "position_from_janma": 8,
+                        "cycle": 1, "tara_name": "Mitra",
+                        "tara_index": 7, "nature": "favorable",
+                        "effect": "...", "is_janma": False,
+                    }, ...
+                ],
+            },
+            "pariharam": { "Janma": "Eat yellow pumpkin...", ... },
+        }
+    """
     flow: list = []
     tara = workspace.get("tara_chakra", {}) or {}
-    flow.append(Paragraph("11. Tara Chakra · Chandra Bala", s["h1"]))
+    chakra_block = tara.get("chakra") or {}
+    nakshatras = chakra_block.get("nakshatras") or []
+    janma_nak = chakra_block.get("janma_nakshatra") or "—"
+    moon_sign = tara.get("natal_moon_sign") or "—"
+    pariharam = tara.get("pariharam") or {}
+
+    flow.append(Paragraph("11. Tara Chakra · Navatara cycle", s["h1"]))
     flow.append(Paragraph(
         "Native's Navatara cycle relative to janma nakshatra (1st star). "
-        "Each transit nakshatra falls into one of nine taras — Janma, "
-        "Sampat, Vipat, Kshema, Pratyari, Sadhaka, Vadha, Mitra, Atimitra "
-        "— colour-coded for friendliness.",
+        "Each of the 27 nakshatras falls into one of nine taras — Janma, "
+        "Sampat, Vipat, Kshema, Pratyari, Sadhaka, Vadha (Naidhana), "
+        "Mitra, Atimitra. Cycle 1 covers nakshatras 1-9 from janma, "
+        "cycle 2 covers 10-18, cycle 3 covers 19-27.",
         s["body"],
     ))
     flow.append(Spacer(1, 6))
-    janma = tara.get("janma_nakshatra_en") or tara.get("janma_nakshatra") or "—"
-    moon_sign = tara.get("janma_rasi_en") or tara.get("janma_rasi") or "—"
     flow.append(Paragraph(
-        f"<b>Janma nakshatra:</b> {janma}  ·  "
-        f"<b>Janma rasi:</b> {moon_sign}",
+        f"<b>Janma nakshatra:</b> {janma_nak}  ·  "
+        f"<b>Natal Moon sign:</b> {moon_sign}",
         s["body"],
     ))
-    flow.append(Spacer(1, 6))
+    flow.append(Spacer(1, 8))
 
-    chakra = tara.get("chakra") or []
-    if chakra:
-        flow.append(Paragraph("Full Navatara Chakra (27 nakshatras)",
-                              s["h2"]))
-        rows = [["#", "Nakshatra", "Tara", "Quality"]]
-        for entry in chakra:
-            num = str(entry.get("number") or entry.get("idx") or "")
-            nak = entry.get("nakshatra_en") or entry.get("nakshatra") or ""
-            tara_name = entry.get("tara_en") or entry.get("tara") or ""
-            quality = entry.get("quality") or entry.get("polarity") or ""
-            rows.append([num, nak, tara_name, quality])
-        t = Table(rows, colWidths=[12 * mm, 50 * mm, 40 * mm, 60 * mm])
+    if nakshatras:
+        flow.append(Paragraph("Full Navatara Chakra (27 nakshatras)", s["h2"]))
+        rows = [["#", "Nakshatra", "Tara", "Cycle", "Nature"]]
+        for entry in nakshatras:
+            if not isinstance(entry, dict):
+                continue
+            num = str((entry.get("index") or 0) + 1)
+            nak = entry.get("name") or "—"
+            tara_name = entry.get("tara_name") or "—"
+            cycle = str(entry.get("cycle") or "—")
+            nature = entry.get("nature") or "—"
+            if entry.get("is_janma"):
+                nak = f"{nak} ★"
+            rows.append([num, nak, tara_name, cycle, nature])
+        t = Table(rows, colWidths=[12 * mm, 50 * mm, 38 * mm, 18 * mm, 42 * mm])
+        t.setStyle(TableStyle(_table_base()))
+        flow.append(t)
+        flow.append(Spacer(1, 6))
+        flow.append(Paragraph(
+            "<i>★ marks the native's janma (birth) nakshatra.</i>",
+            s["small"],
+        ))
+        flow.append(Spacer(1, 8))
+
+    if pariharam and isinstance(pariharam, dict):
+        flow.append(Paragraph(
+            "Pariharam — Tara-specific remedies", s["h2"]))
+        flow.append(Paragraph(
+            "Traditional remedies for periods when transit Moon falls "
+            "in unfavorable taras. Reference data; KP weights significator "
+            "chains over remedies.",
+            s["small"],
+        ))
+        flow.append(Spacer(1, 4))
+        rows = [["Tara", "Remedy"]]
+        for tara_name, remedy in pariharam.items():
+            rows.append([str(tara_name), str(remedy)])
+        t = Table(rows, colWidths=[34 * mm, 136 * mm])
         t.setStyle(TableStyle(_table_base()))
         flow.append(t)
     flow.append(PageBreak())
