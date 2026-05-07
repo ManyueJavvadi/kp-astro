@@ -202,6 +202,14 @@ def _planet_dignity(planet_en: str, sign_en: str) -> str:
     return "—"
 
 
+def _safe_float(v, default: float = 0.0) -> float:
+    """Coerce to float. Frontend sometimes ships strings for lat/lon."""
+    try:
+        return float(v) if v is not None else default
+    except (TypeError, ValueError):
+        return default
+
+
 def _chart_fingerprint(workspace: dict) -> str:
     """Stable hash of the chart so each PDF carries a verifiable
     fingerprint at the bottom — astrologers can confirm which chart a
@@ -210,9 +218,9 @@ def _chart_fingerprint(workspace: dict) -> str:
         str(workspace.get("name", "")),
         str(workspace.get("date", "")),
         str(workspace.get("time", "")),
-        f"{workspace.get('latitude', 0):.4f}",
-        f"{workspace.get('longitude', 0):.4f}",
-        f"{workspace.get('timezone_offset', 0):.2f}",
+        f"{_safe_float(workspace.get('latitude', 0)):.4f}",
+        f"{_safe_float(workspace.get('longitude', 0)):.4f}",
+        f"{_safe_float(workspace.get('timezone_offset', 0)):.2f}",
     ])
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:12].upper()
 
@@ -224,8 +232,8 @@ def _cover(workspace: dict, s: dict) -> list:
     date = workspace.get("date", "—")
     time = workspace.get("time", "—")
     place = workspace.get("place") or ""
-    lat = workspace.get("latitude", 0)
-    lon = workspace.get("longitude", 0)
+    lat = _safe_float(workspace.get("latitude"))
+    lon = _safe_float(workspace.get("longitude"))
     flow.append(Spacer(1, 60 * mm))
     flow.append(Paragraph("KP JYOTISH REPORT", s["title_sub"]))
     flow.append(Paragraph(name, s["title_xl"]))
@@ -302,9 +310,9 @@ def _birth_details(workspace: dict, s: dict) -> list:
     date = workspace.get("date", "—")
     time = workspace.get("time", "—")
     place = workspace.get("place") or "—"
-    lat = workspace.get("latitude", 0)
-    lon = workspace.get("longitude", 0)
-    tz = workspace.get("timezone_offset", 0)
+    lat = _safe_float(workspace.get("latitude"))
+    lon = _safe_float(workspace.get("longitude"))
+    tz = _safe_float(workspace.get("timezone_offset"))
     pan_birth = workspace.get("panchangam_birth", {}) or {}
 
     flow.append(Paragraph("1.  Birth Details", s["h1"]))
@@ -671,11 +679,10 @@ def _section_per_house_verdict(workspace: dict, s: dict) -> list:
     csl_chains = workspace.get("csl_chains", {}) or {}
     flow.append(Paragraph("7.  Per-House Signification Verdict", s["h1"]))
     flow.append(Paragraph(
-        "For each house, the cuspal Sub Lord's full signification chain "
-        "is laid out — which houses it touches via its own occupation, "
-        "its star lord's chain, and its sub lord's chain. Houses signified "
-        "(✓) versus denied (✗) are marked relative to the topic-neutral "
-        "view (no specific event tested here).",
+        "For each house, the cuspal Sub Lord's full signification chain — "
+        "which houses it touches via its own occupation/rulership, its "
+        "star lord's chain, and its sub lord's chain. The combined "
+        "signification union is shown last.",
         s["body"],
     ))
     flow.append(Spacer(1, 6))
@@ -684,32 +691,63 @@ def _section_per_house_verdict(workspace: dict, s: dict) -> list:
             "(No CSL chain data in workspace.)", s["small"]))
         flow.append(PageBreak())
         return flow
-    keys = sorted(csl_chains.keys(),
-                  key=lambda k: int(k.replace("H", "") or 0))
+    # `csl_chains` is keyed by INT house numbers (1..12) — see
+    # services/csl_chains.py. Tolerate both int and "H1"-string keys
+    # in case backend ever emits either shape.
+    def _to_int_key(k):
+        if isinstance(k, int):
+            return k
+        try:
+            return int(str(k).replace("H", "").replace("h", "")) or 0
+        except ValueError:
+            return 0
+    keys = sorted(csl_chains.keys(), key=_to_int_key)
     for k in keys:
         chain = csl_chains.get(k) or {}
         if not chain:
             continue
-        flow.append(Paragraph(f"{k} · CSL chain", s["h3"]))
-        sub = chain.get("sub_lord") or "—"
-        star = chain.get("star_lord") or "—"
-        sign = chain.get("sign_lord") or "—"
-        sub_houses = chain.get("sub_lord_houses") or []
-        star_houses = chain.get("star_lord_houses") or []
-        sign_houses = chain.get("sign_lord_houses") or []
-        full = chain.get("full_chain_houses") or []
+        h = _to_int_key(k)
+        flow.append(Paragraph(f"H{h} · CSL chain", s["h3"]))
+        # Real field names from services/csl_chains.py:
+        #   csl, csl_house, csl_rules, csl_star_lord,
+        #   csl_star_lord_house, csl_star_lord_rules,
+        #   csl_sub_lord, csl_sub_lord_house, all_significations
+        csl = chain.get("csl") or "—"
+        csl_house = chain.get("csl_house") or 0
+        csl_rules = chain.get("csl_rules") or []
+        star = chain.get("csl_star_lord") or "—"
+        star_house = chain.get("csl_star_lord_house") or 0
+        star_rules = chain.get("csl_star_lord_rules") or []
+        sub_of_sub = chain.get("csl_sub_lord") or "—"
+        sub_of_sub_house = chain.get("csl_sub_lord_house") or 0
+        full = chain.get("all_significations") or []
         rows = [
-            ["Sub Lord", sub, "→ houses",
-             ", ".join(f"H{h}" for h in sub_houses) or "—"],
-            ["Star Lord", star, "→ houses",
-             ", ".join(f"H{h}" for h in star_houses) or "—"],
-            ["Sign Lord", sign, "→ houses",
-             ", ".join(f"H{h}" for h in sign_houses) or "—"],
-            ["Combined chain", "",
-             "Houses signified",
-             ", ".join(f"H{h}" for h in full) or "—"],
+            [
+                "CSL (Sub Lord)",
+                f"{csl} · in H{csl_house}" if csl_house else csl,
+                "rules",
+                ", ".join(f"H{x}" for x in csl_rules) or "—",
+            ],
+            [
+                "CSL Star Lord",
+                f"{star} · in H{star_house}" if star_house else star,
+                "rules",
+                ", ".join(f"H{x}" for x in star_rules) or "—",
+            ],
+            [
+                "CSL Sub-Lord",
+                f"{sub_of_sub} · in H{sub_of_sub_house}" if sub_of_sub_house else sub_of_sub,
+                "—",
+                "—",
+            ],
+            [
+                "Combined chain",
+                "",
+                "All houses signified",
+                ", ".join(f"H{x}" for x in full) or "—",
+            ],
         ]
-        t = Table(rows, colWidths=[28 * mm, 30 * mm, 32 * mm, 80 * mm])
+        t = Table(rows, colWidths=[30 * mm, 44 * mm, 22 * mm, 74 * mm])
         t.setStyle(TableStyle([
             ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
             ("FONTNAME", (2, 0), (2, -1), "Helvetica-Bold"),
