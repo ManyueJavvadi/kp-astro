@@ -375,6 +375,13 @@ def get_workspace(request: WorkspaceRequest):
     significators_formatted = {}
     for house, sig in all_significators.items():
         house_num = int(house.replace("House_", ""))
+        # Phase 2 / PR 5 — surface the L1 and L3 buckets the engine already
+        # computes. Stress-test finding #5: HousePanel was rendering only
+        # L2 (occupants) and L4 (house lord), making the "(4 LEVELS)"
+        # subheader misleading. Backend has the data — we just expose it
+        # with the same `_en` / `_te` translation pattern as the rest.
+        l1 = sig.get("planets_in_star_of_occupants", [])
+        l3 = sig.get("planets_in_star_of_lord", [])
         significators_formatted[house] = {
             "house_num": house_num,
             "house_te": get_house_telugu(house_num),
@@ -382,6 +389,10 @@ def get_workspace(request: WorkspaceRequest):
             "occupants_te": [get_planet_telugu(p) for p in sig.get("occupants", [])],
             "house_lord_en": sig.get("house_lord", ""),
             "house_lord_te": get_planet_telugu(sig.get("house_lord", "")),
+            "planets_in_star_of_occupants_en": l1,
+            "planets_in_star_of_occupants_te": [get_planet_telugu(p) for p in l1],
+            "planets_in_star_of_lord_en": l3,
+            "planets_in_star_of_lord_te": [get_planet_telugu(p) for p in l3],
             "all_significators_en": sig.get("all_significators", []),
             "all_significators_te": [get_planet_telugu(p) for p in sig.get("all_significators", [])],
         }
@@ -399,6 +410,11 @@ def get_workspace(request: WorkspaceRequest):
             )
         })
 
+    # Phase 2 / PR 4 — surface the extended Asc/Moon Sub Lords as their own
+    # `*_en` / `*_te` keys to match the pattern of the core 5. The values
+    # already exist in `rp_context`; we just promote them so the frontend
+    # doesn't need a client-side English→Telugu planet map.
+    _ctx = ruling_planets.get("rp_context", {})
     rp_formatted = {
         "day_lord_en": ruling_planets.get("day_lord", ""),
         "day_lord_te": get_planet_telugu(ruling_planets.get("day_lord", "")),
@@ -410,12 +426,18 @@ def get_workspace(request: WorkspaceRequest):
         "moon_sign_lord_te": get_planet_telugu(ruling_planets.get("moon_sign_lord", "")),
         "moon_star_lord_en": ruling_planets.get("moon_star_lord", ""),
         "moon_star_lord_te": get_planet_telugu(ruling_planets.get("moon_star_lord", "")),
+        # Extended pair — KSK 5+2 system. Empty string when missing keeps
+        # the frontend's truthy-check pattern happy.
+        "lagna_sub_lord_en": _ctx.get("lagna_sub_lord", ""),
+        "lagna_sub_lord_te": get_planet_telugu(_ctx.get("lagna_sub_lord", "")),
+        "moon_sub_lord_en":  _ctx.get("moon_sub_lord", ""),
+        "moon_sub_lord_te":  get_planet_telugu(_ctx.get("moon_sub_lord", "")),
         "all_en": ruling_planets.get("ruling_planets", []),
         "all_te": [get_planet_telugu(p) for p in ruling_planets.get("ruling_planets", [])],
         "query_time": ruling_planets.get("query_time", ""),
         # PR A1.1f — unified 7-slot context. Frontend reads this to render
         # the same "RP context" strip Horary uses.
-        "rp_context": ruling_planets.get("rp_context", {}),
+        "rp_context": _ctx,
     }
 
     birth_dt = datetime.strptime(f"{request.date} {request.time}", "%Y-%m-%d %H:%M")

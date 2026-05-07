@@ -22,6 +22,9 @@ import HoraryRpDashaStrip from "./components/HoraryRpDashaStrip";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useLiveLocation } from "@/hooks/useLiveLocation";
 import { formatMaskedDate, formatMaskedTime } from "./lib/maskedInput";
+// Phase 1 / PR 1 — canonical date formatter for the sidebar panchang
+// honesty fix (Phase 2 / PR 6).
+import { formatDate } from "@/lib/format";
 // PR A1.3-fix-20 — RasiChart replaces SouthIndianChart with proper KP
 // sign-fixed layout + North/South/East tabs. Drop-in replacement.
 import RasiChart from "./components/RasiChart";
@@ -2064,9 +2067,21 @@ export default function Home() {
                   <span style={{ fontSize: 9, background: "rgba(201,169,110,0.1)", color: "var(--accent)", border: "0.5px solid var(--border2)", borderRadius: 3, padding: "2px 6px" }}>Placidus</span>
                 </div>
               </div>
+              {/* Phase 2 / PR 6 — sidebar Panchang label honesty.
+                  Stress-test finding #8: this card said "PANCHANG · NOW"
+                  but `panchangam_today` is computed once at chart generation
+                  and goes stale across midnights. Two fixes:
+                    1. Eyebrow now reads "TODAY · <date>" using formatDate
+                       so the user sees exactly which day the data is for.
+                    2. A subtle `(as of chart load)` caveat reinforces it. */}
               <div className="sidebar-section" style={{ padding: "0.75rem 1rem", borderBottom: "0.5px solid var(--border)" }}>
-                <div style={{ fontSize: 9, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6 }}>
-                  {t("Panchang · now", "పంచాంగం · ఇప్పుడు")}
+                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 6 }}>
+                  <div style={{ fontSize: 9, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>
+                    {t("Today", "నేడు")}{workspaceData.panchangam_today?.date ? ` · ${formatDate(workspaceData.panchangam_today.date)}` : ""}
+                  </div>
+                  <div style={{ fontSize: 8, color: "var(--muted)", opacity: 0.6 }} title={t("Computed at chart load — open the Panchang tab for live data.", "చార్ట్ లోడ్ సమయంలో గణించబడింది.") }>
+                    {t("snapshot", "స్నాప్")}
+                  </div>
                 </div>
                 {[
                   { l: t("Weekday", "వారం"), v: lang === "en" ? (workspaceData.panchangam_today.vara_en ?? workspaceData.panchangam_today.vara) : workspaceData.panchangam_today.vara },
@@ -2545,23 +2560,69 @@ export default function Home() {
                   <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: "0.75rem" }}>
                     {t("Ruling planets", "రూలింగ్ గ్రహాలు")} · {workspaceData.ruling_planets.query_time}
                   </div>
+                  {/* Phase 2 / PR 4 — KSK strength order + extended 5+2 slots.
+                      Stress-test findings #2, #3, #4: previously this list was
+                      sorted Day-Lord-first (weakest in KSK) and the extended
+                      Asc/Moon Sub Lords were missing entirely. Now strongest
+                      is at the top, weakest at the bottom, and the extended
+                      pair is grouped under a clear "Extended" subheader. The
+                      `lagna_sub_lord` / `moon_sub_lord` values come from the
+                      `rp_context` block the backend already emits — no
+                      backend change required. */}
                   <div className="setup-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                     <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 10, padding: "1rem" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, fontSize: 9, color: "var(--accent)", letterSpacing: "0.06em", textTransform: "uppercase" as const }}>
+                        <span>{t("Strength order", "శక్తి క్రమం")}</span>
+                        <span style={{ color: "var(--muted)" }}>{t("strongest →", "బలమైనది →")}</span>
+                      </div>
+                      {/* Core 5 — KSK canonical strength order:
+                            1. Asc Star Lord  (strongest)
+                            2. Asc Sign Lord
+                            3. Moon Star Lord
+                            4. Moon Sign Lord
+                            5. Day Lord       (weakest) */}
                       {[
-                        { l: t("Day lord",          "వారాధిపతి"),        en: workspaceData.ruling_planets.day_lord_en,        te: workspaceData.ruling_planets.day_lord_te },
-                        { l: t("Lagna sign lord",   "లగ్న రాశ్యధిపతి"),  en: workspaceData.ruling_planets.lagna_sign_lord_en, te: workspaceData.ruling_planets.lagna_sign_lord_te },
-                        { l: t("Lagna star lord",   "లగ్న నక్షత్రాధిపతి"), en: workspaceData.ruling_planets.lagna_star_lord_en, te: workspaceData.ruling_planets.lagna_star_lord_te },
-                        { l: t("Moon sign lord",    "చంద్ర రాశ్యధిపతి"),  en: workspaceData.ruling_planets.moon_sign_lord_en,  te: workspaceData.ruling_planets.moon_sign_lord_te },
-                        { l: t("Moon star lord",    "చంద్ర నక్షత్రాధిపతి"), en: workspaceData.ruling_planets.moon_star_lord_en, te: workspaceData.ruling_planets.moon_star_lord_te },
+                        { l: t("Asc star lord",     "లగ్న నక్షత్రాధిపతి"), en: workspaceData.ruling_planets.lagna_star_lord_en, te: workspaceData.ruling_planets.lagna_star_lord_te, rank: 1 },
+                        { l: t("Asc sign lord",     "లగ్న రాశ్యధిపతి"),  en: workspaceData.ruling_planets.lagna_sign_lord_en, te: workspaceData.ruling_planets.lagna_sign_lord_te, rank: 2 },
+                        { l: t("Moon star lord",    "చంద్ర నక్షత్రాధిపతి"), en: workspaceData.ruling_planets.moon_star_lord_en, te: workspaceData.ruling_planets.moon_star_lord_te, rank: 3 },
+                        { l: t("Moon sign lord",    "చంద్ర రాశ్యధిపతి"),  en: workspaceData.ruling_planets.moon_sign_lord_en, te: workspaceData.ruling_planets.moon_sign_lord_te, rank: 4 },
+                        { l: t("Day lord",          "వారాధిపతి"),        en: workspaceData.ruling_planets.day_lord_en,         te: workspaceData.ruling_planets.day_lord_te,         rank: 5 },
                       ].map(item => {
                         const val = lang === "en" ? item.en : (item.te ?? item.en);
                         return (
                           <div key={item.l} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, paddingBottom: 10, borderBottom: "0.5px solid var(--border)" }}>
-                            <span style={{ fontSize: 12, color: "var(--muted)" }}>{item.l}</span>
+                            <span style={{ fontSize: 12, color: "var(--muted)", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                              <span style={{ fontSize: 9, color: "var(--accent)", opacity: 0.6, fontVariantNumeric: "tabular-nums" }}>{item.rank}</span>
+                              {item.l}
+                            </span>
                             <span style={{ fontSize: 15, fontWeight: 600, color: PLANET_COLORS[item.en] || "var(--accent)" }}>{val}</span>
                           </div>
                         );
                       })}
+                      {/* Extended 5+2 — Asc Sub Lord and Moon Sub Lord.
+                          Backend (Phase 2 / PR 4) emits these as top-level
+                          *_en/*_te keys to match the existing 5-slot pattern.
+                          Visually grouped under a dimmer subheader so the KSK
+                          core 5 stays the primary read. */}
+                      {(workspaceData.ruling_planets.lagna_sub_lord_en || workspaceData.ruling_planets.moon_sub_lord_en) && (
+                        <>
+                          <div style={{ marginTop: 4, marginBottom: 8, fontSize: 9, color: "var(--muted)", letterSpacing: "0.06em", textTransform: "uppercase" as const, opacity: 0.7 }}>
+                            {t("Extended (KSK 5+2)", "విస్తరించినవి (KSK 5+2)")}
+                          </div>
+                          {[
+                            { l: t("Asc sub lord",  "లగ్న ఉప నాథ"),   en: workspaceData.ruling_planets.lagna_sub_lord_en, te: workspaceData.ruling_planets.lagna_sub_lord_te },
+                            { l: t("Moon sub lord", "చంద్ర ఉప నాథ"), en: workspaceData.ruling_planets.moon_sub_lord_en,  te: workspaceData.ruling_planets.moon_sub_lord_te },
+                          ].filter(item => item.en).map(item => {
+                            const val = lang === "en" ? item.en : (item.te ?? item.en);
+                            return (
+                              <div key={item.l} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, paddingBottom: 8, borderBottom: "0.5px solid var(--border)", opacity: 0.85 }}>
+                                <span style={{ fontSize: 11, color: "var(--muted)" }}>{item.l}</span>
+                                <span style={{ fontSize: 14, fontWeight: 500, color: PLANET_COLORS[item.en!] || "var(--accent)" }}>{val}</span>
+                              </div>
+                            );
+                          })}
+                        </>
+                      )}
                     </div>
                     <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 10, padding: "1rem" }}>
                       <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: "0.75rem" }}>{t("All ruling planets", "అన్ని రూలింగ్ గ్రహాలు")}</div>
@@ -2582,8 +2643,12 @@ export default function Home() {
               {housesSubTab === "panchang" && (
                 <div>
                   <div className="setup-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem" }}>
-                    <PanchangamCard data={workspaceData.panchangam_birth} title={t("Birth panchangam", "జన్మ పంచాంగం")} />
-                    <PanchangamCard data={workspaceData.panchangam_today} title={t("Today's panchangam", "నేటి పంచాంగం")} />
+                    {/* Phase 2 / PR 6 — pass `kind` so the Hora row reads
+                        "Birth hora" on the left card and "Hora at chart load"
+                        on the right card. Previously both said "Current hora"
+                        which was misleading on the birth card (#9). */}
+                    <PanchangamCard data={workspaceData.panchangam_birth} title={t("Birth panchangam", "జన్మ పంచాంగం")} kind="birth" />
+                    <PanchangamCard data={workspaceData.panchangam_today} title={t("Today's panchangam", "నేటి పంచాంగం")} kind="today" />
                   </div>
                 </div>
               )}

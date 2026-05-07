@@ -124,28 +124,74 @@ export default function HousePanel({ house, cusps, significators, planets, rulin
                 </span>
               ))}
             </div>
-          ) : <span style={{ fontSize: 11, color: "var(--muted)" }}>{t("Empty house", "ఖాళీ భావం")}</span>}
+          ) : (
+            // Phase 2 / PR 5 — disambiguate "Empty house". The stress test
+            // (#15) flagged that a planet-less house here looks like a
+            // contradiction with the South-Indian grid. Add a one-liner
+            // explaining that the house can still be active via its
+            // significator chain even with zero occupants.
+            <div>
+              <span style={{ fontSize: 11, color: "var(--muted)" }}>{t("No planets occupying this house", "ఈ భావంలో గ్రహాలు లేవు")}</span>
+              <div style={{ fontSize: 10, color: "var(--muted)", opacity: 0.75, marginTop: 3, lineHeight: 1.4 }}>
+                {t(
+                  "House can still be active via its significator chain (L1 / L3 below).",
+                  "L1 / L3 సూచకుల ద్వారా ఈ భావం ఇంకా క్రియాశీలంగా ఉండవచ్చు."
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Significators */}
+        {/* Significators — KP four-level priority (strongest → weakest):
+              L1 = planets in the star of OCCUPANTS  (primary significators)
+              L2 = occupants of the house
+              L3 = planets in the star of HOUSE LORD
+              L4 = lord of the house
+            Phase 2 / PR 5 — previously this section showed only L2 and
+            L4, making the "(4 LEVELS)" subheader misleading. Backend now
+            emits planets_in_star_of_occupants/_lord in `_en/_te` form. */}
         {sig && (
           <div style={{ marginBottom: 12 }}>
             <div style={{ fontSize: 9, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6 }}>{t("Significators (4 levels)", "సూచకులు (4 స్థాయిలు)")}</div>
-            <div style={rowStyle}>
+
+            {/* L1 — strongest. Tooltip explains the KP rule. */}
+            <div style={rowStyle} title="L1 — planets occupying the nakshatra of an occupant. Strongest significators per KP.">
+              <span style={labelStyle}>L1 (in star of occupants)</span>
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                {((lang === "en" ? sig.planets_in_star_of_occupants_en : sig.planets_in_star_of_occupants_te) || []).map((p: string, i: number) => (
+                  <span key={i} style={{ fontSize: 11, fontWeight: 600, color: PLANET_COLORS[sig.planets_in_star_of_occupants_en?.[i]] || "var(--text)" }}>{p}</span>
+                ))}
+                {!(sig.planets_in_star_of_occupants_en?.length) && <span style={{ fontSize: 10, color: "var(--muted)" }}>—</span>}
+              </div>
+            </div>
+
+            <div style={rowStyle} title="L2 — planets occupying this house.">
               <span style={labelStyle}>L2 (occupants)</span>
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                 {((lang === "en" ? sig.occupants_en : sig.occupants_te) || []).map((p: string, i: number) => (
                   <span key={i} style={{ fontSize: 11, color: PLANET_COLORS[sig.occupants_en?.[i]] || "var(--text)" }}>{p}</span>
                 ))}
-                {!(sig.occupants_te?.length) && <span style={{ fontSize: 10, color: "var(--muted)" }}>—</span>}
+                {!(sig.occupants_en?.length) && <span style={{ fontSize: 10, color: "var(--muted)" }}>—</span>}
               </div>
             </div>
-            <div style={rowStyle}>
+
+            <div style={rowStyle} title="L3 — planets occupying the nakshatra of this house's sign lord.">
+              <span style={labelStyle}>L3 (in star of lord)</span>
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                {((lang === "en" ? sig.planets_in_star_of_lord_en : sig.planets_in_star_of_lord_te) || []).map((p: string, i: number) => (
+                  <span key={i} style={{ fontSize: 11, color: PLANET_COLORS[sig.planets_in_star_of_lord_en?.[i]] || "var(--text)" }}>{p}</span>
+                ))}
+                {!(sig.planets_in_star_of_lord_en?.length) && <span style={{ fontSize: 10, color: "var(--muted)" }}>—</span>}
+              </div>
+            </div>
+
+            <div style={rowStyle} title="L4 — sign lord of the house. Weakest signification level.">
               <span style={labelStyle}>L4 (lord)</span>
-              <span style={{ fontSize: 11, fontWeight: 600, color: PLANET_COLORS[sig.house_lord_en] || "var(--text)" }}>
+              <span style={{ fontSize: 11, color: PLANET_COLORS[sig.house_lord_en] || "var(--text)" }}>
                 {pick(sig.house_lord_en, sig.house_lord_te)}
               </span>
             </div>
+
             <div style={{ ...rowStyle, marginTop: 6, paddingTop: 6, borderTop: "0.5px solid var(--border)" }}>
               <span style={labelStyle}>All significators</span>
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>

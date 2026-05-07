@@ -1,7 +1,20 @@
 "use client";
 import { useLanguage } from "@/lib/i18n";
 
-export default function PanchangamCard({ data, title }: { data: any; title: string }) {
+/**
+ * Phase 2 / PR 6 — added `kind` prop so the Hora row sub-label adapts to
+ * the card's context. Stress-test finding #9: when this card was used
+ * for "Birth panchangam" the sub-label still said "Current hora", which
+ * was wrong — it's the hora at the moment of birth, not now.
+ *
+ *   kind="birth"  → "Birth hora"
+ *   kind="today"  → "Hora at chart load"  (honest about staleness)
+ *   kind="live"   → "Current hora"        (only when re-fetched on demand)
+ *   kind missing  → falls back to a neutral "Hora lord" label
+ */
+type PanchangKind = "birth" | "today" | "live";
+
+export default function PanchangamCard({ data, title, kind }: { data: any; title: string; kind?: PanchangKind }) {
   const { lang, t } = useLanguage();
   const pickField = (base: string) =>
     lang === "en" ? (data?.[`${base}_en`] ?? data?.[base] ?? "") : (data?.[`${base}_te`] ?? data?.[base] ?? "");
@@ -14,13 +27,22 @@ export default function PanchangamCard({ data, title }: { data: any; title: stri
   // Hora stays on the lord name; data.hora_lord is already localised (te default).
   const horaV   = lang === "en" ? (data?.hora_lord_en ?? data?.hora_lord ?? "") : (data?.hora_lord ?? data?.hora_lord_en ?? "");
 
+  // Phase 2 / PR 6 — kind-aware Hora sub-label.
+  const horaSub = kind === "birth"
+    ? t("Birth hora", "జన్మ హోర")
+    : kind === "live"
+      ? t("Current hora", "ప్రస్తుత హోర")
+      : kind === "today"
+        ? t("Hora at chart load", "చార్ట్ లోడ్ సమయంలో హోర")
+        : t("Hora lord", "హోర నాథ");
+
   const items: { l: string; v: string; sub: string }[] = [
     { l: t("Weekday", "వారం"),  v: varaV,   sub: data?.vara_en ?? "" },
     { l: t("Tithi", "తిథి"),    v: tithiV,  sub: data?.tithi_num != null ? `#${data.tithi_num}` : "" },
     { l: t("Nakshatra", "నక్షత్రం"), v: nakV, sub: data?.nakshatra_en ?? "" },
     { l: t("Yoga", "యోగం"),     v: yogaV,   sub: data?.yoga_en ?? "" },
     { l: t("Karana", "కరణం"),  v: karanaV, sub: data?.karana_en ?? data?.karana ?? "" },
-    { l: t("Hora", "హోర"),     v: horaV,   sub: t("Current hora", "ప్రస్తుత హోర") },
+    { l: t("Hora", "హోర"),     v: horaV,   sub: horaSub },
   ];
 
   return (

@@ -200,11 +200,17 @@ export default function PersonHeroBanner({
               PR A1.1f — now driven by the unified 7-slot engine. Chips
               for the unique planets + freq badge "N/7" + gold star on
               "strongest" (>=2 slots). Matches the Horary tab's RP
-              treatment so astrologers see the same methodology on both. */}
+              treatment so astrologers see the same methodology on both.
+              Phase 2 / PR 4 — header strip shows FREQUENCY-sorted unique
+              planets (planets that fill the most KP slots bubble up).
+              For the canonical KSK strength order (Asc Star → Day Lord),
+              see Houses → Ruling tab. The two views are complementary:
+              header answers "which planet is strongest overall?", Houses
+              answers "what is in each KP slot?". */}
           {rulingPlanets.length > 0 && (
             <div
               style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}
-              title="Ruling planets at the native's moment of birth. Horary/Muhurtha/Transit tabs compute RPs live — those differ."
+              title="Ruling planets at the native's moment of birth — frequency-sorted (planets in 2+ KP slots are flagged with ★). Horary/Muhurtha/Transit tabs compute RPs live and may differ. Houses → Ruling shows the same data in canonical KSK strength order (Asc Star Lord strongest → Day Lord weakest)."
             >
               <span style={{ fontSize: 9, color: "#555566", textTransform: "uppercase", letterSpacing: "0.06em" }}>
                 RPs @ birth:
