@@ -15,7 +15,7 @@ Accuracy fixes (Phase 3):
 """
 
 from fastapi import APIRouter
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime, timedelta, timezone, date as date_type
 import calendar as calendar_module
 from typing import Optional, List
@@ -23,6 +23,26 @@ import math
 import swisseph as swe
 from astral import LocationInfo
 from astral.sun import sun as astral_sun
+
+# PR A1.3-fix-24 — serialize swisseph topo+calc blocks (set_topo races
+# with concurrent panchangam requests for different cities). See
+# app/services/swe_lock.py for full rationale.
+import functools
+from app.services.swe_lock import swe_lock
+
+
+def _with_swe_lock(fn):
+    """Decorator: hold the global swisseph lock for the entire call.
+
+    Used on endpoints that mutate swe.set_topo() because the topo state
+    persists across calls. Inner decorator (applied before @router.post)
+    so FastAPI's body parsing sees the original signature via functools.wraps.
+    """
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        with swe_lock():
+            return fn(*args, **kwargs)
+    return wrapper
 
 from app.services.telugu_terms import (
     NAKSHATRAS_TELUGU, TITHIS_TELUGU, YOGAS_TELUGU,
@@ -848,24 +868,27 @@ def get_moon_phase_icon(tithi_num: int) -> str:
 
 # ── Request Models ───────────────────────────────────────────────────
 
+# PR A1.3-fix-24 — input bounds. Year/month bounds prevent
+# `calendar.monthrange(req.year, req.month)` 500s on malformed input.
 class PanchangamLocationRequest(BaseModel):
-    latitude: float
-    longitude: float
-    timezone_offset: float = 5.5
-    date: Optional[str] = None   # YYYY-MM-DD, defaults to today
+    latitude: float = Field(..., ge=-90, le=90)
+    longitude: float = Field(..., ge=-180, le=180)
+    timezone_offset: float = Field(5.5, ge=-14, le=14)
+    date: Optional[str] = Field(None, max_length=12)   # YYYY-MM-DD, defaults to today
 
 
 class CalendarRequest(BaseModel):
-    latitude: float
-    longitude: float
-    timezone_offset: float = 5.5
-    year: int
-    month: int  # 1-12
+    latitude: float = Field(..., ge=-90, le=90)
+    longitude: float = Field(..., ge=-180, le=180)
+    timezone_offset: float = Field(5.5, ge=-14, le=14)
+    year: int = Field(..., ge=1900, le=2100)
+    month: int = Field(..., ge=1, le=12)
 
 
 # ── Main Location Endpoint ───────────────────────────────────────────
 
 @router.post("/location")
+@_with_swe_lock  # PR A1.3-fix-24 — set_topo race protection
 def get_location_panchangam(req: PanchangamLocationRequest):
     """
     Calculate today's (or given date's) Panchangam for any geographic location.
@@ -1173,6 +1196,7 @@ def get_location_panchangam(req: PanchangamLocationRequest):
 # ── Monthly Calendar Endpoint ─────────────────────────────────────────
 
 @router.post("/calendar")
+@_with_swe_lock  # PR A1.3-fix-24 — set_topo race protection
 def get_monthly_calendar(req: CalendarRequest):
     """
     Return daily panchang for every day in a given month.

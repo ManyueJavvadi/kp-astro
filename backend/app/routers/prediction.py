@@ -18,11 +18,16 @@ After this rev:
 """
 
 import json
+import logging
 
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List
+
+# PR A1.3-fix-24 — proper logger instead of print() (was leaking full
+# user questions to stdout; Railway retains stdout indefinitely).
+_log = logging.getLogger("prediction")
 
 from app.services.llm_service import get_prediction, get_prediction_stream, detect_topic
 from app.services.chart_pipeline import build_full_chart_data
@@ -30,26 +35,27 @@ from app.services.chart_pipeline import build_full_chart_data
 router = APIRouter()
 
 
+# PR A1.3-fix-24 — input bounds. Same rationale as astrologer.py.
 class HistoryItem(BaseModel):
-    question: str
-    answer: str
+    question: str = Field(..., max_length=4000)
+    answer: str = Field(..., max_length=12000)  # AI answers are larger; cap above worst-case
 
 
 class PredictionRequest(BaseModel):
-    name: str
-    date: str
-    time: str
-    latitude: float
-    longitude: float
-    timezone_offset: float = 5.5
+    name: str = Field(..., min_length=1, max_length=120)
+    date: str = Field(..., min_length=8, max_length=12)
+    time: str = Field(..., min_length=4, max_length=8)
+    latitude: float = Field(..., ge=-90, le=90)
+    longitude: float = Field(..., ge=-180, le=180)
+    timezone_offset: float = Field(5.5, ge=-14, le=14)
     # PR A1.3-fix-14 — gender now wired through to backend so the
     # NATIVE PROFILE block reaches the LLM. Without this, the AI guesses
     # gender from name (caused PCOD predictions for males).
-    gender: str = ""
-    topic: str = "auto"
-    question: str
-    history: List[HistoryItem] = []
-    mode: str = "user"
+    gender: str = Field("", max_length=20)
+    topic: str = Field("auto", max_length=60)
+    question: str = Field(..., min_length=1, max_length=4000)
+    history: List[HistoryItem] = Field(default_factory=list, max_length=20)
+    mode: str = Field("user", max_length=20)
 
 
 @router.post("/ask")
@@ -62,7 +68,9 @@ def ask_prediction(request: PredictionRequest):
         if request.topic and request.topic != "auto"
         else detect_topic(request.question)
     )
-    print(f"[{request.mode.upper()}] Topic: {topic} | Q: {request.question}")
+    # PR A1.3-fix-24 — log only metadata (mode + topic + question length),
+    # never the question body. Question text is PII.
+    _log.info("ask mode=%s topic=%s qlen=%d", request.mode, topic, len(request.question))
 
     # Single shared pipeline — same compute as /astrologer/analyze.
     chart_data = build_full_chart_data(
@@ -151,7 +159,7 @@ async def ask_prediction_stream(request: PredictionRequest):
         if request.topic and request.topic != "auto"
         else detect_topic(request.question)
     )
-    print(f"[{request.mode.upper()}-STREAM] Topic: {topic} | Q: {request.question}")
+    _log.info("ask-stream mode=%s topic=%s qlen=%d", request.mode, topic, len(request.question))
 
     chart_data = build_full_chart_data(
         name=request.name,
@@ -227,7 +235,10 @@ async def ask_prediction_stream(request: PredictionRequest):
 
             yield "event: done\ndata: {}\n\n"
         except Exception as e:
-            err_payload = json.dumps({"error": str(e)})
+            # PR A1.3-fix-24 — log full error server-side, return generic
+            # message to client. str(e) was leaking SDK internals + paths.
+            _log.exception("ask-stream failed: %s", e)
+            err_payload = json.dumps({"error": "stream_failed"})
             yield f"event: error\ndata: {err_payload}\n\n"
 
     return StreamingResponse(

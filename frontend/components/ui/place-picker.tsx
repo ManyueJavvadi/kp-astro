@@ -111,7 +111,13 @@ export function PlacePicker({
     setOpen(false);
     setSuggestions([]);
     setStatus("found");
-    // Best-effort timezone lookup from coords
+    // PR A1.3-fix-24 — was reading `res.data.timezone.ianaTimeId` which
+    // bigdatacloud DOES NOT return — the actual field path is
+    // `data.localityInfo.administrative[i].timeZone.name` (per
+    // `frontend/hooks/useLiveLocation.ts` which uses it correctly).
+    // The bug meant tz was ALWAYS undefined → every place pick fell back
+    // to Asia/Kolkata regardless of where the user picked. Real chart-
+    // accuracy bug for non-IST birthplaces.
     let tz: string | undefined;
     try {
       const res = await axios.get(
@@ -124,7 +130,12 @@ export function PlacePicker({
           },
         }
       );
-      const resolved = res.data?.timezone?.ianaTimeId;
+      const d = res.data;
+      const resolved =
+        (d?.localityInfo?.administrative || []).find(
+          (a: { timeZone?: { name?: string } }) => a?.timeZone?.name
+        )?.timeZone?.name
+        || d?.timeZone?.name;
       if (typeof resolved === "string" && resolved.length > 0) {
         tz = resolved;
       }

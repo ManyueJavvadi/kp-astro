@@ -2,6 +2,11 @@ import swisseph as swe
 from datetime import datetime
 import math
 
+# PR A1.3-fix-24 — single source of truth for "today" (IST midnight rollover).
+# See app/services/today.py for the rationale. Without this import, dasha-period
+# detection was 5.5 hours stale per day on UTC servers vs the answer cache.
+from app.services.today import today_ist_str
+
 # KP New Ayanamsa - confirmed with father
 swe.set_sid_mode(swe.SIDM_KRISHNAMURTI_VP291)
 
@@ -40,6 +45,19 @@ DASHA_YEARS = {
 # Total dasha years
 TOTAL_YEARS = sum(DASHA_YEARS.values())  # 120
 
+# PR A1.3-fix-24 — DASHA_SEQUENCE was previously defined at line 187 (and
+# DASHA_YEARS was duplicated at line 192). Hoisted to the canonical block
+# here, duplicates removed below. `lords_order` at L71 also collapsed to
+# use DASHA_SEQUENCE. Same byte-identical values; fix is dedup only.
+DASHA_SEQUENCE = [
+    "Ketu", "Venus", "Sun", "Moon", "Mars",
+    "Rahu", "Jupiter", "Saturn", "Mercury"
+]
+
+# Backwards-compatible alias for the old name. Some external code may still
+# reference TOTAL_DASHA_YEARS. Both point at the same 120-year cycle.
+TOTAL_DASHA_YEARS = TOTAL_YEARS
+
 # Each nakshatra span in degrees
 NAKSHATRA_SPAN = 360 / 27  # 13.333...
 
@@ -67,11 +85,10 @@ def get_sub_lord(longitude: float) -> str:
     # Determine starting lord of this nakshatra
     nakshatra_lord = NAKSHATRAS[nakshatra_index % 27][1]
 
-    # Build sub-division sequence starting from nakshatra lord
-    lords_order = ["Ketu", "Venus", "Sun", "Moon", "Mars",
-                   "Rahu", "Jupiter", "Saturn", "Mercury"]
-    start_index = lords_order.index(nakshatra_lord)
-    sequence = lords_order[start_index:] + lords_order[:start_index]
+    # PR A1.3-fix-24 — uses canonical DASHA_SEQUENCE (hoisted to top of file).
+    # Was a duplicate hardcoded list here.
+    start_index = DASHA_SEQUENCE.index(nakshatra_lord)
+    sequence = DASHA_SEQUENCE[start_index:] + DASHA_SEQUENCE[:start_index]
 
     # Calculate sub spans proportional to dasha years
     current_position = 0.0
@@ -183,18 +200,10 @@ def generate_chart(date: str, time: str, latitude: float,
 # VIMSHOTTARI DASHA CALCULATION
 # ============================================================
 
-# Dasha sequence and years
-DASHA_SEQUENCE = [
-    "Ketu", "Venus", "Sun", "Moon", "Mars",
-    "Rahu", "Jupiter", "Saturn", "Mercury"
-]
-
-DASHA_YEARS = {
-    "Ketu": 7, "Venus": 20, "Sun": 6, "Moon": 10,
-    "Mars": 7, "Rahu": 18, "Jupiter": 16, "Saturn": 19, "Mercury": 17
-}
-
-TOTAL_DASHA_YEARS = 120
+# PR A1.3-fix-24 — DASHA_SEQUENCE / DASHA_YEARS / TOTAL_DASHA_YEARS now
+# hoisted to the canonical block at top of file. Duplicate definitions
+# removed here. Functions below use the same names — Python module-level
+# binding makes them visible regardless of definition order at call time.
 
 
 def get_dasha_balance(moon_longitude: float) -> dict:
@@ -279,8 +288,8 @@ def get_current_dasha(dashas: list) -> dict:
     """
     Find which Mahadasha is currently running.
     """
-    from datetime import datetime
-    today = datetime.now().strftime("%Y-%m-%d")
+    # PR A1.3-fix-24 — IST not server-local (see app/services/today.py)
+    today = today_ist_str()
 
     for dasha in dashas:
         if dasha["start"] <= today <= dasha["end"]:
@@ -328,8 +337,8 @@ def calculate_antardashas(mahadasha: dict) -> list:
 
 def get_current_antardasha(antardashas: list) -> dict:
     """Find currently running antardasha."""
-    from datetime import datetime
-    today = datetime.now().strftime("%Y-%m-%d")
+    # PR A1.3-fix-24 — IST not server-local (see app/services/today.py)
+    today = today_ist_str()
 
     for ad in antardashas:
         if ad["start"] <= today <= ad["end"]:
@@ -883,8 +892,8 @@ def calculate_pratyantardashas(antardasha: dict) -> list:
 
 def get_current_pratyantardasha(pratyantardashas: list) -> dict:
     """Find currently running Pratyantardasha."""
-    from datetime import datetime
-    today = datetime.now().strftime("%Y-%m-%d")
+    # PR A1.3-fix-24 — IST not server-local (see app/services/today.py)
+    today = today_ist_str()
 
     for pad in pratyantardashas:
         if pad["start"] <= today <= pad["end"]:
@@ -944,8 +953,8 @@ def calculate_sookshma_dashas(pratyantardasha: dict) -> list:
 
 def get_current_sookshma(sookshmas: list) -> dict:
     """Find currently running Sookshma (sub-PAD) period."""
-    from datetime import datetime
-    today = datetime.now().strftime("%Y-%m-%d")
+    # PR A1.3-fix-24 — IST not server-local (see app/services/today.py)
+    today = today_ist_str()
 
     for sd in sookshmas:
         if sd["start"] <= today <= sd["end"]:
@@ -956,8 +965,8 @@ def get_current_sookshma(sookshmas: list) -> dict:
 
 def get_upcoming_pratyantardashas(pratyantardashas: list, limit: int = 9) -> list:
     """Return current + upcoming PADs (not past ones)."""
-    from datetime import datetime
-    today = datetime.now().strftime("%Y-%m-%d")
+    # PR A1.3-fix-24 — IST not server-local (see app/services/today.py)
+    today = today_ist_str()
     result = []
     found_current = False
     for pad in pratyantardashas:

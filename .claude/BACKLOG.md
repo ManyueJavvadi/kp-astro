@@ -241,10 +241,30 @@ Every tool goes through the same four phases. No tool skips a phase.
 | **A1.0** | Horary research audit | `.claude/research/horary-audit.md` (no code) | ✅ shipped |
 | A1.1 | Horary engine accuracy fixes | `backend/app/services/horary_engine.py` + pytest golden + reference case | ✅ shipped |
 | A1.2 | Panchang research audit + fixes | `.claude/research/panchang-audit.md` | ✅ shipped (PR A1.2a–d) |
-| **A1.3** | **Analysis tab KB overhaul + accuracy** (originally not planned — opened mid-track after user testing) | See `.claude/HANDOFF-analysis-tab.md` for the 12-PR arc | ✅ shipped (`76368a2` → `aa31528`, fix-1 through fix-10). Fix-11 5-section refactor reverted at `07bbc7d` — see HANDOFF post-mortem. Live state = fix-10 (7-section output). |
+| **A1.3** | **Analysis tab KB overhaul + accuracy** (originally not planned — opened mid-track after user testing) | See `.claude/HANDOFF-analysis-tab.md` for the full arc | ✅ shipped (`76368a2` → `094e0e1`, fix-1 through fix-21). Fix-11 5-section refactor reverted at `07bbc7d`. Live state = fix-10 (7-section output) + fix-12→21 extensions (cost cut, type-class discipline, KP rasi chart, Tara/Chandra Bala). |
 | ~~A1.3-fix-11~~ | ~~Backend 7→5 section refactor~~ | shipped `d60527b`, **REVERTED `07bbc7d`** | ⛔ reverted — output got worse than fix-10. Frontend chat polish (avatar dot, typing dots, copy button, topic auto-collapse, follow-ups, starter questions) was KEPT — only the backend prompt was rolled back. See HANDOFF post-mortem for lessons. |
+| A1.3-fix-12 | Cache breakpoint reorder for ~67% cost cut on follow-ups | `082a4ca` | ✅ shipped |
+| A1.3-fix-13 | 1h cache TTL + conditional KB load + KB dedup | `cf9b59c` | ✅ shipped |
+| A1.3-fix-14 | General-user accuracy parity (gender wiring, KSK reasoning, citations) | `61c5365` | ✅ shipped |
+| A1.3-fix-15 | Premium user-mode UI revamp (UserModeUI component) | `c922488` | ✅ shipped |
+| A1.3-fix-16 | Phase 1+2+3 user-mode cost & UX optimization | `f6dbfdf` | ✅ shipped |
+| A1.3-fix-17 | Haiku for user mode + 3 cache fixes (mode-aware model selection) | `db05864` | ✅ shipped |
+| A1.3-fix-18 | Phase A user-mode KB trim (sub-10-cent per-question target) | `c1eab74` | ✅ shipped |
+| A1.3-fix-19 | Type-classification gap closure across all KBs (RULE 33 + RULE 35; marriage/children/foreign/divorce/health/job/wealth) | `1fc4417` | ✅ shipped — fixes "love-cum-arranged" misclassification + adds pushback discipline |
+| A1.3-fix-20 | Proper KP rasi chart (sign-fixed, S/N/E tabs) + Tara Chakra system (compute + widget + KB) | `1248957` | ✅ shipped — RasiChart.tsx + TaraChakraWidget.tsx + kp_tara_chakra.py |
+| A1.3-fix-21 | Chart bugs + Tara/Chandra Bala expansion (Telugu rendering, East Indian rewrite, inline expand, pariharam, combined verdict) | `094e0e1` | ✅ shipped |
 | A1.3e | UX polish for Analysis tab — confidence-bar visual, source-citation expandables, conflicting-signals panel rendering, life-arc timeline visualization, user-mode 3-section format | frontend changes only (backend support exists from fix-8) | ⏳ queued |
 | A1.3f (optional) | Targeted single-section refactor (only if a section in fix-10's 7-section output proves weak in real testing) | ONE section at a time, A/B vs current, never wholesale | ⏳ optional — see HANDOFF post-mortem rule #1 |
+| A1.3g | **Astrologer-mode streaming** (SSE response so first tokens appear in <2s instead of full 25-40s wait) | backend `astrologer.py` SSE endpoint + frontend EventSource consumer | ⏳ queued |
+| A1.3h | **History compression** (rolling summary of prior Q&A in same session, drop verbatim turns >5 turns old) | backend `llm_service.get_prediction()` history handling | ⏳ queued |
+| A1.3i | **Output budget RULE 32** (hard cap astrologer reply at ~2.5k tokens, user reply at ~800 tokens; today they're unbounded) | system-prompt rule + max_tokens enforcement | ⏳ queued |
+| A1.3j | **Beta header cleanup** (one of the API calls still sends a deprecated `anthropic-beta: prompt-caching-2024-07-31` header — caching is GA now) | `llm_service.py` header config | ⏳ queued |
+| A1.3k | **Format B narrative variant** (currently Q→answer is rigid 7-section; offer a Format B = flowing narrative for sub-questions where the structure feels like overkill) | system-prompt routing on question_type | ⏳ queued |
+| A1.3l | **Engine compute helpers** (move repeated math like Tara position, Chandra Bala position, sub-lord chain walk into reusable named helpers in `kp_*` modules so LLM can cite by helper name) | refactor `kp_advanced_compute.py` + `kp_tara_chakra.py` | ⏳ queued |
+| A1.3m | **Saptamsa D7 (Children)** divisional chart compute + integration into children-topic analysis | new `kp_saptamsa.py` + KB additions to `children_detailed.md` | ⏳ queued |
+| A1.3n | **Vedha + Panchaka overlay** (Tara Bala has two more sub-rules — Vedha nakshatra opposition and Panchaka Rahita; today we compute base 9-Tara only) | extend `kp_tara_chakra.py` | ⏳ queued |
+| A1.3o | **Tara overlay in Dasha tab** (show Tara nature alongside each AD/PAD lord's Moon transit during the period — useful for muhurtha-within-dasha) | Dasha tab JSX + Tara compute reuse | ⏳ queued |
+| ~~A1.3 — Quick Mode~~ | ~~Optional faster Sonnet→Haiku tier toggle for astrologer mode~~ | — | ⛔ **DROPPED 2026-05-06.** User explicitly: *"we are dropping the idea of quick mode for now"*. Don't re-queue without user signal. |
 | A1.4 | Transit research audit | `.claude/research/transit-audit.md` | ⏳ pending |
 | A1.5 | Transit engine accuracy fixes | `backend/app/services/transit_engine.py` + tests | ⏳ pending |
 | A1.6 | Muhurtha research audit | `.claude/research/muhurtha-audit.md` | ✅ shipped (PR A2.2a–f) |

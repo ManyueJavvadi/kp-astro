@@ -43,6 +43,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import threading  # PR A1.3-fix-24 — concurrency safety for the LRU
 import time
 from collections import OrderedDict
 from datetime import datetime, timedelta, timezone
@@ -60,7 +61,18 @@ _IST = timezone(timedelta(hours=5, minutes=30))
 
 
 class _LRUCache:
-    """Simple ordered-dict-based LRU with per-entry TTL."""
+    """Thread-safe ordered-dict-based LRU with per-entry TTL.
+
+    PR A1.3-fix-24 — added `_lock` to prevent `RuntimeError: OrderedDict
+    mutated during iteration` under FastAPI concurrency. The cache is
+    touched by:
+      - sync `def` endpoints (run on threadpool — `/astrologer/analyze`,
+        `/prediction/ask`)
+      - async endpoints (run on event loop — `/astrologer/analyze-stream`,
+        `/prediction/ask-stream`)
+    Both can race on `move_to_end` / `popitem`. The lock is uncontended
+    in steady state (LRU ops are O(1) and fast).
+    """
 
     def __init__(self, max_entries: int = _MAX_ENTRIES, ttl_seconds: int = _TTL_SECONDS):
         self._store: "OrderedDict[str, tuple[float, str, dict]]" = OrderedDict()
@@ -68,40 +80,51 @@ class _LRUCache:
         self._ttl_seconds = ttl_seconds
         self._hits = 0
         self._misses = 0
+        self._lock = threading.Lock()
 
     def get(self, key: str) -> Optional[tuple[str, dict]]:
         """Return (answer, analysis_meta) if cache-fresh, else None."""
-        entry = self._store.get(key)
-        if entry is None:
-            self._misses += 1
-            return None
-        ts, answer, meta = entry
-        if (time.time() - ts) > self._ttl_seconds:
-            # Expired
-            self._store.pop(key, None)
-            self._misses += 1
-            return None
-        # Move to end (most-recently-used)
-        self._store.move_to_end(key)
-        self._hits += 1
-        return answer, meta
+        with self._lock:
+            entry = self._store.get(key)
+            if entry is None:
+                self._misses += 1
+                return None
+            ts, answer, meta = entry
+            if (time.time() - ts) > self._ttl_seconds:
+                # Expired
+                self._store.pop(key, None)
+                self._misses += 1
+                return None
+            # Move to end (most-recently-used)
+            self._store.move_to_end(key)
+            self._hits += 1
+            return answer, meta
 
     def put(self, key: str, answer: str, meta: dict | None = None) -> None:
-        if key in self._store:
-            self._store.pop(key)
-        self._store[key] = (time.time(), answer, meta or {})
-        # Evict oldest if over capacity
-        while len(self._store) > self._max_entries:
-            self._store.popitem(last=False)
+        with self._lock:
+            if key in self._store:
+                self._store.pop(key)
+            self._store[key] = (time.time(), answer, meta or {})
+            # Evict oldest if over capacity
+            while len(self._store) > self._max_entries:
+                self._store.popitem(last=False)
 
     def stats(self) -> dict:
-        total = self._hits + self._misses
-        return {
-            "entries": len(self._store),
-            "hits": self._hits,
-            "misses": self._misses,
-            "hit_rate_pct": round(100 * self._hits / total, 2) if total else 0.0,
-        }
+        with self._lock:
+            total = self._hits + self._misses
+            return {
+                "entries": len(self._store),
+                "hits": self._hits,
+                "misses": self._misses,
+                "hit_rate_pct": round(100 * self._hits / total, 2) if total else 0.0,
+            }
+
+    def clear_unsafe_for_tests(self) -> None:
+        """Test-only helper. NEVER call from production paths."""
+        with self._lock:
+            self._store.clear()
+            self._hits = 0
+            self._misses = 0
 
 
 _cache = _LRUCache()
@@ -125,8 +148,14 @@ def _today_ist() -> str:
     Indian users perceive as "today changed" and aligns with the
     system prompt's `TODAY'S DATE` field which dasha calculations
     depend on.
+
+    PR A1.3-fix-24 — delegates to the canonical helper in app/services/today.py
+    so the cache and chart_engine ALWAYS agree on the boundary. Local _IST
+    constant retained (above) for module-internal back-compat but no longer
+    used here.
     """
-    return datetime.now(_IST).strftime("%Y-%m-%d")
+    from app.services.today import today_ist_str
+    return today_ist_str()
 
 
 def make_key(
@@ -140,6 +169,7 @@ def make_key(
     topic: str,
     mode: str,
     question: str,
+    question_type: str = "",
 ) -> str:
     """Build the cache key. today_date is included so caches roll over
     daily — important because the engine's "current dasha" output and
@@ -149,6 +179,11 @@ def make_key(
     same birth_time but different TZ would collide (rare but real:
     same chart name + birth time + lat/lon, different TZ = different
     chart, was same cache key).
+
+    PR A1.3-fix-23 — added question_type. Without it, a Format A answer
+    cached for a question would be replayed for the same question hit
+    again as Format B (or vice versa), serving the wrong shape. Default
+    "" preserves existing behavior for callers that don't pass it.
     """
     raw = "|".join([
         birth_date or "",
@@ -161,6 +196,7 @@ def make_key(
         _today_ist(),
         (mode or "").lower(),
         _normalize_question(question),
+        (question_type or "").lower(),
     ])
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
@@ -178,7 +214,9 @@ def stats() -> dict:
 
 
 def clear() -> None:
-    """Test helper — wipe the cache."""
-    _cache._store.clear()
-    _cache._hits = 0
-    _cache._misses = 0
+    """Test helper — wipe the cache.
+
+    PR A1.3-fix-24 — was reaching into private attributes without the lock;
+    delegates to the locked test helper now.
+    """
+    _cache.clear_unsafe_for_tests()
