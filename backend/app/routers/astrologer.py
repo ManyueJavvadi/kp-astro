@@ -48,6 +48,12 @@ class AnalysisRequest(BaseModel):
     question: str = ""
     history: list = []
     language: str = "telugu_english"
+    # PR A1.3-fix-23 — Format A (7-section) vs Format B (5-section narrative)
+    # routing hint. Frontend sends "full_topic" from handleTopicAnalysis
+    # and "sub_question" from handleWorkspaceChat. Backend resolves "auto"
+    # via heuristic if not provided. See _resolve_question_type in
+    # llm_service.py.
+    question_type: str = "auto"
 
 
 # PR A1.3-fix-20 / fix-21 — helper to compute Tara Chakra + Chandra Bala
@@ -536,6 +542,7 @@ If you cannot write a word in Telugu, write it in English instead.
         request.history,
         mode="astrologer",
         topic=topic,  # PR A1.3-fix-1 (C1): pass topic explicitly so detect_topic Haiku call is skipped
+        question_type=request.question_type,  # PR A1.3-fix-23 — Format A vs B routing
     )
 
     return {"topic": topic, "answer": answer, "promise": promise, "timing": timing}
@@ -638,6 +645,7 @@ If you cannot write a word in Telugu, write it in English instead.
                 mode="astrologer",
                 topic=topic,
                 cache_key_input=cache_input,
+                question_type=request.question_type,  # PR A1.3-fix-23 — Format A vs B routing
             ):
                 yield f"event: chunk\ndata: {json.dumps({'text': chunk})}\n\n"
 

@@ -1382,9 +1382,29 @@ USER MODE COMPLETENESS CHECK (verify before ending):
 - Are there zero banned technical terms in my response?
 
 IF MODE = ASTROLOGER:
-Answer intelligently — not mechanically. Structure your answer based on what the question needs, not a fixed template.
+Answer intelligently — not mechanically. Astrologer mode has TWO output
+formats. Pick based on the QUESTION TYPE line in the user message:
 
-Use this adaptive 7-section format:
+  - QUESTION TYPE: full_topic   → use FORMAT A (7-section structured)
+  - QUESTION TYPE: sub_question → use FORMAT B (5-section narrative)
+  - QUESTION TYPE: auto / missing → infer:
+      * If history is empty AND question reads like a topic request
+        ("Complete KP analysis for X", "Tell me about my marriage prospects",
+        "Give me a full reading on career") → FORMAT A
+      * If history exists AND the question references prior context, asks
+        about a specific window/planet/timing detail, or is a short
+        clarification (<60 chars) → FORMAT B
+      * When in genuine doubt → FORMAT A (safer; the structured format
+        always covers the question even if it's overkill)
+
+The two formats serve different cognitive needs. Format A is the full KP
+worksheet — astrologer wants to see the whole structural argument laid
+out. Format B is the senior-astrologer follow-up voice — answer the
+specific question, cite specific evidence, move on. Don't blend them.
+
+================================================================
+FORMAT A — 7-SECTION STRUCTURED (for full topic analyses)
+================================================================
 
 ## [TOPIC] ANALYSIS — [Name]
 **{today}** | Houses: [Relevant houses for this topic]
@@ -1437,13 +1457,80 @@ Should be honest, specific, and usable as-is.
 
 ---
 
-INTELLIGENT OMISSION RULES — READ THESE CAREFULLY:
+INTELLIGENT OMISSION RULES (FORMAT A) — READ THESE CAREFULLY:
 - If the promise verdict is DENIED: skip sections 4 and 5 (timing is irrelevant). Instead, briefly explain what would need to change for the event to become possible.
 - If the question is specifically about timing (and promise is already established): compress section 2 to 2-3 lines referencing the prior analysis, and expand sections 4 and 5.
 - If this is a follow-up question in a conversation: do NOT re-explain what was already covered in a prior answer. Reference it briefly ("As established, H7 sub lord Venus promises marriage") and move forward.
 - Section 5 is optional — include it only when PAD analysis meaningfully narrows the timing window.
 - Never produce a section that repeats information already given in a previous section.
 - Complete every section you start — never cut off mid-table or mid-sentence.
+
+================================================================
+FORMAT B — 5-SECTION NARRATIVE (for sub-questions / follow-ups)
+================================================================
+
+When QUESTION TYPE is sub_question, drop the structured worksheet and
+answer like a senior astrologer continuing a conversation. Prose-led,
+not table-led. KP shorthand stays — astrologer-grade vocabulary, just
+delivered in flowing sentences instead of bulleted sections.
+
+Length target: ~600-1200 output tokens (much shorter than Format A's
+~2500). RULE 32 still applies — brevity is a constraint.
+
+### 1. ANSWER
+Direct answer in 2-3 sentences. State the verdict + the single most
+important reason. If the question is a yes/no or pick-one, the answer
+goes in the FIRST sentence.
+
+### 2. CHART EVIDENCE
+2-3 paragraphs of flowing reasoning. Cite specific cusps + sub lord
+chains + significators inline as you go (e.g., "Venus on the H7 sub
+lord chain, with Jupiter as star lord touching H2/H11..."). NO bullet
+lists, NO tables. The reader is a senior KP astrologer — write like
+you're walking another astrologer through your read at a chart-reading
+session, not delivering a PowerPoint.
+
+If the question is a follow-up to an earlier answer, REFERENCE the
+prior analysis in one phrase ("Earlier we established Venus AD as
+primary; the question now is the secondary window") and don't re-derive.
+
+### 3. TIMING
+1-2 paragraphs. Name the relevant AD lord(s) + exact dates. Mention
+1-2 supporting PADs ONLY if they meaningfully narrow the window.
+
+DO NOT produce the 9-row AD table here — that is Format A's job. If
+the question demands the full AD scan, the question type is misrouted
+and you should switch to Format A.
+
+If timing isn't applicable to the question (e.g., "is Venus a karaka
+for marriage in this chart?"), omit this section entirely and renumber
+the remaining ones.
+
+### 4. CAVEATS / ALTERNATIVE READS
+1 paragraph. What signals conflict with this read? What would change
+the verdict? If the chart is genuinely ambiguous on this question,
+acknowledge openly. If a competing astrologer is likely to read it
+differently, name the framework difference (e.g., "A Parashari read
+might emphasize Jupiter as karaka; KP defers to the H7 sub lord
+chain").
+
+This is the section that demonstrates senior-astrologer humility —
+zero defensive language, just structural honesty.
+
+### 5. CLIENT SUMMARY
+2-3 sentences plain English the astrologer can speak directly to the
+client. No KP terms. Should be honest, specific, usable as-is.
+
+INTELLIGENT OMISSION RULES (FORMAT B):
+- Skip section 3 (TIMING) if the question is not about timing.
+- Skip section 4 (CAVEATS) only if the verdict is unambiguous AND the
+  prior conversation has already covered the alternatives.
+- Section 1 (ANSWER) and Section 5 (CLIENT SUMMARY) are MANDATORY —
+  every Format B response has these two.
+- NEVER use Format A's section headings (CUSPAL EVIDENCE, FRUITFUL
+  SIGNIFICATORS, TIMING WINDOWS, PRATYANTARDASHA, PRE-ANSWERED
+  FOLLOW-UPS) in a Format B response. The headings signal the format
+  to the reader; mixing them creates confusion.
 """
 
 
@@ -1542,7 +1629,33 @@ def _keyword_fallback(question: str) -> str:
 # MAIN PREDICTION FUNCTION
 # ================================================================
 
-def get_prediction(chart_data: dict, question: str, history: list = [], mode: str = "user", topic: str = None) -> str:
+def _resolve_question_type(question_type: str, question: str, history: list) -> str:
+    """PR A1.3-fix-23 — resolve full_topic vs sub_question for Format A/B routing.
+
+    Frontend passes an explicit hint when it knows (handleTopicAnalysis →
+    "full_topic", handleWorkspaceChat → "sub_question"). For "auto" or
+    missing values, fall back to a heuristic so any caller (curl, future
+    integrations) gets a sensible default.
+
+    Returns one of: "full_topic", "sub_question".
+    """
+    qt = (question_type or "auto").lower().strip()
+    if qt in ("full_topic", "sub_question"):
+        return qt
+    # Heuristic
+    q = (question or "").lower().strip()
+    if q.startswith("complete kp analysis") or q.startswith("complete analysis"):
+        return "full_topic"
+    if not history:
+        # Fresh conversation, no prior turns — safer to give the full
+        # structured worksheet unless the question is clearly a
+        # short ad-hoc query.
+        return "full_topic" if len(q) >= 60 else "sub_question"
+    # History exists → likely a follow-up
+    return "sub_question"
+
+
+def get_prediction(chart_data: dict, question: str, history: list = [], mode: str = "user", topic: str = None, question_type: str = "auto") -> str:
     # PR A1.3-fix-1 (C1): if the caller already knows the topic (frontend topic
     # picker), skip the Haiku detection round-trip. Saves ~5-10s latency per
     # query and prevents topic drift between the loaded KB and the
@@ -1679,10 +1792,17 @@ def get_prediction(chart_data: dict, question: str, history: list = [], mode: st
             }
         )
 
+    # PR A1.3-fix-23 — Format A vs Format B routing for astrologer mode.
+    # User mode ignores QUESTION TYPE (always plain narrative), but we
+    # include it unconditionally so future routing additions only need
+    # one site to update.
+    resolved_qt = _resolve_question_type(question_type, question, history)
+
     user_blocks = [
         {
             "type": "text",
             "text": f"""MODE: {mode.upper()}
+QUESTION TYPE: {resolved_qt}
 CURRENT QUESTION: {question}
 
 IMPORTANT: Answer THIS question independently. Do not assume any timeframe from previous questions.
@@ -1754,6 +1874,7 @@ async def get_prediction_stream(
     mode: str = "user",
     topic: str = None,
     cache_key_input: dict | None = None,
+    question_type: str = "auto",
 ):
     """
     Async generator yielding text chunks of the LLM response.
@@ -1783,6 +1904,11 @@ async def get_prediction_stream(
     chart_data["detected_topic"] = detected_topic
 
     # ─── Cache check (Phase 2) ───────────────────────────────────────
+    # PR A1.3-fix-23 — resolve question_type early so we can include it
+    # in the cache key. Different formats (A vs B) for the same question
+    # must produce different cached entries.
+    early_resolved_qt = _resolve_question_type(question_type, question, history)
+
     cache_key: str | None = None
     if cache_key_input:
         cache_key = answer_cache.make_key(
@@ -1798,6 +1924,7 @@ async def get_prediction_stream(
             topic=detected_topic,
             mode=mode,
             question=question,
+            question_type=early_resolved_qt,
         )
         cached = answer_cache.get(cache_key)
         if cached:
@@ -1856,9 +1983,13 @@ async def get_prediction_stream(
             "cache_control": {"type": "ephemeral"},
         })
 
+    # PR A1.3-fix-23 — Reuse the question_type resolved earlier for the
+    # cache key. User mode ignores QUESTION TYPE but it's harmless to
+    # include.
     user_blocks = [{
         "type": "text",
         "text": f"""MODE: {mode.upper()}
+QUESTION TYPE: {early_resolved_qt}
 CURRENT QUESTION: {question}
 
 IMPORTANT: Answer THIS question independently. Do not assume any timeframe from previous questions.

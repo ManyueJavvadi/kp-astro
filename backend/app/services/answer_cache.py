@@ -140,6 +140,7 @@ def make_key(
     topic: str,
     mode: str,
     question: str,
+    question_type: str = "",
 ) -> str:
     """Build the cache key. today_date is included so caches roll over
     daily — important because the engine's "current dasha" output and
@@ -149,6 +150,11 @@ def make_key(
     same birth_time but different TZ would collide (rare but real:
     same chart name + birth time + lat/lon, different TZ = different
     chart, was same cache key).
+
+    PR A1.3-fix-23 — added question_type. Without it, a Format A answer
+    cached for a question would be replayed for the same question hit
+    again as Format B (or vice versa), serving the wrong shape. Default
+    "" preserves existing behavior for callers that don't pass it.
     """
     raw = "|".join([
         birth_date or "",
@@ -161,6 +167,7 @@ def make_key(
         _today_ist(),
         (mode or "").lower(),
         _normalize_question(question),
+        (question_type or "").lower(),
     ])
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 

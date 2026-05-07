@@ -536,16 +536,22 @@ export default function Home() {
   };
 
   // PR A1.3-fix-22 — astrologer SSE consumer.
+  // PR A1.3-fix-23 — added questionType param for Format A/B routing.
   // Streams from /astrologer/analyze-stream and appends chunks to the
   // last message in `analysisMessages`. Caller is responsible for
   // inserting the placeholder message before invoking this helper and
   // for setAnalysisLoading(false) in finally.
+  //
+  // questionType: "full_topic" → 7-section worksheet (Format A)
+  //               "sub_question" → 5-section narrative (Format B)
+  //               "auto" → backend heuristic decides
   //
   // Returns false if the stream errored (caller can show fallback).
   const streamAstrologerAnalysis = async (
     topic: string,
     question: string,
     history: { question: string; answer: string }[],
+    questionType: "full_topic" | "sub_question" | "auto" = "auto",
   ): Promise<boolean> => {
     const formattedDate = getFormattedDate();
     try {
@@ -557,6 +563,7 @@ export default function Home() {
           latitude: birthDetails.latitude, longitude: birthDetails.longitude,
           timezone_offset: timezoneOffset, gender: birthDetails.gender || "",
           topic, question, history, language: backendLang(),
+          question_type: questionType,
         }),
       });
       if (!response.ok || !response.body) return false;
@@ -614,6 +621,7 @@ export default function Home() {
       topic,
       `Complete KP analysis for ${topic}`,
       [],
+      "full_topic",  // PR A1.3-fix-23 — topic analysis = Format A (7-section)
     );
     if (!ok) {
       // On failure: replace empty placeholder with error message
@@ -654,6 +662,7 @@ export default function Home() {
       activeTopic || "general",
       q,
       history,
+      "sub_question",  // PR A1.3-fix-23 — chat = Format B (5-section narrative)
     );
     if (!ok) {
       setAnalysisMessages(prev => prev.map((m, i) =>
