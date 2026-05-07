@@ -1990,25 +1990,20 @@ Perform complete KP analysis. Format output for {mode.upper()} mode as instructe
     ]
     messages.append({"role": "user", "content": user_blocks})
 
-    # PR A1.3-fix-22 — output budget caps (RULE 32 in system prompt).
-    # Was 16000/4000 — unbounded sprawl meant astrologer answers ran
-    # 4000-6000 tokens regularly. RULE 32 now targets ~2500/~800; the
-    # max_tokens ceiling sits one notch above as a hard wall (Telugu
-    # tokenization is 2-3× per char vs English, so we leave headroom
-    # before the ceiling truncates legitimate Telugu output).
-    max_tokens = 3500 if mode == "astrologer" else 1200
+    # Phase 13.4 — see get_prediction_stream() above for the full
+    # rationale. Same three-way model selection + tightened max_tokens.
+    if mode == "astrologer":
+        max_tokens = 1800 if resolved_qt == "sub_question" else 2800
+    else:
+        max_tokens = 1200
 
-    # PR A1.3-fix-17 — model selection by mode:
-    #   - astrologer mode → Sonnet 4.6 (7-section structured output with
-    #     dense KP shorthand needs Sonnet's reasoning depth)
-    #   - user mode       → Haiku 4.5 (plain-English narration of
-    #     pre-computed engine output is a translation task; Haiku is
-    #     ~3× cheaper across input/output/cache and 2-3× faster)
-    #
-    # Accuracy preservation: structural verdicts come from the engine
-    # compute (advanced_compute, decision_support, etc) which is
-    # deterministic. The LLM is presentation layer for user mode.
-    model_id = "claude-haiku-4-5" if mode == "user" else "claude-sonnet-4-6"
+    _use_haiku_followup = True
+    if mode == "astrologer" and resolved_qt == "sub_question" and _use_haiku_followup:
+        model_id = "claude-haiku-4-5"
+    elif mode == "astrologer":
+        model_id = "claude-sonnet-4-6"
+    else:
+        model_id = "claude-haiku-4-5"
 
     # PR A1.3-fix-22 — dropped `extra_headers={"anthropic-beta":
     # "extended-cache-ttl-2025-04-11"}`. Per Anthropic docs the 1h TTL
@@ -2117,6 +2112,16 @@ async def get_prediction_stream(
         cached = answer_cache.get(cache_key)
         if cached:
             cached_answer, _meta = cached
+            # Phase 13.4 — log cache hits at WARNING so they're Railway-
+            # visible. This proves to the operator/user when a response
+            # was served for $0 (no Anthropic call). Reconcile against
+            # the [ENDPOINT_HIT] line for the same request id.
+            import logging
+            logging.getLogger("anthropic_audit").warning(
+                "[ANSWER_CACHE_HIT] endpoint=llm.get_prediction_stream "
+                "mode=%s topic=%s qtype=%s cost_usd=0.000000 chars=%d",
+                mode, detected_topic, early_resolved_qt, len(cached_answer),
+            )
             # Yield cached text in ~80-char chunks for visual continuity
             # (frontend's typewriter effect renders the same regardless
             # of source; user can't tell cache vs fresh).
@@ -2192,13 +2197,48 @@ Perform complete KP analysis. Format output for {mode.upper()} mode as instructe
     }]
     messages.append({"role": "user", "content": user_blocks})
 
-    # PR A1.3-fix-22 — output budget caps (RULE 32). Same as get_prediction.
-    max_tokens = 3500 if mode == "astrologer" else 1200
+    # Phase 13.4 — output budget tightened.
+    # Astrologer full_topic (Format A, 7-section worksheet): 3500 -> 2800.
+    #   RULE 32 in the system prompt already targets ~2500 tokens. The
+    #   3500 cap was rarely hit but when it was, it was sprawl. 2800
+    #   gives 300 tokens of headroom over RULE 32's target without the
+    #   runaway-output cost (each 1000 tokens = $0.015 saved per call).
+    # Astrologer sub_question (Format B, 5-section narrative): 1800.
+    #   Format B is clarifications/follow-ups — ~800-1400 tokens
+    #   typical; 1800 is comfortable headroom.
+    # User mode: 1200 (unchanged — Haiku, plain narration).
+    if mode == "astrologer":
+        max_tokens = 1800 if early_resolved_qt == "sub_question" else 2800
+    else:
+        max_tokens = 1200
 
     # ─── Stream from Anthropic ───────────────────────────────────────
-    # PR A1.3-fix-17 — Haiku for user mode, Sonnet for astrologer mode.
-    # See get_prediction() above for full rationale.
-    model_id = "claude-haiku-4-5" if mode == "user" else "claude-sonnet-4-6"
+    # Phase 13.4 — model selection now THREE-way:
+    #   - user mode                    -> Haiku 4.5 (always; cheap narration)
+    #   - astrologer + full_topic      -> Sonnet 4.6 (deep KP reasoning,
+    #                                     7-section worksheet, KSK depth)
+    #   - astrologer + sub_question    -> Haiku 4.5 (clarification /
+    #                                     narrowing follow-ups; the heavy
+    #                                     analysis already lives in the
+    #                                     conversation history that Haiku
+    #                                     reads. Saves 74% per follow-up.)
+    #
+    # Quality rationale: KP astrologers click a topic chip first (full_topic
+    # -> Sonnet does the heavy lift). Then they ask "what about Mars?" or
+    # "when in 2027?" — these are translation/narrowing tasks, not new
+    # deep reasoning. Haiku handles them well with the Sonnet output in
+    # history. Same accuracy on the structural verdict (which lives in
+    # the Sonnet-generated topic answer); follow-ups just rephrase /
+    # zoom in.
+    #
+    # Easy revert: change `_use_haiku_followup = True` to False below.
+    _use_haiku_followup = True
+    if mode == "astrologer" and early_resolved_qt == "sub_question" and _use_haiku_followup:
+        model_id = "claude-haiku-4-5"
+    elif mode == "astrologer":
+        model_id = "claude-sonnet-4-6"
+    else:
+        model_id = "claude-haiku-4-5"
 
     # PR A1.3-fix-22 — dropped vestigial extended-cache-ttl-2025-04-11
     # beta header. 1h TTL is GA per Anthropic docs.
