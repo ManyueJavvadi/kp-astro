@@ -33,7 +33,10 @@ export function PlacePicker({
 }) {
   const [suggestions, setSuggestions] = useState<PlacePick[]>([]);
   const [open, setOpen] = useState(false);
-  const [status, setStatus] = useState<"idle" | "searching" | "found" | "none">(
+  // PR A1.3-fix-25 — added "error" status to distinguish network failure
+  // from "no results". Both used to show "No matches — try adding state…"
+  // which gave users no way to recover from a Nominatim outage.
+  const [status, setStatus] = useState<"idle" | "searching" | "found" | "none" | "error">(
     "idle"
   );
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -96,7 +99,10 @@ export function PlacePicker({
       setOpen(items.length > 0);
       setStatus(items.length > 0 ? "idle" : "none");
     } catch {
-      setStatus("none");
+      // PR A1.3-fix-25 — distinct error status. "none" = zero results
+      // for a valid query; "error" = network/service failure (Nominatim
+      // down, CORS, browser offline). Different recoveries.
+      setStatus("error");
     }
   };
 
@@ -245,6 +251,20 @@ export function PlacePicker({
         >
           No matches — try adding the state or country (e.g. &quot;Tenali,
           Andhra Pradesh&quot;).
+        </div>
+      )}
+      {/* PR A1.3-fix-25 — separate copy for service errors so the user
+          knows it's not their typing that's wrong. */}
+      {status === "error" && value.length >= 3 && (
+        <div
+          role="alert"
+          style={{
+            marginTop: 4,
+            fontSize: 11,
+            color: "#fca5a5",
+          }}
+        >
+          Couldn&apos;t reach the place lookup service. Check your connection or try again in a moment.
         </div>
       )}
     </div>
