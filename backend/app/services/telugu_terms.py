@@ -208,8 +208,19 @@ def get_planet_short(planet: str) -> str:
 def get_sign_telugu(sign: str) -> str:
     return SIGNS_TELUGU.get(sign, sign)
 
+# PR A1.3-fix-24 — nakshatra spelling alias map.
+# chart_engine outputs "Dhanishta" (Krishnamurti convention) but
+# NAKSHATRAS_TELUGU keys it as "Dhanishtha" (the formal English transliteration).
+# Without this alias, ~3.7% of charts (Moon in Dhanishta) silently render
+# the English name in Telugu mode. Same for "Dhanistha" (less common variant).
+_NAKSHATRA_ALIASES = {
+    "Dhanishta": "Dhanishtha",
+    "Dhanistha": "Dhanishtha",
+}
+
 def get_nakshatra_telugu(nakshatra: str) -> str:
-    return NAKSHATRAS_TELUGU.get(nakshatra, nakshatra)
+    canonical = _NAKSHATRA_ALIASES.get(nakshatra, nakshatra)
+    return NAKSHATRAS_TELUGU.get(canonical, nakshatra)
 
 def get_house_telugu(house_num: int) -> str:
     return HOUSES_TELUGU.get(house_num, f"భావం {house_num}")

@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime, timedelta
 import json
 import swisseph as swe
@@ -27,33 +27,40 @@ from app.services.chart_formatter import format_chart_for_frontend
 
 router = APIRouter()
 
+# PR A1.3-fix-24 — Field-level input bounds across all request models in
+# this router. Without bounds, attacker-crafted inputs flowed unchecked
+# into LLM prompts (cost amplification + injection surface) and into
+# swisseph (crashes). Caps are 3-5× realistic max so legitimate users
+# never hit them. Latitude/longitude/timezone_offset have astronomical
+# bounds. See backend/app/services/llm_service.py:_normalize_mode for
+# the matching defensive guard at the LLM layer.
 class WorkspaceRequest(BaseModel):
-    name: str
-    date: str
-    time: str
-    latitude: float
-    longitude: float
-    timezone_offset: float = 5.5
-    gender: str = ""  # PR A1.3a — frontend now sends gender so AI doesn't guess from name
+    name: str = Field(..., min_length=1, max_length=120)
+    date: str = Field(..., min_length=8, max_length=12)
+    time: str = Field(..., min_length=4, max_length=8)
+    latitude: float = Field(..., ge=-90, le=90)
+    longitude: float = Field(..., ge=-180, le=180)
+    timezone_offset: float = Field(5.5, ge=-14, le=14)
+    gender: str = Field("", max_length=20)  # PR A1.3a — frontend now sends gender so AI doesn't guess from name
 
 class AnalysisRequest(BaseModel):
-    name: str
-    date: str
-    time: str
-    latitude: float
-    longitude: float
-    timezone_offset: float = 5.5
-    gender: str = ""  # PR A1.3a — male/female/other; "" if unknown
-    topic: str
-    question: str = ""
-    history: list = []
-    language: str = "telugu_english"
+    name: str = Field(..., min_length=1, max_length=120)
+    date: str = Field(..., min_length=8, max_length=12)
+    time: str = Field(..., min_length=4, max_length=8)
+    latitude: float = Field(..., ge=-90, le=90)
+    longitude: float = Field(..., ge=-180, le=180)
+    timezone_offset: float = Field(5.5, ge=-14, le=14)
+    gender: str = Field("", max_length=20)  # PR A1.3a — male/female/other; "" if unknown
+    topic: str = Field(..., min_length=1, max_length=60)
+    question: str = Field("", max_length=4000)
+    history: list = Field(default_factory=list, max_length=20)
+    language: str = Field("telugu_english", max_length=20)
     # PR A1.3-fix-23 — Format A (7-section) vs Format B (5-section narrative)
     # routing hint. Frontend sends "full_topic" from handleTopicAnalysis
     # and "sub_question" from handleWorkspaceChat. Backend resolves "auto"
     # via heuristic if not provided. See _resolve_question_type in
     # llm_service.py.
-    question_type: str = "auto"
+    question_type: str = Field("auto", max_length=20)
 
 
 # PR A1.3-fix-20 / fix-21 — helper to compute Tara Chakra + Chandra Bala
@@ -83,13 +90,19 @@ def _build_tara_chakra(janma_nakshatra: str, natal_moon_sign: str = "") -> dict:
 
 
 # PR A1.3a — helper to compute current age in years from a YYYY-MM-DD birth string
+# PR A1.3-fix-24 — switched datetime.utcnow() (deprecated 3.12+) to IST helper
 def _compute_age_years(birth_date_str: str) -> int:
     try:
         bd = datetime.strptime(birth_date_str, "%Y-%m-%d")
-        today = datetime.utcnow()
+        from app.services.today import now_ist
+        today = now_ist()
         years = today.year - bd.year - ((today.month, today.day) < (bd.month, bd.day))
         return max(0, years)
-    except Exception:
+    except Exception as e:
+        import logging
+        logging.getLogger("astrologer").warning(
+            "_compute_age_years failed for %r: %s", birth_date_str, e
+        )
         return 0
 
 
@@ -651,7 +664,10 @@ If you cannot write a word in Telugu, write it in English instead.
 
             yield "event: done\ndata: {}\n\n"
         except Exception as e:
-            err_payload = json.dumps({"error": str(e)})
+            # PR A1.3-fix-24 — log full server-side, generic message to client
+            import logging
+            logging.getLogger("astrologer").exception("analyze-stream failed: %s", e)
+            err_payload = json.dumps({"error": "stream_failed"})
             yield f"event: error\ndata: {err_payload}\n\n"
 
     return StreamingResponse(
@@ -667,15 +683,16 @@ If you cannot write a word in Telugu, write it in English instead.
 # ── Quick Insights endpoint ───────────────────────────────────
 
 class QuickInsightsRequest(BaseModel):
-    name: str
-    date: str
-    time: str
-    latitude: float
-    longitude: float
-    timezone_offset: float = 5.5
-    gender: str = ""  # PR A1.3a — same gender wiring as /analyze
-    topics: list = ["marriage", "career", "health"]
-    language: str = "telugu_english"
+    # PR A1.3-fix-24 — input bounds (see WorkspaceRequest above for rationale)
+    name: str = Field(..., min_length=1, max_length=120)
+    date: str = Field(..., min_length=8, max_length=12)
+    time: str = Field(..., min_length=4, max_length=8)
+    latitude: float = Field(..., ge=-90, le=90)
+    longitude: float = Field(..., ge=-180, le=180)
+    timezone_offset: float = Field(5.5, ge=-14, le=14)
+    gender: str = Field("", max_length=20)  # PR A1.3a — same gender wiring as /analyze
+    topics: list = Field(default_factory=lambda: ["marriage", "career", "health"], max_length=15)
+    language: str = Field("telugu_english", max_length=20)
 
 
 @router.post("/quick-insights")
@@ -795,7 +812,9 @@ def quick_insights(request: QuickInsightsRequest):
             insight = get_quick_insights(chart_data, topic, request.language)
             results[topic] = insight
         except Exception as e:
+            # PR A1.3-fix-24 — log details server-side, return generic
+            # message to user (was leaking exception text + paths into UI)
             _qi_log.warning("get_quick_insights failed for topic %s: %s", topic, e)
-            results[topic] = f"Error: {str(e)}"
+            results[topic] = "Insight unavailable for this topic right now."
 
     return results

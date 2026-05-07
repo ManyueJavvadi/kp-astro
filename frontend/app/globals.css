@@ -2155,7 +2155,10 @@ textarea:focus-visible {
    to tighten padding to 16px. Works because inline style has
    higher specificity by default, but !important wins here.
    ============================================================ */
-@media (max-width: 860px) {
+/* PR A1.3-fix-24 — synced from 860→820 to match useIsMobile and CLAUDE.md
+   shell breakpoint. Was a 40px dead zone where JS thought "desktop" but
+   CSS had already collapsed grids — confused some mobile-tablet layouts. */
+@media (max-width: 820px) {
   [data-mobile-stack] {
     grid-template-columns: 1fr !important;
   }

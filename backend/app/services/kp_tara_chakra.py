@@ -111,6 +111,7 @@ def _normalize(nak_name: str) -> str:
         "U.Ashadha": "Uttara Ashadha",
         "Shravan": "Shravana",
         "Dhanistha": "Dhanishta",
+        "Dhanishtha": "Dhanishta",  # PR A1.3-fix-24 — Telugu-side spelling alias
         "Shatataraka": "Shatabhisha",
         "Shatabhishak": "Shatabhisha",
         "P.Bhadrapada": "Purva Bhadrapada",

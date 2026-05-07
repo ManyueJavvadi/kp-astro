@@ -68,12 +68,22 @@ def compute_age_years(birth_date_str: str) -> int:
     """Compute current age in whole years from a YYYY-MM-DD birth date."""
     try:
         bd = datetime.strptime(birth_date_str, "%Y-%m-%d")
-        today = datetime.utcnow()
+        # PR A1.3-fix-24 — datetime.utcnow() is deprecated in Python 3.12+.
+        # Switched to IST helper so age boundary aligns with Indian users'
+        # perceived "today" (small but real edge case at IST midnight).
+        from app.services.today import now_ist
+        today = now_ist()
         years = today.year - bd.year - (
             (today.month, today.day) < (bd.month, bd.day)
         )
         return max(0, years)
-    except Exception:
+    except Exception as e:
+        # PR A1.3-fix-24 — log instead of silent 0 (was hiding date-parse
+        # bugs as "age 0" which the LLM then hedges around in output)
+        import logging
+        logging.getLogger("chart_pipeline").warning(
+            "compute_age_years failed for %r: %s — defaulting to 0", birth_date_str, e
+        )
         return 0
 
 

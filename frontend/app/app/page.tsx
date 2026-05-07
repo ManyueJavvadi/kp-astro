@@ -39,7 +39,9 @@ import DashaStrip from "./components/workspace/DashaStrip";
 import type { PlaceSuggestion, BirthDetails, Message, ChartSession } from "./types";
 import type { WorkspaceData } from "./types/workspace";
 
-const API_URL = "https://devastroai.up.railway.app";
+// PR A1.3-fix-24 — env-derived. NEXT_PUBLIC_API_URL overrides for staging
+// or local dev; production fallback unchanged. Set in .env.local for dev.
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://devastroai.up.railway.app";
 
 // ── Main Component ────────────────────────────────────────────
 export default function Home() {
@@ -69,7 +71,12 @@ export default function Home() {
   const [manualLon, setManualLon] = useState("");
   const [activeTab, setActiveTab] = useState("chart");
   const [analysisLoading, setAnalysisLoading] = useState(false);
-  const [analysisMessages, setAnalysisMessages] = useState<{ q: string; a: string; isTopic?: boolean }[]>([]);
+  // PR A1.3-fix-24 — added optional `id` so SSE consumer can scope writes
+  // to the specific message it owns. Without an id, two streams firing
+  // back-to-back interleave their chunks into whichever message ends up
+  // at `prev[prev.length - 1]`. Renderers still use index keys; this is
+  // metadata for the streaming layer only.
+  const [analysisMessages, setAnalysisMessages] = useState<{ id?: string; q: string; a: string; isTopic?: boolean }[]>([]);
   const [activeTopic, setActiveTopic] = useState("");
   const [chatQ, setChatQ] = useState("");
   const [analysisLang, setAnalysisLang] = useState<"english" | "telugu_english">("english");
@@ -164,6 +171,22 @@ export default function Home() {
   const [pcCitySearching, setPcCitySearching] = useState(false);
   const [pcGeoError, setPcGeoError] = useState("");
   const pcCitySearchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // PR A1.3-fix-24 — fix render-time side-effect bug. The Panchang IIFE
+  // used to call `pcFetchLocation()` directly during render whenever data
+  // was missing — a React anti-pattern that would warn in StrictMode and
+  // could double-fire under fast re-renders. The IIFE now writes its
+  // local function into this ref, and a top-level useEffect (below)
+  // triggers it cleanly when the tab becomes active.
+  const pcFetchLocationRef = useRef<((d?: string) => void) | null>(null);
+
+  // PR A1.3-fix-24 — Abort controllers for in-flight SSE streams.
+  // Without these, switching topics mid-stream interleaves chunks from
+  // two streams into the latest message bubble (because both stream
+  // consumers update via `prev[prev.length - 1]` after both have appended
+  // their own placeholder). Aborting + cancelling the reader on the
+  // previous call before starting a new one prevents the race.
+  const askStreamAbortRef = useRef<AbortController | null>(null);
+  const analyzeStreamAbortRef = useRef<AbortController | null>(null);
   // CSL chain view selected house (for houses overview)
   const [cslSelectedHouse, setCslSelectedHouse] = useState<number | null>(null);
   // Timezone (auto-detected from place)
@@ -206,6 +229,35 @@ export default function Home() {
   // Load quick insights when analysis tab opens
   useEffect(() => { if (activeTab === "analysis" && workspaceData) { loadQuickInsights(); } }, [activeTab, workspaceData]);
 
+  // PR A1.3-fix-24 — Panchang auto-load trigger.
+  // Replaces the render-time side-effect call at the IIFE that was firing
+  // pcFetchLocation() during render. Uses the ref the IIFE writes to so the
+  // function definition can stay local (avoids hoisting a 50-line async fn).
+  useEffect(() => {
+    if (activeTab !== "panchang") return;
+    if (pcData || pcLoading || pcShowCityModal) return;
+    pcFetchLocationRef.current?.();
+  }, [activeTab, pcData, pcLoading, pcShowCityModal]);
+
+  // PR A1.3-fix-24 — clear all pending timers / intervals on unmount.
+  // Without this, debounced searches and the horary dice-roll interval can
+  // fire setState after unmount, producing React warnings + potential
+  // memory leaks. In current SPA shape the Home component basically never
+  // unmounts, but StrictMode (dev double-render) and future route additions
+  // make this defensive.
+  useEffect(() => {
+    return () => {
+      if (placeSearchRef.current) clearTimeout(placeSearchRef.current);
+      if (mNewPSearchRef.current) clearTimeout(mNewPSearchRef.current);
+      if (mEventLocSearchRef.current) clearTimeout(mEventLocSearchRef.current);
+      if (pcCitySearchRef.current) clearTimeout(pcCitySearchRef.current);
+      if (horaryRollRef.current) clearInterval(horaryRollRef.current);
+      // Also abort any in-flight SSE streams
+      askStreamAbortRef.current?.abort();
+      analyzeStreamAbortRef.current?.abort();
+    };
+  }, []);
+
   // PR A1.3-fix-15 — listen for follow-up chip clicks from HeroVerdictCard.
   // Component dispatches a `user-followup-click` CustomEvent with the
   // suggested follow-up question; we drop it into the input box.
@@ -231,13 +283,12 @@ export default function Home() {
     if (seen === "1") return;
     setShowLangModal(true);
   }, [activeTab, mode]);
-  // Clear shared inline form state when switching tabs to prevent cross-tab data leakage
-  useEffect(() => {
-    setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "", timezone_offset: 5.5 });
-    setMNewPPlaceSugg([]);
-    setMShowAddParticipant(false);
-    setMatchPerson2Inline(false);
-  }, [activeTab]);
+  // PR A1.3-fix-24 — was wiping mNewP/mShowAddParticipant/matchPerson2Inline
+  // on EVERY tab change. That meant "user fills participant form → peeks
+  // chart tab → returns to match → form data lost". Reset moved to the
+  // form-open onClick handlers below (search for setMShowAddParticipant(true)
+  // and setMatchPerson2Inline(true)) so each open is a clean slate without
+  // wiping data when the user just glances at another tab.
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) setShowSuggestions(false);
@@ -465,7 +516,12 @@ export default function Home() {
     //        event: error     → fallback message
     //   3. HeroVerdictCard renders progressively as text arrives.
     //      TTFT goes from 60-120s to 1-2s.
-    const msgId = Date.now().toString();
+    // PR A1.3-fix-24 — UUID instead of Date.now() (was ms-collision risk
+    // when chip-click + Enter-key fired in the same millisecond, causing
+    // the second message to overwrite the first via the m.id===msgId filter).
+    const msgId = (typeof crypto !== "undefined" && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     setMessages(prev => [...prev, {
       id: msgId,
       question: currentQuestion,
@@ -474,6 +530,14 @@ export default function Home() {
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     }]);
 
+    // PR A1.3-fix-24 — abort any in-flight prior stream before starting a
+    // new one. Prevents the previous reader from continuing to write chunks
+    // into messages state after we've moved on.
+    askStreamAbortRef.current?.abort();
+    const ac = new AbortController();
+    askStreamAbortRef.current = ac;
+
+    let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
     try {
       const response = await fetch(`${API_URL}/prediction/ask-stream`, {
         method: "POST",
@@ -485,11 +549,12 @@ export default function Home() {
           topic: "auto", question: currentQuestion, mode: "user",
           history: messages.slice(-4).map(m => ({ question: m.question, answer: m.answer })),
         }),
+        signal: ac.signal,
       });
 
       if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`);
 
-      const reader = response.body.getReader();
+      reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
 
@@ -526,11 +591,21 @@ export default function Home() {
           } catch { /* malformed SSE frame — skip */ }
         }
       }
-    } catch {
-      setMessages(prev => prev.map(m => m.id === msgId
-        ? { ...m, answer: m.answer || "Something went wrong. Please try again." }
-        : m));
+    } catch (err) {
+      // PR A1.3-fix-24 — silently swallow AbortError (intentional cancellation
+      // when user fired a new question before this stream finished). Real
+      // network errors still show the fallback.
+      const isAbort = err instanceof DOMException && err.name === "AbortError";
+      if (!isAbort) {
+        setMessages(prev => prev.map(m => m.id === msgId
+          ? { ...m, answer: m.answer || "Something went wrong. Please try again." }
+          : m));
+      }
     } finally {
+      // PR A1.3-fix-24 — release the reader and clear the abort ref if
+      // it's still ours (don't clobber a newer in-flight request's ref).
+      try { await reader?.cancel(); } catch { /* ignore */ }
+      if (askStreamAbortRef.current === ac) askStreamAbortRef.current = null;
       setLoading(false);
     }
   };
@@ -546,14 +621,26 @@ export default function Home() {
   //               "sub_question" → 5-section narrative (Format B)
   //               "auto" → backend heuristic decides
   //
+  // PR A1.3-fix-24 — added `targetId` parameter so the consumer scopes
+  // its writes to the specific message it owns (instead of "the last
+  // message" which interleaves on rapid topic switches). Also added
+  // AbortController plumbing so a new call cancels the previous stream
+  // before starting; reader.cancel() releases the network reader.
   // Returns false if the stream errored (caller can show fallback).
   const streamAstrologerAnalysis = async (
     topic: string,
     question: string,
     history: { question: string; answer: string }[],
     questionType: "full_topic" | "sub_question" | "auto" = "auto",
+    targetId?: string,
   ): Promise<boolean> => {
     const formattedDate = getFormattedDate();
+    // Abort any in-flight prior stream before starting a new one
+    analyzeStreamAbortRef.current?.abort();
+    const ac = new AbortController();
+    analyzeStreamAbortRef.current = ac;
+
+    let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
     try {
       const response = await fetch(`${API_URL}/astrologer/analyze-stream`, {
         method: "POST",
@@ -565,10 +652,11 @@ export default function Home() {
           topic, question, history, language: backendLang(),
           question_type: questionType,
         }),
+        signal: ac.signal,
       });
       if (!response.ok || !response.body) return false;
 
-      const reader = response.body.getReader();
+      reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
 
@@ -592,9 +680,15 @@ export default function Home() {
           try {
             const data = JSON.parse(dataStr);
             if (evtName === "chunk" && typeof data.text === "string") {
-              setAnalysisMessages(prev => prev.map((m, i) =>
-                i === prev.length - 1 ? { ...m, a: m.a + data.text } : m
-              ));
+              // PR A1.3-fix-24 — scope writes by id when caller provided one,
+              // else fall back to "last message" for back-compat with any
+              // future caller that doesn't track ids.
+              setAnalysisMessages(prev => prev.map((m, i) => {
+                const isTarget = targetId
+                  ? m.id === targetId
+                  : i === prev.length - 1;
+                return isTarget ? { ...m, a: m.a + data.text } : m;
+              }));
             } else if (evtName === "error") {
               return false;
             }
@@ -606,8 +700,13 @@ export default function Home() {
         }
       }
       return true;
-    } catch {
-      return false;
+    } catch (err) {
+      // Silently swallow AbortError — that's an intentional cancel
+      const isAbort = err instanceof DOMException && err.name === "AbortError";
+      return isAbort ? true : false;  // treat abort as "no error to surface"
+    } finally {
+      try { await reader?.cancel(); } catch { /* ignore */ }
+      if (analyzeStreamAbortRef.current === ac) analyzeStreamAbortRef.current = null;
     }
   };
 
@@ -615,18 +714,23 @@ export default function Home() {
     if (!workspaceData) return;
     setActiveTopic(topic); setAnalysisLoading(true); setActiveTab("analysis");
     const topicLabel = TOPICS.find(t => t.id === topic)?.te || topic;
-    // Insert placeholder; SSE consumer appends chunks into its `a` field
-    setAnalysisMessages(prev => [...prev, { q: `${topicLabel} — Full Analysis`, a: "", isTopic: true }]);
+    // PR A1.3-fix-24 — generate stable id so the SSE consumer scopes its
+    // chunk writes to THIS message even if user fires another topic mid-stream.
+    const targetId = (typeof crypto !== "undefined" && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `topic-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    setAnalysisMessages(prev => [...prev, { id: targetId, q: `${topicLabel} — Full Analysis`, a: "", isTopic: true }]);
     const ok = await streamAstrologerAnalysis(
       topic,
       `Complete KP analysis for ${topic}`,
       [],
       "full_topic",  // PR A1.3-fix-23 — topic analysis = Format A (7-section)
+      targetId,
     );
     if (!ok) {
-      // On failure: replace empty placeholder with error message
-      setAnalysisMessages(prev => prev.map((m, i) =>
-        i === prev.length - 1 && !m.a ? { ...m, a: "Analysis failed. Please try again." } : m
+      // On failure: replace placeholder with error (scope by id)
+      setAnalysisMessages(prev => prev.map(m =>
+        m.id === targetId && !m.a ? { ...m, a: "Analysis failed. Please try again." } : m
       ));
     }
     setAnalysisLoading(false);
@@ -657,16 +761,21 @@ export default function Home() {
     // repeat reasoning already given. Snapshot BEFORE we append the
     // placeholder so history doesn't include the empty new message.
     const history = analysisMessages.slice(-6).map(m => ({ question: m.q, answer: m.a }));
-    setAnalysisMessages(prev => [...prev, { q, a: "" }]);
+    // PR A1.3-fix-24 — stable id for SSE chunk scoping
+    const targetId = (typeof crypto !== "undefined" && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `chat-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    setAnalysisMessages(prev => [...prev, { id: targetId, q, a: "" }]);
     const ok = await streamAstrologerAnalysis(
       activeTopic || "general",
       q,
       history,
       "sub_question",  // PR A1.3-fix-23 — chat = Format B (5-section narrative)
+      targetId,
     );
     if (!ok) {
-      setAnalysisMessages(prev => prev.map((m, i) =>
-        i === prev.length - 1 && !m.a ? { ...m, a: "Sorry, the analysis failed. Please try again." } : m
+      setAnalysisMessages(prev => prev.map(m =>
+        m.id === targetId && !m.a ? { ...m, a: "Sorry, the analysis failed. Please try again." } : m
       ));
     }
     setAnalysisLoading(false);
@@ -1628,7 +1737,11 @@ export default function Home() {
               const url = URL.createObjectURL(new Blob([res.data], { type: "application/pdf" }));
               const a = document.createElement("a"); a.href = url;
               a.download = `${workspaceData.name || "kp_chart"}_report.pdf`; a.click();
-              URL.revokeObjectURL(url);
+              // PR A1.3-fix-24 — defer revoke so slow browsers (Safari iOS,
+              // some Android Chromes) get to start the download before the
+              // blob URL is invalidated. 1s is conservative; PDFs typically
+              // start streaming in <100ms.
+              setTimeout(() => { try { URL.revokeObjectURL(url); } catch { /* ignore */ } }, 1000);
             } catch (e: any) {
               setPdfError(e?.response?.status === 500 ? "Server error — try again" : "Download failed");
             }
@@ -2479,11 +2592,15 @@ export default function Home() {
                         setShowTransitInDasha(next);
                         if (next && workspaceData && !transitData && !transitLoading) {
                           setTransitLoading(true);
+                          // PR A1.3-fix-24 — use astrologer's CURRENT location
+                          // for transit (KP Ruling Planet rule: live time + live
+                          // location, NOT natal). Falls back to natal if user
+                          // hasn't granted location access yet.
                           axios.post(`${API_URL}/transit/analyze`, {
                             natal: workspaceData, transit_date: undefined,
-                            latitude: workspaceData.latitude || 17.385,
-                            longitude: workspaceData.longitude || 78.4867,
-                            timezone_offset: timezoneOffset,
+                            latitude: liveLoc.location?.latitude ?? workspaceData.latitude ?? 17.385,
+                            longitude: liveLoc.location?.longitude ?? workspaceData.longitude ?? 78.4867,
+                            timezone_offset: liveLoc.location?.timezone_offset ?? timezoneOffset,
                           }).then(res => { setTransitData(res.data); setTransitLoading(false); })
                             .catch(() => setTransitLoading(false));
                         }
@@ -2544,12 +2661,13 @@ export default function Home() {
                               if (!workspaceData) return;
                               setTransitLoading(true);
                               try {
+                                // PR A1.3-fix-24 — same live-location fix as the auto-fetch above
                                 const res = await axios.post(`${API_URL}/transit/analyze`, {
                                   natal: workspaceData,
                                   transit_date: transitDate || undefined,
-                                  latitude: workspaceData.latitude || 17.385,
-                                  longitude: workspaceData.longitude || 78.4867,
-                                  timezone_offset: timezoneOffset,
+                                  latitude: liveLoc.location?.latitude ?? workspaceData.latitude ?? 17.385,
+                                  longitude: liveLoc.location?.longitude ?? workspaceData.longitude ?? 78.4867,
+                                  timezone_offset: liveLoc.location?.timezone_offset ?? timezoneOffset,
                                 });
                                 setTransitData(res.data);
                               } catch { setTransitData(null); }
@@ -2918,8 +3036,13 @@ export default function Home() {
                   const next = calMonth.month === 12 ? { year: calMonth.year + 1, month: 1 } : { year: calMonth.year, month: calMonth.month + 1 };
                   setCalMonth(next); setCalSelectedDay(null); pcFetchCalendar(next.year, next.month);
                 };
-                // Auto-load on first open (or after city selection clears pcData)
-                if (!pcData && !pcLoading && !pcShowCityModal) { pcFetchLocation(); }
+                // PR A1.3-fix-24 — auto-load moved to a top-level useEffect.
+                // Expose the local fn via a ref so the effect can call it.
+                // Writing to a ref during render is the canonical React
+                // workaround for "I need an effect to call a closure-bound
+                // function". The state-setter side-effect that used to live
+                // here now happens cleanly post-commit.
+                pcFetchLocationRef.current = pcFetchLocation;
 
                 // Weekday headers — lang aware. EN shows Sun-Sat, te/te_en shows Telugu shorts.
                 const weekdayHeadersEn = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -3852,7 +3975,15 @@ export default function Home() {
                                 </select>
                               </div>
                             )}
-                            <button onClick={() => setMShowAddParticipant(true)}
+                            <button onClick={() => {
+                              // PR A1.3-fix-24 — reset mNewP on open so each
+                              // "Add Participant" click is a clean slate.
+                              // (Was previously reset on every tab change,
+                              // which destroyed user data on tab peeks.)
+                              setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "", timezone_offset: 5.5 });
+                              setMNewPPlaceSugg([]);
+                              setMShowAddParticipant(true);
+                            }}
                               style={{ padding: "7px 12px", background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, color: "var(--muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" as const }}>
                               + {t("New", "కొత్తగా")}
                             </button>
@@ -5029,7 +5160,14 @@ export default function Home() {
                                   ))}
                                 </select>
                               )}
-                              <button onClick={() => setMatchPerson2Inline(true)}
+                              <button onClick={() => {
+                                // PR A1.3-fix-24 — reset mNewP on open (same
+                                // rationale as the Muhurtha "Add Participant"
+                                // button above — was tab-change-reset, now per-click).
+                                setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "", timezone_offset: 5.5 });
+                                setMNewPPlaceSugg([]);
+                                setMatchPerson2Inline(true);
+                              }}
                                 style={{ padding: "9px 14px", background: "var(--surface)", border: "0.5px dashed var(--border2)", borderRadius: 8, color: "var(--muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit", textAlign: "left" as const, transition: "border-color 140ms, color 140ms" }}
                                 onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(147,197,253,0.5)"; e.currentTarget.style.color = "#93c5fd"; }}
                                 onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border2)"; e.currentTarget.style.color = "var(--muted)"; }}

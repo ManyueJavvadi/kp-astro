@@ -1596,7 +1596,15 @@ Reply with ONLY the single topic word."""
         # PR A1.3-fix-10 (#7) — synced with TOPIC_TO_FILE (full set).
         valid = list(TOPIC_TO_FILE.keys())
         return detected if detected in valid else _keyword_fallback(question)
-    except:
+    except Exception as e:
+        # PR A1.3-fix-24 — was bare `except:` which also catches
+        # KeyboardInterrupt/SystemExit. Restrict to Exception + log so
+        # silent topic-detection failures (Anthropic outages, quota,
+        # network blips) become visible to operators.
+        import logging
+        logging.getLogger("llm_service").warning(
+            "detect_topic Haiku call failed: %s — falling back to keyword heuristic", e
+        )
         return _keyword_fallback(question)
 
 
@@ -1629,6 +1637,28 @@ def _keyword_fallback(question: str) -> str:
 # MAIN PREDICTION FUNCTION
 # ================================================================
 
+def _normalize_mode(mode: str) -> str:
+    """PR A1.3-fix-24 — collapse mode strings to the canonical {user,astrologer}.
+
+    Without this, an exact-equality check `mode == "astrologer"` could be
+    bypassed by `mode="Astrologer"` (capital A) or `mode="users"` (typo) →
+    silently routes to Sonnet (~12× more expensive than Haiku) instead of
+    Haiku for a user-mode call. Defensive whitelist closes the cost hole.
+    """
+    m = (mode or "").strip().lower()
+    if m == "astrologer":
+        return "astrologer"
+    # Anything else (including empty, "Users", "guest", "Astrologer ", etc)
+    # falls back to user mode. Logged at WARNING when it's an unrecognized
+    # value the caller probably expected to mean something specific.
+    if m and m != "user":
+        import logging
+        logging.getLogger("llm_service").warning(
+            "_normalize_mode: unrecognized mode=%r → defaulting to 'user'", mode
+        )
+    return "user"
+
+
 def _resolve_question_type(question_type: str, question: str, history: list) -> str:
     """PR A1.3-fix-23 — resolve full_topic vs sub_question for Format A/B routing.
 
@@ -1656,6 +1686,9 @@ def _resolve_question_type(question_type: str, question: str, history: list) -> 
 
 
 def get_prediction(chart_data: dict, question: str, history: list = [], mode: str = "user", topic: str = None, question_type: str = "auto") -> str:
+    # PR A1.3-fix-24 — normalize mode FIRST so a typo / casing variant
+    # doesn't silently route to the more expensive Sonnet model.
+    mode = _normalize_mode(mode)
     # PR A1.3-fix-1 (C1): if the caller already knows the topic (frontend topic
     # picker), skip the Haiku detection round-trip. Saves ~5-10s latency per
     # query and prevents topic drift between the loaded KB and the
@@ -1893,6 +1926,9 @@ async def get_prediction_stream(
         str chunks of the answer text.
     """
     from app.services import answer_cache
+
+    # PR A1.3-fix-24 — normalize mode FIRST (cost-protection guard).
+    mode = _normalize_mode(mode)
 
     # Topic resolution (mirrors get_prediction)
     if topic and topic in TOPIC_TO_FILE:
