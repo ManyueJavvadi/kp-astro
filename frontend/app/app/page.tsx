@@ -81,6 +81,10 @@ export default function Home() {
   // Phase 8 / PR 23 — keyboard shortcut help overlay state. Toggled by
   // pressing `?`; closed by Escape or any tab-switch key.
   const [showKbHelp, setShowKbHelp] = useState(false);
+  // Phase 9 / PR 25 — first-chart reveal animation. Plays once when
+  // the chart finishes generating (transition false → true on
+  // `setupDone`). Auto-clears after the CSS animation duration.
+  const [showChartReveal, setShowChartReveal] = useState(false);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   // PR A1.3-fix-24 — added optional `id` so SSE consumer can scope writes
   // to the specific message it owns. Without an id, two streams firing
@@ -611,6 +615,11 @@ export default function Home() {
         setChartData(res.data);
       }
       setSetupDone(true);
+      // Phase 9 / PR 25 — celebrate first chart generation. The reveal
+      // overlay plays a 1.7s gold-bloom animation then auto-clears.
+      // pointer-events: none on the overlay so it never blocks clicks.
+      setShowChartReveal(true);
+      window.setTimeout(() => setShowChartReveal(false), 1750);
       setCurrentSessionId(prev => prev || Date.now().toString());
       // NOTE: we deliberately do NOT show the AI-language modal here
       // anymore. The modal's purpose is to let astrologers choose
@@ -1603,6 +1612,22 @@ export default function Home() {
         </main>
       )}
 
+      {/* Phase 9 / PR 25 — first-chart reveal animation. Renders ONCE
+          immediately after a successful chart generation. The CSS
+          animation auto-fades the overlay out; state cleared after
+          1.75s. pointer-events: none everywhere so clicks fall through. */}
+      {showChartReveal && (
+        <div className="kp-chart-reveal" aria-hidden>
+          <div className="kp-chart-reveal-bloom" />
+          <div className="kp-chart-reveal-title">
+            {t("Your chart is ready", "మీ చార్ట్ సిద్ధం")}
+          </div>
+          <div className="kp-chart-reveal-sub">
+            {t("KP precision · Swiss Ephemeris", "KP ఖచ్చితత్వం · Swiss Ephemeris")}
+          </div>
+        </div>
+      )}
+
       {/* Phase 8 / PR 23 — keyboard shortcut help overlay.
           Triggered by pressing `?` anywhere outside an editable field.
           Esc or pressing `?` again closes it. Click outside also closes. */}
@@ -2092,7 +2117,12 @@ export default function Home() {
             >×</button>
           </div>
         )}
-        <div className="workspace-layout" style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+        {/* Phase 9 / PR 24 — constellation backdrop. The gold-flecked
+            radial-gradient pattern lives behind the workspace at <4%
+            opacity. Adds peripheral cosmos texture without competing
+            with the chart canvas. Class-based + background-attachment
+            fixed → static stars while the workspace scrolls. */}
+        <div className="workspace-layout kp-constellation" style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
           {/* Collapsed rail — shown when sidebar is closed, gives the user
               a Claude-style reopen affordance on the left edge. */}
