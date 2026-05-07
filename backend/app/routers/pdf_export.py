@@ -2,7 +2,13 @@ import logging
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel
-from app.services.pdf_engine import generate_pdf
+# Phase 14 / PR A — pdf_engine_v2 produces a 30-50 page deterministic
+# KP report (cover, charts, planets, cusps with CSL chains, RPs, 4-level
+# significators, per-house verdict, dasha trees, Tara Chakra, vargottama,
+# borderline CSL, glossary). Zero LLM cost. The legacy 3-page
+# `pdf_engine.generate_pdf` is kept untouched for any future "Quick PDF"
+# fallback but no longer wired here.
+from app.services.pdf_engine_v2 import generate_pdf_v2
 
 router = APIRouter()
 _log = logging.getLogger("pdf_export")
@@ -18,7 +24,7 @@ class PdfRequest(BaseModel):
 @router.post("/export")
 def export_pdf(request: PdfRequest):
     try:
-        pdf_bytes = generate_pdf(request.workspace)
+        pdf_bytes = generate_pdf_v2(request.workspace)
     except Exception as e:
         _log.exception("pdf_generate failed: %s", e)
         raise HTTPException(status_code=422, detail="pdf_generation_failed")
