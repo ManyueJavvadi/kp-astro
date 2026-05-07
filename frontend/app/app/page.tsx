@@ -194,8 +194,13 @@ export default function Home() {
   const [chartView, setChartView] = useState<"chart"|"planets">("chart");
   const [showTransitInDasha, setShowTransitInDasha] = useState(false);
   const [transitSubTab, setTransitSubTab] = useState<"overview" | "planets" | "kp">("overview");
-  // Quick insights
-  const [quickInsights, setQuickInsights] = useState<Record<string, string>>({});
+  // Phase 13 / PR 31 — quickInsights state REMOVED.
+  // The auto-fire on Analysis tab open was burning ~$0.30 of Sonnet
+  // per visit (pre-loading 8 topic snippets the user usually never
+  // read because they immediately clicked a specific topic). Per the
+  // billing diagnosis, this single change drops daily LLM spend by
+  // ~40% on its own. AI now only fires when the user explicitly
+  // clicks a topic OR types a question.
   // Panchangam — auto-detect location, single page
   const [pcData, setPcData] = useState<any>(null);
   const [pcLoading, setPcLoading] = useState(false);
@@ -267,8 +272,8 @@ export default function Home() {
     } catch { /* ignore */ }
   }, []);
 
-  // Load quick insights when analysis tab opens
-  useEffect(() => { if (activeTab === "analysis" && workspaceData) { loadQuickInsights(); } }, [activeTab, workspaceData]);
+  // Phase 13 / PR 31 — auto-firing quickInsights on Analysis tab open
+  // was the single biggest preventable cost. Removed entirely.
 
   // PR A1.3-fix-24 — Panchang auto-load trigger.
   // Replaces the render-time side-effect call at the IIFE that was firing
@@ -932,23 +937,12 @@ export default function Home() {
     setAnalysisLoading(false);
   };
 
-  const loadQuickInsights = async () => {
-    if (!workspaceData || Object.keys(quickInsights).length > 0) return;
-    const formattedDate = getFormattedDate();
-    if (!formattedDate) return;
-    try {
-      const res = await axios.post(`${API_URL}/astrologer/quick-insights`, {
-        name: birthDetails.name, date: formattedDate, time: getTime24(),
-        latitude: birthDetails.latitude, longitude: birthDetails.longitude,
-        timezone_offset: timezoneOffset,
-        gender: birthDetails.gender || "",
-        topics: ["marriage", "job", "health", "foreign_travel", "children", "education", "property", "wealth"],
-        language: backendLang(),
-      });
-      // Response is { topic: insight_string } directly
-      if (res.data && typeof res.data === "object") setQuickInsights(res.data);
-    } catch { /* silent fail — quick insights are optional */ }
-  };
+  // Phase 13 / PR 31 — loadQuickInsights() removed. The function used
+  // to auto-fire on every Analysis tab open and request 8 topic
+  // previews in a single Sonnet call. Most users immediately clicked
+  // a specific topic and never read the previews. The dedicated
+  // /astrologer/quick-insights endpoint stays in the backend (no
+  // longer hit by the frontend) — kept for any future opt-in surface.
 
   const handleWorkspaceChat = async () => {
     if (!chatQ.trim()) return;
@@ -7612,11 +7606,7 @@ export default function Home() {
                             onMouseLeave={e => { if (activeTopic !== tp.id) (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border2)"; }}>
                             <div style={{ fontSize: 22, marginBottom: 4 }}>{TOPIC_EMOJI[tp.id]}</div>
                             <div style={{ fontSize: 11, color: activeTopic === tp.id ? "var(--accent)" : "var(--text)", fontWeight: activeTopic === tp.id ? 500 : 400 }}>{lang === "en" ? tp.en : tp.te}</div>
-                            {quickInsights[tp.id] && (
-                              <div style={{ fontSize: 9, color: "var(--muted)", marginTop: 4, lineHeight: 1.4, textAlign: "left" }}>
-                                {quickInsights[tp.id].split("\n")[0]?.slice(0, 60)}…
-                              </div>
-                            )}
+                            {/* Phase 13 / PR 31 — quick-insight preview snippet removed. */}
                           </button>
                         ))}
                       </div>
