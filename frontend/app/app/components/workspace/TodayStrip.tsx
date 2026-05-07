@@ -26,6 +26,8 @@ export function TodayStrip({
   data,
   compact = false,
   onJumpToPanchang,
+  isLive = false,
+  cityLabel,
 }: {
   data?: {
     date?: string;
@@ -43,6 +45,17 @@ export function TodayStrip({
   compact?: boolean;
   /** Click handler — typically `() => setActiveTab("panchang")`. */
   onJumpToPanchang?: () => void;
+  /**
+   * Phase 10 / PR 27 — `true` when the panchang was fetched fresh
+   * for the user's current location (via useLiveLocation). `false` /
+   * default → the data is the chart-load snapshot computed at the
+   * BIRTH lat/lon, so Hora and Rahu Kalam are technically wrong for
+   * a user not at their birth place. The eyebrow pill renders
+   * differently in each case so the staleness is honest.
+   */
+  isLive?: boolean;
+  /** When `isLive`, the city the live data was fetched for (e.g. "Toronto, Canada"). */
+  cityLabel?: string;
 }) {
   const { lang, t } = useLanguage();
   if (!data) return null;
@@ -140,20 +153,52 @@ export function TodayStrip({
           interactive={pillClick}
         />
       )}
-      {/* Honest staleness indicator — small dot far-right. */}
-      <span
-        aria-hidden
-        style={{
-          marginLeft: "auto",
-          fontSize: 8,
-          color: "rgba(201,169,110,0.45)",
-          letterSpacing: "0.05em",
-          textTransform: "uppercase",
-          flexShrink: 0,
-        }}
-      >
-        {t("snapshot", "స్నాప్")}
-      </span>
+      {/* Phase 10 / PR 27 — honest data-source indicator far-right.
+          isLive  → "● LIVE · {city}" with green dot
+          fallback → "snapshot" gold tint (data is birth-loc, may be
+          stale for users not at their birth place). */}
+      {isLive ? (
+        <span
+          title={t(
+            "Live panchang for your current location — Hora and Rahu Kalam reflect where you are now.",
+            "మీ ప్రస్తుత ప్రదేశానికి సజీవ పంచాంగం — హోర మరియు రాహుకాలం మీరు ఇప్పుడు ఉన్న చోటికి సరిపోతాయి."
+          )}
+          style={{
+            marginLeft: "auto",
+            fontSize: 8.5,
+            color: "rgba(52, 211, 153, 0.85)",
+            letterSpacing: "0.05em",
+            textTransform: "uppercase",
+            flexShrink: 0,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            fontWeight: 600,
+          }}
+        >
+          <span aria-hidden style={{ width: 6, height: 6, borderRadius: "50%", background: "#34d399", boxShadow: "0 0 6px rgba(52,211,153,0.7)" }} />
+          {t("LIVE", "సజీవం")}
+          {cityLabel && <span style={{ color: "rgba(52,211,153,0.65)", fontWeight: 500 }}>· {cityLabel}</span>}
+        </span>
+      ) : (
+        <span
+          aria-hidden
+          title={t(
+            "Snapshot of today's panchang at your BIRTH location, computed at chart load. Open the Panchang tab for live data at your current location.",
+            "మీ జన్మ స్థానంలో నేటి పంచాంగం యొక్క స్నాప్‌షాట్."
+          )}
+          style={{
+            marginLeft: "auto",
+            fontSize: 8,
+            color: "rgba(201,169,110,0.45)",
+            letterSpacing: "0.05em",
+            textTransform: "uppercase",
+            flexShrink: 0,
+          }}
+        >
+          {t("snapshot · birth loc", "స్నాప్ · జన్మ")}
+        </span>
+      )}
     </div>
   );
 }

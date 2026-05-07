@@ -85,6 +85,15 @@ export default function Home() {
   // the chart finishes generating (transition false → true on
   // `setupDone`). Auto-clears after the CSS animation duration.
   const [showChartReveal, setShowChartReveal] = useState(false);
+  // Phase 10 / PR 27 — live panchang for the Today strip.
+  // `workspaceData.panchangam_today` is computed at chart-load time
+  // using the BIRTH lat/lon — so Hora and Rahu Kalam are wrong for
+  // any user not currently at their birth place. When `liveLoc` has
+  // a value (browser geo or manual pick from any tab) we fetch a
+  // fresh panchang at the current location and feed THAT into
+  // TodayStrip. Stays consistent with the Panchang tab and the
+  // Horary tab, which both already use live location.
+  const [liveTodayPanchang, setLiveTodayPanchang] = useState<any>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   // PR A1.3-fix-24 — added optional `id` so SSE consumer can scope writes
   // to the specific message it owns. Without an id, two streams firing
@@ -338,6 +347,40 @@ export default function Home() {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [setupDone, showKbHelp]);
+
+  // Phase 10 / PR 27 — fetch live panchang for the Today strip whenever
+  // useLiveLocation has a value. Reuses the same `/panchangam/location`
+  // endpoint the Panchang tab uses, so the cosmos backing the Today
+  // strip is identical to what the Panchang tab shows.
+  // Caches the lat/lon we last fetched for so we don't re-call on
+  // every render — only when the live location actually changes.
+  useEffect(() => {
+    if (!setupDone) return;
+    if (!liveLoc.location) return;
+    const lat = liveLoc.location.latitude;
+    const lon = liveLoc.location.longitude;
+    // Skip if the cached panchang is already for this lat/lon.
+    if (
+      liveTodayPanchang &&
+      liveTodayPanchang._lat === lat &&
+      liveTodayPanchang._lon === lon
+    ) return;
+    axios
+      .post(`${API_URL}/panchangam/location`, {
+        latitude: lat,
+        longitude: lon,
+        timezone_offset: 0, // backend auto-resolves from lat/lon
+      })
+      .then(r => {
+        setLiveTodayPanchang({
+          ...r.data,
+          _lat: lat,
+          _lon: lon,
+          _city: liveLoc.location?.display ?? "",
+        });
+      })
+      .catch(() => { /* fall back to chart-load snapshot — silent */ });
+  }, [setupDone, liveLoc.location, liveTodayPanchang]);
 
   // PR A1.3-fix-15 — listen for follow-up chip clicks from HeroVerdictCard.
   // Component dispatches a `user-followup-click` CustomEvent with the
@@ -2292,18 +2335,19 @@ export default function Home() {
 
           {/* Main content */}
           <div className="workspace-main" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
-            {/* Phase 3 — Today panchang strip (#F).
-                Sticky 28px row sitting between the slim header and the
-                tab bar. Was previously a low-discoverability widget at
-                the bottom of the sidebar; now it's the FIRST thing the
-                eye hits, scoped to one job (today's panchang facts the
-                user checks daily).
-                Phase 8 / PR 21 — every cell now jumps to the Panchang
-                tab on click, turning the read-only strip into a single-
-                click navigation shortcut for the daily ritual. */}
-            {workspaceData?.panchangam_today && (
+            {/* Phase 3 — Today panchang strip (#F). Phase 8 / PR 21 — pills
+                are clickable shortcuts into the Panchang tab.
+                Phase 10 / PR 27 — when liveLoc has resolved (browser geo
+                or manual city pick), `liveTodayPanchang` carries today's
+                panchang for the user's CURRENT location and we render
+                that. Falls back to the chart-load `panchangam_today`
+                snapshot (birth lat/lon) when live data isn't available
+                yet — and the strip's eyebrow pill says so. */}
+            {(liveTodayPanchang || workspaceData?.panchangam_today) && (
               <TodayStrip
-                data={workspaceData.panchangam_today}
+                data={liveTodayPanchang ?? workspaceData.panchangam_today}
+                isLive={!!liveTodayPanchang}
+                cityLabel={liveTodayPanchang?._city}
                 onJumpToPanchang={() => setActiveTab("panchang")}
               />
             )}
