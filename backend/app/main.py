@@ -74,6 +74,12 @@ app = FastAPI(title="KP Astro API", version="0.1.0")
 # To lock down further on Railway, set CORS_ALLOWED_ORIGINS to ONLY your
 # real production frontend URLs.
 _default_cors = ",".join([
+    # PR A1.3-fix-25c — added explicit Vercel production URL as belt-and-
+    # suspenders alongside the *.vercel.app regex below. Some Starlette
+    # versions / proxy chains evaluate the explicit list and the regex in
+    # different orders; having both guarantees the production frontend
+    # works no matter what.
+    "https://devastroai.vercel.app",
     "https://devastroai.up.railway.app",
     "https://devastroai.com",
     "https://www.devastroai.com",
