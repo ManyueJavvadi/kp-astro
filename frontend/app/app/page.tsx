@@ -3188,8 +3188,23 @@ export default function Home() {
                     let lat: number, lon: number, tz: number;
                     if (pcDetectedCoords) {
                       lat = pcDetectedCoords.lat; lon = pcDetectedCoords.lon; tz = pcDetectedCoords.tz;
+                    } else if (liveLoc.location) {
+                      // Phase 1 / PR 3 — reconcile Panchang to the shared
+                      // useLiveLocation hook. Horary already uses it; before
+                      // this change Panchang ran its OWN navigator.geolocation
+                      // call which could resolve differently (the 2026-05-06
+                      // stress test caught Panchang showing "Could not detect"
+                      // while Horary showed "Toronto, Canada" in the same
+                      // session). Now any tab that opens after the hook has
+                      // a value seeds from the cached location.
+                      lat = liveLoc.location.latitude;
+                      lon = liveLoc.location.longitude;
+                      tz = 0; // Backend auto-resolves timezone from lat/lon
+                      setPcDetectedCoords({ lat, lon, tz });
+                      setPcLocationName(liveLoc.location.display);
                     } else {
-                      // Try browser geolocation — do NOT fall back to birth coords
+                      // No shared cache and no local state — try browser
+                      // geolocation directly. Do NOT fall back to birth coords.
                       const pos = await new Promise<GeolocationPosition>((res, rej) =>
                         navigator.geolocation.getCurrentPosition(res, rej, { timeout: 5000 })
                       ).catch(() => null);
@@ -3216,8 +3231,17 @@ export default function Home() {
                         const city = addr.neighbourhood || addr.suburb || addr.city_district
                           || addr.city || addr.town || addr.village || "";
                         const country = addr.country || "";
-                        setPcLocationName(city && country ? `${city}, ${country}` : city || country || `${lat.toFixed(3)}°, ${lon.toFixed(3)}°`);
-                      } catch { setPcLocationName(`${lat.toFixed(3)}°, ${lon.toFixed(3)}°`); }
+                        const displayName = city && country ? `${city}, ${country}` : city || country || `${lat.toFixed(3)}°, ${lon.toFixed(3)}°`;
+                        setPcLocationName(displayName);
+                        // PR 3 — push the freshly-resolved location into the
+                        // shared hook so Horary / Muhurtha / Transit see it
+                        // without re-querying.
+                        liveLoc.override({ lat, lon, display: displayName });
+                      } catch {
+                        const fallback = `${lat.toFixed(3)}°, ${lon.toFixed(3)}°`;
+                        setPcLocationName(fallback);
+                        liveLoc.override({ lat, lon, display: fallback });
+                      }
                     }
                     const r = await axios.post(`${API_URL}/panchangam/location`, {
                       latitude: lat, longitude: lon, timezone_offset: tz, ...(dateStr ? { date: dateStr } : {}),
@@ -3240,6 +3264,9 @@ export default function Home() {
                   setPcShowCityModal(false);
                   setPcCityQuery(""); setPcCitySuggestions([]); setPcGeoError("");
                   setPcData(null); setCalData(null); // Clear old data → auto-load triggers refetch
+                  // PR 3 — propagate the manual pick to the shared hook so
+                  // every other tab (Horary, Muhurtha, Transit) reflects it.
+                  liveLoc.override({ lat: s.lat, lon: s.lon, display: s.display });
                 };
                 const pcTryMyLocation = () => {
                   setPcGeoError("");

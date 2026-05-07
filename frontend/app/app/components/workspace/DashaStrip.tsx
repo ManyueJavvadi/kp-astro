@@ -2,6 +2,8 @@
 import React, { useState } from "react";
 import { PLANET_COLORS } from "../constants";
 import { useLanguage } from "@/lib/i18n";
+// Phase 1 / PR 1 — canonical period formatter.
+import { formatDashaPeriod } from "@/lib/format";
 
 // Backend may use lord_en instead of lord; support both
 interface DashaLike {
@@ -206,7 +208,7 @@ export default function DashaStrip({
                     </span>
                     <span style={{ fontSize: 10, color: "#444455" }}>{t("PAD", "ప్రత్య")}</span>
                     <span style={{ fontSize: 9, color: "#333344" }}>
-                      {pad.start?.slice(0, 7)} – {pad.end?.slice(0, 7)}
+                      {formatDashaPeriod(pad.start, pad.end)}
                     </span>
                     {isCurrPAD && (
                       <span style={{ fontSize: 9, fontWeight: 700, color: padColor, marginLeft: 4 }}>

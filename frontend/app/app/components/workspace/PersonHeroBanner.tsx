@@ -4,6 +4,10 @@ import { PLANET_COLORS } from "../constants";
 import { WorkspaceData, PLANET_SYMBOLS } from "../../types/workspace";
 import { BirthDetails, ChartSession } from "../../types";
 import { useLanguage } from "@/lib/i18n";
+// Phase 1 / PR 1 — canonical date/time formatter. Replaces the inline
+// `.slice(0, 7)` ISO truncation that produced the "2039-02" YYYY-MM
+// chip the stress test flagged as unreadable.
+import { formatDashaPeriod } from "@/lib/format";
 
 interface PersonHeroBannerProps {
   workspaceData: WorkspaceData;
@@ -184,9 +188,11 @@ export default function PersonHeroBanner({
           {/* MD / AD / PAD */}
           {currentMD && (
             <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-              <DashaChip label="MD" planet={(currentMD as any).lord ?? (currentMD as any).lord_en ?? "?"} end={currentMD.end?.slice(0, 7)} />
-              {currentAD && <DashaChip label="AD" planet={(currentAD as any).lord ?? (currentAD as any).lord_en ?? "?"} end={currentAD.end?.slice(0, 7)} />}
-              {currentPAD && <DashaChip label="PAD" planet={(currentPAD as any).lord ?? (currentPAD as any).lord_en ?? "?"} end={currentPAD.end?.slice(0, 7)} />}
+              {/* Phase 1 / PR 1 — replaced raw `.slice(0, 7)` with formatDashaPeriod
+                  so chips read "Feb 2039" instead of "2039-02". */}
+              <DashaChip label="MD" planet={(currentMD as any).lord ?? (currentMD as any).lord_en ?? "?"} end={formatDashaPeriod(null, currentMD.end)} />
+              {currentAD && <DashaChip label="AD" planet={(currentAD as any).lord ?? (currentAD as any).lord_en ?? "?"} end={formatDashaPeriod(null, currentAD.end)} />}
+              {currentPAD && <DashaChip label="PAD" planet={(currentPAD as any).lord ?? (currentPAD as any).lord_en ?? "?"} end={formatDashaPeriod(null, currentPAD.end)} />}
             </div>
           )}
 

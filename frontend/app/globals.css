@@ -150,6 +150,18 @@ select option {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+/* Phase 1 / PR 2 — single shared spin used by <Loader> and <PrimaryAction>
+   loading states. Defined once here so the components don't pull in
+   styled-jsx (cleaner SSR + smaller bundle). */
+@keyframes kp-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.kp-spin { animation: kp-spin 0.9s linear infinite; }
+/* Hover lift used by <PrimaryAction> — applied via the `kp-pa-btn`
+   class so we don't ship a `<style jsx>` block per-instance. */
+.kp-pa-btn:not([aria-disabled="true"]):hover { transform: translateY(-1px); }
+.kp-pa-btn:not([aria-disabled="true"]):active { transform: translateY(0); }
 @keyframes pulse-gold {
   0%, 100% { box-shadow: 0 0 0 0 rgba(201,169,110,0.3); }
   50%       { box-shadow: 0 0 0 6px rgba(201,169,110,0); }
