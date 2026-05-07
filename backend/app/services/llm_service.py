@@ -1965,12 +1965,12 @@ def get_prediction(chart_data: dict, question: str, history: list = [], mode: st
         {
             "type": "text",
             "text": get_system_prompt(),
-            "cache_control": {"type": "ephemeral"},
+            "cache_control": {"type": "ephemeral", "ttl": "1h"},
         },
         {
             "type": "text",
             "text": f"---\n\nKP UNIVERSAL KNOWLEDGE BASE:\n{universal_kb}",
-            "cache_control": {"type": "ephemeral"},
+            "cache_control": {"type": "ephemeral", "ttl": "1h"},
         },
     ]
     if topic_kb:
@@ -1985,7 +1985,7 @@ def get_prediction(chart_data: dict, question: str, history: list = [], mode: st
                     f"---\n\nKP TOPIC-SPECIFIC KNOWLEDGE "
                     f"({detected_topic.upper()}):\n{topic_kb}"
                 ),
-                "cache_control": {"type": "ephemeral"},
+                "cache_control": {"type": "ephemeral", "ttl": "1h"},
             }
         )
     # Phase 13.6 — chart_summary UNCACHED. Changes per call so cache
@@ -2247,9 +2247,9 @@ async def get_prediction_stream(
     # 51K-token KB cache on every call). Order: stable → volatile.
     system_blocks = [
         {"type": "text", "text": get_system_prompt(),
-         "cache_control": {"type": "ephemeral"}},
+         "cache_control": {"type": "ephemeral", "ttl": "1h"}},
         {"type": "text", "text": f"---\n\nKP UNIVERSAL KNOWLEDGE BASE:\n{universal_kb}",
-         "cache_control": {"type": "ephemeral"}},
+         "cache_control": {"type": "ephemeral", "ttl": "1h"}},
     ]
     if topic_kb:
         system_blocks.append({
@@ -2259,16 +2259,23 @@ async def get_prediction_stream(
                 f"({detected_topic.upper()}):\n{topic_kb}"
             ),
             # 1h TTL (was default 5m) — survives natural session pauses.
-            "cache_control": {"type": "ephemeral"},
+            "cache_control": {"type": "ephemeral", "ttl": "1h"},
         })
-    # Phase 13.6 — TTL DROPPED from "1h" to default 5m on all blocks.
+    # Phase 13.6.1 — TTL kept at 1h (REVERTED 5m experiment).
     #
-    # Why: Sonnet 1h cache write rate is $6/M, 5m write is $3.75/M
-    # (37% cheaper). Astrologer sessions are typically bursts of 3-6
-    # questions in 5-10 min, so 5m TTL covers the burst pattern with
-    # cache hits. The trade-off (long pause = pay write again) is
-    # mitigated by the answer_cache 24h LRU above this layer — identical
-    # repeat questions return free regardless of prompt-cache state.
+    # Why 1h not 5m: realistic astrologer pacing is 5-10 minutes BETWEEN
+    # questions, not 5 minutes total. They open a topic, read the dense
+    # 7-section answer (3-5 min), think (1-2 min), then type the
+    # follow-up. 5m TTL would expire BEFORE every follow-up -- forcing
+    # a fresh KB cache write on each one, wiping out the savings.
+    #
+    # Cost math at realistic 8-min pacing (1 Sonnet + 5 Haiku follow-ups):
+    #   5m TTL: cache expires 5x   -> Rs 83/session
+    #   1h TTL: cache hits 4 times -> Rs 73/session  (winner)
+    #
+    # Anthropic 1h cache write costs 1.6x the 5m rate (Sonnet $6/M vs
+    # $3.75/M, Haiku $2/M vs $1.25/M), but the cache survives long
+    # enough to amortize across the typical 4-6 follow-ups in a session.
     #
     # Phase 13.6 — chart_summary NO LONGER CACHED.
     #
@@ -3494,7 +3501,7 @@ Analyze the muhurtha windows above and answer the question. Reference specific w
             {
                 "type": "text",
                 "text": system_prompt,
-                "cache_control": {"type": "ephemeral"},
+                "cache_control": {"type": "ephemeral", "ttl": "1h"},
             }
         ],
         messages=messages,
