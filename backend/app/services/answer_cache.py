@@ -51,22 +51,12 @@ from typing import Any, Optional
 
 _log = logging.getLogger("answer_cache")
 
-# Phase 13 / PR 32 — same-chart, same-question cached responses now
-# survive 30 days instead of 24 hours. Combined with removing
-# `today_ist_iso` from the cache key (see make_key below), the same
-# birth chart entered any time within a month returns the cached
-# response without paying for a fresh Sonnet call.
-#
-# Why 30 days, not "forever":
-#   - The AI response embeds age ("Male, Age 25") which ticks over on
-#     birthdays. 30d means at most one stale-by-age cached entry per
-#     chart per year.
-#   - Current dasha period dates ("Mercury AD 2029-2031") are 3-year
-#     windows so they're fine across 30d.
-#   - "Today's RPs" content does drift, but it's a small section of
-#     the response.
-# Trade-off chosen: massively lower cost vs. minor occasional staleness.
-_TTL_SECONDS = 30 * 24 * 60 * 60  # 30 days
+# Phase 13 / PR 32 was 30 days + no today_ist in the key. REVERTED on
+# user request — the staleness trade-off (age ticking over, "today's
+# RPs" drifting, dasha dates becoming wrong) was unacceptable for a
+# product that astrologers stake their reputation on. Back to the
+# original 24-hour calendar-day cache.
+_TTL_SECONDS = 24 * 60 * 60  # 24 hours
 _MAX_ENTRIES = 1024
 
 # PR A1.3-fix-17 — Indian-targeting product → IST midnight is the
@@ -186,17 +176,14 @@ def make_key(
     question: str,
     question_type: str = "",
 ) -> str:
-    """Build the cache key.
+    """Build the cache key. today_date is included so caches roll over
+    daily — important because the engine's "current dasha" output and
+    "today's date" in the system prompt change at IST midnight.
 
-    Phase 13 / PR 32 — `today_ist_iso` REMOVED from the key.
-    Previously the cache rolled over at IST midnight so the same chart
-    re-analysed on day N+1 paid for a fresh Sonnet call. Per the user's
-    intent ("any time the same chart is entered, use what we have"),
-    the date stamp is now out of the key — same chart + same question
-    + same mode returns the cached answer for up to 30 days
-    (`_TTL_SECONDS`). The known minor staleness this introduces (age
-    ticking over, "today's RPs" section drifting) is documented at
-    the top of this file and is the deliberate trade-off.
+    Phase 13 / PR 32 had briefly removed today_ist_iso from the key for
+    cost reasons; reverted because the staleness was unacceptable. Back
+    to daily rollover so a chart re-asked on day N+1 always reflects
+    today's true age, dasha, and RP context.
 
     PR A1.3-fix-17 — added timezone_offset. Without it, two users with
     same birth_time but different TZ would collide (rare but real:
@@ -216,7 +203,7 @@ def make_key(
         f"{timezone_offset:.2f}",
         (gender or "").lower(),
         (topic or "").lower(),
-        # `today_ist_iso` deliberately omitted (Phase 13 / PR 32).
+        _today_ist(),
         (mode or "").lower(),
         _normalize_question(question),
         (question_type or "").lower(),
