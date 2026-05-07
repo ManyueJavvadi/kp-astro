@@ -22,9 +22,11 @@ import HoraryRpDashaStrip from "./components/HoraryRpDashaStrip";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useLiveLocation } from "@/hooks/useLiveLocation";
 import { formatMaskedDate, formatMaskedTime } from "./lib/maskedInput";
-// Phase 1 / PR 1 — canonical date formatter for the sidebar panchang
-// honesty fix (Phase 2 / PR 6).
-import { formatDate } from "@/lib/format";
+// Phase 3 — Today panchang strip + per-tab chart context strip.
+// These pull data OUT of the slim header and the sidebar so each
+// surface has one job (#A, #B, #F).
+import { TodayStrip } from "./components/workspace/TodayStrip";
+import { ChartContextStrip } from "./components/workspace/ChartContextStrip";
 // PR A1.3-fix-20 — RasiChart replaces SouthIndianChart with proper KP
 // sign-fixed layout + North/South/East tabs. Drop-in replacement.
 import RasiChart from "./components/RasiChart";
@@ -2058,51 +2060,33 @@ export default function Home() {
                   </button>
                 </div>
               )}
-              <div className="sidebar-section" style={{ padding: "1rem", borderBottom: "0.5px solid var(--border)" }}>
-                <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(201,169,110,0.1)", border: "0.5px solid var(--border2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, color: "var(--accent)", fontWeight: 600, marginBottom: 8 }}>{workspaceData.name[0]?.toUpperCase()}</div>
-                <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 2 }}>{workspaceData.name}</div>
-                <div style={{ fontSize: 10, color: "var(--muted)", lineHeight: 1.6 }}>{birthDetails.date}<br />{birthDetails.time} {birthDetails.ampm}<br />{birthDetails.place}</div>
-                <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" as const }}>
-                  <span style={{ fontSize: 9, background: "rgba(201,169,110,0.1)", color: "var(--accent)", border: "0.5px solid var(--border2)", borderRadius: 3, padding: "2px 6px" }}>KP New</span>
-                  <span style={{ fontSize: 9, background: "rgba(201,169,110,0.1)", color: "var(--accent)", border: "0.5px solid var(--border2)", borderRadius: 3, padding: "2px 6px" }}>Placidus</span>
-                </div>
-              </div>
-              {/* Phase 2 / PR 6 — sidebar Panchang label honesty.
-                  Stress-test finding #8: this card said "PANCHANG · NOW"
-                  but `panchangam_today` is computed once at chart generation
-                  and goes stale across midnights. Two fixes:
-                    1. Eyebrow now reads "TODAY · <date>" using formatDate
-                       so the user sees exactly which day the data is for.
-                    2. A subtle `(as of chart load)` caveat reinforces it. */}
-              <div className="sidebar-section" style={{ padding: "0.75rem 1rem", borderBottom: "0.5px solid var(--border)" }}>
-                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 6 }}>
-                  <div style={{ fontSize: 9, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>
-                    {t("Today", "నేడు")}{workspaceData.panchangam_today?.date ? ` · ${formatDate(workspaceData.panchangam_today.date)}` : ""}
-                  </div>
-                  <div style={{ fontSize: 8, color: "var(--muted)", opacity: 0.6 }} title={t("Computed at chart load — open the Panchang tab for live data.", "చార్ట్ లోడ్ సమయంలో గణించబడింది.") }>
-                    {t("snapshot", "స్నాప్")}
-                  </div>
-                </div>
-                {[
-                  { l: t("Weekday", "వారం"), v: lang === "en" ? (workspaceData.panchangam_today.vara_en ?? workspaceData.panchangam_today.vara) : workspaceData.panchangam_today.vara },
-                  { l: t("Tithi", "తిథి"),   v: lang === "en" ? (workspaceData.panchangam_today.tithi_en ?? workspaceData.panchangam_today.tithi) : workspaceData.panchangam_today.tithi },
-                  { l: t("Nakshatra", "నక్షత్రం"), v: lang === "en" ? (workspaceData.panchangam_today.nakshatra_en ?? workspaceData.panchangam_today.nakshatra) : workspaceData.panchangam_today.nakshatra },
-                ].map(item => (
-                  <div key={item.l} style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                    <span style={{ fontSize: 10, color: "var(--muted)" }}>{item.l}</span>
-                    <span style={{ fontSize: 11, color: "var(--text)" }}>{item.v}</span>
-                  </div>
-                ))}
-                <div style={{ marginTop: 4, padding: "3px 8px", background: "rgba(248,113,113,0.1)", border: "0.5px solid rgba(248,113,113,0.2)", borderRadius: 4, display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: 10, color: "#f87171" }}>{t("Rahu Kalam", "రాహుకాలం")}</span>
-                  <span style={{ fontSize: 10, color: "#f87171" }}>{workspaceData.panchangam_today.rahu_kalam}</span>
-                </div>
-              </div>
+              {/* Phase 3 — sidebar restructure (#B).
+                  REMOVED:
+                    1. Avatar + name + birth-details + KP/Placidus badges
+                       block. The persistent header (PersonHeroBanner)
+                       already carries this; showing it again here was
+                       pure duplication and the dead-air below it ate
+                       half the rail.
+                    2. The "PANCHANG · NOW" / "TODAY" sidebar widget. Its
+                       content moved up to <TodayStrip>, which is sticky,
+                       discoverable, and scoped to one job.
+                  KEPT: the chart switcher (the only thing that earns a
+                  permanent rail). */}
             </div>
           )}
 
           {/* Main content */}
           <div className="workspace-main" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
+            {/* Phase 3 — Today panchang strip (#F).
+                Sticky 28px row sitting between the slim header and the
+                tab bar. Was previously a low-discoverability widget at
+                the bottom of the sidebar; now it's the FIRST thing the
+                eye hits, scoped to one job (today's panchang facts the
+                user checks daily). */}
+            {workspaceData?.panchangam_today && (
+              <TodayStrip data={workspaceData.panchangam_today} />
+            )}
+
             {/* Tabs */}
             <div className="tab-bar" style={{ display: "flex", borderBottom: "0.5px solid var(--border)", background: "var(--surface)", overflowX: "auto", flexShrink: 0 }}>
               {TABS.map(tab => {
@@ -2141,6 +2125,17 @@ export default function Home() {
                 );
               })}
             </div>
+
+            {/* Phase 3 — chart context strip (#A).
+                Lagna / Moon / Sun + current dasha (MD/AD/PAD) + RPs at
+                birth — moved here from the persistent header so they sit
+                attached to the chart-related tabs where they're relevant.
+                Skipped on Panchang / Muhurtha / Horary which have their
+                own situational context (live RPs, event RPs, prashna
+                RPs respectively) and don't need the natal chips on top. */}
+            {workspaceData && ["chart", "houses", "dasha", "analysis", "match"].includes(activeTab) && (
+              <ChartContextStrip workspaceData={workspaceData as WorkspaceData} />
+            )}
 
             {/* Tab content */}
             <div style={{ flex: 1, overflow: "auto", padding: "1.25rem" }}>
