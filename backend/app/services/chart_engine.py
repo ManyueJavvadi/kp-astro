@@ -101,6 +101,98 @@ def get_sub_lord(longitude: float) -> str:
     return sequence[-1]  # fallback
 
 
+# PR A1.3-fix-26 Part E — nakshatra/sub boundary proximity detection.
+# When a cusp's longitude is within a small threshold of a sub-lord
+# boundary, even a 4-minute birth-time error could flip the CSL from
+# one planet to another, which can flip the entire verdict. RULE 37
+# requires the LLM to acknowledge this when borderline. We expose the
+# distance + boundary flag here so the engine output can include it.
+def sub_boundary_distance(longitude: float) -> dict:
+    """Return distance (degrees) to the NEAREST sub-lord boundary at this
+    longitude, plus the planets on each side.
+
+    A "sub boundary" is the longitude where the sub lord changes from
+    one planet to another within the same nakshatra (or across nakshatras).
+    Returns:
+        {
+          "current_sub_lord": str,
+          "next_sub_lord": str,    # the sub lord just past the boundary ahead
+          "prev_sub_lord": str,    # the sub lord just before the boundary behind
+          "deg_to_next_boundary": float,   # always >= 0
+          "deg_to_prev_boundary": float,   # always >= 0
+          "deg_to_nearest_boundary": float,  # min of next/prev
+        }
+    """
+    # Normalize longitude to [0, 360)
+    longitude = longitude % 360
+    nakshatra_index = int(longitude / NAKSHATRA_SPAN)
+    position_in_nakshatra = longitude - (nakshatra_index * NAKSHATRA_SPAN)
+    nakshatra_lord = NAKSHATRAS[nakshatra_index % 27][1]
+    start_index = DASHA_SEQUENCE.index(nakshatra_lord)
+    sequence = DASHA_SEQUENCE[start_index:] + DASHA_SEQUENCE[:start_index]
+
+    # Walk the sub spans within this nakshatra to find current sub + bounds
+    current_position = 0.0
+    for i, lord in enumerate(sequence):
+        span = (DASHA_YEARS[lord] / TOTAL_YEARS) * NAKSHATRA_SPAN
+        sub_start = current_position
+        sub_end = current_position + span
+        if sub_end >= position_in_nakshatra:
+            # We're inside this sub. Compute distances + neighbours.
+            deg_to_next = sub_end - position_in_nakshatra
+            deg_to_prev = position_in_nakshatra - sub_start
+            # Determine prev_sub_lord (sub before this one)
+            if i == 0:
+                # First sub of this nakshatra — prev sub is last sub of
+                # previous nakshatra. Build the previous nakshatra sequence
+                # quickly to identify it.
+                prev_nak_lord = NAKSHATRAS[(nakshatra_index - 1) % 27][1]
+                prev_start = DASHA_SEQUENCE.index(prev_nak_lord)
+                prev_seq = DASHA_SEQUENCE[prev_start:] + DASHA_SEQUENCE[:prev_start]
+                prev_sub_lord = prev_seq[-1]
+            else:
+                prev_sub_lord = sequence[i - 1]
+            # Next sub lord
+            if i + 1 < len(sequence):
+                next_sub_lord = sequence[i + 1]
+            else:
+                # Last sub of this nakshatra — next sub is first sub of next nakshatra
+                next_nak_lord = NAKSHATRAS[(nakshatra_index + 1) % 27][1]
+                next_sub_lord = next_nak_lord  # first sub of any nakshatra is its own lord
+            return {
+                "current_sub_lord": lord,
+                "next_sub_lord": next_sub_lord,
+                "prev_sub_lord": prev_sub_lord,
+                "deg_to_next_boundary": round(deg_to_next, 4),
+                "deg_to_prev_boundary": round(deg_to_prev, 4),
+                "deg_to_nearest_boundary": round(min(deg_to_next, deg_to_prev), 4),
+            }
+        current_position += span
+    # Fallback (shouldn't reach here in normal flow)
+    return {
+        "current_sub_lord": sequence[-1],
+        "next_sub_lord": sequence[-1],
+        "prev_sub_lord": sequence[-1],
+        "deg_to_next_boundary": 0.0,
+        "deg_to_prev_boundary": 0.0,
+        "deg_to_nearest_boundary": 0.0,
+    }
+
+
+def is_borderline_csl(longitude: float, threshold_deg: float = 0.3) -> bool:
+    """True if this longitude is within `threshold_deg` of a sub-lord
+    boundary — i.e., a small birth-time error could flip the sub lord.
+
+    KP sensitivity: 0.3 degrees ≈ 1.2 minutes of clock time at the
+    average ascendant rate (~15 deg per hour). For a typical user-supplied
+    birth time rounded to the nearest minute, longitudes within 0.3°
+    of a boundary are at-risk. RULE 37 requires the LLM to acknowledge
+    this caveat when this flag fires.
+    """
+    info = sub_boundary_distance(longitude)
+    return info["deg_to_nearest_boundary"] <= threshold_deg
+
+
 def date_time_to_julian(date: str, time: str, timezone_offset: float = 5.5) -> float:
     """Convert date and time to Julian Day (UTC)."""
     # Always set ayanamsa explicitly — never rely on module-level setting
