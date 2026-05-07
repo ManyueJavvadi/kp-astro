@@ -367,3 +367,69 @@ User explicit (2026-05-06): *"we are dropping the idea of quick mode for now"*. 
 - **Mode-aware model selection** — `llm_service.get_prediction()` reads mode and picks Sonnet vs Haiku. Don't unify the two.
 - **Backend Tara compute is in `kp_tara_chakra.py`** — pipeline Step 10b. Transit Tara compute reads from `kp_transit_compute.py`. Don't recompute either in LLM.
 - **Quick Mode is DROPPED** — don't re-queue without user signal.
+
+---
+
+## 2026-05-07 (Thursday) — Phases 1-14 polish + cost-fix arc, all on develop
+
+Long session. User stress-tested live `develop`, I catalogued ~60 UI/UX gaps, then shipped 14 phase commits in sequence. Frontend chrome work + one backend correctness pass + one PDF rewrite + two cost-reduction patches.
+
+### Phases shipped (in order)
+
+| Phase | Commit | What |
+|---|---|---|
+| 1 | `2800092` | Foundations — `lib/format.ts` (date/dasha/coords formatters), shared `<Loader> <EmptyState> <PrimaryAction> <SubTabBar>` primitives, reconciled Panchang to `useLiveLocation` |
+| 2 | `36e005a` | Critical KP correctness — RP KSK strength order + extended 5+2 in Houses → Ruling, HousePanel 4-level significators (L1+L3 surfaced from backend), birth-panchang label honesty |
+| 3 | `ec96369` | Slim header (~64px) + per-tab chart-context strip + sticky Today strip + sidebar trim (removed duplicate person + panchang widget) |
+| 4 | `b4d8e73` | Per-tab polish — place picker dedup, Panchang era-strip + choghadiya legend, Muhurtha jargon tooltips + dedupe Ask, Match disabled-CTA hint, Horary slider midpoint init |
+| 5+6 | `6507096` | i18n holes in pure TEL mode (Workspace/Charts/Active/Switch/Back-to-landing/Analysis topics carve-out) + active-tab gold-fill pill |
+| 7 | `5e8d724` | Cleanup — place dedup tighten (display-only), Dasha date format completion, HH:MM:SS strip across panchang/muhurtha/HousePanel, choghadiya legend |
+| 8 | `066e9bf` | Interactivity — Today strip pills clickable into Panchang, chart-context chip tooltips, global keyboard shortcuts (1-8 tabs, ?, Esc) |
+| 9 | `021eee2` | Visual wow — constellation backdrop (CSS radial-gradients, <4% opacity), first-chart reveal (1.7s gold bloom + serif title) |
+| 10 | `3d3eb22` | Panchang correctness — TodayStrip uses live location not BIRTH (was silently wrong Hora/Rahu Kalam for any user not at birth city); honest LIVE-{city} vs snapshot-birth indicator |
+| 11+12 | `6e3266e` | Analysis UX overhaul — sticky topic strip, Stop/Regenerate buttons, per-bubble timestamps, AI bubble width capped 78ch, right-rail TOC with smooth-scroll anchors, Finance + Legal added (10 topics matching Horary canon), Clear-confirm |
+| 13 | `1ddeb33` then partial revert `125c9c4` | Cost reduction — quickInsights auto-fire REMOVED (~40% saving). Two reverts: 30d cache + dropped `today_ist` (staleness unacceptable), 24h Anthropic prompt cache (broke streaming — beta header missing) |
+| 14 | `3f78d52` + 3 hotfixes | Astrologer-grade PDF — `pdf_engine_v2.py` replaces 3-page tables-only v1 with 30-50 page deterministic KP report. 14 sections, zero LLM cost |
+| 13.1 | (this commit) | Hard-disable `/quick-insights` endpoint with HTTP 410 — defence so stale Vercel CDN bundle can't bill anything |
+
+### Cost diagnosis (Anthropic dashboard)
+
+May 2026 was burning ~$5/day in Sonnet. Smoking gun: `useEffect` on Analysis tab open auto-fired `loadQuickInsights()` requesting snippets across all 8 topics in one Sonnet call. Most users immediately clicked a specific topic and never read previews. Killing the auto-fire cuts daily burn ~40%.
+
+Opt-in restoration is one-line: delete the `raise HTTPException(410)` in the endpoint body.
+
+### Reverts of note
+
+- `125c9c4` undid PR 32 (30-day cache + dropped `today_ist`). Staleness on age, today-RPs, dasha references unacceptable for an astrologer-grade product.
+- `1fe7c5c` undid PR 33 (Anthropic 24h prompt cache TTL). 24h still needs the `extended-cache-ttl-2025-04-11` beta header which earlier PR A1.3-fix-22 removed thinking 1h was GA. 1h is GA, 24h is not. Re-bumping needs the header re-attached + smoke test.
+
+### What still works post-revert
+
+- ~40% Sonnet saving from killing quickInsights auto-fire
+- 24h same-day cache hits via `answer_cache` (unchanged)
+- 1h Anthropic prompt cache (unchanged, GA)
+- All 14 polish phases on develop
+
+### Decisions made today
+
+- **Astrologer-mode PDF excludes AI output.** Astrologer brings the narrative; PDF is the data layer (radiologist + MRI model). Same v2 PDF for consumer + astrologer (cover branding can differentiate later). NO Parashari doshas (Sade Sati / Kuja / Kaal Sarpa) — KP weights them differently and no strict-KP KB exists for them.
+- **24h cache TTL deferred.** Needs the beta header and a proper smoke test.
+- **Phase 14 / PR B (astrologer brand customisation) deferred.** Logo + name + contact line on cover/footer. Settings UI required first.
+
+### Notes for future Claude (high-leverage gotchas)
+
+- **Don't bump Anthropic `cache_control.ttl` past `1h` without re-adding the `extended-cache-ttl-2025-04-11` beta header** to every `client.messages.create()` AND `async_client.messages.stream()` call. The 24h TTL silently fails at request-build time with `Could not resolve authentication method` (misleading SDK error message — root cause is the missing beta header).
+- **`csl_chains` is keyed by INTEGER house numbers** (1..12), not "H1"-style strings. After JSON round-trip via FastAPI request parsing, dict keys become string-of-int. Use a tolerance helper (see `_to_int_key` in `pdf_engine_v2.py`) to handle both shapes.
+- **`csl_chains` per-entry field names** (from `services/csl_chains.py`): `csl, csl_house, csl_rules, csl_star_lord, csl_star_lord_house, csl_star_lord_rules, csl_sub_lord, csl_sub_lord_house, csl_sub_lord_rules, all_significations, chain_text`. NOT `sub_lord/star_lord/sign_lord/full_chain_houses`.
+- **`tara_chakra` real shape** is `{natal_moon_sign, chakra: {janma_nakshatra, janma_nakshatra_te, nakshatras: [27 entries]}, pariharam: {tara_name → remedy}}`. Each nakshatra entry has `name, name_te, index, position_from_janma, cycle, tara_name, tara_index, nature, effect, is_janma`.
+- **Helvetica (ReportLab default font) cannot reliably render** Telugu Unicode (`లగ్నం` → `sssss`), `✓ ★ ⚠ ℞`. Use plain text replacements until Noto Sans Telugu is registered. Affects PDF rendering only.
+- **`workspace.dashas`** (not `mahadashas` / `vimshottari_mahadasha_tree`) is the full 9-MD list. `is_current` field is `None` on every entry — compute currency by matching `lord+start` against `workspace.mahadasha`.
+- **`workspace.place` is NOT echoed by `/astrologer/workspace`.** Frontend PDF call now injects `place: birthDetails.place` before posting to `/pdf/export`.
+- **`workspace.panchangam_birth` field shape**: has `karana` and `hora_lord` (NOT `_en` suffixes), no `nakshatra_pada`. The `_en`-suffixed fields exist for `vara, tithi, nakshatra, yoga` only.
+- **`/quick-insights` endpoint is hard-disabled** (Phase 13.1). Returns HTTP 410. To re-enable: delete the `raise HTTPException(410, ...)` line. Original body preserved verbatim below the raise.
+- **PDF `pdf_engine_v2.py` has 14 sections.** Old `pdf_engine.py` (3 pages) untouched — easy fallback if v2 misbehaves.
+- **TodayStrip uses `useLiveLocation`** for the LIVE indicator. When geo resolves, fetches `/panchangam/location` for current lat/lon and replaces the snapshot. Indicator shows `LIVE · {city}` (green) vs `snapshot · birth loc` (gold dim).
+- **Active tab pill** is gold-tinted background + 2px gold underline. Hover tints inactive tabs gold-faint.
+- **Analysis tab right-rail TOC** appears when `analysisMessages.length >= 2`. Each AI bubble carries `id="analysis-msg-{id}"` for smooth-scroll targets. Hidden below 1100px viewports via `.kp-hide-below-1100`.
+- **Phase 9 keyframes** (`kp-spin`, `kp-pa-btn`, constellation specks, `kp-reveal-*`) live in `frontend/app/globals.css` so components stay SSR-clean (no styled-jsx).
+- **Phase 11 message type** added optional `t: number` field for timestamp. Old messages without it skip the timestamp row gracefully.

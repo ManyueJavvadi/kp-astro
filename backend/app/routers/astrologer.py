@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from datetime import datetime, timedelta
@@ -720,10 +720,35 @@ class QuickInsightsRequest(BaseModel):
 @router.post("/quick-insights")
 def quick_insights(request: QuickInsightsRequest):
     """
-    Generate 3-4 bullet-point chart-specific observations for each requested topic.
-    Faster than /analyze — uses a focused prompt with max 1500 tokens per topic.
-    Returns a dict keyed by topic name with bullet-point insight strings.
+    Phase 13.1 — endpoint hard-disabled.
+
+    Original purpose: generate 3-4 bullet-point chart-specific observations
+    for each requested topic. Auto-fired by the Analysis tab on every open
+    and was the single biggest preventable cost (~$0.30 per visit at
+    Sonnet rates × N opens per session).
+
+    Phase 13 / PR 31 removed the frontend auto-fire. We're now hard-killing
+    the endpoint itself as defence-in-depth so:
+      • a stale Vercel CDN bundle still serving the old `loadQuickInsights`
+        code can't bill anything (returns 410 immediately, no LLM call)
+      • a future caller who imports this endpoint by mistake gets a clear
+        404-class signal instead of silently spending credits.
+
+    To re-enable later (opt-in surface), restore the body and bump the
+    return to a 200 with the data dict.
     """
+    raise HTTPException(
+        status_code=410,
+        detail=(
+            "quick-insights endpoint disabled (Phase 13.1) — was auto-firing "
+            "Sonnet calls on every Analysis tab open. Use the explicit topic "
+            "click flow (POST /astrologer/analyze-stream) instead."
+        ),
+    )
+
+    # Unreachable — kept below as a reference for the future opt-in
+    # restoration. The full body is preserved verbatim so re-enabling is
+    # a single-line change (delete the raise above + the early return).
     chart = generate_chart(
         request.date, request.time,
         request.latitude, request.longitude,

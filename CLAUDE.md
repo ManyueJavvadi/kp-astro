@@ -292,3 +292,112 @@ npx next build         # must succeed, prerenders /, /app
 ```
 
 Never push a PR without both passing. No tests yet (Track B adds Vitest).
+
+---
+
+## Phase 14 — Astrologer-grade PDF report (`pdf_engine_v2.py`)
+
+Shipped 2026-05-07 on `claude/eager-elbakyan`. A 14-section deterministic
+KP report at `backend/app/services/pdf_engine_v2.py` (~1071 lines).
+
+**Cost: $0.** PDF is the **data layer** (chart, panchang, RPs, sigs, MD
+tree, Tara Chakra, vargottama, borderline CSL, glossary). The astrologer
+brings the narrative — exactly like a radiologist reads an MRI. No AI
+output is ever embedded in the PDF, even in user mode (same v2 engine
+serves all modes per user decision 2026-05-07).
+
+**Excluded by design** (no strict-KP knowledge base for these — would
+output wrong claims):
+- Sade Sati, Kuja Dosha, Kaal Sarpa, other Parashari doshas
+- Predictive narrative ("you will marry by 2027")
+- Any AI-generated paragraphs
+
+**Frontend contract** — the PDF export call MUST inject `place` into the
+workspace payload (frontend reads `birthDetails.place` and adds it):
+```ts
+body: JSON.stringify({ ...workspaceData, place: birthDetails.place })
+```
+Without this the cover/birth-details section renders "—" for place.
+
+### Workspace data shapes (gotchas)
+
+These tripped Phase 14 three times — document them so future Claude
+doesn't re-discover:
+
+- **`workspace.dashas`** — full 9-MD list (NOT `current_dasha` alone).
+  Read this for the MD tree section.
+- **`workspace.csl_chains`** — keyed by **integer** `1..12` (NOT `"H1"`
+  strings). Use a `_to_int_key()` tolerance helper. Field names are:
+  `csl`, `csl_house`, `csl_rules`, `csl_star_lord`, `csl_star_lord_house`,
+  `csl_star_lord_rules`, `csl_sub_lord`, `csl_sub_lord_house`,
+  `all_significations`. NOT `sub_lord`/`star_lord`/etc.
+- **`workspace.tara_chakra`** — a **dict** with `chakra.nakshatras` (a
+  list of 27). Each nakshatra item has fields: `name`, `tara_name`,
+  `nature`, `is_janma`. Iterating `tara_chakra` directly (as if it were
+  a list) → `AttributeError`.
+
+### ReportLab + Helvetica gotchas
+
+- Helvetica **cannot** render Telugu glyphs — they show as "sssss".
+  Render English topic labels in PDF; if Telugu is ever needed, register
+  a Noto Sans Telugu TTF first.
+- Helvetica **cannot** render unicode marks (✓ ★ ⚠ ℞). Replace with
+  ASCII: "Yes" / "(janma)" / "!" / "R".
+
+---
+
+## Anthropic prompt cache TTL gotcha (Phase 13.1)
+
+The default `cache_control: ephemeral` TTL is **5 minutes**. To use `1h`
+the SDK accepts `{"type":"ephemeral","ttl":"1h"}` with no extra header.
+
+To use **`24h`** you MUST send the beta header
+`extended-cache-ttl-2025-04-11` on the request. Without it the SDK
+returns a misleading error: `"Could not resolve authentication method"`
+(it isn't auth — it's the missing beta flag).
+
+PR 33 bumped all 6 `cache_control` sites to `"24h"` without the header
+and broke `/astrologer/analyze-stream` (SSE failed at first chunk).
+Reverted to `"1h"` in commit `1fe7c5c`. **Do not bump past 1h** until
+the beta header is plumbed into `services/llm_service.py` (`anthropic.AsyncAnthropic`
+client construction).
+
+24h re-enable is on the Hot backlog — see `.claude/BACKLOG.md`.
+
+---
+
+## `/quick-insights` endpoint — HARD-DISABLED (Phase 13.1)
+
+`POST /astrologer/quick-insights` raises **HTTP 410 Gone** at the top of
+the function body. Defense-in-depth: even if a stale Vercel CDN bundle
+still calls `loadQuickInsights()` (the frontend code was removed in
+Phase 13), the backend refuses to bill. Original body kept verbatim
+below the `raise` for easy re-enable behind a flag later.
+
+Original sin: a `useEffect` fired `loadQuickInsights()` every time the
+user opened the Analysis tab — burned Sonnet calls without the user
+clicking anything. Visible on the Anthropic dashboard as ~$5/day.
+
+**Do not re-enable** without:
+1. Explicit user opt-in toggle ("Show quick insights on tab open?")
+2. Per-chart cache hit logged to console (so user can see it's free)
+3. Frontend rate limit (no fire on rapid tab toggles)
+
+---
+
+## Phases 1-14 polish arc (2026-05-07)
+
+| Phase | Scope |
+|---|---|
+| 1-2 | Place picker UX, masked input separators, mobile shell tweaks |
+| 3-4 | Chart tab content density, Panchang KP variant labels |
+| 5-6 | Dasha tree polish, Match grid synced houses |
+| 7 | Place picker dedup tightened to display-only (lat/lon collision OK) |
+| 8-12 | Transit / Muhurtha / Horary verdict polish, RP card chrome, mobile pass |
+| 13 | Cost fix arc — removed quick-insights auto-fire from frontend |
+| 13.1 | Hard-disabled backend `/quick-insights` (HTTP 410) |
+| 14 | PDF v2 engine (14 sections, $0, no AI, no Parashari doshas) |
+
+PR 32 (30-day cache + dropped `today_ist`) was reverted — staleness
+trade-off rejected by user. `answer_cache._TTL_SECONDS = 24 * 60 * 60`
+and `make_key()` includes `_today_ist()` in current state.

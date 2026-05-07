@@ -342,3 +342,37 @@ User says *"we are done for the day"* → Claude appends an entry to `.claude/DA
 - Next session's top-3 priorities.
 
 **Start of next session**: read `BACKLOG.md` + tail last 60 lines of `DAILY_LOG.md` before replying to the user's first message.
+
+---
+
+## 2026-05-07 backlog additions (post Phases 1-14 polish arc)
+
+### Hot — small wins waiting for a free slot
+
+| Item | Effort | Why |
+|---|---|---|
+| Re-enable Anthropic 24h prompt-cache TTL with `extended-cache-ttl-2025-04-11` beta header | 30 min | ~15% additional Sonnet saving on top of the 40% from killing quickInsights. Single-line change to `client.messages.create()` and `async_client.messages.stream()` calls + smoke test against production before redeploy. |
+| Frontend rate-limit on Analysis tab — block re-firing the same topic within 5 sec | 20 min | Prevents accidental double-clicks from billing twice. Already have `analysisLoading` flag, just need a `lastFireMs` map keyed by topic. |
+| Per-call cache-hit logger | 1 hr | Anthropic returns `cache_read_input_tokens` / `cache_creation_input_tokens` per response. Log them per call so we can see real cache hit rates instead of guessing. Helps decide if 24h TTL re-bump is worth it. |
+| Astrologer settings UI (logo + name + contact line for PDF cover/footer) | 2-3 hr | Phase 14 PR B. Stored in localStorage, embedded into PDF. Differentiates astrologer mode without backend changes. |
+| Yogini Dasha tree section in PDF | 1 hr | `kp_yogini_dasha` module exists but data isn't in workspace payload yet. Plumb it through, then add ~2 pages to `pdf_engine_v2.py`. |
+| North + East Indian chart variants in PDF | 3-4 hr | South Indian only today. Diamond/circular layouts need fresh ReportLab rendering. |
+| Register Noto Sans Telugu font for ReportLab | 2 hr | Currently Telugu glyphs fall back to "sssss" garbage. Drop the English-only fallback in significator headers + cusps section once font registered. |
+| Phase 11 deferred Analysis items (#A11 granular loading, #A13 PDF per answer, #A18 conversation export) | 2-4 hr each | Each is its own feature. Ship one at a time when user signals priority. |
+
+### Cold — feature work, queue when business demands
+
+| Item | Why deferred |
+|---|---|
+| Per-house "promised yes/no" badge on Houses Overview | Need to define a stable rule (chain reads `signified` from CSL) — small engine spec, then UI |
+| Compare two charts inline split-view | Feature work, not polish |
+| PDF preview-before-download modal with layout choices | Needs PDF redesign + 2-3 layouts |
+| Sidebar transit heat-map across saved charts | Needs daily transit calc per saved chart, batched server-side |
+| Atimitra-style daily cards on Dasha + Match tabs | Feature work — copy the Houses tab Tara Bala pattern |
+| Cmd-K command palette | Power-user feature — not needed until v1.5+ |
+| Live RP recompute toggle in header | Small but UI-real-estate-tight |
+
+### Don't re-implement
+
+- **30-day same-chart cache + dropping `today_ist` from cache key.** Tried in Phase 13 PR 32, reverted. Staleness on age, today's RPs, dasha references is unacceptable for an astrologer-grade product. The 24h calendar-day cache is the correct trade-off.
+- **Quick-insights auto-fire on Analysis tab open.** Killed in Phase 13 PR 31, hard-disabled at backend in Phase 13.1. ~40% Sonnet saving was the win. Opt-in surface (button → fire on demand) is OK to add later if user signals demand.
