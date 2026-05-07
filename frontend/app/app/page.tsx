@@ -324,20 +324,42 @@ export default function Home() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  // Phase 4 / PR 8 — dedupe Nominatim suggestions.
+  // Stress-test finding #1: typing "Tenali" returned two identical
+  // "Tenali · Andhra Pradesh · India" rows in every place picker
+  // (onboarding, new chart, panchang city selector, match partner,
+  // muhurtha event location). Cause: OSM has multiple relation IDs for
+  // the same place (town + municipality + railway station) which all
+  // collapse to the same `parts.join(", ")` display string. Dedupe by
+  // (display, lat-rounded-4dp, lon-rounded-4dp) — keeps "Springfield IL"
+  // distinct from "Springfield MA" while collapsing the duplicates.
+  const dedupePlaces = useCallback((rows: PlaceSuggestion[]): PlaceSuggestion[] => {
+    const seen = new Set<string>();
+    const out: PlaceSuggestion[] = [];
+    for (const r of rows) {
+      const key = `${r.display}|${r.lat.toFixed(4)}|${r.lon.toFixed(4)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(r);
+    }
+    return out;
+  }, []);
+
   const searchPlaces = useCallback(async (query: string) => {
     if (query.length < 3) { setSuggestions([]); setShowSuggestions(false); return; }
     setPlaceStatus("loading");
     try {
       const res = await axios.get("https://nominatim.openstreetmap.org/search", { params: { q: query, format: "json", limit: 5, addressdetails: 1, "accept-language": "en" }, headers: { "User-Agent": "DevAstroAI/1.0" } });
       const features = res.data;
-      const results: PlaceSuggestion[] = features.map((f: any) => {
+      const mapped: PlaceSuggestion[] = features.map((f: any) => {
         const addr = f.address || {};
         const parts = [addr.suburb || addr.city_district || addr.city || addr.town || addr.village || addr.county || f.display_name.split(",")[0], addr.state, addr.country].filter(Boolean);
         return { name: parts[0] || query, display: parts.join(", "), lat: parseFloat(f.lat), lon: parseFloat(f.lon) };
       });
+      const results = dedupePlaces(mapped);
       setSuggestions(results); setShowSuggestions(results.length > 0); setPlaceStatus(results.length > 0 ? "idle" : "error");
     } catch { setPlaceStatus("error"); }
-  }, []);
+  }, [dedupePlaces]);
 
   // Panchangam city search (reuses Nominatim pattern)
   const searchPcCities = useCallback(async (query: string) => {
@@ -348,14 +370,15 @@ export default function Home() {
         params: { q: query, format: "json", limit: 5, addressdetails: 1, "accept-language": "en" },
         headers: { "User-Agent": "DevAstroAI/1.0" }
       });
-      setPcCitySuggestions(res.data.map((f: any) => {
+      const mapped: PlaceSuggestion[] = res.data.map((f: any) => {
         const addr = f.address || {};
         const parts = [addr.suburb || addr.city_district || addr.city || addr.town || addr.village || addr.county || f.display_name.split(",")[0], addr.state, addr.country].filter(Boolean);
         return { name: parts[0] || query, display: parts.join(", "), lat: parseFloat(f.lat), lon: parseFloat(f.lon) };
-      }));
+      });
+      setPcCitySuggestions(dedupePlaces(mapped));
     } catch { /* silent */ }
     setPcCitySearching(false);
-  }, []);
+  }, [dedupePlaces]);
 
   const handlePlaceChange = (val: string) => {
     setBirthDetails(prev => ({ ...prev, place: val, latitude: null, longitude: null }));
@@ -390,12 +413,12 @@ export default function Home() {
       try {
         const res = await axios.get("https://nominatim.openstreetmap.org/search", { params: { q: val, format: "json", limit: 5, addressdetails: 1, "accept-language": "en" }, headers: { "User-Agent": "DevAstroAI/1.0" } });
         const features = res.data;
-        const results: PlaceSuggestion[] = features.map((f: any) => {
+        const mapped: PlaceSuggestion[] = features.map((f: any) => {
           const addr = f.address || {};
           const parts = [addr.suburb || addr.city_district || addr.city || addr.town || addr.village || addr.county || f.display_name.split(",")[0], addr.state, addr.country].filter(Boolean);
           return { name: parts[0] || val, display: parts.join(", "), lat: parseFloat(f.lat), lon: parseFloat(f.lon) };
         });
-        setMNewPPlaceSugg(results); setMNewPPlaceStatus("done");
+        setMNewPPlaceSugg(dedupePlaces(mapped)); setMNewPPlaceStatus("done");
       } catch { setMNewPPlaceStatus("idle"); }
     }, 400);
   };
@@ -409,12 +432,12 @@ export default function Home() {
       setMEventLocSearching(true);
       try {
         const res = await axios.get("https://nominatim.openstreetmap.org/search", { params: { q: val, format: "json", limit: 5, addressdetails: 1, "accept-language": "en" }, headers: { "User-Agent": "DevAstroAI/1.0" } });
-        const results: PlaceSuggestion[] = res.data.map((f: any) => {
+        const mapped: PlaceSuggestion[] = res.data.map((f: any) => {
           const addr = f.address || {};
           const parts = [addr.suburb || addr.city_district || addr.city || addr.town || addr.village || addr.county || f.display_name.split(",")[0], addr.state, addr.country].filter(Boolean);
           return { name: parts[0] || val, display: parts.join(", "), lat: parseFloat(f.lat), lon: parseFloat(f.lon) };
         });
-        setMEventLocSugg(results);
+        setMEventLocSugg(dedupePlaces(mapped));
       } catch {} finally { setMEventLocSearching(false); }
     }, 400);
   };
@@ -3673,52 +3696,48 @@ export default function Home() {
                         )}
                       </div>
 
-                      {/* ── 3. Identity grid: Samvatsara / Ayana / Rutu / Masa ── */}
-                      <div className="pc2-identity-grid">
+                      {/* ── 3. Era info strip: Samvatsara · Ayana · Rutu · Masa · Shaka · Vikram ──
+                          Phase 4 / PR 9 — stress-test "card abuse" (C):
+                          previously these 6 facts each got their own card,
+                          eating two rows of vertical space for one line of
+                          info each. Now rendered as a single horizontal
+                          info strip with hover tooltips for the meanings.
+                          One line on desktop, wraps gracefully on mobile. */}
+                      <div
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          alignItems: "center",
+                          gap: 14,
+                          padding: "10px 14px",
+                          marginTop: 8,
+                          background: "rgba(201,169,110,0.04)",
+                          border: "0.5px solid rgba(201,169,110,0.15)",
+                          borderRadius: 10,
+                          fontSize: 12,
+                        }}
+                      >
                         {(() => {
                           const ayanaEn = pcData.ayana_te ? (AYANA_EN[pcData.ayana_te] ?? pcData.ayana_te) : "";
                           const rutuEn  = pcData.rutu_te  ? (RUTU_EN[pcData.rutu_te]   ?? pcData.rutu_te)  : "";
                           const items = [
-                            {
-                              label: "Samvatsara",
-                              // Backend only emits the Telugu name; SAMVATSARA_EN maps
-                              // to the Sanskrit transliteration ("Vijaya", "Jaya", …).
-                              value: samvatsaraValue(pcData.samvatsara_te),
-                              sub:   lang === "en" ? "60-year cycle" : "60 సంవత్సరాల చక్రం",
-                            },
-                            {
-                              label: "Ayana",
-                              value: lang === "en" ? ayanaEn : (pcData.ayana_te ?? ayanaEn),
-                              sub:   lang === "en" ? "Solar direction" : "సూర్య ప్రయాణం",
-                            },
-                            {
-                              label: "Rutu",
-                              value: lang === "en" ? rutuEn : (pcData.rutu_te ?? rutuEn),
-                              sub:   lang === "en" ? "Season" : "ఋతువు",
-                            },
-                            {
-                              label: "Masa",
-                              value: lang === "en" ? (pcData.masa_en ?? pcData.masa_te ?? "") : (pcData.masa_te ?? pcData.masa_en ?? ""),
-                              sub:   lang === "en" ? "Lunar month" : "చాంద్ర మాసం",
-                            },
-                            // PR A1.2c — Shaka year + Vikram Samvat era markers.
-                            {
-                              label: "Shaka",
-                              value: pcData.shaka_year ? String(pcData.shaka_year) : "",
-                              sub:   lang === "en" ? "Shaka era" : "శక సంవత్సరం",
-                            },
-                            {
-                              label: "Vikram",
-                              value: pcData.vikram_samvat ? String(pcData.vikram_samvat) : "",
-                              sub:   lang === "en" ? "Vikram Samvat" : "విక్రమ సంవత్",
-                            },
+                            { label: "Samvatsara", value: samvatsaraValue(pcData.samvatsara_te), tip: lang === "en" ? "60-year cycle" : "60 సంవత్సరాల చక్రం" },
+                            { label: "Ayana",      value: lang === "en" ? ayanaEn : (pcData.ayana_te ?? ayanaEn), tip: lang === "en" ? "Solar direction" : "సూర్య ప్రయాణం" },
+                            { label: "Rutu",       value: lang === "en" ? rutuEn  : (pcData.rutu_te  ?? rutuEn),  tip: lang === "en" ? "Season" : "ఋతువు" },
+                            { label: "Masa",       value: lang === "en" ? (pcData.masa_en ?? pcData.masa_te ?? "") : (pcData.masa_te ?? pcData.masa_en ?? ""), tip: lang === "en" ? "Lunar month" : "చాంద్ర మాసం" },
+                            { label: "Shaka",      value: pcData.shaka_year ? String(pcData.shaka_year) : "", tip: lang === "en" ? "Shaka era" : "శక సంవత్సరం" },
+                            { label: "Vikram",     value: pcData.vikram_samvat ? String(pcData.vikram_samvat) : "", tip: lang === "en" ? "Vikram Samvat" : "విక్రమ సంవత్" },
                           ].filter(x => x.value);
-                          return items.map(it => (
-                            <div key={it.label} className="pc2-identity-card">
-                              <span className="pc2-identity-card-label">{it.label}</span>
-                              <span className="pc2-identity-card-value">{it.value}</span>
-                              <span className="pc2-identity-card-sub">{it.sub}</span>
-                            </div>
+                          return items.map((it, idx) => (
+                            <React.Fragment key={it.label}>
+                              {idx > 0 && (
+                                <span aria-hidden style={{ width: 3, height: 3, borderRadius: "50%", background: "rgba(201,169,110,0.35)" }} />
+                              )}
+                              <span title={it.tip} style={{ display: "inline-flex", alignItems: "baseline", gap: 5, whiteSpace: "nowrap" }}>
+                                <span style={{ fontSize: 9, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{it.label}</span>
+                                <span style={{ color: "var(--text)", fontWeight: 600 }}>{it.value}</span>
+                              </span>
+                            </React.Fragment>
                           ));
                         })()}
                       </div>
@@ -4076,19 +4095,40 @@ export default function Home() {
                                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                                   {pcData.choghadiya.filter((c: any) => c.is_day === section.isDay).map((c: any, i: number) => {
                                     const qColor = c.quality === "auspicious" ? "#34d399" : c.quality === "inauspicious" ? "#f87171" : "#a78bfa";
+                                    // Phase 4 / PR 9 — accessible legend for the
+                                    // colored dot. Stress-test #11: dots had no
+                                    // visible legend; #10: a malefic-active row
+                                    // turned the whole row red so the dot lost
+                                    // its meaning. Tooltip + always-on quality
+                                    // label fixes both. ACTIVE pill now uses a
+                                    // gold border + gold text so it never
+                                    // collides with the red/green/purple dot.
+                                    const qLabel = c.quality === "auspicious"
+                                      ? t("Auspicious", "శుభ")
+                                      : c.quality === "inauspicious"
+                                        ? t("Inauspicious", "అశుభ")
+                                        : t("Neutral", "తటస్థ");
                                     return (
                                       <div key={i}
                                         className={`pc2-chog-row${c.is_current ? " is-current" : ""}`}
+                                        title={`${c.name} — ${qLabel}${c.is_current ? ` (${t("active now", "ప్రస్తుతం")})` : ""}`}
                                         style={{
                                           background: c.is_current ? `${qColor}14` : "transparent",
                                           borderColor: c.is_current ? `${qColor}55` : "transparent",
                                         }}>
-                                        <span className="pc2-chog-dot" style={{ background: qColor }} />
+                                        <span className="pc2-chog-dot" style={{ background: qColor }} aria-label={qLabel} />
                                         <span className="pc2-chog-name" style={{ color: c.is_current ? qColor : "var(--text)", fontWeight: c.is_current ? 700 : 500 }}>{c.name}</span>
                                         <span className="pc2-chog-time">{c.start}–{c.end}</span>
                                         {c.is_current && (
-                                          <span className="pc2-chog-active-badge" style={{ background: `${qColor}20`, color: qColor, border: `0.5px solid ${qColor}55` }}>
-                                            {t("ACTIVE", "ఇప్పుడు")}
+                                          <span
+                                            className="pc2-chog-active-badge"
+                                            style={{
+                                              background: "rgba(201,169,110,0.18)",
+                                              color: "#c9a96e",
+                                              border: "0.5px solid rgba(201,169,110,0.55)",
+                                            }}
+                                          >
+                                            ◷ {t("ACTIVE", "ఇప్పుడు")}
                                           </span>
                                         )}
                                       </div>
@@ -5223,46 +5263,76 @@ export default function Home() {
                                 )}
                               </div>
                               <div style={{ display: "flex", flexDirection: "column" as const, gap: 6 }}>
-                                {mResults.soft_flagged_windows.slice(0, 25).map((sw: any, i: number) => (
-                                  <div
-                                    key={i}
-                                    style={{
-                                      padding: "8px 10px",
-                                      background: "rgba(0,0,0,0.2)",
-                                      border: "0.5px solid rgba(255,255,255,0.04)",
-                                      borderRadius: 6,
-                                      display: "flex",
-                                      gap: 12,
-                                      alignItems: "flex-start",
-                                    }}
-                                  >
-                                    <div style={{ minWidth: 0, flex: 1 }}>
-                                      <div style={{ fontSize: 12, color: "var(--text)", fontWeight: 500, marginBottom: 2 }}>
-                                        {sw.date_display || sw.date} · {sw.start_time}–{sw.end_time}
-                                      </div>
-                                      <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 4 }}>
-                                        Lagna {sw.lagna} · SL {sw.lagna_sublord} · Score {sw.score}
-                                      </div>
-                                      <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 4 }}>
-                                        {(sw.hard_rejected_for || []).map((r: string, ri: number) => (
+                                {/* Phase 4 / PR 10 — jargon tooltips on hard-filter
+                                    chips (#16) + Score tooltip (#17). The
+                                    reason strings come straight from the engine
+                                    and were opaque to non-power users; the lookup
+                                    below maps the most common patterns to a
+                                    one-line plain-English explanation, with a
+                                    sensible fallback for unknown reasons. */}
+                                {(() => {
+                                  const reasonHelp = (raw: string): string => {
+                                    const s = (raw || "").toLowerCase();
+                                    if (s.includes("badhaka")) return t("The CSL or its star lord coincides with the Badhaka/Maraka house chain — Krishnamurti rejects this for any positive event.", "బాధక/మారక భావంతో అనుసంధానం — KP లో నిషిద్ధం");
+                                    if (s.includes("missing primary")) return t("The Lagna sub-lord does not signify the event's primary house. Without primary signification, no event can occur per KP §1.", "లగ్న ఉపనాథ ముఖ్య భావాన్ని సూచించడం లేదు — KP §1 ప్రకారం కుదరదు");
+                                    if (s.includes("missing h11"))     return t("Lagna sub-lord doesn't signify H11 (gain/fulfillment) — KP requires H11 confirmation for benefic events.", "H11 (లాభ) సూచన లేదు — KP §2 ప్రకారం అవసరం");
+                                    if (s.includes("retrograde"))      return t("A key signifying planet is retrograde — KP downgrades benefic results for the retrograde period.", "ముఖ్య గ్రహం వక్రం — ఫలితాలు తగ్గుతాయి");
+                                    if (s.includes("moon sl"))         return t("Moon's sub-lord opposes the event's KP requirements (moon represents the mind/promise).", "చంద్ర ఉపనాథ అనుకూలంగా లేదు");
+                                    if (s.includes("rahu kalam") || s.includes("yamaganda") || s.includes("gulika")) return t("Falls inside an inauspicious panchang window (Rahu Kalam / Yamaganda / Gulika).", "రాహుకాలం/యమగండం/గులిక లో పడుతుంది");
+                                    return t("KP hard filter — open the rule reference for this event before overriding.", "KP హార్డ్ ఫిల్టర్ — KP నియమావళి సంప్రదించి మాత్రమే ఓవర్‌రైడ్ చేయండి");
+                                  };
+                                  return mResults.soft_flagged_windows.slice(0, 25).map((sw: any, i: number) => (
+                                    <div
+                                      key={i}
+                                      style={{
+                                        padding: "8px 10px",
+                                        background: "rgba(0,0,0,0.2)",
+                                        border: "0.5px solid rgba(255,255,255,0.04)",
+                                        borderRadius: 6,
+                                        display: "flex",
+                                        gap: 12,
+                                        alignItems: "flex-start",
+                                      }}
+                                    >
+                                      <div style={{ minWidth: 0, flex: 1 }}>
+                                        <div style={{ fontSize: 12, color: "var(--text)", fontWeight: 500, marginBottom: 2 }}>
+                                          {sw.date_display || sw.date} · {sw.start_time}–{sw.end_time}
+                                        </div>
+                                        <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 4 }}>
+                                          Lagna {sw.lagna} · SL {sw.lagna_sublord} ·{" "}
                                           <span
-                                            key={ri}
-                                            style={{
-                                              fontSize: 10,
-                                              padding: "2px 8px",
-                                              borderRadius: 4,
-                                              background: "rgba(248,113,113,0.12)",
-                                              color: "#f87171",
-                                              border: "0.5px solid rgba(248,113,113,0.25)",
-                                            }}
+                                            title={t(
+                                              "Score 0–100. 80+ excellent · 60–80 acceptable · <60 typically hard-filtered out (shown here for transparency).",
+                                              "స్కోర్ 0–100. 80+ అత్యుత్తమం · 60–80 ఆమోదయోగ్యం · <60 సాధారణంగా హార్డ్ ఫిల్టర్ చేయబడుతుంది."
+                                            )}
+                                            style={{ borderBottom: "1px dotted var(--muted)", cursor: "help" }}
                                           >
-                                            {r}
+                                            Score {sw.score}
                                           </span>
-                                        ))}
+                                        </div>
+                                        <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 4 }}>
+                                          {(sw.hard_rejected_for || []).map((r: string, ri: number) => (
+                                            <span
+                                              key={ri}
+                                              title={reasonHelp(r)}
+                                              style={{
+                                                fontSize: 10,
+                                                padding: "2px 8px",
+                                                borderRadius: 4,
+                                                background: "rgba(248,113,113,0.12)",
+                                                color: "#f87171",
+                                                border: "0.5px solid rgba(248,113,113,0.25)",
+                                                cursor: "help",
+                                              }}
+                                            >
+                                              {r}
+                                            </span>
+                                          ))}
+                                        </div>
                                       </div>
                                     </div>
-                                  </div>
-                                ))}
+                                  ));
+                                })()}
                                 {mResults.soft_flagged_windows.length > 25 && (
                                   <div style={{ fontSize: 10, color: "var(--muted)", textAlign: "center" as const, paddingTop: 4, fontStyle: "italic" as const }}>
                                     +{mResults.soft_flagged_windows.length - 25} {t("more soft-flagged windows not shown", "మరిన్ని సాఫ్ట్-ఫ్లాగ్ చేయబడిన సమయాలు చూపబడలేదు")}
@@ -5677,6 +5747,27 @@ export default function Home() {
                           </>
                         )}
                       </button>
+                      {/* Phase 4 / PR 11 — disabled-CTA hint (#21).
+                          Stress-test: the gold→grey "Compute" button gave
+                          no clue why it was inactive. Now a small caption
+                          underneath spells out exactly which slot is missing,
+                          mirroring the Horary "TYPE A QUESTION FIRST" pattern. */}
+                      {!matchLoading && (!matchPerson1 || !matchResults?.__p2) && (
+                        <div
+                          style={{
+                            fontSize: 11,
+                            color: "var(--muted)",
+                            textAlign: "center",
+                            marginTop: 8,
+                            letterSpacing: "0.04em",
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          {!matchPerson1
+                            ? t("GENERATE A CHART FIRST", "ముందు చార్ట్ సృష్టించండి")
+                            : t("ADD PERSON 2 TO COMPUTE", "వ్యక్తి 2 జోడించండి")}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -6474,7 +6565,12 @@ export default function Home() {
                             >+</button>
                           </div>
 
-                          {/* PR A1.1b — real draggable slider (was decorative). */}
+                          {/* PR A1.1b — real draggable slider (was decorative).
+                              Phase 4 / PR 12 (#23) — when no number is picked
+                              the digit shows "?" but the slider used to park
+                              at 1, which read as "1 selected". Park the thumb
+                              at the midpoint (125) and dim it so the un-set
+                              state is visually consistent with the "?" digit. */}
                           <div className="horary-slider-row">
                             <span className="horary-slider-end">1</span>
                             <input
@@ -6482,10 +6578,11 @@ export default function Home() {
                               min={1}
                               max={249}
                               step={1}
-                              value={typeof horaryNumber === "number" ? horaryNumber : 1}
+                              value={typeof horaryNumber === "number" ? horaryNumber : 125}
                               onChange={e => setHoraryNumber(parseInt(e.target.value, 10))}
                               className="horary-slider"
                               aria-label={t("Prashna number slider", "ప్రశ్న సంఖ్య స్లైడర్")}
+                              style={{ opacity: typeof horaryNumber === "number" ? 1 : 0.45 }}
                             />
                             <span className="horary-slider-end">249</span>
                           </div>
@@ -7323,11 +7420,14 @@ export default function Home() {
             </div>
 
             {/* Chat input (workspace-level — visible on every tab except
-                Horary and Panchang, where it would misleadingly route to
-                Analysis AI which doesn't know about those tabs' data.
+                Horary, Panchang, Muhurtha, where it would either route
+                to Analysis AI which doesn't know about those tabs' data,
+                or duplicate the tab's own dedicated Ask strip.
                 PR A1.1b hid it on Horary, PR A1.2b extends to Panchang.
-                Per-tab Ask AI will replace it in a future PR. */}
-            {activeTab !== "horary" && activeTab !== "panchang" && (
+                Phase 4 / PR 10 (#22) extends to Muhurtha — the AI
+                Muhurtha Analysis card has its own Ask + suggestion
+                chips, so showing this strip below it was strict noise. */}
+            {activeTab !== "horary" && activeTab !== "panchang" && activeTab !== "muhurtha" && (
             <div style={{ borderTop: "0.5px solid var(--border)", padding: "0.75rem 1.25rem", background: "var(--surface)", display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
               <input
                 value={chatQ}

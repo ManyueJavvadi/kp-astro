@@ -76,7 +76,7 @@ export function PlacePicker({
         }
       );
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const items: PlacePick[] = (res.data as any[]).map((f) => {
+      const mapped: PlacePick[] = (res.data as any[]).map((f) => {
         const addr = f.address || {};
         const first =
           addr.suburb ||
@@ -95,6 +95,17 @@ export function PlacePicker({
           lon: parseFloat(f.lon),
         };
       });
+      // Phase 4 / PR 8 — dedupe by (display, lat-4dp, lon-4dp). OSM
+      // returns duplicate relation IDs for the same physical place
+      // (town + municipality + railway station all match "Tenali").
+      const seen = new Set<string>();
+      const items: PlacePick[] = [];
+      for (const p of mapped) {
+        const key = `${p.display}|${p.lat.toFixed(4)}|${p.lon.toFixed(4)}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        items.push(p);
+      }
       setSuggestions(items);
       setOpen(items.length > 0);
       setStatus(items.length > 0 ? "idle" : "none");
