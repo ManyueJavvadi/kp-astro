@@ -1890,61 +1890,49 @@ def get_prediction(chart_data: dict, question: str, history: list = [], mode: st
         messages.append({"role": "user", "content": clean_question})
         messages.append({"role": "assistant", "content": prev.get("answer", "")})
 
-    # PR A1.3-fix-12 — cache breakpoint REORDERING for cross-topic cache hits.
+    # Phase 13.3 — cache breakpoint REORDER (cost bug fix).
     #
-    # Why the previous fix-9 layout failed (dashboard showed 2.4% cache read
-    # ratio + 0.82× write amortization): KB and chart_summary blocks were
-    # placed inside the LATEST user message, AFTER the conversation history.
-    # Anthropic's prompt cache is prefix-based — a cache hit requires the
-    # request prefix UP TO the cache_control marker to match a previously-
-    # cached prefix. Conversation history grows by 2 messages per turn,
-    # which invalidated the prefix every turn. The KB and chart cache
-    # writes were paid for but never amortized (writes = 0.82× reads,
-    # exactly what the dashboard showed).
+    # Background: PR A1.3-fix-12 ordered system blocks
+    #   [system_prompt, chart_summary, universal_kb, topic_kb]
+    # on the assumption that chart_summary is "stable per chart, all
+    # session". That assumption was WRONG.
     #
-    # New layout: stable blocks live in the SYSTEM message (which sits
-    # BEFORE all conversation history). Within the system array, blocks
-    # are ordered MOST-STABLE → MOST-VARIABLE so the prefix stays valid
-    # for as many follow-up questions as possible:
+    # What actually happens: build_full_chart_data() runs datetime.now()
+    # every request to compute current_dasha (which includes Sookshma —
+    # minute-precision). Two questions 60 seconds apart produce DIFFERENT
+    # chart_summary strings. Anthropic's cache is prefix-based, so any
+    # change in block 2 INVALIDATES blocks 3 and 4. Result: the ~51K-token
+    # universal_kb was cache-WRITTEN on EVERY call (cost: ~$0.19 per call
+    # at Sonnet rates of $3.75/M for cache writes). User reported $1.41
+    # per call — that was the smoking gun.
     #
-    #   1. system_prompt (~13K)  — only date varies daily
-    #   2. chart_summary (~30K)  — stable per chart, all session
-    #   3. universal_kb (~22K)   — IDENTICAL across all topics (the key
-    #                              cross-topic-cache win — Q1 job and Q2
-    #                              marriage hit the same universal cache)
-    #   4. topic_kb (~10K)       — varies per topic (only this block re-
-    #                              writes on a topic switch)
+    # Correct order (this fix): MOST-STABLE first, MOST-VOLATILE last.
+    #   1. system_prompt (~3K)   — date in body, stable within a day
+    #   2. universal_kb (~51K)   — IMMUTABLE within a deploy. The whole
+    #                              point of caching this — the giant KB
+    #                              must never re-write between calls.
+    #   3. topic_kb (~10K)       — stable per topic (cache hit on
+    #                              follow-ups within the same topic).
+    #   4. chart_summary (~5K)   — changes per call (Sookshma drift).
+    #                              Now LAST so its invalidation only
+    #                              cascades to itself, not the 51K KB.
     #
-    # Conversation history goes in messages[] AFTER all four cache
-    # breakpoints, so its turn-by-turn growth no longer invalidates them.
+    # TTL: all four blocks at 1h. topic_kb was previously 5m default,
+    # which made cross-topic switches absurdly expensive even when the
+    # topic was revisited 6 minutes later.
     #
-    # Cache TTL strategy (PR A1.3-fix-13 — extended cache TTL):
-    #   1h on: system_prompt, chart_summary, universal_kb
-    #          (these never change within a session; 1h amortizes the
-    #          write penalty across long astrologer consultations and
-    #          across the natural 5-30 minute gaps between client
-    #          questions).
-    #   5m on: topic_kb
-    #          (varies per topic; topic switches happen mid-session, so
-    #          5m's smaller write penalty is the right trade).
+    # Cost math (Sonnet, per call after first):
+    #   BEFORE fix: cache-write 51K kb + 10K topic + 5K chart =
+    #               66K × $3.75/M = $0.247 just for input cache writes
+    #               + $0.05 output = ~$0.30 minimum per call
+    #   AFTER fix:  cache-read 51K kb + 10K topic =
+    #               61K × $0.30/M = $0.018 input read
+    #               + 5K chart cache-write at $3.75/M = $0.019
+    #               + $0.05 output = ~$0.087 per call
+    # Expected ~3.4× cost reduction on call #2 onwards.
     #
-    # Cost math for 1h vs 5m on a stable block:
-    #   - 1h cache write: 2.0× input price (vs 1.25× for 5m)
-    #   - 1h cache read:  0.1× (same as 5m)
-    #   - Break-even: any 2nd use within an hour. Astrologer sessions
-    #     reliably exceed this — typical session is 5-15 questions over
-    #     20-45 min on the same chart.
-    #
-    # PR A1.3-fix-22 — `ttl: "1h"` is GA, no beta header needed.
-    #
-    # Expected impact:
-    #   - Follow-up same-topic: ~67% cost reduction (4/4 blocks hit)
-    #   - Follow-up cross-topic: ~50-65% cost reduction (3/4 blocks hit)
-    #   - First call of session: ~equal to today (cache writes paid)
-    #   - 5-30min gaps between questions: no cache-rewrite tax (was a
-    #     hidden hot loss with 5m TTL — user pauses to think → cache
-    #     expires → next question pays write again)
-    #   - Quality: zero impact (semantically identical request to LLM)
+    # First call of a session is ~equal under both layouts (full cache
+    # write either way). The savings are entirely on follow-ups.
 
     system_blocks = [
         {
@@ -1954,21 +1942,15 @@ def get_prediction(chart_data: dict, question: str, history: list = [], mode: st
         },
         {
             "type": "text",
-            "text": f"---\n\nCHART DATA:\n{chart_summary}",
-            "cache_control": {"type": "ephemeral", "ttl": "1h"},
-        },
-        {
-            "type": "text",
             "text": f"---\n\nKP UNIVERSAL KNOWLEDGE BASE:\n{universal_kb}",
             "cache_control": {"type": "ephemeral", "ttl": "1h"},
         },
     ]
     if topic_kb:
-        # Only emit a 4th block when the topic has specific content. For
-        # "general" topic, topic_kb is empty and we skip — keeps the
-        # cache prefix shorter and avoids a no-op breakpoint.
-        # 5m TTL because topic switches mid-session — smaller write penalty
-        # is the right trade vs the chance of a topic-revisit within 1h.
+        # Topic-specific KB. 1h TTL (was default 5m) — astrologer
+        # sessions return to the same topic across long pauses, and
+        # cross-topic switches are RARE. 5m default was burning cache
+        # writes on every topic revisit > 5 minutes apart.
         system_blocks.append(
             {
                 "type": "text",
@@ -1976,9 +1958,18 @@ def get_prediction(chart_data: dict, question: str, history: list = [], mode: st
                     f"---\n\nKP TOPIC-SPECIFIC KNOWLEDGE "
                     f"({detected_topic.upper()}):\n{topic_kb}"
                 ),
-                "cache_control": {"type": "ephemeral"},
+                "cache_control": {"type": "ephemeral", "ttl": "1h"},
             }
         )
+    # Chart summary LAST — varies per call (Sookshma drift). Its
+    # invalidation no longer cascades into the giant universal_kb cache.
+    system_blocks.append(
+        {
+            "type": "text",
+            "text": f"---\n\nCHART DATA:\n{chart_summary}",
+            "cache_control": {"type": "ephemeral", "ttl": "1h"},
+        }
+    )
 
     # PR A1.3-fix-23 — Format A vs Format B routing for astrologer mode.
     # User mode ignores QUESTION TYPE (always plain narrative), but we
@@ -2161,11 +2152,12 @@ async def get_prediction_stream(
         messages.append({"role": "user", "content": clean_question})
         messages.append({"role": "assistant", "content": clean_answer})
 
-    # System cache blocks (same structure as get_prediction)
+    # Phase 13.3 — cache breakpoint REORDER. See get_prediction() above
+    # for the full rationale (chart_summary changes per call due to
+    # Sookshma drift; placing it before universal_kb invalidated the
+    # 51K-token KB cache on every call). Order: stable → volatile.
     system_blocks = [
         {"type": "text", "text": get_system_prompt(),
-         "cache_control": {"type": "ephemeral", "ttl": "1h"}},
-        {"type": "text", "text": f"---\n\nCHART DATA:\n{chart_summary}",
          "cache_control": {"type": "ephemeral", "ttl": "1h"}},
         {"type": "text", "text": f"---\n\nKP UNIVERSAL KNOWLEDGE BASE:\n{universal_kb}",
          "cache_control": {"type": "ephemeral", "ttl": "1h"}},
@@ -2177,8 +2169,14 @@ async def get_prediction_stream(
                 f"---\n\nKP TOPIC-SPECIFIC KNOWLEDGE "
                 f"({detected_topic.upper()}):\n{topic_kb}"
             ),
-            "cache_control": {"type": "ephemeral"},
+            # 1h TTL (was default 5m) — survives natural session pauses.
+            "cache_control": {"type": "ephemeral", "ttl": "1h"},
         })
+    # Chart summary LAST — varies per call (Sookshma minute-precision).
+    system_blocks.append(
+        {"type": "text", "text": f"---\n\nCHART DATA:\n{chart_summary}",
+         "cache_control": {"type": "ephemeral", "ttl": "1h"}}
+    )
 
     # PR A1.3-fix-23 — Reuse the question_type resolved earlier for the
     # cache key. User mode ignores QUESTION TYPE but it's harmless to
