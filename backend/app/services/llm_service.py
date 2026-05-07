@@ -1856,6 +1856,33 @@ def get_prediction(chart_data: dict, question: str, history: list = [], mode: st
         detected_topic = detect_topic(question)
     chart_data["detected_topic"] = detected_topic
 
+    # Phase 13.5 — TOPIC-SWITCH DETECTION (mirrors get_prediction_stream).
+    # Resolve question_type early so we can decide whether to escalate.
+    # See get_prediction_stream() for the full rationale.
+    resolved_qt = _resolve_question_type(question_type, question, history)
+    _enable_topic_switch_detect = True
+    if (
+        mode == "astrologer"
+        and resolved_qt == "sub_question"
+        and _enable_topic_switch_detect
+        and topic
+    ):
+        detected_from_question = detect_topic(question)
+        if (
+            detected_from_question
+            and detected_from_question != "general"
+            and detected_from_question != detected_topic
+        ):
+            import logging
+            logging.getLogger("anthropic_audit").warning(
+                "[TOPIC_SWITCH] from=%s to=%s -> escalating sub_question "
+                "to full_topic + Sonnet (chat-box question on a NEW topic)",
+                detected_topic, detected_from_question,
+            )
+            detected_topic = detected_from_question
+            chart_data["detected_topic"] = detected_topic
+            resolved_qt = "full_topic"
+
     # PR A1.3-fix-12 — KB split into universal + topic for stable cache prefix.
     # PR A1.3-fix-18 — universal_kb now mode-aware: user mode gets the
     # 4-file lean KB (~22K tokens), astrologer gets full 12-file kit (~40K).
@@ -1971,11 +1998,9 @@ def get_prediction(chart_data: dict, question: str, history: list = [], mode: st
         }
     )
 
-    # PR A1.3-fix-23 — Format A vs Format B routing for astrologer mode.
-    # User mode ignores QUESTION TYPE (always plain narrative), but we
-    # include it unconditionally so future routing additions only need
-    # one site to update.
-    resolved_qt = _resolve_question_type(question_type, question, history)
+    # Phase 13.5 — resolved_qt is now computed early (just after topic
+    # resolution) so the topic-switch detector can escalate it. Don't
+    # overwrite it here.
 
     user_blocks = [
         {
@@ -2086,11 +2111,69 @@ async def get_prediction_stream(
         detected_topic = detect_topic(question)
     chart_data["detected_topic"] = detected_topic
 
-    # ─── Cache check (Phase 2) ───────────────────────────────────────
+    # ─── Question type resolution ────────────────────────────────────
     # PR A1.3-fix-23 — resolve question_type early so we can include it
     # in the cache key. Different formats (A vs B) for the same question
     # must produce different cached entries.
     early_resolved_qt = _resolve_question_type(question_type, question, history)
+
+    # Phase 13.5 — TOPIC-SWITCH DETECTION.
+    #
+    # Why: Phase 13.4 routed astrologer follow-ups (sub_question) to
+    # Haiku for cost. But the routing decision was based on HOW the
+    # user asked (chip click vs chat box typing), not WHAT they asked.
+    # If a user opens the Marriage topic (Sonnet), then in the chat box
+    # types "what about my career?" — that's a NEW life topic which
+    # deserves Sonnet's deep reasoning, not Haiku narration.
+    #
+    # Fix: when frontend says sub_question, run detect_topic on the
+    # actual question text (one cheap Haiku call, ~$0.0005). If the
+    # question is clearly about a DIFFERENT life topic than the one
+    # the user is currently in, escalate to Sonnet + reload topic_kb +
+    # reframe as full_topic so the LLM produces the proper 7-section
+    # analysis instead of a clarification narrative.
+    #
+    # Why we don't switch on every sub_question: the Haiku detect_topic
+    # call would still incur cost on legitimate follow-ups ("explain
+    # Mars more"). We only run it when there's a real risk of a topic
+    # switch — i.e., the frontend hint is sub_question. For full_topic
+    # the topic is already correctly fixed by the chip click.
+    #
+    # Cost: +$0.0005 per sub_question call (Haiku, max_tokens=10).
+    # Quality win: a new-topic question always lands on Sonnet with the
+    # correct topic KB loaded, instead of Haiku narrating the wrong
+    # topic's KB.
+    #
+    # Easy revert: set _enable_topic_switch_detect = False below.
+    _enable_topic_switch_detect = True
+    if (
+        mode == "astrologer"
+        and early_resolved_qt == "sub_question"
+        and _enable_topic_switch_detect
+        and topic  # only detect-vs-passed-topic when frontend gave us one
+    ):
+        detected_from_question = detect_topic(question)
+        # Treat as a real switch only if BOTH topics are concrete
+        # (i.e., not "general") AND they differ. "general" detected from
+        # a vague follow-up like "explain more" must NOT trigger an
+        # escalation.
+        if (
+            detected_from_question
+            and detected_from_question != "general"
+            and detected_from_question != detected_topic
+        ):
+            import logging
+            logging.getLogger("anthropic_audit").warning(
+                "[TOPIC_SWITCH] from=%s to=%s -> escalating sub_question "
+                "to full_topic + Sonnet (chat-box question on a NEW topic)",
+                detected_topic, detected_from_question,
+            )
+            detected_topic = detected_from_question
+            chart_data["detected_topic"] = detected_topic
+            # Reframe as full_topic so the LLM produces a proper
+            # 7-section analysis (not a clarification narrative) AND
+            # the model selector below routes to Sonnet.
+            early_resolved_qt = "full_topic"
 
     cache_key: str | None = None
     if cache_key_input:
