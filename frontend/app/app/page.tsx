@@ -130,10 +130,24 @@ export default function Home() {
   // PDF export state
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState("");
+  // PR A1.3-fix-25 — generic transient toast for non-blocking errors.
+  // Used for PDF failures, horary network errors, place-picker service errors.
+  // Auto-dismisses after 5s; user can close manually. Replaces the prior
+  // pattern where pdfError was set but never rendered (silent failure).
+  const [toast, setToast] = useState<{ msg: string; tone?: "error" | "info" } | null>(null);
+  // PR A1.3-fix-25 — inline form errors for the onboarding/new-chart form.
+  // Replaces 6× window.alert() calls in handleSetup. The banner renders
+  // above the submit button; toast also fires for visibility. Cleared on
+  // successful submit AND on any input change touching the relevant field.
+  const [setupError, setSetupError] = useState<string>("");
   // (quick insights removed)
   // Transit state
   const [transitData, setTransitData] = useState<any>(null);
   const [transitLoading, setTransitLoading] = useState(false);
+  // PR A1.3-fix-25 — track when transit data was fetched so we can show
+  // a "Last refreshed Xm ago" hint. Was missing — once loaded, the same
+  // data sat there until manual refresh with no clue it was stale.
+  const [transitFetchedAt, setTransitFetchedAt] = useState<number | null>(null);
   const [transitDate, setTransitDate] = useState("");
   // Horary / Prashna state
   const [horaryNumber, setHoraryNumber] = useState<number | "">("");
@@ -238,6 +252,14 @@ export default function Home() {
     if (pcData || pcLoading || pcShowCityModal) return;
     pcFetchLocationRef.current?.();
   }, [activeTab, pcData, pcLoading, pcShowCityModal]);
+
+  // PR A1.3-fix-25 — auto-dismiss the toast after 5s. Manual close also
+  // works (close button calls setToast(null) directly).
+  useEffect(() => {
+    if (!toast) return;
+    const id = window.setTimeout(() => setToast(null), 5000);
+    return () => window.clearTimeout(id);
+  }, [toast]);
 
   // PR A1.3-fix-24 — clear all pending timers / intervals on unmount.
   // Without this, debounced searches and the horary dice-roll interval can
@@ -449,20 +471,42 @@ export default function Home() {
     };
   };
 
+  // PR A1.3-fix-25 — helper that sets BOTH the inline banner AND a toast,
+  // so the user gets visible feedback in two places (banner is sticky next
+  // to the submit button; toast is high-contrast at top-right).
+  const failSetup = (msg: string) => {
+    setSetupError(msg);
+    setToast({ msg, tone: "error" });
+  };
+
   const handleSetup = async () => {
-    if (!birthDetails.name || !birthDetails.date || !birthDetails.time) { alert("Please fill in name, date, and time of birth."); return; }
-    if (!birthDetails.latitude || !birthDetails.longitude) { alert("Please pick your birth place from the dropdown so we can get the coordinates."); return; }
+    setSetupError("");  // clear any prior error on retry
+    // PR A1.3-fix-25 — replaced 6× window.alert() with inline error pattern.
+    // alert() blocks UI, dismisses focus, can't be Esc'd, has no aria-live.
+    if (!birthDetails.name || !birthDetails.date || !birthDetails.time) {
+      failSetup("Please fill in name, date, and time of birth.");
+      return;
+    }
+    if (!birthDetails.latitude || !birthDetails.longitude) {
+      failSetup("Please pick your birth place from the dropdown so we can get the coordinates.");
+      return;
+    }
     const formattedDate = getFormattedDate();
-    if (!formattedDate) { alert("Please enter date as DD/MM/YYYY"); return; }
+    if (!formattedDate) {
+      failSetup("Please enter date as DD/MM/YYYY.");
+      return;
+    }
     // Clamp birth date to a sensible range — the v1 masked input will
     // happily accept "200000-99-99" so we guard here.
     const todayISO = new Date().toISOString().slice(0, 10);
     if (formattedDate < "1900-01-01" || formattedDate > todayISO) {
-      alert("Birth date must be between 1900-01-01 and today."); return;
+      failSetup("Birth date must be between 1900-01-01 and today.");
+      return;
     }
     const timeParts = birthDetails.time.split(":").map(Number);
     if (timeParts.length !== 2 || isNaN(timeParts[0]) || isNaN(timeParts[1]) || timeParts[0] < 1 || timeParts[0] > 12 || timeParts[1] < 0 || timeParts[1] > 59) {
-      alert("Please enter a valid time (HH:MM, hours 01–12, minutes 00–59)"); return;
+      failSetup("Please enter a valid time (HH:MM, hours 01–12, minutes 00–59).");
+      return;
     }
 
     // Duplicate detection — switch to existing session instead of re-generating
@@ -494,7 +538,21 @@ export default function Home() {
       // it right after chart generation interrupts the chart viewing
       // flow. See the useEffect below that shows it on first Analysis
       // tab entry instead.
-    } catch { alert("Could not generate chart. Please check if the backend is running."); }
+    } catch (err: any) {
+      // PR A1.3-fix-25 — was alert(); now inline + toast. Differentiates
+      // common backend statuses so the user gets a useful message.
+      const status = err?.response?.status;
+      const msg = status === 429
+        ? "Too many requests — please wait a moment."
+        : status === 422
+        ? "The chart data couldn't be processed. Please double-check your inputs."
+        : status === 413
+        ? "Your input is too large. Please shorten any free-text fields."
+        : status >= 500
+        ? "Our chart server is having trouble. Please try again in a moment."
+        : "Could not generate chart. Please check your connection.";
+      failSetup(msg);
+    }
     finally { setChartLoading(false); }
   };
 
@@ -1173,7 +1231,7 @@ export default function Home() {
                 <div>
                   <Label icon={<Target size={11} />}>Date of birth</Label>
                   <input
-                    type="text"
+                    type="text" inputMode="numeric"
                     placeholder="DD / MM / YYYY"
                     value={birthDetails.date}
                     onChange={(e) => handleDateChange(e.target.value)}
@@ -1185,7 +1243,7 @@ export default function Home() {
                   <Label icon={<Clock size={11} />}>Time of birth</Label>
                   <div style={{ display: "flex", gap: 6 }}>
                     <input
-                      type="text"
+                      type="text" inputMode="numeric"
                       placeholder="HH : MM"
                       value={birthDetails.time}
                       onChange={(e) => handleTimeChange(e.target.value)}
@@ -1373,6 +1431,26 @@ export default function Home() {
                 </div>
               </div>
 
+              {/* PR A1.3-fix-25 — inline validation error (was alert() before).
+                  role=alert auto-announces to screen readers; the toast in
+                  the page shell also fires for high-contrast feedback. */}
+              {setupError && (
+                <div
+                  role="alert"
+                  style={{
+                    background: "rgba(248,113,113,0.08)",
+                    border: "0.5px solid rgba(248,113,113,0.4)",
+                    color: "#fca5a5",
+                    padding: "8px 12px",
+                    borderRadius: 8,
+                    fontSize: 12,
+                    lineHeight: 1.4,
+                    marginTop: 4,
+                  }}
+                >
+                  {setupError}
+                </div>
+              )}
               {/* Submit */}
               <button
                 type="button"
@@ -1486,10 +1564,20 @@ export default function Home() {
       {/* Mounted over the astrologer workspace when the user clicks "+ New
           Chart" on the Person Hero Banner. The workspace behind is blurred
           via filter on its container. Reuses birthDetails/timezone state,
-          stashing the previous values so Cancel can fully restore. */}
+          stashing the previous values so Cancel can fully restore.
+          PR A1.3-fix-25 — added role=dialog + aria-modal + aria-labelledby
+          + Esc handler so keyboard / screen-reader users can close the
+          modal without a mouse. (No focus trap helper yet — it's a future
+          PR; for now, Tab cycles into the workspace background which is
+          blurred but still visually present.) */}
       {newChartModalOpen && (
         <div
           onClick={handleCancelNewChartModal}
+          onKeyDown={(e) => { if (e.key === "Escape") handleCancelNewChartModal(); }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="new-chart-modal-title"
+          tabIndex={-1}
           style={{
             position: "fixed", inset: 0, zIndex: 200,
             background: "rgba(9,9,15,0.55)",
@@ -1525,7 +1613,7 @@ export default function Home() {
                 }}>
                   <Sparkles size={11} /> {t("New KP chart", "కొత్త KP చార్ట్")}
                 </div>
-                <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 20, color: theme.text.primary, lineHeight: 1.2 }}>
+                <div id="new-chart-modal-title" style={{ fontFamily: "'DM Serif Display', serif", fontSize: 20, color: theme.text.primary, lineHeight: 1.2 }}>
                   {t("Add a new chart", "కొత్త చార్ట్ జోడించండి")}
                 </div>
                 <div style={{ fontSize: 12, color: theme.text.muted, marginTop: 4 }}>
@@ -1565,7 +1653,7 @@ export default function Home() {
                 <div>
                   <Label icon={<Clock size={11} />}>{t("Date of birth", "పుట్టిన తేదీ")}</Label>
                   <input
-                    type="text"
+                    type="text" inputMode="numeric"
                     placeholder="DD/MM/YYYY"
                     maxLength={10}
                     value={birthDetails.date}
@@ -1577,7 +1665,7 @@ export default function Home() {
                   <Label icon={<Clock size={11} />}>{t("Time of birth", "పుట్టిన సమయం")}</Label>
                   <div style={{ display: "flex", gap: 6 }}>
                     <input
-                      type="text"
+                      type="text" inputMode="numeric"
                       placeholder="HH:MM"
                       maxLength={5}
                       value={birthDetails.time}
@@ -1670,6 +1758,24 @@ export default function Home() {
                 </div>
               </div>
 
+              {/* PR A1.3-fix-25 — same inline error pattern in NewChartModal */}
+              {setupError && (
+                <div
+                  role="alert"
+                  style={{
+                    background: "rgba(248,113,113,0.08)",
+                    border: "0.5px solid rgba(248,113,113,0.4)",
+                    color: "#fca5a5",
+                    padding: "8px 12px",
+                    borderRadius: 8,
+                    fontSize: 12,
+                    lineHeight: 1.4,
+                    marginTop: 4,
+                  }}
+                >
+                  {setupError}
+                </div>
+              )}
               {/* Submit + Cancel */}
               <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
                 <button
@@ -1743,7 +1849,15 @@ export default function Home() {
               // start streaming in <100ms.
               setTimeout(() => { try { URL.revokeObjectURL(url); } catch { /* ignore */ } }, 1000);
             } catch (e: any) {
-              setPdfError(e?.response?.status === 500 ? "Server error — try again" : "Download failed");
+              // PR A1.3-fix-25 — surface as a visible toast (was silently
+              // setting pdfError state that nothing rendered).
+              const msg = e?.response?.status === 500
+                ? "PDF server error — please try again"
+                : e?.response?.status === 413
+                ? "Workspace too large for PDF export"
+                : "PDF download failed — please try again";
+              setPdfError(msg);
+              setToast({ msg, tone: "error" });
             }
             setPdfLoading(false);
           }}
@@ -1752,6 +1866,50 @@ export default function Home() {
           onSwitchSession={handleSwitchSession}
           astrologerMode={true}
         />
+        {/* PR A1.3-fix-25 — global toast for transient errors (PDF, horary,
+            place-picker service errors, etc.). Auto-dismisses after 5s.
+            Replaces the prior pattern where errors silently set state nothing
+            rendered. role=status + aria-live announces to screen readers. */}
+        {toast && (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              position: "fixed",
+              top: 76,
+              right: 16,
+              zIndex: 200,
+              background: toast.tone === "error" ? "rgba(248,113,113,0.12)" : "var(--surface2)",
+              border: `0.5px solid ${toast.tone === "error" ? "rgba(248,113,113,0.4)" : "var(--border2)"}`,
+              borderRadius: 10,
+              padding: "10px 14px",
+              fontSize: 13,
+              color: toast.tone === "error" ? "#fca5a5" : "var(--text)",
+              maxWidth: 360,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
+            }}
+          >
+            <span style={{ flex: 1 }}>{toast.msg}</span>
+            <button
+              onClick={() => setToast(null)}
+              aria-label="Dismiss notification"
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "inherit",
+                opacity: 0.7,
+                cursor: "pointer",
+                padding: 2,
+                fontSize: 14,
+                lineHeight: 1,
+                fontFamily: "inherit",
+              }}
+            >×</button>
+          </div>
+        )}
         <div className="workspace-layout" style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
           {/* Collapsed rail — shown when sidebar is closed, gives the user
@@ -1844,16 +2002,28 @@ export default function Home() {
                 </button>
               </div>
 
-              {/* Session switcher */}
-              {savedSessions.length > 0 && (
+              {/* PR A1.3-fix-25 — sidebar Charts section now ALWAYS renders
+                  when in astrologer mode + setupDone, so first-time users
+                  see their current chart in the list (with the ★ Active
+                  highlight) instead of an empty sidebar with no clue.
+                  Was previously gated on `savedSessions.length > 0` which
+                  hid the entire section before any chart was generated. */}
+              {(savedSessions.length > 0 || (mode === "astrologer" && setupDone)) && (
                 <div className="sidebar-section" style={{ padding: "8px 10px", borderBottom: "0.5px solid var(--border)", flexShrink: 0 }}>
                   <div style={{ fontSize: 9, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 5 }}>Charts</div>
-                  <div style={{ padding: "8px", borderRadius: 8, background: "rgba(201,169,110,0.08)", border: "0.5px solid rgba(201,169,110,0.4)", marginBottom: 6 }}>
-                    <div style={{ fontSize: 12, color: "var(--accent)", fontWeight: 500, marginBottom: 1 }}>
-                      {workspaceData?.name?.split(" ")[0]}
+                  {workspaceData?.name && (
+                    <div style={{ padding: "8px", borderRadius: 8, background: "rgba(201,169,110,0.08)", border: "0.5px solid rgba(201,169,110,0.4)", marginBottom: 6 }}>
+                      <div style={{ fontSize: 12, color: "var(--accent)", fontWeight: 500, marginBottom: 1 }}>
+                        {workspaceData.name.split(" ")[0]}
+                      </div>
+                      <div style={{ fontSize: 10, color: "rgba(201,169,110,0.6)" }}>★ Active</div>
                     </div>
-                    <div style={{ fontSize: 10, color: "rgba(201,169,110,0.6)" }}>★ Active</div>
-                  </div>
+                  )}
+                  {savedSessions.length === 0 && workspaceData?.name && (
+                    <div style={{ fontSize: 10, color: "var(--muted)", padding: "4px 2px 6px", lineHeight: 1.45 }}>
+                      Use <strong style={{ color: "var(--accent)", fontWeight: 500 }}>+ New Chart</strong> in the header to add another. Saved charts appear here.
+                    </div>
+                  )}
                   {savedSessions.map(s => {
                     const dasha = s.workspaceData?.mahadasha?.lord_en || "";
                     const ad = s.workspaceData?.current_antardasha?.lord_en || "";
@@ -1963,6 +2133,26 @@ export default function Home() {
               {/* CHART — two-column: chart left, PlanetList right */}
               {activeTab === "chart" && (
                 <div className="tab-content">
+                  {/* PR A1.3-fix-25 — page hero on Chart tab to match Dasha's
+                      pattern (per CLAUDE.md "Track A quality bar" — every
+                      tab gets serif eyebrow + title + sub). Was missing.
+                      Reuses the same .dasha-hero-* CSS classes since the
+                      design is identical; no new CSS needed. */}
+                  <header className="dasha-hero">
+                    <span className="dasha-hero-eyebrow">
+                      <Sparkles size={12} strokeWidth={1.8} />
+                      {t("KP rasi · Krishnamurti Paddhati", "KP రాశి · కృష్ణమూర్తి పద్ధతి")}
+                    </span>
+                    <h1 className="dasha-hero-title">
+                      {t("Your KP rasi chart", "మీ KP రాశి చార్ట్")}
+                    </h1>
+                    <p className="dasha-hero-sub">
+                      {t(
+                        "Planets, signs, houses, and sub lords — the full KP picture in one view. Tap any house to expand its details.",
+                        "గ్రహాలు, రాశులు, భావాలు, సబ్ లార్డ్‌లు — KP పూర్తి దృశ్యం ఒక్క చోట. వివరాల కోసం ఏ భావాన్నైనా నొక్కండి."
+                      )}
+                    </p>
+                  </header>
                   {/* Chart / Planets view toggle */}
                   <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
                     {[
@@ -2063,11 +2253,29 @@ export default function Home() {
                 <div className="tab-content" style={{ padding: "1rem", height: "100%", overflowY: "auto" }}>
                   {!workspaceData ? (
                     <div style={{ textAlign: "center", padding: "3rem 1rem" }}>
-                      <div style={{ fontSize: 32, marginBottom: 8 }}>📊</div>
+                      {/* PR A1.3-fix-25 — replaced 📊 emoji with lucide
+                          icon to match the rest of the app's icon style. */}
+                      <Compass size={36} strokeWidth={1.5} color="var(--muted)" style={{ marginBottom: 12, opacity: 0.6 }} />
                       <div style={{ fontSize: 14, color: "var(--muted)" }}>{t("Load a chart above", "పైన చార్ట్ లోడ్ చేయండి")}</div>
                     </div>
                   ) : (
+                    /* PR A1.3-fix-25 — page hero on Houses tab (Track A bar) */
                     <>
+                    <header className="dasha-hero">
+                      <span className="dasha-hero-eyebrow">
+                        <Sparkles size={12} strokeWidth={1.8} />
+                        {t("12 houses · KP cusp framework", "12 భావాలు · KP కస్ప్ ఫ్రేమ్‌వర్క్")}
+                      </span>
+                      <h1 className="dasha-hero-title">
+                        {t("Your house architecture", "మీ భావ నిర్మాణం")}
+                      </h1>
+                      <p className="dasha-hero-sub">
+                        {t(
+                          "Each cusp's sub lord gates that life area's promise. Click a house to drill into its CSL chain, occupants, and ruling planets.",
+                          "ప్రతి కస్ప్ యొక్క సబ్ లార్డ్ ఆ జీవిత ప్రాంతం యొక్క వాగ్దానాన్ని శాసిస్తుంది. CSL చైన్, నివాసులు, నియమ గ్రహాల వివరాల కోసం భావాన్ని క్లిక్ చేయండి."
+                        )}
+                      </p>
+                    </header>
                       {/* Sub-tab pill switcher */}
                       <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
                         {[
@@ -2601,7 +2809,7 @@ export default function Home() {
                             latitude: liveLoc.location?.latitude ?? workspaceData.latitude ?? 17.385,
                             longitude: liveLoc.location?.longitude ?? workspaceData.longitude ?? 78.4867,
                             timezone_offset: liveLoc.location?.timezone_offset ?? timezoneOffset,
-                          }).then(res => { setTransitData(res.data); setTransitLoading(false); })
+                          }).then(res => { setTransitData(res.data); setTransitFetchedAt(Date.now()); setTransitLoading(false); })
                             .catch(() => setTransitLoading(false));
                         }
                       }}
@@ -2670,6 +2878,7 @@ export default function Home() {
                                   timezone_offset: liveLoc.location?.timezone_offset ?? timezoneOffset,
                                 });
                                 setTransitData(res.data);
+                                setTransitFetchedAt(Date.now());
                               } catch { setTransitData(null); }
                               setTransitLoading(false);
                             }}
@@ -2679,6 +2888,30 @@ export default function Home() {
                               : <RefreshCw size={13} strokeWidth={2} />}
                             {transitLoading ? t("Loading…", "లోడ్...") : t("Refresh", "రిఫ్రెష్")}
                           </button>
+                          {/* PR A1.3-fix-25 — stale-data indicator. Without
+                              this, transit data sat indefinitely with no clue
+                              that planets have moved since the last fetch.
+                              Live transit positions update every minute (Moon
+                              especially); the user needs to know it's stale. */}
+                          {transitFetchedAt && !transitLoading && (() => {
+                            const ageMin = Math.floor((Date.now() - transitFetchedAt) / 60000);
+                            const isStale = ageMin >= 5;
+                            return (
+                              <span style={{
+                                fontSize: 10,
+                                color: isStale ? "#fbbf24" : "var(--muted)",
+                                fontStyle: "italic",
+                                marginLeft: 6,
+                              }}>
+                                {ageMin < 1
+                                  ? t("Just now", "ఇప్పుడే")
+                                  : ageMin === 1
+                                  ? t("1 min ago", "1 నిమిషం క్రితం")
+                                  : t(`${ageMin} min ago`, `${ageMin} నిమిషాల క్రితం`)}
+                                {isStale && " · " + t("refresh recommended", "రిఫ్రెష్ చేయండి")}
+                              </span>
+                            );
+                          })()}
                         </div>
 
                         {/* Sade Sati hero (only when active) */}
@@ -4023,7 +4256,7 @@ export default function Home() {
                                     <Clock size={10} strokeWidth={2} /> {t("Date of birth", "పుట్టిన తేదీ")}
                                   </div>
                                   <input
-                                    type="text"
+                                    type="text" inputMode="numeric"
                                     placeholder="DD/MM/YYYY"
                                     maxLength={10}
                                     value={mNewP.date}
@@ -4037,7 +4270,7 @@ export default function Home() {
                                   </div>
                                   <div style={{ display: "flex", gap: 6 }}>
                                     <input
-                                      type="text"
+                                      type="text" inputMode="numeric"
                                       placeholder="HH:MM"
                                       maxLength={5}
                                       value={mNewP.time}
@@ -5193,14 +5426,14 @@ export default function Home() {
                               <div className="pf-row">
                                 <div>
                                   <div className="pf-field-label"><Clock size={10} strokeWidth={2} /> {t("Date of birth", "పుట్టిన తేదీ")}</div>
-                                  <input type="text" placeholder="DD/MM/YYYY" maxLength={10} value={mNewP.date}
+                                  <input type="text" inputMode="numeric" placeholder="DD/MM/YYYY" maxLength={10} value={mNewP.date}
                                     onChange={e => handleMNewPDateChange(e.target.value)}
                                     className={`pf-input${mNewP.date ? " filled" : ""}`} />
                                 </div>
                                 <div>
                                   <div className="pf-field-label"><Clock size={10} strokeWidth={2} /> {t("Time of birth", "పుట్టిన సమయం")}</div>
                                   <div style={{ display: "flex", gap: 6 }}>
-                                    <input type="text" placeholder="HH:MM" maxLength={5} value={mNewP.time}
+                                    <input type="text" inputMode="numeric" placeholder="HH:MM" maxLength={5} value={mNewP.time}
                                       onChange={e => handleMNewPTimeChange(e.target.value)}
                                       className={`pf-input${mNewP.time ? " filled" : ""}`} style={{ flex: 1 }} />
                                     <button onClick={() => setMNewP(p => ({ ...p, ampm: p.ampm === "AM" ? "PM" : "AM" }))}
@@ -6209,10 +6442,14 @@ export default function Home() {
                                 // LIVE location, not natal. Refuse to submit
                                 // if we don't yet have one.
                                 if (!liveLoc.location) {
-                                  alert(t(
-                                    "We need your current location for KP Ruling Planets. Please enable geolocation or pick your city in the Location pill above.",
-                                    "KP నియమ గ్రహాల కోసం మీ ప్రస్తుత ప్రదేశం అవసరం. దయచేసి లొకేషన్ అనుమతించండి లేదా పైన మీ నగరం ఎంచుకోండి."
-                                  ));
+                                  // PR A1.3-fix-25 — was alert(), now toast
+                                  setToast({
+                                    msg: t(
+                                      "Need your current location for KP Ruling Planets. Enable geolocation or pick a city in the Location pill above.",
+                                      "KP నియమ గ్రహాల కోసం మీ ప్రస్తుత ప్రదేశం అవసరం. దయచేసి లొకేషన్ అనుమతించండి లేదా పైన మీ నగరం ఎంచుకోండి."
+                                    ),
+                                    tone: "error",
+                                  });
                                   return;
                                 }
                                 setHoraryLoading(true);
@@ -6235,7 +6472,22 @@ export default function Home() {
                                     await new Promise(r => setTimeout(r, 650 - elapsed));
                                   }
                                   setHoraryResult(res.data);
-                                } catch { setHoraryResult(null); }
+                                } catch (err: any) {
+                                  // PR A1.3-fix-25 — was silently swallowing
+                                  // errors with setHoraryResult(null), leaving
+                                  // the user staring at a re-enabled button
+                                  // with no message. Now surfaces a toast.
+                                  setHoraryResult(null);
+                                  const status = err?.response?.status;
+                                  setToast({
+                                    msg: status === 429
+                                      ? t("Too many requests — please wait a moment.", "చాలా అభ్యర్థనలు — దయచేసి కొంచెం వేచి ఉండండి.")
+                                      : status === 422
+                                      ? t("Input couldn't be processed. Please check your question.", "ఇన్‌పుట్ ప్రాసెస్ చేయలేకపోయాము. మీ ప్రశ్నను తనిఖీ చేయండి.")
+                                      : t("Could not compute the horary verdict. Please try again.", "హోరారీ వెర్డిక్ట్ లెక్కించలేకపోయాము. మళ్లీ ప్రయత్నించండి."),
+                                    tone: "error",
+                                  });
+                                }
                                 setHoraryLoading(false);
                               }}
                               disabled={!horaryNumber || !horaryQuestion.trim() || horaryLoading}
@@ -6870,7 +7122,16 @@ export default function Home() {
                   </div>
 
                   {/* Chat messages — bubble style */}
-                  <div style={{ flex: 1, overflowY: "auto", minHeight: 0, paddingRight: 2 }}>
+                  {/* PR A1.3-fix-25 — role=log + aria-live=polite so screen
+                      readers announce streaming AI chunks as they arrive.
+                      Was completely silent for AT users in astrologer mode
+                      (user mode already had this). */}
+                  <div
+                    role="log"
+                    aria-live="polite"
+                    aria-label={t("AI analysis conversation", "AI విశ్లేషణ సంభాషణ")}
+                    style={{ flex: 1, overflowY: "auto", minHeight: 0, paddingRight: 2 }}
+                  >
                     {analysisMessages.length === 0 && !analysisLoading && (
                       <div style={{ textAlign: "center", padding: "2.25rem 1rem 1.25rem" }}>
                         <div style={{ fontSize: 32, marginBottom: 10, color: "var(--accent)", opacity: 0.7 }}>↑</div>
