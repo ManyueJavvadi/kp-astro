@@ -1965,12 +1965,12 @@ def get_prediction(chart_data: dict, question: str, history: list = [], mode: st
         {
             "type": "text",
             "text": get_system_prompt(),
-            "cache_control": {"type": "ephemeral", "ttl": "1h"},
+            "cache_control": {"type": "ephemeral"},
         },
         {
             "type": "text",
             "text": f"---\n\nKP UNIVERSAL KNOWLEDGE BASE:\n{universal_kb}",
-            "cache_control": {"type": "ephemeral", "ttl": "1h"},
+            "cache_control": {"type": "ephemeral"},
         },
     ]
     if topic_kb:
@@ -1985,16 +1985,17 @@ def get_prediction(chart_data: dict, question: str, history: list = [], mode: st
                     f"---\n\nKP TOPIC-SPECIFIC KNOWLEDGE "
                     f"({detected_topic.upper()}):\n{topic_kb}"
                 ),
-                "cache_control": {"type": "ephemeral", "ttl": "1h"},
+                "cache_control": {"type": "ephemeral"},
             }
         )
-    # Chart summary LAST — varies per call (Sookshma drift). Its
-    # invalidation no longer cascades into the giant universal_kb cache.
+    # Phase 13.6 — chart_summary UNCACHED. Changes per call so cache
+    # READ never hits; cache WRITE just paid the tax. Uncached at $3/M
+    # is cheaper than cache-write at $6/M (1h). See get_prediction_stream
+    # for the full cost comparison.
     system_blocks.append(
         {
             "type": "text",
             "text": f"---\n\nCHART DATA:\n{chart_summary}",
-            "cache_control": {"type": "ephemeral", "ttl": "1h"},
         }
     )
 
@@ -2015,10 +2016,10 @@ Perform complete KP analysis. Format output for {mode.upper()} mode as instructe
     ]
     messages.append({"role": "user", "content": user_blocks})
 
-    # Phase 13.4 — see get_prediction_stream() above for the full
-    # rationale. Same three-way model selection + tightened max_tokens.
+    # Phase 13.6 — see get_prediction_stream() for max_tokens rationale
+    # (Telugu tokenization is 2-3x denser; truncation was abrupt at 2800).
     if mode == "astrologer":
-        max_tokens = 1800 if resolved_qt == "sub_question" else 2800
+        max_tokens = 2400 if resolved_qt == "sub_question" else 4000
     else:
         max_tokens = 1200
 
@@ -2246,9 +2247,9 @@ async def get_prediction_stream(
     # 51K-token KB cache on every call). Order: stable → volatile.
     system_blocks = [
         {"type": "text", "text": get_system_prompt(),
-         "cache_control": {"type": "ephemeral", "ttl": "1h"}},
+         "cache_control": {"type": "ephemeral"}},
         {"type": "text", "text": f"---\n\nKP UNIVERSAL KNOWLEDGE BASE:\n{universal_kb}",
-         "cache_control": {"type": "ephemeral", "ttl": "1h"}},
+         "cache_control": {"type": "ephemeral"}},
     ]
     if topic_kb:
         system_blocks.append({
@@ -2258,12 +2259,40 @@ async def get_prediction_stream(
                 f"({detected_topic.upper()}):\n{topic_kb}"
             ),
             # 1h TTL (was default 5m) — survives natural session pauses.
-            "cache_control": {"type": "ephemeral", "ttl": "1h"},
+            "cache_control": {"type": "ephemeral"},
         })
-    # Chart summary LAST — varies per call (Sookshma minute-precision).
+    # Phase 13.6 — TTL DROPPED from "1h" to default 5m on all blocks.
+    #
+    # Why: Sonnet 1h cache write rate is $6/M, 5m write is $3.75/M
+    # (37% cheaper). Astrologer sessions are typically bursts of 3-6
+    # questions in 5-10 min, so 5m TTL covers the burst pattern with
+    # cache hits. The trade-off (long pause = pay write again) is
+    # mitigated by the answer_cache 24h LRU above this layer — identical
+    # repeat questions return free regardless of prompt-cache state.
+    #
+    # Phase 13.6 — chart_summary NO LONGER CACHED.
+    #
+    # Why: chart_summary is ~9,600 tokens and changes per call (Sookshma
+    # minute-precision, Ruling Planets, age_years etc all recompute).
+    # Cache READ never hits → caching just costs the WRITE every time.
+    # At Sonnet 1h cache write rate ($6/M), that was $0.058 per call
+    # wasted on cache writes that never got read.
+    #
+    # Cost comparison for a 9.6K chart_summary (per call):
+    #   Cached 1h (always-write-never-read): 9600 × $6/M    = $0.058
+    #   Cached 5m (always-write-never-read): 9600 × $3.75/M = $0.036
+    #   UNCACHED plain input:                9600 × $3/M    = $0.029  ← winner
+    #
+    # Saves $0.029 per call vs the cached-5m path, $0.029-0.058 per
+    # call vs cached-1h. Multiplied across an astrologer's session
+    # (1 topic + 5 follow-ups), that's $0.18-0.35 per session.
+    #
+    # Trade-off: cache prefix length is now shorter -- 4-block prefix
+    # (sys + ukb + tkb) instead of 5-block. Same cache hit dynamics on
+    # the KB blocks (which is what matters most -- that's where the 51K
+    # KB tokens live).
     system_blocks.append(
-        {"type": "text", "text": f"---\n\nCHART DATA:\n{chart_summary}",
-         "cache_control": {"type": "ephemeral", "ttl": "1h"}}
+        {"type": "text", "text": f"---\n\nCHART DATA:\n{chart_summary}"}
     )
 
     # PR A1.3-fix-23 — Reuse the question_type resolved earlier for the
@@ -2280,18 +2309,19 @@ Perform complete KP analysis. Format output for {mode.upper()} mode as instructe
     }]
     messages.append({"role": "user", "content": user_blocks})
 
-    # Phase 13.4 — output budget tightened.
-    # Astrologer full_topic (Format A, 7-section worksheet): 3500 -> 2800.
-    #   RULE 32 in the system prompt already targets ~2500 tokens. The
-    #   3500 cap was rarely hit but when it was, it was sprawl. 2800
-    #   gives 300 tokens of headroom over RULE 32's target without the
-    #   runaway-output cost (each 1000 tokens = $0.015 saved per call).
-    # Astrologer sub_question (Format B, 5-section narrative): 1800.
-    #   Format B is clarifications/follow-ups — ~800-1400 tokens
-    #   typical; 1800 is comfortable headroom.
-    # User mode: 1200 (unchanged — Haiku, plain narration).
+    # Phase 13.6 — max_tokens BUMPED back up (user reported abrupt cuts).
+    #   full_topic:    2800 -> 4000
+    #   sub_question:  1800 -> 2400
+    # Why: Telugu tokenization is 2-3x denser than English (each Telugu
+    # character maps to multiple BPE tokens). RULE 32 targets ~2500
+    # English tokens, but rendered in Telugu script that becomes ~5000-
+    # 7500 output tokens. 2800 was truncating Telugu Format A mid-section.
+    # 4000 gives headroom without unbounded sprawl. Cost on Sonnet:
+    # 4000 × $15/M = $0.060 max output (was $0.042 at 2800; +$0.018).
+    # Worth it for completeness — partial answers are useless to an
+    # astrologer.
     if mode == "astrologer":
-        max_tokens = 1800 if early_resolved_qt == "sub_question" else 2800
+        max_tokens = 2400 if early_resolved_qt == "sub_question" else 4000
     else:
         max_tokens = 1200
 

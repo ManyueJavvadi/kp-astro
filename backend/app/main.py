@@ -270,3 +270,34 @@ def health():
         "anthropic_key_set": bool(os.getenv("ANTHROPIC_API_KEY")),
         "version": "0.1.0",
     }
+
+
+# ════════════════════════════════════════════════════════════════
+# /version — Phase 13.6
+# ════════════════════════════════════════════════════════════════
+# Returns the current deployed git commit + a stamp of which cost-control
+# features are active. Hit this from the browser:
+#   https://devastroai.up.railway.app/version
+# to verify the latest cost-fix commits are LIVE on Railway, not just
+# pushed to GitHub. Railway env vars RAILWAY_GIT_COMMIT_SHA +
+# RAILWAY_GIT_BRANCH are auto-injected on every deploy.
+# ════════════════════════════════════════════════════════════════
+@app.get("/version")
+def version():
+    return {
+        "commit": (os.getenv("RAILWAY_GIT_COMMIT_SHA")
+                   or os.getenv("RAILWAY_GIT_COMMIT_MESSAGE")
+                   or "unknown"),
+        "branch": os.getenv("RAILWAY_GIT_BRANCH") or "unknown",
+        "deployed_at": os.getenv("RAILWAY_DEPLOYMENT_DRAINING_SECONDS") or "unknown",
+        # Phase markers — flip these as features ship so we can verify
+        # via /version which cost-fix commits are actually running.
+        "cost_features": {
+            "phase_13_1_quick_insights_410": True,
+            "phase_13_2_anthropic_audit_log": True,
+            "phase_13_3_cache_prefix_reorder": True,
+            "phase_13_4_haiku_followup": True,
+            "phase_13_5_topic_switch_detect": True,
+            "phase_13_6_chart_uncached_max_tokens_4000": True,
+        },
+    }
