@@ -161,7 +161,10 @@ UI_LABELS = {
     "nakshatra": "నక్షత్రం",
     "star_lord": "నక్షత్రాధిపతి",
     "sub_lord": "సబ్ లార్డ్",
-    "sub_sub_lord": "సబ్ సబ్ లార్డ్",
+    # PR A1.3-fix-26 — removed the dead "sub_sub_lord" Telugu key. Khullar's
+    # Sub-Sub-Lord is a post-KSK extension we deliberately don't use (see
+    # ksk_rejections.md item 18). The translation key was orphaned — no
+    # consumer in code referenced it. Removing prevents accidental future use.
     "house": "భావం",
     "mahadasha": "మహాదశ",
     "antardasha": "అంతర్దశ",

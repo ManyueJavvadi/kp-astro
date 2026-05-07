@@ -133,6 +133,17 @@ ADVANCED_FILES = [
     "remedies.md",                # KP parihara — behavioural-first remedies framework
     # PR A1.3-fix-9 — transit interpretation rules (was orphaned 156-line KB never loaded)
     "transit_rules.txt",          # KP transit (Gocharya) interpretation principles
+    # PR A1.3-fix-26 (Part A) — KSK-strict depth additions:
+    #   - kp_multi_cusp_confirmation.md: explicit framework for cross-checking
+    #     primary CSL against supporting cusps (TIER 0/1/2/3 confidence ladder)
+    #   - house_combinations_canonical.md: ~38 distinct event combinations with
+    #     primary/supporting houses (distinguishes promotion vs job loss vs
+    #     retirement, surgery vs disease, court filing vs winning, etc.)
+    #   - kp_ruling_planets_deep.md: consolidated RP methodology — 5+2 RPs,
+    #     strength ladder, fruitful significator overlap, joint period principle
+    "kp_multi_cusp_confirmation.md",
+    "house_combinations_canonical.md",
+    "kp_ruling_planets_deep.md",
 ]
 
 # PR A1.3-fix-18 — User-mode lean KB.

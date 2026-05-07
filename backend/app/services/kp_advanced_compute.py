@@ -1674,12 +1674,18 @@ def compute_supporting_cusp_activations(
             signified.add(planet_positions[star_lord])
         if star_lord:
             signified.update(get_houses_owned_by_planet(star_lord, cusps))
-        # Sub of sub
-        sub_sub = p.get("sub_lord")
-        if sub_sub and sub_sub != sub_lord and sub_sub in planet_positions:
-            signified.add(planet_positions[sub_sub])
-        if sub_sub:
-            signified.update(get_houses_owned_by_planet(sub_sub, cusps))
+        # PR A1.3-fix-26 — Step 3 of KSK 4-step chain (NOT Khullar SSL).
+        # Variable was named `sub_sub` which was confusingly close to
+        # Khullar's "Sub-Sub-Lord" (a coordinate-subdivision technique we
+        # deliberately don't use per ksk_rejections.md item 18). What this
+        # actually computes is KSK's Step 3: the SUB LORD of the CSL planet's
+        # OWN longitude — i.e., walking the planet-relationship dependency
+        # chain. Renamed `csl_planet_sub_lord` for clarity; behavior unchanged.
+        csl_planet_sub_lord = p.get("sub_lord")
+        if csl_planet_sub_lord and csl_planet_sub_lord != sub_lord and csl_planet_sub_lord in planet_positions:
+            signified.add(planet_positions[csl_planet_sub_lord])
+        if csl_planet_sub_lord:
+            signified.update(get_houses_owned_by_planet(csl_planet_sub_lord, cusps))
         # Rahu/Ketu proxy
         if sub_lord in ("Rahu", "Ketu"):
             try:
