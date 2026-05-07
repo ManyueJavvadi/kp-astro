@@ -61,8 +61,18 @@ app = FastAPI(title="KP Astro API", version="0.1.0")
 # CORS — restrict to known origins (was open `*`, allowing any browser
 # on any origin to drive paid Anthropic spend).
 # ════════════════════════════════════════════════════════════════
-# Override via CORS_ALLOWED_ORIGINS env var (comma-separated). Defaults
-# include production + common dev ports.
+# PR A1.3-fix-25b — broadened to fix prod regression where Vercel-hosted
+# frontend couldn't reach the Railway backend. fix-24's tight whitelist
+# missed the actual frontend deployment URL.
+#
+# Configuration precedence:
+#   1. CORS_ALLOWED_ORIGINS env var (comma-separated explicit list) — takes priority
+#   2. CORS_ALLOWED_ORIGIN_REGEX env var (single regex) — for wildcard patterns
+#   3. _default_cors below (sensible production + dev defaults including
+#      *.vercel.app preview URLs and the production Railway origin)
+#
+# To lock down further on Railway, set CORS_ALLOWED_ORIGINS to ONLY your
+# real production frontend URLs.
 _default_cors = ",".join([
     "https://devastroai.up.railway.app",
     "https://devastroai.com",
@@ -72,9 +82,17 @@ _default_cors = ",".join([
     "http://127.0.0.1:3000",
 ])
 _cors_origins = [o.strip() for o in os.getenv("CORS_ALLOWED_ORIGINS", _default_cors).split(",") if o.strip()]
+
+# Default regex matches any *.vercel.app subdomain (covers preview deploys
+# AND production Vercel URLs without us having to enumerate them). Override
+# via CORS_ALLOWED_ORIGIN_REGEX env to restrict further.
+_default_cors_regex = r"https://([a-z0-9-]+\.)*vercel\.app"
+_cors_regex = os.getenv("CORS_ALLOWED_ORIGIN_REGEX", _default_cors_regex)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
+    allow_origin_regex=_cors_regex,
     allow_credentials=False,  # not using cookies; set True only if needed
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
