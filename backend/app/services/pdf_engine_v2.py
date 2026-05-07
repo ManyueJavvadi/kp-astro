@@ -344,14 +344,22 @@ def _birth_details(workspace: dict, s: dict) -> list:
 
     if pan_birth:
         flow.append(Paragraph("Birth Panchang Context", s["h2"]))
+        # Hotfix #3 — real workspace.panchangam_birth shape has
+        # `karana` (not `karana_en`), `hora_lord` (not `hora_lord_en`),
+        # no `nakshatra_pada` field. Drop the unavailable row, use the
+        # actual field names with sane fallbacks.
+        nak_pada_val = pan_birth.get("nakshatra_pada")
         pan_rows = [
             ["Vara (weekday)", pan_birth.get("vara_en") or pan_birth.get("vara") or "—"],
             ["Tithi", pan_birth.get("tithi_en") or pan_birth.get("tithi") or "—"],
             ["Nakshatra", pan_birth.get("nakshatra_en") or pan_birth.get("nakshatra") or "—"],
-            ["Nakshatra pada", str(pan_birth.get("nakshatra_pada", "—"))],
+        ]
+        if nak_pada_val is not None:
+            pan_rows.append(["Nakshatra pada", str(nak_pada_val)])
+        pan_rows += [
             ["Yoga", pan_birth.get("yoga_en") or pan_birth.get("yoga") or "—"],
-            ["Karana", pan_birth.get("karana_en") or pan_birth.get("karana") or "—"],
-            ["Hora lord (at birth)", pan_birth.get("hora_lord_en") or pan_birth.get("hora_lord") or "—"],
+            ["Karana", pan_birth.get("karana") or pan_birth.get("karana_en") or "—"],
+            ["Hora lord (at birth)", pan_birth.get("hora_lord") or pan_birth.get("hora_lord_en") or "—"],
             ["Sunrise", pan_birth.get("sunrise") or "—"],
             ["Sunset", pan_birth.get("sunset") or "—"],
             ["Rahu Kalam", pan_birth.get("rahu_kalam") or "—"],
@@ -469,8 +477,10 @@ def _section_planets(workspace: dict, s: dict) -> list:
     for p in planets:
         lon = p.get("longitude", 0) or 0
         sign = p.get("sign_en", "") or ""
-        vrg = "✓" if _is_vargottama(sign, lon) else ""
-        retro = "℞" if p.get("retrograde") else ""
+        # Hotfix #3 — Helvetica can't render ✓ / ℞ reliably. Plain
+        # text marks ensure the column reads correctly in the PDF.
+        vrg = "Yes" if _is_vargottama(sign, lon) else ""
+        retro = "R" if p.get("retrograde") else ""
         rows.append([
             p.get("planet_en", ""),
             f"{lon:.2f}°",
@@ -483,9 +493,11 @@ def _section_planets(workspace: dict, s: dict) -> list:
             vrg,
             retro,
         ])
+    # Hotfix #3 — widened Nakshatra column (26→34mm) so long names
+    # like "Purva Bhadrapada" don't wrap and break row alignment.
     t = Table(rows, colWidths=[
-        18 * mm, 17 * mm, 22 * mm, 16 * mm, 26 * mm,
-        20 * mm, 20 * mm, 8 * mm, 10 * mm, 8 * mm,
+        18 * mm, 17 * mm, 22 * mm, 14 * mm, 34 * mm,
+        20 * mm, 20 * mm, 7 * mm, 10 * mm, 8 * mm,
     ])
     t.setStyle(TableStyle(_table_base()))
     flow.append(t)
@@ -512,7 +524,7 @@ def _section_cusps(workspace: dict, s: dict) -> list:
     ))
     flow.append(Spacer(1, 6))
     rows = [["H", "Sign", "Cusp lon", "Nakshatra", "Sub Lord",
-             "Star Lord", "Sign Lord", "Borderline?"]]
+             "Star Lord", "Sign Lord", "Border?"]]
     sign_lord_map = {
         "Aries": "Mars", "Taurus": "Venus", "Gemini": "Mercury",
         "Cancer": "Moon", "Leo": "Sun", "Virgo": "Mercury",
@@ -526,7 +538,8 @@ def _section_cusps(workspace: dict, s: dict) -> list:
         bd = "—"
         if borderline:
             d = c.get("deg_to_nearest_boundary")
-            bd = f"⚠ {d:.3f}°" if isinstance(d, (int, float)) else "⚠"
+            # Hotfix #3 — drop ⚠ glyph; prefix with "!"
+            bd = f"! {d:.3f}°" if isinstance(d, (int, float)) else "!"
         rows.append([
             f"H{c.get('house_num', '')}",
             sign,
@@ -537,9 +550,11 @@ def _section_cusps(workspace: dict, s: dict) -> list:
             sign_lord,
             bd,
         ])
+    # Hotfix #3 — widened Nakshatra column for long names like
+    # "Purva Bhadrapada"; tightened narrower cells.
     t = Table(rows, colWidths=[
-        12 * mm, 22 * mm, 22 * mm, 27 * mm,
-        22 * mm, 22 * mm, 22 * mm, 22 * mm,
+        10 * mm, 22 * mm, 20 * mm, 32 * mm,
+        20 * mm, 20 * mm, 18 * mm, 22 * mm,
     ])
     t.setStyle(TableStyle(_table_base()))
     flow.append(t)
@@ -633,6 +648,19 @@ def _section_significators(workspace: dict, s: dict) -> list:
         s["body"],
     ))
     flow.append(Spacer(1, 8))
+    # Hotfix #3 — Helvetica (the default ReportLab font) does not
+    # support Telugu Unicode, so rendering `house_te` ("లగ్నం") came
+    # out as garbled "sssss" in the PDF. Until we register Noto Sans
+    # Telugu (separate PR), drop the Telugu sub-label and use the
+    # English topic label instead.
+    HOUSE_TOPIC_EN = {
+        1: "Self & Vitality", 2: "Wealth & Family",
+        3: "Siblings & Courage", 4: "Mother & Property",
+        5: "Children & Intellect", 6: "Health & Enemies",
+        7: "Marriage & Partner", 8: "Longevity & Secrets",
+        9: "Luck & Dharma", 10: "Career & Status",
+        11: "Gains & Friends", 12: "Loss & Liberation",
+    }
     for h in range(1, 13):
         sig = sigs.get(f"House_{h}", {}) or {}
         l1 = sig.get("planets_in_star_of_occupants_en") or []
@@ -640,7 +668,8 @@ def _section_significators(workspace: dict, s: dict) -> list:
         l3 = sig.get("planets_in_star_of_lord_en") or []
         l4 = sig.get("house_lord_en") or "—"
         all_sig = sig.get("all_significators_en") or []
-        flow.append(Paragraph(f"H{h} · {sig.get('house_te') or ''}", s["h3"]))
+        topic = HOUSE_TOPIC_EN.get(h, "")
+        flow.append(Paragraph(f"H{h} · {topic}", s["h3"]))
         rows = [
             ["L1 — in star of occupants",
              ", ".join(l1) if l1 else "—"],
@@ -721,49 +750,51 @@ def _section_per_house_verdict(workspace: dict, s: dict) -> list:
         sub_of_sub = chain.get("csl_sub_lord") or "—"
         sub_of_sub_house = chain.get("csl_sub_lord_house") or 0
         full = chain.get("all_significations") or []
+        # Hotfix #3 — flattened per-row layout. Earlier shape (4 cols
+        # split as Layer, Planet, "rules", Houses) produced the
+        # "All houses signHifi2e,d" overlap when long planet names
+        # collided with bold "rules" markers. Now each layer is a
+        # single Layer→Planet (in H, rules) row, and the combined
+        # chain sits below as a stand-alone wrap-friendly row.
         rows = [
             [
                 "CSL (Sub Lord)",
-                f"{csl} · in H{csl_house}" if csl_house else csl,
-                "rules",
-                ", ".join(f"H{x}" for x in csl_rules) or "—",
+                f"{csl}{f' · in H{csl_house}' if csl_house else ''}"
+                + (f" — rules {', '.join(f'H{x}' for x in csl_rules)}"
+                   if csl_rules else ""),
             ],
             [
                 "CSL Star Lord",
-                f"{star} · in H{star_house}" if star_house else star,
-                "rules",
-                ", ".join(f"H{x}" for x in star_rules) or "—",
+                f"{star}{f' · in H{star_house}' if star_house else ''}"
+                + (f" — rules {', '.join(f'H{x}' for x in star_rules)}"
+                   if star_rules else ""),
             ],
             [
                 "CSL Sub-Lord",
-                f"{sub_of_sub} · in H{sub_of_sub_house}" if sub_of_sub_house else sub_of_sub,
-                "—",
-                "—",
+                f"{sub_of_sub}{f' · in H{sub_of_sub_house}' if sub_of_sub_house else ''}",
             ],
             [
-                "Combined chain",
-                "",
-                "All houses signified",
+                "Combined chain — houses signified",
                 ", ".join(f"H{x}" for x in full) or "—",
             ],
         ]
-        t = Table(rows, colWidths=[30 * mm, 44 * mm, 22 * mm, 74 * mm])
+        t = Table(rows, colWidths=[60 * mm, 110 * mm])
         t.setStyle(TableStyle([
             ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-            ("FONTNAME", (2, 0), (2, -1), "Helvetica-Bold"),
             ("FONTSIZE", (0, 0), (-1, -1), 8.5),
             ("TEXTCOLOR", (0, 0), (0, -1), DARK_GOLD),
-            ("TEXTCOLOR", (2, 0), (2, -1), DARK_GOLD),
             ("BACKGROUND", (0, 0), (0, -1), CARD_BG),
-            ("BACKGROUND", (2, 0), (2, -1), CARD_BG),
+            # Highlight the combined-chain final row.
+            ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#FFF6E5")),
+            ("FONTNAME", (1, -1), (1, -1), "Helvetica-Bold"),
             ("GRID", (0, 0), (-1, -1), 0.3, BORDER_FAINT),
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("TOPPADDING", (0, 0), (-1, -1), 4),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ("LEFTPADDING", (0, 0), (-1, -1), 7),
         ]))
         flow.append(t)
-        flow.append(Spacer(1, 4))
+        flow.append(Spacer(1, 6))
     flow.append(PageBreak())
     return flow
 
@@ -772,10 +803,14 @@ def _section_per_house_verdict(workspace: dict, s: dict) -> list:
 def _section_vimshottari_md(workspace: dict, s: dict) -> list:
     flow: list = []
     md = workspace.get("mahadasha", {}) or {}
-    md_tree = workspace.get("vimshottari_mahadasha_tree") \
-        or workspace.get("mahadashas") \
-        or workspace.get("mahadasha_periods") \
-        or []
+    # Hotfix #3 — workspace exposes the full 9-MD list under `dashas`
+    # (not `mahadashas` / `vimshottari_mahadasha_tree`). Each entry has
+    # lord_en/start/end/years but `is_current` may be None — compute
+    # currency by matching the current MD's lord+start.
+    md_tree = workspace.get("dashas") or []
+    cur_lord = (md.get("lord_en") or "").lower()
+    cur_start = md.get("start") or ""
+
     flow.append(Paragraph("8.  Vimshottari Mahadasha Tree", s["h1"]))
     flow.append(Paragraph(
         "Full 120-year Vimshottari cycle. The currently-running MD is "
@@ -792,16 +827,20 @@ def _section_vimshottari_md(workspace: dict, s: dict) -> list:
             end = d.get("end") or "—"
             years = d.get("years")
             yr_str = f"{years}y" if years is not None else "—"
-            active = "← NOW" if d.get("is_current") else ""
+            # Compute active-flag via lord+start match if `is_current` is missing.
+            is_active = bool(d.get("is_current")) or (
+                lord.lower() == cur_lord and start == cur_start
+            )
+            active = "NOW" if is_active else ""
             rows.append([lord, start, end, yr_str, active])
     else:
-        # Fallback: show only the current MD if no tree available
+        # Fallback: show only the current MD if no tree available.
         rows.append([
             md.get("lord_en") or "—",
             md.get("start") or "—",
             md.get("end") or "—",
             "—",
-            "← NOW",
+            "NOW",
         ])
     t = Table(rows, colWidths=[28 * mm, 36 * mm, 36 * mm, 24 * mm, 28 * mm])
     t.setStyle(TableStyle(_table_base()))
@@ -933,15 +972,17 @@ def _section_tara_chakra(workspace: dict, s: dict) -> list:
             tara_name = entry.get("tara_name") or "—"
             cycle = str(entry.get("cycle") or "—")
             nature = entry.get("nature") or "—"
+            # Hotfix #3 — Helvetica doesn't render ★ reliably; use plain
+            # text suffix to mark the native's janma nakshatra.
             if entry.get("is_janma"):
-                nak = f"{nak} ★"
+                nak = f"{nak}  (janma)"
             rows.append([num, nak, tara_name, cycle, nature])
-        t = Table(rows, colWidths=[12 * mm, 50 * mm, 38 * mm, 18 * mm, 42 * mm])
+        t = Table(rows, colWidths=[12 * mm, 56 * mm, 32 * mm, 18 * mm, 42 * mm])
         t.setStyle(TableStyle(_table_base()))
         flow.append(t)
         flow.append(Spacer(1, 6))
         flow.append(Paragraph(
-            "<i>★ marks the native's janma (birth) nakshatra.</i>",
+            "<i>(janma) marks the native's birth nakshatra.</i>",
             s["small"],
         ))
         flow.append(Spacer(1, 8))
@@ -984,7 +1025,9 @@ def _section_vargottama(workspace: dict, s: dict) -> list:
         sign = p.get("sign_en", "") or ""
         lon = p.get("longitude", 0) or 0
         nav = _navamsa_sign(lon)
-        v = "✓" if (sign == nav) else "—"
+        # Hotfix #3 — Helvetica doesn't render ✓ reliably. Use plain
+        # text "Yes" / "—" so the column is unambiguous.
+        v = "Yes" if (sign == nav) else "—"
         dig = _planet_dignity(p.get("planet_en", ""), sign)
         rows.append([p.get("planet_en", ""), sign, nav, v, dig])
     t = Table(rows, colWidths=[32 * mm, 32 * mm, 32 * mm, 28 * mm, 32 * mm])

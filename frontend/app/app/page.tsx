@@ -2089,7 +2089,15 @@ export default function Home() {
             if (!workspaceData || pdfLoading) return;
             setPdfLoading(true); setPdfError("");
             try {
-              const res = await axios.post(`${API_URL}/pdf/export`, { workspace: workspaceData }, { responseType: "blob", timeout: 30000 });
+              // Phase 14 PR A hotfix — inject `place` (which lives in
+              // birthDetails, not the workspace return) so the PDF
+              // cover and birth-details section render the proper
+              // city name instead of falling back to lat/lon.
+              const enrichedWorkspace = {
+                ...workspaceData,
+                place: birthDetails.place || (workspaceData as any).place,
+              };
+              const res = await axios.post(`${API_URL}/pdf/export`, { workspace: enrichedWorkspace }, { responseType: "blob", timeout: 30000 });
               const url = URL.createObjectURL(new Blob([res.data], { type: "application/pdf" }));
               const a = document.createElement("a"); a.href = url;
               a.download = `${workspaceData.name || "kp_chart"}_report.pdf`; a.click();
