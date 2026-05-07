@@ -30,6 +30,12 @@ import { ChartContextStrip } from "./components/workspace/ChartContextStrip";
 // Phase 7 / PR 18 — date formatter for the Dasha tab MD/AD/PAD cards.
 // Wraps the same Phase 1 helper PersonHeroBanner uses.
 import { formatDate, formatDashaPeriod, stripSeconds } from "@/lib/format";
+// Phase 13.2 — frontend audit log for every Anthropic-billing fetch.
+// Each billing call site below MUST recordAiCall(label) before fetching;
+// the on-screen <AiCallBadge /> reads this log so the user can see in
+// real time when an AI call fires (or doesn't).
+import { recordAiCall } from "@/lib/aiAudit";
+import { AiCallBadge } from "@/components/ui/AiCallBadge";
 // PR A1.3-fix-20 — RasiChart replaces SouthIndianChart with proper KP
 // sign-fixed layout + North/South/East tabs. Drop-in replacement.
 import RasiChart from "./components/RasiChart";
@@ -738,6 +744,7 @@ export default function Home() {
 
     let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
     try {
+      recordAiCall("user.ask-stream");
       const response = await fetch(`${API_URL}/prediction/ask-stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -841,6 +848,7 @@ export default function Home() {
 
     let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
     try {
+      recordAiCall(`astrologer.analyze-stream:${topic}:${questionType}`);
       const response = await fetch(`${API_URL}/astrologer/analyze-stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -980,6 +988,7 @@ export default function Home() {
     setMatchAnalysisLoading(true); setMatchShowAI(true);
     const topicLabels: Record<string,string> = { promise: "వివాహ ప్రమాణం — Marriage Promise", harmony: "సామరస్యం — Harmony & Compatibility", divorce_risk: "విడాకులు ప్రమాదం — Divorce Risk", timing: "సమయం — Timing & DBA", remedies: "పరిహారాలు — Remedies" };
     try {
+      recordAiCall(`match.analyze:topic:${topic}`);
       const res = await axios.post(`${API_URL}/compatibility/analyze`, {
         person1: sessionToApiPerson(matchPerson1),
         person2: sessionToApiPerson(p2),
@@ -1001,6 +1010,7 @@ export default function Home() {
     const q = matchChatQ; setMatchChatQ(""); setMatchAnalysisLoading(true); setMatchShowAI(true);
     try {
       const history = matchAnalysisMessages.slice(-6).map(m => ({ question: m.q, answer: m.a }));
+      recordAiCall("match.analyze:chat");
       const res = await axios.post(`${API_URL}/compatibility/analyze`, {
         person1: sessionToApiPerson(matchPerson1),
         person2: sessionToApiPerson(p2),
@@ -5007,6 +5017,7 @@ export default function Home() {
                           setMAiLoading(true);
                           setMAiQuestion("");
                           try {
+                            recordAiCall(isTopic ? "muhurtha.analyze:topic" : "muhurtha.analyze:chat");
                             const res = await axios.post(`${API_URL}/muhurtha/analyze`, {
                               muhurtha_data: mResults,
                               question: questionText,
@@ -7963,6 +7974,12 @@ export default function Home() {
           onSwitchSession={handleSwitchSession}
         />
       )}
+
+      {/* Phase 13.2 — on-screen Anthropic call counter. Always visible
+          so the user can verify that billing changes correlate with
+          their actions. Click to expand the last-10 call log.
+          Counts every Anthropic-billing fetch this browser session. */}
+      <AiCallBadge />
     </div>
   );
 }

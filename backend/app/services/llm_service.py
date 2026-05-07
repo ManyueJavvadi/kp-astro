@@ -3,6 +3,11 @@ import anthropic
 from datetime import datetime
 from dotenv import load_dotenv
 
+# Phase 13.2 — every Anthropic call is audit-logged so we can reconcile
+# Railway logs against the Anthropic dashboard. See cost_audit.py for
+# the rationale (user reported unexplained billing changes).
+from .cost_audit import log_anthropic_call
+
 load_dotenv()
 
 client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
@@ -1736,6 +1741,12 @@ Reply with ONLY the single topic word."""
             temperature=0,
             messages=[{"role": "user", "content": prompt}]
         )
+        log_anthropic_call(
+            endpoint="llm.detect_topic",
+            model="claude-haiku-4-5-20251001",
+            mode="internal",
+            usage=getattr(message, "usage", None),
+        )
         detected = message.content[0].text.strip().lower().split()[0]
         # PR A1.3-fix-10 (#7) — synced with TOPIC_TO_FILE (full set).
         valid = list(TOPIC_TO_FILE.keys())
@@ -2019,6 +2030,12 @@ Perform complete KP analysis. Format output for {mode.upper()} mode as instructe
         system=system_blocks,
         messages=messages,
     )
+    log_anthropic_call(
+        endpoint="llm.get_prediction",
+        model=model_id,
+        mode=mode,
+        usage=getattr(message, "usage", None),
+    )
 
     return message.content[0].text
 
@@ -2188,6 +2205,7 @@ Perform complete KP analysis. Format output for {mode.upper()} mode as instructe
     # PR A1.3-fix-22 — dropped vestigial extended-cache-ttl-2025-04-11
     # beta header. 1h TTL is GA per Anthropic docs.
     accumulated: list[str] = []
+    final_message = None
     async with async_client.messages.stream(
         model=model_id,
         max_tokens=max_tokens,
@@ -2198,6 +2216,23 @@ Perform complete KP analysis. Format output for {mode.upper()} mode as instructe
         async for text in stream.text_stream:
             accumulated.append(text)
             yield text
+        # Phase 13.2 — capture final message for usage stats AFTER iteration
+        # completes. get_final_message() is awaitable on async streams.
+        try:
+            final_message = await stream.get_final_message()
+        except Exception:
+            final_message = None
+
+    # Phase 13.2 — audit log so this call is reconcilable against the
+    # Anthropic dashboard. endpoint label distinguishes the two SSE
+    # routers that share this function (analyze-stream vs ask-stream).
+    log_anthropic_call(
+        endpoint="llm.get_prediction_stream",
+        model=model_id,
+        mode=mode,
+        usage=getattr(final_message, "usage", None) if final_message else None,
+        note=f"topic={detected_topic} qtype={early_resolved_qt}",
+    )
 
     # ─── Write to cache after stream completes ───────────────────────
     if cache_key:
@@ -3054,6 +3089,12 @@ KEY RULES:
         system=system,
         messages=messages
     )
+    log_anthropic_call(
+        endpoint="llm.get_match_prediction",
+        model="claude-sonnet-4-6",
+        mode="match",
+        usage=getattr(message, "usage", None),
+    )
 
     return message.content[0].text
 
@@ -3112,6 +3153,13 @@ CHART DATA:
         max_tokens=1200,
         temperature=0,
         messages=[{"role": "user", "content": prompt}],
+    )
+    log_anthropic_call(
+        endpoint="llm.get_quick_insights",
+        model="claude-haiku-4-5",
+        mode="quick_insights",
+        usage=getattr(message, "usage", None),
+        note=f"topic={topic}",
     )
     return message.content[0].text
 
@@ -3299,5 +3347,11 @@ Analyze the muhurtha windows above and answer the question. Reference specific w
             }
         ],
         messages=messages,
+    )
+    log_anthropic_call(
+        endpoint="llm.get_muhurtha_prediction",
+        model="claude-sonnet-4-6",
+        mode="muhurtha",
+        usage=getattr(message, "usage", None),
     )
     return message.content[0].text

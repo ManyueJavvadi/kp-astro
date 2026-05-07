@@ -607,6 +607,18 @@ If you cannot write a word in Telugu, write it in English instead.
 async def analyze_topic_stream(request: AnalysisRequest):
     from app.services.chart_pipeline import build_full_chart_data
 
+    # Phase 13.2 — entry log so we can see WHEN this endpoint is hit,
+    # independently of whether a downstream Anthropic call actually
+    # fires (cache hits skip Anthropic). Pair this with the
+    # [ANTHROPIC_AUDIT] line emitted by llm_service.cost_audit to
+    # reconcile every request → cost.
+    import logging
+    logging.getLogger("astrologer").warning(
+        "[ENDPOINT_HIT] /astrologer/analyze-stream topic=%s qlen=%d hist=%d qtype=%s",
+        request.topic, len(request.question or ""),
+        len(request.history or []), request.question_type,
+    )
+
     topic = request.topic
     chart_data = build_full_chart_data(
         name=request.name,

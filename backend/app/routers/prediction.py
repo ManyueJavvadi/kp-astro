@@ -159,7 +159,13 @@ async def ask_prediction_stream(request: PredictionRequest):
         if request.topic and request.topic != "auto"
         else detect_topic(request.question)
     )
-    _log.info("ask-stream mode=%s topic=%s qlen=%d", request.mode, topic, len(request.question))
+    # Phase 13.2 — promoted to WARNING so it's always Railway-visible
+    # (entry log used to reconcile against [ANTHROPIC_AUDIT] lines).
+    _log.warning(
+        "[ENDPOINT_HIT] /prediction/ask-stream mode=%s topic=%s qlen=%d hist=%d",
+        request.mode, topic, len(request.question or ""),
+        len(request.history or []),
+    )
 
     chart_data = build_full_chart_data(
         name=request.name,
