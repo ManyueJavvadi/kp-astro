@@ -1939,17 +1939,17 @@ def get_prediction(chart_data: dict, question: str, history: list = [], mode: st
         {
             "type": "text",
             "text": get_system_prompt(),
-            "cache_control": {"type": "ephemeral", "ttl": "24h"},
+            "cache_control": {"type": "ephemeral", "ttl": "1h"},
         },
         {
             "type": "text",
             "text": f"---\n\nCHART DATA:\n{chart_summary}",
-            "cache_control": {"type": "ephemeral", "ttl": "24h"},
+            "cache_control": {"type": "ephemeral", "ttl": "1h"},
         },
         {
             "type": "text",
             "text": f"---\n\nKP UNIVERSAL KNOWLEDGE BASE:\n{universal_kb}",
-            "cache_control": {"type": "ephemeral", "ttl": "24h"},
+            "cache_control": {"type": "ephemeral", "ttl": "1h"},
         },
     ]
     if topic_kb:
@@ -2147,11 +2147,11 @@ async def get_prediction_stream(
     # System cache blocks (same structure as get_prediction)
     system_blocks = [
         {"type": "text", "text": get_system_prompt(),
-         "cache_control": {"type": "ephemeral", "ttl": "24h"}},
+         "cache_control": {"type": "ephemeral", "ttl": "1h"}},
         {"type": "text", "text": f"---\n\nCHART DATA:\n{chart_summary}",
-         "cache_control": {"type": "ephemeral", "ttl": "24h"}},
+         "cache_control": {"type": "ephemeral", "ttl": "1h"}},
         {"type": "text", "text": f"---\n\nKP UNIVERSAL KNOWLEDGE BASE:\n{universal_kb}",
-         "cache_control": {"type": "ephemeral", "ttl": "24h"}},
+         "cache_control": {"type": "ephemeral", "ttl": "1h"}},
     ]
     if topic_kb:
         system_blocks.append({
