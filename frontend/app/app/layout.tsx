@@ -12,7 +12,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { LanguageToggle } from "@/components/ui/language-toggle";
-import { LanguageProvider } from "@/lib/i18n";
+import { LanguageProvider, useLanguage } from "@/lib/i18n";
 import { theme } from "@/lib/theme";
 
 export default function AppLayout({
@@ -28,6 +28,9 @@ export default function AppLayout({
 }
 
 function AppShell({ children }: { children: React.ReactNode }) {
+  // Phase 5 / PR 13 — pull `t` so the "Back to landing" link respects
+  // the active language (#14). Was previously hardcoded English.
+  const { t } = useLanguage();
   return (
     <div
       style={{
@@ -89,8 +92,8 @@ function AppShell({ children }: { children: React.ReactNode }) {
               }}
             >
               <ArrowLeft size={12} />
-              <span className="v2-hide-mobile">Back to landing</span>
-              <span className="v2-show-mobile">Home</span>
+              <span className="v2-hide-mobile">{t("Back to landing", "హోమ్‌కి వెళ్ళు")}</span>
+              <span className="v2-show-mobile">{t("Home", "హోమ్")}</span>
             </Link>
           </div>
         </div>

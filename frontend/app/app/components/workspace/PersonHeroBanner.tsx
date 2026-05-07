@@ -154,7 +154,7 @@ export default function PersonHeroBanner({
           onMouseEnter={e => { if (pdfLoading) return; e.currentTarget.style.color = "#c9a96e"; e.currentTarget.style.borderColor = "rgba(201,169,110,0.35)"; e.currentTarget.style.background = "rgba(201,169,110,0.04)"; }}
           onMouseLeave={e => { if (pdfLoading) return; e.currentTarget.style.color = "#b0b0c0"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; e.currentTarget.style.background = "transparent"; }}
         >
-          {pdfLoading ? "…" : "PDF ↓"}
+          {pdfLoading ? "…" : t("PDF ↓", "PDF ↓")}
         </button>
 
         {astrologerMode && savedSessions.length > 0 && (
@@ -179,7 +179,7 @@ export default function PersonHeroBanner({
               onMouseEnter={e => { e.currentTarget.style.color = "#E8EDF5"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; }}
               onMouseLeave={e => { e.currentTarget.style.color = "#b0b0c0"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }}
             >
-              Switch ▾
+              {t("Switch", "మార్చు")} ▾
             </button>
             {showSwitch && (
               <div
@@ -240,7 +240,7 @@ export default function PersonHeroBanner({
           onMouseEnter={e => { e.currentTarget.style.background = "#e7c98a"; e.currentTarget.style.boxShadow = "0 0 0 1px rgba(231,201,138,0.7), 0 2px 8px rgba(201,169,110,0.25), 0 0 26px rgba(231,201,138,0.42)"; }}
           onMouseLeave={e => { e.currentTarget.style.background = "#c9a96e"; e.currentTarget.style.boxShadow = "0 0 0 1px rgba(201,169,110,0.55), 0 2px 6px rgba(201,169,110,0.18), 0 0 18px rgba(231,201,138,0.28)"; }}
         >
-          + New Chart
+          + {t("New Chart", "కొత్త చార్ట్")}
         </button>
       </div>
     </div>

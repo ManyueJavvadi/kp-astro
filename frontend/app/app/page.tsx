@@ -799,7 +799,9 @@ export default function Home() {
   const handleTopicAnalysis = async (topic: string) => {
     if (!workspaceData) return;
     setActiveTopic(topic); setAnalysisLoading(true); setActiveTab("analysis");
-    const topicLabel = TOPICS.find(t => t.id === topic)?.te || topic;
+    // Phase 6 / PR 15 — language-aware topic label (was hardcoded Telugu).
+    const topicEntry = TOPICS.find(t => t.id === topic);
+    const topicLabel = topicEntry ? (lang === "en" ? topicEntry.en : topicEntry.te) : topic;
     // PR A1.3-fix-24 — generate stable id so the SSE consumer scopes its
     // chunk writes to THIS message even if user fires another topic mid-stream.
     const targetId = (typeof crypto !== "undefined" && crypto.randomUUID)
@@ -1034,10 +1036,20 @@ export default function Home() {
     { id: "horary",   te: "ప్రశ్న",     en: "Horary",    Icon: HelpCircle },
   ];
 
+  // Phase 6 / PR 15 — Analysis tab topic i18n carve-out (#6).
+  // The TOPICS array used to carry only Telugu labels which leaked
+  // into the EN view (the topic grid was permanently Telugu-only).
+  // Now both languages are present; the render path picks via `lang`
+  // exactly like every other surface in the product.
   const TOPICS = [
-    { id: "marriage", te: "వివాహం" }, { id: "job", te: "ఉద్యోగం" }, { id: "health", te: "ఆరోగ్యం" },
-    { id: "foreign_travel", te: "విదేశాలు" }, { id: "children", te: "సంతానం" }, { id: "education", te: "విద్య" },
-    { id: "property", te: "ఆస్తి" }, { id: "wealth", te: "సంపద" },
+    { id: "marriage",       en: "Marriage",      te: "వివాహం" },
+    { id: "job",            en: "Career",        te: "ఉద్యోగం" },
+    { id: "health",         en: "Health",        te: "ఆరోగ్యం" },
+    { id: "foreign_travel", en: "Foreign travel", te: "విదేశాలు" },
+    { id: "children",       en: "Children",      te: "సంతానం" },
+    { id: "education",      en: "Education",     te: "విద్య" },
+    { id: "property",       en: "Property",      te: "ఆస్తి" },
+    { id: "wealth",         en: "Wealth",        te: "సంపద" },
   ];
 
   const TOPIC_EMOJI: Record<string, string> = {
@@ -2038,18 +2050,26 @@ export default function Home() {
                   hid the entire section before any chart was generated. */}
               {(savedSessions.length > 0 || (mode === "astrologer" && setupDone)) && (
                 <div className="sidebar-section" style={{ padding: "8px 10px", borderBottom: "0.5px solid var(--border)", flexShrink: 0 }}>
-                  <div style={{ fontSize: 9, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 5 }}>Charts</div>
+                  {/* Phase 5 / PR 13 — i18n holes (#14). The sidebar
+                      eyebrow + active marker + the verbose help text
+                      were hardcoded English even in pure TEL mode. Now
+                      every chrome string flows through t(en, te). */}
+                  <div style={{ fontSize: 9, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 5 }}>{t("Charts", "చార్టులు")}</div>
                   {workspaceData?.name && (
                     <div style={{ padding: "8px", borderRadius: 8, background: "rgba(201,169,110,0.08)", border: "0.5px solid rgba(201,169,110,0.4)", marginBottom: 6 }}>
                       <div style={{ fontSize: 12, color: "var(--accent)", fontWeight: 500, marginBottom: 1 }}>
                         {workspaceData.name.split(" ")[0]}
                       </div>
-                      <div style={{ fontSize: 10, color: "rgba(201,169,110,0.6)" }}>★ Active</div>
+                      <div style={{ fontSize: 10, color: "rgba(201,169,110,0.6)" }}>★ {t("Active", "ప్రస్తుతం")}</div>
                     </div>
                   )}
                   {savedSessions.length === 0 && workspaceData?.name && (
                     <div style={{ fontSize: 10, color: "var(--muted)", padding: "4px 2px 6px", lineHeight: 1.45 }}>
-                      Use <strong style={{ color: "var(--accent)", fontWeight: 500 }}>+ New Chart</strong> in the header to add another. Saved charts appear here.
+                      {lang === "en" ? (
+                        <>Use <strong style={{ color: "var(--accent)", fontWeight: 500 }}>+ New Chart</strong> in the header to add another. Saved charts appear here.</>
+                      ) : (
+                        <><strong style={{ color: "var(--accent)", fontWeight: 500 }}>+ కొత్త చార్ట్</strong> బటన్‌తో మరొకటి జోడించండి. సేవ్ చేసిన చార్టులు ఇక్కడ కనిపిస్తాయి.</>
+                      )}
                     </div>
                   )}
                   {savedSessions.map(s => {
@@ -2068,7 +2088,7 @@ export default function Home() {
                             {gender === "male" ? "♂ " : gender === "female" ? "♀ " : "◈ "}{s.name?.split(" ")[0]}
                           </div>
                           {dashaLabel && <div style={{ fontSize: 10, color: "var(--accent)", marginBottom: 1 }}>{dashaLabel}</div>}
-                          {birthYear && <div style={{ fontSize: 10, color: "var(--muted)" }}>Born {birthYear}</div>}
+                          {birthYear && <div style={{ fontSize: 10, color: "var(--muted)" }}>{t(`Born ${birthYear}`, `${birthYear} జన్మ`)}</div>}
                         </button>
                         <button onClick={() => handleRemoveSession(s.id)}
                           style={{ position: "absolute", top: 6, right: 6, background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "2px 4px", opacity: 0.5 }}
@@ -2079,7 +2099,7 @@ export default function Home() {
                   })}
                   <button onClick={handleNewChart}
                     style={{ width: "100%", padding: "3px 8px", borderRadius: 6, background: "transparent", border: "0.5px dashed var(--border2)", fontSize: 10, color: "var(--muted)", cursor: "pointer", fontFamily: "inherit", textAlign: "center" }}>
-                    + New Chart
+                    + {t("New Chart", "కొత్త చార్ట్")}
                   </button>
                 </div>
               )}
@@ -2119,16 +2139,23 @@ export default function Home() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
+                    onMouseEnter={e => { if (!active) e.currentTarget.style.background = "rgba(201,169,110,0.04)"; }}
+                    onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}
                     style={{
+                      // Phase 5 / PR 14 — active tab now reads as a filled
+                      // gold pill (subtle bg + same gold underline) instead
+                      // of just a 2px line — much clearer at a glance.
+                      // Inactive tabs get a hint of gold on hover so the
+                      // tab bar feels alive (#M).
                       padding: "10px 16px",
-                      background: "transparent",
+                      background: active ? "rgba(201,169,110,0.07)" : "transparent",
                       border: "none",
                       borderBottom: active ? "2px solid var(--accent)" : "2px solid transparent",
                       color: active ? "var(--accent)" : "var(--muted)",
                       cursor: "pointer",
                       fontFamily: "inherit",
                       whiteSpace: "nowrap",
-                      transition: "color 0.15s, border-color 0.15s",
+                      transition: "color 0.15s, border-color 0.15s, background 0.15s",
                       flexShrink: 0,
                       display: "flex",
                       flexDirection: "column",
@@ -7260,7 +7287,15 @@ export default function Home() {
                   <div style={{ marginBottom: "0.75rem", flexShrink: 0 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                       <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" as const }}>
-                        {analysisMessages.length > 0 ? `Topics · ${activeTopic ? TOPICS.find(t => t.id === activeTopic)?.te || activeTopic : "switch anytime"}` : "Topics"}
+                        {(() => {
+                          // Phase 6 / PR 15 — Topics eyebrow now i18n-aware.
+                          const tpHeading = t("Topics", "అంశాలు");
+                          if (analysisMessages.length === 0) return tpHeading;
+                          const active = TOPICS.find(tp => tp.id === activeTopic);
+                          const activeLabel = active ? (lang === "en" ? active.en : active.te) : "";
+                          const subtle = activeTopic ? activeLabel : t("switch anytime", "ఎప్పుడైనా మార్చండి");
+                          return `${tpHeading} · ${subtle}`;
+                        })()}
                       </div>
                       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                         {analysisMessages.length > 0 && (
@@ -7273,7 +7308,10 @@ export default function Home() {
                         </div>
                       </div>
                     </div>
-                    {/* Before chat starts: full 4×2 grid */}
+                    {/* Before chat starts: full 4×2 grid.
+                        Phase 6 / PR 15 — topic labels now respect `lang`
+                        (#6). Was hardcoded Telugu before, leaking into
+                        the EN view of the Analysis tab. */}
                     {analysisMessages.length === 0 ? (
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
                         {TOPICS.map(tp => (
@@ -7282,7 +7320,7 @@ export default function Home() {
                             onMouseEnter={e => { if (activeTopic !== tp.id) (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(201,169,110,0.4)"; }}
                             onMouseLeave={e => { if (activeTopic !== tp.id) (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border2)"; }}>
                             <div style={{ fontSize: 22, marginBottom: 4 }}>{TOPIC_EMOJI[tp.id]}</div>
-                            <div style={{ fontSize: 11, color: activeTopic === tp.id ? "var(--accent)" : "var(--text)", fontWeight: activeTopic === tp.id ? 500 : 400 }}>{tp.te}</div>
+                            <div style={{ fontSize: 11, color: activeTopic === tp.id ? "var(--accent)" : "var(--text)", fontWeight: activeTopic === tp.id ? 500 : 400 }}>{lang === "en" ? tp.en : tp.te}</div>
                             {quickInsights[tp.id] && (
                               <div style={{ fontSize: 9, color: "var(--muted)", marginTop: 4, lineHeight: 1.4, textAlign: "left" }}>
                                 {quickInsights[tp.id].split("\n")[0]?.slice(0, 60)}…
@@ -7298,7 +7336,7 @@ export default function Home() {
                           <button key={tp.id} onClick={() => handleTopicAnalysis(tp.id)} disabled={analysisLoading}
                             className={`topic-chip ${activeTopic === tp.id ? "active" : ""}`}>
                             <span style={{ fontSize: 14 }}>{TOPIC_EMOJI[tp.id]}</span>
-                            <span>{tp.te}</span>
+                            <span>{lang === "en" ? tp.en : tp.te}</span>
                           </button>
                         ))}
                       </div>
@@ -7372,7 +7410,15 @@ export default function Home() {
                             {i === analysisMessages.length - 1 && analysisLoading && !msg.a ? (
                               <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--muted)", fontSize: 12 }}>
                                 <span className="typing-dots"><span /><span /><span /></span>
-                                <span>{activeTopic ? t(`Analyzing ${TOPICS.find(tp => tp.id === activeTopic)?.te || activeTopic}…`, `${TOPICS.find(tp => tp.id === activeTopic)?.te || activeTopic} విశ్లేషిస్తున్నాను…`) : t("Thinking…", "ఆలోచిస్తున్నాను…")}</span>
+                                <span>{(() => {
+                                  // Phase 6 / PR 15 — Analyzing-loader uses
+                                  // language-aware topic label.
+                                  if (!activeTopic) return t("Thinking…", "ఆలోచిస్తున్నాను…");
+                                  const tp = TOPICS.find(tp => tp.id === activeTopic);
+                                  const enLabel = tp?.en || activeTopic;
+                                  const teLabel = tp?.te || activeTopic;
+                                  return t(`Analyzing ${enLabel}…`, `${teLabel} విశ్లేషిస్తున్నాను…`);
+                                })()}</span>
                               </div>
                             ) : (
                               <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.a}</ReactMarkdown>
