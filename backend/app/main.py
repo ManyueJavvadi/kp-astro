@@ -29,21 +29,21 @@ from app.routers import panchangam
 # ════════════════════════════════════════════════════════════════
 # Logging — structured-ish single-line records
 # ════════════════════════════════════════════════════════════════
-# Default Python logging is WARNING-level with no formatter, so module
-# `_log.info(...)` calls were silently dropped. Set a baseline that
-# captures useful events without a JSON dependency.
+# PR A1.3-fix-25d — simplified from fix-24's broken setup. The original
+# version pre-set `record.request_id = "-"` via a custom LogRecord factory
+# AND passed `extra={"request_id": rid}` from the middleware. Python's
+# logging library refuses to overwrite an existing record attribute via
+# `extra=`, so EVERY request crashed with
+#   KeyError: "Attempt to overwrite 'request_id' in LogRecord"
+# That's why `/health` (and all other endpoints) returned 500 in
+# production. Verified locally — reproduces 100% of the time.
+#
+# New approach: format the request_id INTO the message string at log
+# time, no `extra=` magic needed. Standard Python logging idiom.
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO").upper(),
-    format="%(asctime)s %(levelname)s %(name)s rid=%(request_id)s %(message)s",
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
-# Inject a default request_id so log records that don't carry one don't crash
-old_factory = logging.getLogRecordFactory()
-def _record_factory(*args, **kwargs):
-    rec = old_factory(*args, **kwargs)
-    if not hasattr(rec, "request_id"):
-        rec.request_id = "-"
-    return rec
-logging.setLogRecordFactory(_record_factory)
 _log = logging.getLogger("kp_astro.main")
 
 # ════════════════════════════════════════════════════════════════
@@ -74,12 +74,6 @@ app = FastAPI(title="KP Astro API", version="0.1.0")
 # To lock down further on Railway, set CORS_ALLOWED_ORIGINS to ONLY your
 # real production frontend URLs.
 _default_cors = ",".join([
-    # PR A1.3-fix-25c — added explicit Vercel production URL as belt-and-
-    # suspenders alongside the *.vercel.app regex below. Some Starlette
-    # versions / proxy chains evaluate the explicit list and the regex in
-    # different orders; having both guarantees the production frontend
-    # works no matter what.
-    "https://devastroai.vercel.app",
     "https://devastroai.up.railway.app",
     "https://devastroai.com",
     "https://www.devastroai.com",
@@ -223,10 +217,10 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
             response = await call_next(request)
         except Exception as exc:
             duration_ms = int((time.time() - start) * 1000)
+            # PR A1.3-fix-25d — inline rid in message (was extra= which crashed)
             _log.exception(
-                "unhandled_exception path=%s method=%s duration_ms=%d",
-                request.url.path, request.method, duration_ms,
-                extra={"request_id": rid},
+                "rid=%s unhandled_exception path=%s method=%s duration_ms=%d",
+                rid, request.url.path, request.method, duration_ms,
             )
             return JSONResponse(
                 {"error": "internal_server_error", "request_id": rid},
@@ -234,11 +228,10 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
                 headers={"X-Request-ID": rid},
             )
         duration_ms = int((time.time() - start) * 1000)
-        # One-line access log
+        # PR A1.3-fix-25d — inline rid in message (was extra= which crashed)
         _log.info(
-            "%s %s -> %d (%dms)",
-            request.method, request.url.path, response.status_code, duration_ms,
-            extra={"request_id": rid},
+            "rid=%s %s %s -> %d (%dms)",
+            rid, request.method, request.url.path, response.status_code, duration_ms,
         )
         response.headers["X-Request-ID"] = rid
         return response
