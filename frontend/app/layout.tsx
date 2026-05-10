@@ -1,5 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+// Phase 15.1 — Foundation. MotionRoot wraps the app in Motion's
+// MotionConfig (reduced-motion support) + Lenis smooth scroll.
+// See components/motion/MotionRoot.tsx for what it does and why.
+import { MotionRoot } from "@/components/motion/MotionRoot";
 
 export const metadata: Metadata = {
   title: "DevAstroAI — KP Astrology Intelligence",
@@ -42,7 +46,9 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <MotionRoot>{children}</MotionRoot>
+      </body>
     </html>
   );
 }
