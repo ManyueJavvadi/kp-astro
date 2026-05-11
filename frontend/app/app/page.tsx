@@ -45,6 +45,9 @@ import { AnimatedScoreDonut } from "@/components/ui/AnimatedScoreDonut";
 // Phase 16 — Moment #1: 3.5-second cinematic chart reveal ceremony.
 // Replaces the old 1.75s tiny bloom. THIS is the signature moment.
 import { ChartRevealCeremony } from "@/components/ui/ChartRevealCeremony";
+// Phase 16 — Moment #5: PDF export ceremony (parchment + wax seal +
+// rotating subtitles). Shows whenever pdfLoading=true.
+import { PdfCeremonyOverlay } from "@/components/ui/PdfCeremonyOverlay";
 import { FadeIn, StaggerChildren, StaggerItem } from "@/components/motion";
 // PR A1.3-fix-20 — RasiChart replaces SouthIndianChart with proper KP
 // sign-fixed layout + North/South/East tabs. Drop-in replacement.
@@ -1712,6 +1715,10 @@ export default function Home() {
           onComplete={() => setShowChartReveal(false)}
         />
       )}
+
+      {/* Phase 16 — Moment #5: PDF export ceremony. Always mounted;
+          AnimatePresence controls show/hide via pdfLoading flag. */}
+      <PdfCeremonyOverlay show={pdfLoading} />
 
       {/* Phase 8 / PR 23 — keyboard shortcut help overlay.
           Triggered by pressing `?` anywhere outside an editable field.
