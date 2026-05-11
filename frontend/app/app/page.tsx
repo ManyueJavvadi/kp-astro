@@ -7606,18 +7606,28 @@ export default function Home() {
                         (#6). Was hardcoded Telugu before, leaking into
                         the EN view of the Analysis tab. */}
                     {analysisMessages.length === 0 ? (
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
+                      /* Phase 15.3 — 8 topic chips cascade in (60ms gap)
+                         after the PageHero settles (delay 0.5s).
+                         Each chip wraps a button with StaggerItem for
+                         per-item motion variants. */
+                      <StaggerChildren
+                        gap="base"
+                        delay={0.5}
+                        immediate
+                        style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}
+                      >
                         {TOPICS.map(tp => (
-                          <button key={tp.id} onClick={() => handleTopicAnalysis(tp.id)} disabled={analysisLoading}
-                            style={{ padding: "10px 6px", borderRadius: 10, border: `0.5px solid ${activeTopic === tp.id ? "var(--accent)" : "var(--border2)"}`, background: activeTopic === tp.id ? "rgba(201,169,110,0.15)" : "var(--card)", cursor: analysisLoading ? "default" : "pointer", fontFamily: "inherit", textAlign: "center", transition: "all 0.2s" }}
-                            onMouseEnter={e => { if (activeTopic !== tp.id) (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(201,169,110,0.4)"; }}
-                            onMouseLeave={e => { if (activeTopic !== tp.id) (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border2)"; }}>
-                            <div style={{ fontSize: 22, marginBottom: 4 }}>{TOPIC_EMOJI[tp.id]}</div>
-                            <div style={{ fontSize: 11, color: activeTopic === tp.id ? "var(--accent)" : "var(--text)", fontWeight: activeTopic === tp.id ? 500 : 400 }}>{lang === "en" ? tp.en : tp.te}</div>
-                            {/* Phase 13 / PR 31 — quick-insight preview snippet removed. */}
-                          </button>
+                          <StaggerItem key={tp.id}>
+                            <button onClick={() => handleTopicAnalysis(tp.id)} disabled={analysisLoading}
+                              style={{ width: "100%", padding: "10px 6px", borderRadius: 10, border: `0.5px solid ${activeTopic === tp.id ? "var(--accent)" : "var(--border2)"}`, background: activeTopic === tp.id ? "rgba(201,169,110,0.15)" : "var(--card)", cursor: analysisLoading ? "default" : "pointer", fontFamily: "inherit", textAlign: "center", transition: "all 0.2s" }}
+                              onMouseEnter={e => { if (activeTopic !== tp.id) (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(201,169,110,0.4)"; }}
+                              onMouseLeave={e => { if (activeTopic !== tp.id) (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border2)"; }}>
+                              <div style={{ fontSize: 22, marginBottom: 4 }}>{TOPIC_EMOJI[tp.id]}</div>
+                              <div style={{ fontSize: 11, color: activeTopic === tp.id ? "var(--accent)" : "var(--text)", fontWeight: activeTopic === tp.id ? 500 : 400 }}>{lang === "en" ? tp.en : tp.te}</div>
+                            </button>
+                          </StaggerItem>
                         ))}
-                      </div>
+                      </StaggerChildren>
                     ) : (
                       // Once chat is active: compact horizontal topic strip
                       <div className="topic-strip">
