@@ -102,8 +102,11 @@ export function PageHero({
           </div>
         </FadeIn>
 
-        {/* Title — serif with gold mask sweep */}
+        {/* Title — serif with gold mask sweep. The .page-hero-title
+            class hook lets globals.css attach the kolam flourish for
+            Telugu mode (Phase 16 / Moment #6). */}
         <h1
+          className="page-hero-title"
           style={{
             fontFamily: "'DM Serif Display', serif",
             fontStyle: italic ? "italic" : "normal",

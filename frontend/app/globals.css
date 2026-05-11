@@ -455,24 +455,38 @@ html[data-lang="te_en"] .dasha-hero-title {
 
 /* Telugu kolam flourish — small gold ✦ before/after primary Telugu
    titles. Adds the sense of treated/honored text without changing
-   structure. */
+   structure. Targets both legacy .dasha-hero-title (panchang etc.)
+   AND the new .page-hero-title (Phase 15.2 PageHero — used everywhere). */
 html[data-lang="te"] .dasha-hero-title::before,
-html[data-lang="te_en"] .dasha-hero-title::before {
-  content: "✦ ";
-  color: rgba(201, 169, 110, 0.55);
-  font-size: 0.6em;
-  margin-right: 0.4em;
+html[data-lang="te"] .page-hero-title::before,
+html[data-lang="te_en"] .dasha-hero-title::before,
+html[data-lang="te_en"] .page-hero-title::before {
+  content: "✦  ";
+  color: rgba(201, 169, 110, 0.6);
+  font-size: 0.55em;
+  margin-right: 0.3em;
   vertical-align: middle;
   font-weight: 400;
 }
 html[data-lang="te"] .dasha-hero-title::after,
-html[data-lang="te_en"] .dasha-hero-title::after {
-  content: " ✦";
-  color: rgba(201, 169, 110, 0.55);
-  font-size: 0.6em;
-  margin-left: 0.4em;
+html[data-lang="te"] .page-hero-title::after,
+html[data-lang="te_en"] .dasha-hero-title::after,
+html[data-lang="te_en"] .page-hero-title::after {
+  content: "  ✦";
+  color: rgba(201, 169, 110, 0.6);
+  font-size: 0.55em;
+  margin-left: 0.3em;
   vertical-align: middle;
   font-weight: 400;
+}
+
+/* Soft gold under-glow on the serif title in Telugu mode — feels like
+   inscribed text rather than rendered text. */
+html[data-lang="te"] .page-hero-title,
+html[data-lang="te_en"] .page-hero-title {
+  text-shadow:
+    0 0 14px rgba(201, 169, 110, 0.18),
+    0 0 28px rgba(231, 201, 138, 0.08);
 }
 
 /* Telugu Panchang title gets a soft gold under-glow when in te/te_en
