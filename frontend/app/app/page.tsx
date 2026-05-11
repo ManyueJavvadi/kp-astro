@@ -36,6 +36,12 @@ import { formatDate, formatDashaPeriod, stripSeconds } from "@/lib/format";
 // real time when an AI call fires (or doesn't).
 import { recordAiCall } from "@/lib/aiAudit";
 import { AiCallBadge } from "@/components/ui/AiCallBadge";
+// Phase 15.2 — Track A serif hero. Every tab uses this single
+// component for its top-of-screen eyebrow + title + subcopy.
+// Replaces inline <header className="dasha-hero"> markup that was
+// duplicated across 3 tabs and missing from 5 others.
+import { PageHero } from "@/components/ui/PageHero";
+import { FadeIn, StaggerChildren, StaggerItem } from "@/components/motion";
 // PR A1.3-fix-20 — RasiChart replaces SouthIndianChart with proper KP
 // sign-fixed layout + North/South/East tabs. Drop-in replacement.
 import RasiChart from "./components/RasiChart";
@@ -1268,6 +1274,10 @@ export default function Home() {
       {/* ── SETUP SCREEN ── */}
       {!setupDone && (
         <main style={{ flex: 1, position: "relative", zIndex: 5, maxWidth: 720, margin: "0 auto", width: "100%", padding: "48px 20px 64px" }}>
+          {/* Phase 15.2 — Onboarding hero with entrance cascade.
+              Three sibling reveals (eyebrow / headline / subcopy), then
+              the form card fades in below at 0.4s. Total ~700ms. */}
+          <FadeIn distance="medium" duration="slow">
           {/* Intro (eyebrow + headline) */}
           <div style={{ textAlign: "center", marginBottom: 36 }}>
             <span
@@ -1316,8 +1326,10 @@ export default function Home() {
               in astronomical computation.
             </p>
           </div>
+          </FadeIn>
 
-          {/* Birth details card */}
+          {/* Birth details card — slides up after the hero fades in */}
+          <FadeIn distance="medium" duration="slow" delay={0.4}>
           <ContentCard style={{ padding: 28, boxShadow: theme.shadow.md }}>
             <div
               style={{
@@ -1662,6 +1674,7 @@ export default function Home() {
               </div>
             </div>
           </ContentCard>
+          </FadeIn>
         </main>
       )}
 
@@ -2433,26 +2446,16 @@ export default function Home() {
               {/* CHART — two-column: chart left, PlanetList right */}
               {activeTab === "chart" && (
                 <div className="tab-content">
-                  {/* PR A1.3-fix-25 — page hero on Chart tab to match Dasha's
-                      pattern (per CLAUDE.md "Track A quality bar" — every
-                      tab gets serif eyebrow + title + sub). Was missing.
-                      Reuses the same .dasha-hero-* CSS classes since the
-                      design is identical; no new CSS needed. */}
-                  <header className="dasha-hero">
-                    <span className="dasha-hero-eyebrow">
-                      <Sparkles size={12} strokeWidth={1.8} />
-                      {t("KP rasi · Krishnamurti Paddhati", "KP రాశి · కృష్ణమూర్తి పద్ధతి")}
-                    </span>
-                    <h1 className="dasha-hero-title">
-                      {t("Your KP rasi chart", "మీ KP రాశి చార్ట్")}
-                    </h1>
-                    <p className="dasha-hero-sub">
-                      {t(
-                        "Planets, signs, houses, and sub lords — the full KP picture in one view. Tap any house to expand its details.",
-                        "గ్రహాలు, రాశులు, భావాలు, సబ్ లార్డ్‌లు — KP పూర్తి దృశ్యం ఒక్క చోట. వివరాల కోసం ఏ భావాన్నైనా నొక్కండి."
-                      )}
-                    </p>
-                  </header>
+                  {/* Phase 15.2 — Track A serif PageHero with MaskReveal
+                      gold-sweep on the title. Replaces inline dasha-hero. */}
+                  <PageHero
+                    eyebrow={t("KP rasi · Krishnamurti Paddhati", "KP రాశి · కృష్ణమూర్తి పద్ధతి")}
+                    title={t("Your KP rasi chart", "మీ KP రాశి చార్ట్")}
+                    subcopy={t(
+                      "Planets, signs, houses, and sub lords — the full KP picture in one view. Tap any house to expand its details.",
+                      "గ్రహాలు, రాశులు, భావాలు, సబ్ లార్డ్‌లు — KP పూర్తి దృశ్యం ఒక్క చోట. వివరాల కోసం ఏ భావాన్నైనా నొక్కండి."
+                    )}
+                  />
                   {/* Chart / Planets view toggle */}
                   <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
                     {[
@@ -2559,23 +2562,16 @@ export default function Home() {
                       <div style={{ fontSize: 14, color: "var(--muted)" }}>{t("Load a chart above", "పైన చార్ట్ లోడ్ చేయండి")}</div>
                     </div>
                   ) : (
-                    /* PR A1.3-fix-25 — page hero on Houses tab (Track A bar) */
+                    /* Phase 15.2 — Track A serif PageHero (Houses tab) */
                     <>
-                    <header className="dasha-hero">
-                      <span className="dasha-hero-eyebrow">
-                        <Sparkles size={12} strokeWidth={1.8} />
-                        {t("12 houses · KP cusp framework", "12 భావాలు · KP కస్ప్ ఫ్రేమ్‌వర్క్")}
-                      </span>
-                      <h1 className="dasha-hero-title">
-                        {t("Your house architecture", "మీ భావ నిర్మాణం")}
-                      </h1>
-                      <p className="dasha-hero-sub">
-                        {t(
-                          "Each cusp's sub lord gates that life area's promise. Click a house to drill into its CSL chain, occupants, and ruling planets.",
-                          "ప్రతి కస్ప్ యొక్క సబ్ లార్డ్ ఆ జీవిత ప్రాంతం యొక్క వాగ్దానాన్ని శాసిస్తుంది. CSL చైన్, నివాసులు, నియమ గ్రహాల వివరాల కోసం భావాన్ని క్లిక్ చేయండి."
-                        )}
-                      </p>
-                    </header>
+                    <PageHero
+                      eyebrow={t("12 houses · KP cusp framework", "12 భావాలు · KP కస్ప్ ఫ్రేమ్‌వర్క్")}
+                      title={t("Your house architecture", "మీ భావ నిర్మాణం")}
+                      subcopy={t(
+                        "Each cusp's sub lord gates that life area's promise. Click a house to drill into its CSL chain, occupants, and ruling planets.",
+                        "ప్రతి కస్ప్ యొక్క సబ్ లార్డ్ ఆ జీవిత ప్రాంతం యొక్క వాగ్దానాన్ని శాసిస్తుంది. CSL చైన్, నివాసులు, నియమ గ్రహాల వివరాల కోసం భావాన్ని క్లిక్ చేయండి."
+                      )}
+                    />
                       {/* Sub-tab pill switcher */}
                       <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
                         {[
@@ -2985,22 +2981,15 @@ export default function Home() {
 
                 return (
                 <div className="tab-content">
-                  {/* Page hero */}
-                  <header className="dasha-hero">
-                    <span className="dasha-hero-eyebrow">
-                      <Sparkles size={12} strokeWidth={1.8} />
-                      {t("Vimshottari · 120-year cycle", "విమ్శోత్తరి · 120 సంవత్సరాల చక్రం")}
-                    </span>
-                    <h1 className="dasha-hero-title">
-                      {t("Your dasha journey", "మీ దశ ప్రయాణం")}
-                    </h1>
-                    <p className="dasha-hero-sub">
-                      {t(
-                        "Every planet rules a window of your life. See which Mahadasha, Antardasha, and Pratyantardasha you're living in — with transits layered on top.",
-                        "ప్రతి గ్రహం మీ జీవితంలో ఒక కాలాన్ని శాసిస్తుంది. మీరు ఏ మహాదశ, అంతర్దశ, ప్రత్యంతర్దశలో ఉన్నారో చూడండి — గోచారాలతో కలిపి."
-                      )}
-                    </p>
-                  </header>
+                  {/* Phase 15.2 — Track A serif PageHero (Dasha tab) */}
+                  <PageHero
+                    eyebrow={t("Vimshottari · 120-year cycle", "విమ్శోత్తరి · 120 సంవత్సరాల చక్రం")}
+                    title={t("Your dasha journey", "మీ దశ ప్రయాణం")}
+                    subcopy={t(
+                      "Every planet rules a window of your life. See which Mahadasha, Antardasha, and Pratyantardasha you're living in — with transits layered on top.",
+                      "ప్రతి గ్రహం మీ జీవితంలో ఒక కాలాన్ని శాసిస్తుంది. మీరు ఏ మహాదశ, అంతర్దశ, ప్రత్యంతర్దశలో ఉన్నారో చూడండి — గోచారాలతో కలిపి."
+                    )}
+                  />
 
                   {/* Currently running — 3-card hero with MD breathing */}
                   {md && (
@@ -4490,23 +4479,15 @@ export default function Home() {
               {/* MUHURTHA */}
               {activeTab === "muhurtha" && (
                 <div className="tab-content" style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: 960 }}>
-                  {/* Page hero — sets the "this is an oracle" tone consistent with
-                      Horary (PR13/14) and Houses (PR11). Always visible above the
-                      wizard regardless of step. */}
-                  <header style={{ marginBottom: 4 }}>
-                    <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6, fontWeight: 600 }}>
-                      {t("Auspicious Timing", "శుభ ముహూర్తం")}
-                    </div>
-                    <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 28, margin: 0, lineHeight: 1.15, color: "var(--text)", letterSpacing: "-0.01em" }}>
-                      {t("Muhurtha finder", "ముహూర్తం కనుగొను")}
-                    </h1>
-                    <p style={{ fontSize: 13, color: "var(--muted)", margin: "6px 0 0", maxWidth: 620, lineHeight: 1.55 }}>
-                      {t(
-                        "Scans every 4 minutes of your date range. Scores each Lagna Sub-Lord against event-specific house requirements plus Badhaka, Moon SL, and Panchang.",
-                        "మీ ఎంచుకున్న తేదీల పరిధిని ప్రతి 4 నిమిషాలకు స్కాన్ చేస్తుంది. ప్రతి లగ్న సబ్‌లార్డ్‌ని ఈవెంట్‌కి తగిన భావాలు + బాధక + చంద్ర SL + పంచాంగంతో స్కోర్ చేస్తుంది."
-                      )}
-                    </p>
-                  </header>
+                  {/* Phase 15.2 — Track A serif PageHero (Muhurtha tab) */}
+                  <PageHero
+                    eyebrow={t("Auspicious Timing", "శుభ ముహూర్తం")}
+                    title={t("Muhurtha finder", "ముహూర్తం కనుగొను")}
+                    subcopy={t(
+                      "Scans every 4 minutes of your date range. Scores each Lagna Sub-Lord against event-specific house requirements plus Badhaka, Moon SL, and Panchang.",
+                      "మీ ఎంచుకున్న తేదీల పరిధిని ప్రతి 4 నిమిషాలకు స్కాన్ చేస్తుంది. ప్రతి లగ్న సబ్‌లార్డ్‌ని ఈవెంట్‌కి తగిన భావాలు + బాధక + చంద్ర SL + పంచాంగంతో స్కోర్ చేస్తుంది."
+                    )}
+                  />
 
                   {/* Step wizard — always visible so the user knows which step
                       they're on and which are complete. Going back is
@@ -5731,20 +5712,15 @@ export default function Home() {
                 return (
                 <div className="tab-content" style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: 1020 }}>
 
-                  {/* Page hero — consistent with Horary / Muhurtha / Panchang (PR14-16). */}
-                  <header className="match-header">
-                    <div className="match-header-eyebrow">
-                      <Heart size={12} strokeWidth={1.8} />
-                      {t("KP + Ashtakoota compatibility", "KP + అష్టకూట సరిపోలన")}
-                    </div>
-                    <h1 className="match-header-title">{t("Marriage match", "వివాహ సరిపోలన")}</h1>
-                    <p className="match-header-sub">
-                      {t(
-                        "Combines KP 7th-cusp sub-lord analysis, Venus karaka, Dasha-Bhukti timing, D9 Navamsa, Kuja Dosha, and the 36-gun Ashtakoota into a single compatibility verdict.",
-                        "KP 7-భావ సబ్ లార్డ్, శుక్ర కారక, దశా-భుక్తి సమయం, D9 నవాంశ, కుజ దోష, 36-గుణ అష్టకూటను కలిపి ఒకే సరిపోలన నిర్ణయంగా మార్చుతుంది."
-                      )}
-                    </p>
-                  </header>
+                  {/* Phase 15.2 — Track A serif PageHero (Match tab) */}
+                  <PageHero
+                    eyebrow={t("KP + Ashtakoota compatibility", "KP + అష్టకూట సరిపోలన")}
+                    title={t("Marriage match", "వివాహ సరిపోలన")}
+                    subcopy={t(
+                      "Combines KP 7th-cusp sub-lord analysis, Venus karaka, Dasha-Bhukti timing, D9 Navamsa, Kuja Dosha, and the 36-gun Ashtakoota into a single compatibility verdict.",
+                      "KP 7-భావ సబ్ లార్డ్, శుక్ర కారక, దశా-భుక్తి సమయం, D9 నవాంశ, కుజ దోష, 36-గుణ అష్టకూటను కలిపి ఒకే సరిపోలన నిర్ణయంగా మార్చుతుంది."
+                    )}
+                  />
 
                   {/* Step wizard — always visible. People → Verdict. Same
                       pattern as Muhurtha's stepper so the user always knows
@@ -6711,23 +6687,20 @@ export default function Home() {
                 <div className="tab-content">
                   <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 720 }}>
 
-                    {/* Page header (ported from developv2 — gives this tab a proper title) */}
+                    {/* Phase 15.2 — Track A serif PageHero (Horary tab) */}
                     {!horaryResult && (
-                      <header style={{ marginBottom: 2 }}>
-                        <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6, fontWeight: 600 }}>
-                          {t("Krishnamurti Paddhati · 1–249", "కృష్ణమూర్తి పద్ధతి · 1–249")}
-                        </div>
-                        <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 28, margin: 0, lineHeight: 1.15, color: "var(--text)", letterSpacing: "-0.01em" }}>
-                          {t("Horary · Prashna", "హోరరీ · ప్రశ్న")}
-                        </h1>
-                        <p style={{ fontSize: 13, color: "var(--muted)", margin: "6px 0 0", maxWidth: 600, lineHeight: 1.55 }}>
-                          {t(
-                            "Ask a question, pick a number between 1 and 249, get a YES/NO verdict based on Lagna Sub-Lord + topic cusp CSL + Ruling Planets confirmation.",
-                            "ఒక ప్రశ్న అడగండి, 1–249 మధ్య సంఖ్య ఎంచుకోండి. లగ్న సబ్‌లార్డ్ + భావ CSL + నియమిత గ్రహాలతో YES/NO నిర్ణయం పొందండి."
-                          )}
-                        </p>
-                        {/* PR A1.1 — live location pill; astrologer can override */}
-                        <div style={{ marginTop: 10 }}>
+                      <>
+                      <PageHero
+                        eyebrow={t("Krishnamurti Paddhati · 1–249", "కృష్ణమూర్తి పద్ధతి · 1–249")}
+                        title={t("Horary · Prashna", "హోరరీ · ప్రశ్న")}
+                        subcopy={t(
+                          "Ask a question, pick a number between 1 and 249, get a YES/NO verdict based on Lagna Sub-Lord + topic cusp CSL + Ruling Planets confirmation.",
+                          "ఒక ప్రశ్న అడగండి, 1–249 మధ్య సంఖ్య ఎంచుకోండి. లగ్న సబ్‌లార్డ్ + భావ CSL + నియమిత గ్రహాలతో YES/NO నిర్ణయం పొందండి."
+                        )}
+                        bottomGap={12}
+                      />
+                      <FadeIn delay={0.5} distance="small" duration="base">
+                        <div style={{ marginTop: 0, marginBottom: 16 }}>
                           <LiveLocationPill
                             location={liveLoc.location}
                             status={liveLoc.status}
@@ -6736,7 +6709,8 @@ export default function Home() {
                             onRefresh={liveLoc.refresh}
                           />
                         </div>
-                      </header>
+                      </FadeIn>
+                      </>
                     )}
 
                     {!horaryResult ? (
@@ -7566,6 +7540,21 @@ export default function Home() {
                     - Timestamps under each AI bubble (#A16) */}
               {activeTab === "analysis" && (
                 <div className="tab-content" style={{ display: "flex", flexDirection: "column", height: "100%", gap: 0 }}>
+                  {/* Phase 15.2 — Track A serif PageHero (Analysis tab).
+                      Only on the empty state (before chat starts) — once
+                      a conversation is active the sticky topic strip takes
+                      over and a big hero would waste vertical space. */}
+                  {analysisMessages.length === 0 && (
+                    <PageHero
+                      eyebrow={t("AI · KP Sonnet", "AI · KP సోనెట్")}
+                      title={t("Ask the chart", "చార్ట్‌ని అడగండి")}
+                      subcopy={t(
+                        "Pick a life topic for a full 7-section KP worksheet, or type any question. Every verdict cites the chart's CSL chains and dasha context.",
+                        "పూర్తి 7-సెక్షన్ KP వర్క్‌షీట్ కోసం జీవిత అంశాన్ని ఎంచుకోండి, లేదా ఏదైనా ప్రశ్న టైప్ చేయండి. ప్రతి నిర్ణయం చార్ట్ CSL చైన్‌లు + దశ సందర్భాన్ని ఉదహరిస్తుంది."
+                      )}
+                      bottomGap={16}
+                    />
+                  )}
                   {/* Topics — full grid before chat starts, compact horizontal strip after */}
                   <div
                     style={{
