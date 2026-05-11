@@ -2,6 +2,10 @@
 import React from "react";
 import { useLanguage } from "@/lib/i18n";
 import { formatDate, stripSeconds } from "@/lib/format";
+// Phase 16 — Moment #2: real-time moon-phase widget that ticks
+// every minute. Adds the "this app knows the sky" signal to the
+// always-visible TodayStrip.
+import { LiveMoonPhase } from "@/components/ui/LiveMoonPhase";
 
 /**
  * Phase 3 — TodayStrip
@@ -119,6 +123,10 @@ export function TodayStrip({
         "చార్ట్ లోడ్ సమయంలో నేటి పంచాంగం స్నాప్‌షాట్."
       )}
     >
+      {/* Phase 16 — live moon-phase widget, leftmost. Shows the
+          real current moon phase, updates every minute. */}
+      <LiveMoonPhase size={compact ? 14 : 16} />
+
       {/* Eyebrow */}
       <span
         style={{

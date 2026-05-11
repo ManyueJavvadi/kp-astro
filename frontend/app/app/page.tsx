@@ -42,6 +42,9 @@ import { AiCallBadge } from "@/components/ui/AiCallBadge";
 // duplicated across 3 tabs and missing from 5 others.
 import { PageHero } from "@/components/ui/PageHero";
 import { AnimatedScoreDonut } from "@/components/ui/AnimatedScoreDonut";
+// Phase 16 — Moment #1: 3.5-second cinematic chart reveal ceremony.
+// Replaces the old 1.75s tiny bloom. THIS is the signature moment.
+import { ChartRevealCeremony } from "@/components/ui/ChartRevealCeremony";
 import { FadeIn, StaggerChildren, StaggerItem } from "@/components/motion";
 // PR A1.3-fix-20 — RasiChart replaces SouthIndianChart with proper KP
 // sign-fixed layout + North/South/East tabs. Drop-in replacement.
@@ -679,11 +682,11 @@ export default function Home() {
         setChartData(res.data);
       }
       setSetupDone(true);
-      // Phase 9 / PR 25 — celebrate first chart generation. The reveal
-      // overlay plays a 1.7s gold-bloom animation then auto-clears.
-      // pointer-events: none on the overlay so it never blocks clicks.
+      // Phase 16 — Moment #1: 3.5-second cinematic chart reveal ceremony.
+      // The overlay self-dismisses via its own onComplete prop, so we
+      // don't need a setTimeout here anymore. pointer-events:none
+      // throughout so clicks fall through to the chart underneath.
       setShowChartReveal(true);
-      window.setTimeout(() => setShowChartReveal(false), 1750);
       setCurrentSessionId(prev => prev || Date.now().toString());
       // NOTE: we deliberately do NOT show the AI-language modal here
       // anymore. The modal's purpose is to let astrologers choose
@@ -1688,16 +1691,26 @@ export default function Home() {
           immediately after a successful chart generation. The CSS
           animation auto-fades the overlay out; state cleared after
           1.75s. pointer-events: none everywhere so clicks fall through. */}
+      {/* Phase 16 — Moment #1: Chart reveal CEREMONY.
+          Replaces the old kp-chart-reveal CSS bloom with a 3.5s
+          cinematic sequence (stars converge → planets orbit → wheel
+          draws → name + nakshatra reveal). See components/ui/
+          ChartRevealCeremony.tsx for the full choreography. */}
       {showChartReveal && (
-        <div className="kp-chart-reveal" aria-hidden>
-          <div className="kp-chart-reveal-bloom" />
-          <div className="kp-chart-reveal-title">
-            {t("Your chart is ready", "మీ చార్ట్ సిద్ధం")}
-          </div>
-          <div className="kp-chart-reveal-sub">
-            {t("KP precision · Swiss Ephemeris", "KP ఖచ్చితత్వం · Swiss Ephemeris")}
-          </div>
-        </div>
+        <ChartRevealCeremony
+          name={birthDetails.name || workspaceData?.name}
+          nakshatra={
+            (workspaceData?.moon_nakshatra_en as string | undefined)
+            ?? (workspaceData?.moon?.nakshatra_en as string | undefined)
+            ?? (chartData?.moon?.nakshatra_en as string | undefined)
+          }
+          subLabel={
+            workspaceData?.moon?.sign_en
+              ? `${workspaceData.moon.sign_en} Moon`
+              : undefined
+          }
+          onComplete={() => setShowChartReveal(false)}
+        />
       )}
 
       {/* Phase 8 / PR 23 — keyboard shortcut help overlay.
