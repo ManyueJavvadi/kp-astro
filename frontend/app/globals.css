@@ -369,12 +369,24 @@ select option {
   animation: kp-reveal-text 1700ms ease forwards;
   animation-delay: 80ms;
 }
+/* Phase 15.4 — pulse-gold enhanced. Was a fast 2s rim-flash;
+   now a slower 3.6s "heartbeat" that breathes outward like a
+   real luminous body. Two-tone gradient for warmth. Matches
+   the motion.duration.breathing token rhythm (3.8s). */
 @keyframes pulse-gold {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(201,169,110,0.3); }
-  50%       { box-shadow: 0 0 0 6px rgba(201,169,110,0); }
+  0%, 100% {
+    box-shadow:
+      0 0 0 0 rgba(201,169,110,0.45),
+      0 0 0 0 rgba(231, 201, 138, 0.0);
+  }
+  50% {
+    box-shadow:
+      0 0 0 8px rgba(201,169,110,0),
+      0 0 24px 2px rgba(231, 201, 138, 0.18);
+  }
 }
 .glow-gold {
-  animation: pulse-gold 2s infinite;
+  animation: pulse-gold 3.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
 @keyframes slideIn {
   from { opacity: 0; transform: translateX(-12px); }
@@ -1558,10 +1570,20 @@ textarea:focus-visible {
   background: var(--surface);
   border-radius: 12px;
   overflow: hidden;
-  transition: all 0.2s;
+  /* Phase 15.4 — cubic-bezier matches motion.ease.reveal token in theme.ts.
+     Multi-property transition so the lift/shadow/border feel cohesive. */
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.2s ease;
+  will-change: transform;
 }
 .muhurtha-card:hover {
-  box-shadow: 0 2px 16px rgba(0,0,0,0.3);
+  /* Phase 15.4 — cards lift toward the cursor with a deepened shadow
+     + gold-tinted ring. Reads as "this card has weight". */
+  transform: translateY(-3px);
+  box-shadow:
+    0 14px 36px rgba(0, 0, 0, 0.48),
+    0 0 0 1px rgba(201, 169, 110, 0.28);
 }
 .muhurtha-card-excellent {
   background: linear-gradient(135deg, rgba(201,169,110,0.04) 0%, var(--surface) 100%);

@@ -41,6 +41,7 @@ import { AiCallBadge } from "@/components/ui/AiCallBadge";
 // Replaces inline <header className="dasha-hero"> markup that was
 // duplicated across 3 tabs and missing from 5 others.
 import { PageHero } from "@/components/ui/PageHero";
+import { AnimatedScoreDonut } from "@/components/ui/AnimatedScoreDonut";
 import { FadeIn, StaggerChildren, StaggerItem } from "@/components/motion";
 // PR A1.3-fix-20 — RasiChart replaces SouthIndianChart with proper KP
 // sign-fixed layout + North/South/East tabs. Drop-in replacement.
@@ -1190,8 +1191,13 @@ export default function Home() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Telugu:wght@300;400;500;600&family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap');
         @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-        @keyframes slideIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-        .tab-content{animation:slideIn 0.2s ease}
+        /* Phase 15.4 — tab-content entrance upgraded from a 200ms snap-in
+           to a 420ms decelerated lift. Pairs with the cosmic-craft motion
+           grammar (cubic-bezier matches motion.ease.reveal token in theme.ts).
+           Distance bumped 6px -> 12px so the entrance reads as intentional
+           rather than incidental. */
+        @keyframes slideIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+        .tab-content{animation:slideIn 0.42s cubic-bezier(0.16,1,0.3,1)}
         .md-body h1,.md-body h2{font-size:15px;color:var(--accent2);margin:1rem 0 0.5rem;font-family:'DM Serif Display',serif}
         .md-body h3{font-size:13px;color:var(--accent);margin:0.75rem 0 0.4rem}
         .md-body p{font-size:13px;line-height:1.7;color:#c8c8d8;margin-bottom:0.5rem}
@@ -6104,15 +6110,14 @@ export default function Home() {
                           </div>
                           {/* Score donut + serif verdict */}
                           <div style={{ flex: 1, display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 6, minWidth: 200 }}>
-                            <svg width={84} height={84} viewBox="0 0 84 84">
-                              <circle cx={42} cy={42} r={34} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={8} />
-                              <circle cx={42} cy={42} r={34} fill="none" stroke={verdictColor} strokeWidth={8}
-                                strokeDasharray={`${((ast?.total_score ?? 0)/(ast?.max_score ?? 36)) * 213.6} 213.6`}
-                                strokeLinecap="round" strokeDashoffset={53.4}
-                                style={{ filter: `drop-shadow(0 0 8px ${verdictColor}60)` }} />
-                              <text x={42} y={44} textAnchor="middle" className="match-score-donut-num" fontSize={18} fill={verdictColor}>{ast?.total_score ?? "?"}</text>
-                              <text x={42} y={58} textAnchor="middle" fontSize={9} fill="var(--muted)">/{ast?.max_score ?? 36}</text>
-                            </svg>
+                            {/* Phase 15.4 — animated compatibility donut.
+                                Arc draws from 0 over 1.2s while the center
+                                number counts up 0 -> final score. */}
+                            <AnimatedScoreDonut
+                              score={ast?.total_score ?? 0}
+                              max={ast?.max_score ?? 36}
+                              color={verdictColor}
+                            />
                             <div className="match-verdict-word" style={{ color: verdictColor }}>
                               {r.overall_verdict}
                             </div>
