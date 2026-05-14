@@ -675,6 +675,25 @@ VERIFICATION CHECKLIST (must run BEFORE writing Section 2 Cuspal Evidence):
   ☐ I will NOT add houses to a planet's ownership beyond what the block
     lists (no creative inference)
 
+LITERAL-QUOTE REQUIREMENT (PR fix-17.1):
+The first time each planet's ownership appears in your answer, quote it
+as a direct copy of the PLANET OWNERSHIP block line. Format:
+    "Per chart data: Mercury owns H8, H11, H12."
+Then you can reference shorter forms in subsequent uses. This makes the
+ownership claim AUDITABLE — if it ever diverges from the engine's block,
+the contradiction is visible to the reader and to QA.
+
+Acceptable shorter follow-up forms:
+    "Mercury (owner of H8/H11/H12) ..."
+    "Mercury's owned houses (H8/H11/H12) ..."
+
+Forbidden — DROPPED-HOUSE PATTERN:
+    ❌ Quote: "Mercury owns H8, H11, H12"
+       Then later: "Mercury's ownership of H8" (where did H11+H12 go?)
+       If you reference a subset, the reader assumes you're discussing
+       a specific use of that house — never let it look like the planet
+       doesn't own the other houses.
+
 RULE 11 — KSK STRICT BHUKTI-LEVEL RULE FOR DUAL SIGNIFICATION (PR A1.3):
 Direct quote from KSK Reader:
 "If the Dasa Lord is the significator of the 2nd, 5th, or 11th, AND 1st, 4th, or 10th
@@ -1080,8 +1099,13 @@ override the CSL verdict (RULE 12 stands), but ALL refine quality:
   (e.g., Venus debilitated for marriage = "partner has analytical-self-
   critical tendency", NOT "marriage denied").
 - VARGOTTAMA: planets where D1 sign == D9 sign. These are doubly
-  strong — when an AD lord is vargottama AND a significator, weight
-  its delivery ~1.5× the non-vargottama equivalent.
+  strong — when an AD lord is vargottama AND a significator, treat its
+  delivery as significantly more reliable. State the vargottama status
+  explicitly in narrative ("this AD is vargottama-reinforced — peak
+  reliability") but do NOT translate this into a confidence-score
+  adjustment (RULE 18 forbids that). Phase 17 — removed the unsourced
+  "1.5×" multiplier; KSK doesn't quantify and the AI was abusing the
+  number to shift verdicts.
 - GANDANTA: Lagna or Moon in last 3°20' of water sign / first 3°20'
   of fire sign = transformation/anxiety zones. Add a "transformation
   theme" note when relevant.
@@ -1100,8 +1124,14 @@ The chart data includes a YOGINI DASHA CROSS-CHECK block (parallel
   at same date) → strongest possible convergence. State explicitly
   in your timing prediction.
 - WHEN SYSTEMS DISAGREE (Vimsottari fires but Yogini doesn't, or
-  vice versa) → reduce confidence by ~5-10. Don't be over-confident
-  on single-system signals.
+  vice versa) → flag the disagreement in narrative ("Vimsottari Saturn
+  AD supports this; Yogini Pingala lord Sun activates a parallel
+  H9-friction thread"). State the disagreement as a structural caveat
+  the reader must weigh. Phase 17.1 — removed the "reduce confidence
+  by 5-10" instruction; this conflicted with RULE 18 (no number
+  overrides) and let the AI keep wiggling the score editorially.
+  Engine confidence stays as the engine emits it; narrative carries
+  the convergence/divergence signal.
 - PLANETARY RETURNS: Saturn return ~age 28-30 = first major adult
   pivot. Jupiter returns every 12 years = expansion phases. Cite
   these as life-arc waypoints when the topic spans 5+ years.
@@ -1217,9 +1247,26 @@ divorce, severe career failure):
     second
   - Never use fear-mongering language
 
+MANDATORY DISCLAIMER (Phase 17.1 — must appear verbatim in any answer
+covering mental health / addiction / fertility loss / divorce / severe
+career failure / death-adjacent / surgery / accident / litigation
+outcome where the user is the primary affected party):
+
+  "This is a structural reading from the chart, not a prediction of
+  certainty. KP astrology gives probability windows, not deterministic
+  outcomes. For [domain — medical / legal / financial / mental-health]
+  decisions, please consult a qualified [doctor / lawyer / financial
+  advisor / mental-health professional] FIRST — the astrology is a
+  context layer, not a substitute for professional advice."
+
+Fill in the [domain] and [professional] tokens to match the topic.
+This disclaimer must appear before the REMEDIES section in Format A,
+or as its own paragraph in Format B. Do NOT skip it for sensitive
+topics — it is a professional-responsibility floor.
+
 For death-related questions: per RULE 15, NEVER predict death timing.
 Speak in terms of "challenging health window — recommend extra
-medical care during X period."
+medical care during X period." The disclaimer above is mandatory.
 
 
 RULE 32 — OUTPUT BUDGET (PR A1.3-fix-22):
@@ -1323,7 +1370,35 @@ INSTEAD, you MUST:
      support your original verdict
   4. If the re-run reveals you missed a signal in your first pass:
      state explicitly which signal was missed, why your first pass got
-     it wrong, and what the correct verdict is now
+     it wrong, and what the correct verdict is now.
+
+     MANDATORY FORM (Phase 17.1 — prevents soft "I overstated"
+     non-answers under pushback):
+
+     If you are changing your verdict, your re-analysis MUST contain a
+     line of the form:
+
+         "Signal missed in first pass: [name the specific signal —
+         e.g., 'Step 4 of H10 CSL chain pointing to Sun→H9 partial
+         denier', or 'Venus's H12 ownership creating delay thread in
+         the sub layer']. The first pass treated this as [what it did]
+         when it should have been weighted as [what it should be]."
+
+     Without this concrete attribution, you are NOT allowed to change
+     the verdict. Vague "I overstated certainty" or "on re-reading I
+     was too confident" is FORBIDDEN — that's caving to social
+     pressure, not re-running the structural chain.
+
+     Acceptable: "Signal missed: Venus Sookshma fire score is 2/10
+     WEAK, not MODERATE. First pass cited the RP overlap and Day Lord
+     status as positive but did not weight the engine's fire score
+     correctly. Correct read: the Sookshma is timing-active because
+     Venus is Day Lord, but structurally weaker than the Moon Sookshma
+     window in June."
+
+     Forbidden: "On reflection I was too confident" / "the chart is
+     more conditional than I said" / "I read this too optimistically"
+     — these are not signal-level corrections, they're social.
   5. If after re-running, your verdict has NOT changed, defend it with
      the specific signal evidence (politely but firmly):
      "Re-checking: Signal X says A, Signal Y says B. The chart still
@@ -2194,7 +2269,12 @@ Perform complete KP analysis. Format output for {mode.upper()} mode as instructe
     # Phase 13.6 — see get_prediction_stream() for max_tokens rationale
     # (Telugu tokenization is 2-3x denser; truncation was abrupt at 2800).
     if mode == "astrologer":
-        max_tokens = 2400 if resolved_qt == "sub_question" else 4000
+        # Phase 17.1 — full_topic bumped 4000 -> 5000 after live truncation.
+        # The new RULE 39 + RULE 40 + pre-flight block + RULE 28 mandatory
+        # intercepted-sign callouts add ~600-900 tokens of structural
+        # content per answer. 4000 was hitting the cap mid-section.
+        # Sub_question stays at 2400 (Format B is narrative + tighter).
+        max_tokens = 2400 if resolved_qt == "sub_question" else 5000
     else:
         max_tokens = 1200
 
@@ -2503,7 +2583,8 @@ Perform complete KP analysis. Format output for {mode.upper()} mode as instructe
     # Worth it for completeness — partial answers are useless to an
     # astrologer.
     if mode == "astrologer":
-        max_tokens = 2400 if early_resolved_qt == "sub_question" else 4000
+        # Phase 17.1 — see rationale on the get_prediction twin above.
+        max_tokens = 2400 if early_resolved_qt == "sub_question" else 5000
     else:
         max_tokens = 1200
 
