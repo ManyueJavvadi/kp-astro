@@ -3,6 +3,8 @@ import React from "react";
 import { PLANET_COLORS } from "../constants";
 import { Planet, Cusp, HOUSE_TOPICS, HOUSE_TOPICS_TE } from "../../types/workspace";
 import { useLanguage } from "@/lib/i18n";
+// Phase 15.3 — 12 house cards now cascade in on tab load (60ms gap).
+import { StaggerChildren, StaggerItem } from "@/components/motion";
 
 // Backend returns cusps as array with house_num field
 interface CuspItem {
@@ -47,11 +49,15 @@ export default function HouseOverviewGrid({
     lang === "en" ? HOUSE_TOPICS[h] : (HOUSE_TOPICS_TE[h] ?? HOUSE_TOPICS[h]);
 
   return (
-    <div style={{
-      display: "grid",
-      gridTemplateColumns: "repeat(4, 1fr)",
-      gap: 8,
-    }}>
+    <StaggerChildren
+      gap="base"
+      immediate
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(4, 1fr)",
+        gap: 8,
+      }}
+    >
       {houses.map(h => {
         const cuspsArray = Array.isArray(cusps) ? cusps : Object.values(cusps);
         const cusp = cuspsArray.find((c: CuspItem) => (c.house_num ?? c.house) === h);
@@ -63,10 +69,13 @@ export default function HouseOverviewGrid({
         const signSym     = SIGN_SYMBOLS[cusp.sign_en] ?? "";
 
         return (
-          <div
+          <StaggerItem
             key={h}
             className="house-card"
-            onClick={() => onHouseClick(h)}
+            style={{ display: "block", cursor: "pointer" }}
+            // onClick lives on the inner div retained from the original;
+            // wrapping at StaggerItem level keeps the variant cascade.
+          ><div onClick={() => onHouseClick(h)}
             style={{
               background: isSelected ? "rgba(201,169,110,0.08)" : "var(--card)",
               border: isSelected
@@ -143,9 +152,9 @@ export default function HouseOverviewGrid({
                 ))}
               </div>
             )}
-          </div>
+          </div></StaggerItem>
         );
       })}
-    </div>
+    </StaggerChildren>
   );
 }

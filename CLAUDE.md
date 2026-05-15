@@ -292,3 +292,195 @@ npx next build         # must succeed, prerenders /, /app
 ```
 
 Never push a PR without both passing. No tests yet (Track B adds Vitest).
+
+---
+
+## Phase 15 — Cosmic Craft UI revamp (2026-05-10, in develop)
+
+Six PRs (15.1 → 15.6) added the motion-design layer. Future UI work
+MUST use these primitives — never inline `@keyframes` or magic
+cubic-bezier numbers in component code.
+
+### Stack
+- **motion@12** (formerly Framer Motion) — declarative React entrances,
+  AnimatePresence, layout animations, gestures
+- **lenis@1.3** — smooth momentum scroll (root provider)
+- **Pure 2D canvas** for the cosmic backdrop (no Three.js — saved 80KB)
+
+### Motion tokens (`frontend/lib/theme.ts` → `motion` export)
+Single source of truth for every easing/duration/stagger/spring.
+EVERY animation pulls from here:
+- `motion.ease.reveal` — `[0.16, 1, 0.3, 1]` — default reveal/decelerate
+- `motion.ease.overshoot` — `[0.34, 1.56, 0.64, 1]` — hover bounce
+- `motion.ease.emphasized` — `[0.05, 0.7, 0.1, 1]` — hero entrances
+- `motion.ease.breathing` — `[0.45, 0, 0.55, 1]` — continuous loops
+- `motion.duration` — `instant` 120ms / `fast` 250ms / `base` 400ms /
+  `slow` 600ms / `long` 1200ms / `breathing` 3800ms
+- `motion.stagger` — `tight` 30ms / `base` 60ms / `relaxed` 100ms /
+  `dramatic` 180ms
+- `motion.spring` — `soft` / `crisp` / `elastic` / `weighty`
+- `motion.distance` — `nudge` 6 / `small` 12 / `medium` 20 / `large` 32
+
+### Primitives (`frontend/components/motion/`)
+- `<MotionRoot>` — root provider (already mounted in `app/layout.tsx`).
+  Wraps app in MotionConfig (reducedMotion="user") + Lenis smooth scroll.
+- `<FadeIn>` — single-element entrance (fade + translateY). Props:
+  `delay, distance, duration, ease, whileInView, as, inline, className, style`.
+- `<StaggerChildren>` — cascade orchestrator. Children MUST be
+  `<StaggerItem>` (or any motion.div with variants) for the cascade.
+  Props: `gap, delay, whileInView, immediate, className, style, as`.
+- `<StaggerItem>` — cascade child slot with per-item overrides.
+- `<MaskReveal>` — gold sweep off content (used on every PageHero title).
+  Props: `color, direction, duration, delay, ease, whileInView`.
+- `<CountUp>` — animated numeric counter (0 → N tween).
+  Props: `to, from, duration, delay, decimals, suffix, prefix, format,
+  whileInView`.
+- `<TiltCard>` — 3D-tilt on hover (subtle ~6deg perspective). Auto-disabled
+  on touch devices. Props: `intensity, disableOnTouch, onClick, className, style`.
+
+### Pattern primitives (`frontend/components/ui/`)
+- `<PageHero>` — Track A serif header (eyebrow + DM Serif title with
+  MaskReveal + muted subcopy). Use on EVERY app tab. Props:
+  `eyebrow, title, subcopy, rightSlot, bottomGap, italic, maskColor`.
+  Already deployed on Chart, Houses, Dasha, Muhurtha, Match, Horary, Analysis.
+- `<AnimatedScoreDonut>` — circular score arc + count-up number
+  (used in Match compatibility). Props: `score, max, color, size, duration`.
+- `<CosmicBackdrop>` — pure-2D-canvas orbital scene + starfield + mouse
+  parallax. Lives only on landing page hero. Auto-pauses when tab hidden.
+  Props: `starCount, className, style`.
+
+### Rules for new UI work
+1. **Never inline `@keyframes` or magic cubic-bezier** in component code.
+   Pull from `motion` tokens. If a new motion shape is needed, extend
+   the token set in `theme.ts`.
+2. **Every list of 3+ items gets `<StaggerChildren>`** unless there's a
+   reason not to (e.g., user-typed messages shouldn't cascade).
+3. **Every tab uses `<PageHero>`** for its top-of-page header. No more
+   inline `<header className="dasha-hero">`.
+4. **Reduced-motion is automatic** via MotionRoot's MotionConfig +
+   global `prefers-reduced-motion` CSS block in `globals.css`. Don't
+   write per-component branches.
+5. **CSS hover effects use `cubic-bezier(0.16, 1, 0.3, 1)` (reveal)
+   or `cubic-bezier(0.34, 1.56, 0.64, 1)` (overshoot)** — these match
+   the motion tokens. Don't use `ease` or `ease-in-out` for new work.
+
+### Per-tab signature moments (the "screenshot this" interactions)
+- **Landing**: cosmic orbital backdrop (CosmicBackdrop), title mask-sweep, stats count-up
+- **Chart/Houses/Dasha**: PageHero mask-sweep + house grid cascade + planet table cascade
+- **Match**: AnimatedScoreDonut (arc draws + number counts up synchronously)
+- **Muhurtha**: hover-lift result cards
+- **All tabs**: tab-content 420ms decelerated entrance, MD card 3.6s heartbeat,
+  workspace-tab active underline glow
+
+Phase 15 docs:
+- `.claude/DAILY_LOG.md` 2026-05-10 entry — full PR-by-PR breakdown
+- Tag `2026-may-10-bestworkingversion` = pre-Phase-15 snapshot for rollback
+
+---
+
+## Phase 14 — Astrologer-grade PDF report (`pdf_engine_v2.py`)
+
+Shipped 2026-05-07 on `claude/eager-elbakyan`. A 14-section deterministic
+KP report at `backend/app/services/pdf_engine_v2.py` (~1071 lines).
+
+**Cost: $0.** PDF is the **data layer** (chart, panchang, RPs, sigs, MD
+tree, Tara Chakra, vargottama, borderline CSL, glossary). The astrologer
+brings the narrative — exactly like a radiologist reads an MRI. No AI
+output is ever embedded in the PDF, even in user mode (same v2 engine
+serves all modes per user decision 2026-05-07).
+
+**Excluded by design** (no strict-KP knowledge base for these — would
+output wrong claims):
+- Sade Sati, Kuja Dosha, Kaal Sarpa, other Parashari doshas
+- Predictive narrative ("you will marry by 2027")
+- Any AI-generated paragraphs
+
+**Frontend contract** — the PDF export call MUST inject `place` into the
+workspace payload (frontend reads `birthDetails.place` and adds it):
+```ts
+body: JSON.stringify({ ...workspaceData, place: birthDetails.place })
+```
+Without this the cover/birth-details section renders "—" for place.
+
+### Workspace data shapes (gotchas)
+
+These tripped Phase 14 three times — document them so future Claude
+doesn't re-discover:
+
+- **`workspace.dashas`** — full 9-MD list (NOT `current_dasha` alone).
+  Read this for the MD tree section.
+- **`workspace.csl_chains`** — keyed by **integer** `1..12` (NOT `"H1"`
+  strings). Use a `_to_int_key()` tolerance helper. Field names are:
+  `csl`, `csl_house`, `csl_rules`, `csl_star_lord`, `csl_star_lord_house`,
+  `csl_star_lord_rules`, `csl_sub_lord`, `csl_sub_lord_house`,
+  `all_significations`. NOT `sub_lord`/`star_lord`/etc.
+- **`workspace.tara_chakra`** — a **dict** with `chakra.nakshatras` (a
+  list of 27). Each nakshatra item has fields: `name`, `tara_name`,
+  `nature`, `is_janma`. Iterating `tara_chakra` directly (as if it were
+  a list) → `AttributeError`.
+
+### ReportLab + Helvetica gotchas
+
+- Helvetica **cannot** render Telugu glyphs — they show as "sssss".
+  Render English topic labels in PDF; if Telugu is ever needed, register
+  a Noto Sans Telugu TTF first.
+- Helvetica **cannot** render unicode marks (✓ ★ ⚠ ℞). Replace with
+  ASCII: "Yes" / "(janma)" / "!" / "R".
+
+---
+
+## Anthropic prompt cache TTL gotcha (Phase 13.1)
+
+The default `cache_control: ephemeral` TTL is **5 minutes**. To use `1h`
+the SDK accepts `{"type":"ephemeral","ttl":"1h"}` with no extra header.
+
+To use **`24h`** you MUST send the beta header
+`extended-cache-ttl-2025-04-11` on the request. Without it the SDK
+returns a misleading error: `"Could not resolve authentication method"`
+(it isn't auth — it's the missing beta flag).
+
+PR 33 bumped all 6 `cache_control` sites to `"24h"` without the header
+and broke `/astrologer/analyze-stream` (SSE failed at first chunk).
+Reverted to `"1h"` in commit `1fe7c5c`. **Do not bump past 1h** until
+the beta header is plumbed into `services/llm_service.py` (`anthropic.AsyncAnthropic`
+client construction).
+
+24h re-enable is on the Hot backlog — see `.claude/BACKLOG.md`.
+
+---
+
+## `/quick-insights` endpoint — HARD-DISABLED (Phase 13.1)
+
+`POST /astrologer/quick-insights` raises **HTTP 410 Gone** at the top of
+the function body. Defense-in-depth: even if a stale Vercel CDN bundle
+still calls `loadQuickInsights()` (the frontend code was removed in
+Phase 13), the backend refuses to bill. Original body kept verbatim
+below the `raise` for easy re-enable behind a flag later.
+
+Original sin: a `useEffect` fired `loadQuickInsights()` every time the
+user opened the Analysis tab — burned Sonnet calls without the user
+clicking anything. Visible on the Anthropic dashboard as ~$5/day.
+
+**Do not re-enable** without:
+1. Explicit user opt-in toggle ("Show quick insights on tab open?")
+2. Per-chart cache hit logged to console (so user can see it's free)
+3. Frontend rate limit (no fire on rapid tab toggles)
+
+---
+
+## Phases 1-14 polish arc (2026-05-07)
+
+| Phase | Scope |
+|---|---|
+| 1-2 | Place picker UX, masked input separators, mobile shell tweaks |
+| 3-4 | Chart tab content density, Panchang KP variant labels |
+| 5-6 | Dasha tree polish, Match grid synced houses |
+| 7 | Place picker dedup tightened to display-only (lat/lon collision OK) |
+| 8-12 | Transit / Muhurtha / Horary verdict polish, RP card chrome, mobile pass |
+| 13 | Cost fix arc — removed quick-insights auto-fire from frontend |
+| 13.1 | Hard-disabled backend `/quick-insights` (HTTP 410) |
+| 14 | PDF v2 engine (14 sections, $0, no AI, no Parashari doshas) |
+
+PR 32 (30-day cache + dropped `today_ist`) was reverted — staleness
+trade-off rejected by user. `answer_cache._TTL_SECONDS = 24 * 60 * 60`
+and `make_key()` includes `_today_ist()` in current state.

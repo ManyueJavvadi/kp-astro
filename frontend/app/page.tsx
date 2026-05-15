@@ -28,6 +28,9 @@ import {
 } from "lucide-react";
 import { Logo, LogoMark } from "@/components/ui/logo";
 import { theme } from "@/lib/theme";
+// Phase 15.5 — cosmic motion layer for the landing page.
+import { CosmicBackdrop } from "@/components/ui/CosmicBackdrop";
+import { FadeIn, MaskReveal, CountUp } from "@/components/motion";
 
 export default function LandingPage() {
   return (
@@ -142,38 +145,45 @@ function Nav() {
 
 function Hero() {
   return (
-    <section className="v2-section" style={{ position: "relative", overflow: "hidden" }}>
-      <div className="v2-blob-cyan-tl" />
-      <div className="v2-blob-gold-br" />
+    <section className="v2-section" style={{ position: "relative", overflow: "hidden", minHeight: 720 }}>
+      {/* Phase 15.5 — cosmic backdrop: orbital planets + starfield +
+          mouse parallax. Sits behind hero content at z-index 0. */}
+      <CosmicBackdrop starCount={220} />
+      {/* Existing gradient blobs kept for warmth — they layer on top of
+          the canvas for a soft color wash. */}
+      <div className="v2-blob-cyan-tl" style={{ zIndex: 1 }} />
+      <div className="v2-blob-gold-br" style={{ zIndex: 1 }} />
       <div
         style={{
           position: "relative",
-          zIndex: 1,
+          zIndex: 2,
           maxWidth: 1100,
           margin: "0 auto",
           padding: "96px 24px 80px",
           textAlign: "center",
         }}
       >
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "6px 14px",
-            borderRadius: 999,
-            background: "rgba(201,169,110,0.08)",
-            border: "1px solid rgba(201,169,110,0.3)",
-            color: "#c9a96e",
-            fontSize: 12,
-            fontWeight: 500,
-            marginBottom: 28,
-          }}
-        >
-          <Sparkles size={12} />
-          Now in public beta · No account required
-          <ChevronRight size={12} />
-        </span>
+        <FadeIn distance="small" duration="base" delay={0.1}>
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "6px 14px",
+              borderRadius: 999,
+              background: "rgba(201,169,110,0.08)",
+              border: "1px solid rgba(201,169,110,0.3)",
+              color: "#c9a96e",
+              fontSize: 12,
+              fontWeight: 500,
+              marginBottom: 28,
+            }}
+          >
+            <Sparkles size={12} />
+            Now in public beta · No account required
+            <ChevronRight size={12} />
+          </span>
+        </FadeIn>
         <h1
           style={{
             fontSize: "clamp(2.5rem, 6vw, 4.8rem)",
@@ -185,41 +195,50 @@ function Hero() {
             fontFamily: "'DM Serif Display', Georgia, serif",
           }}
         >
-          The KP astrology tool
+          {/* Phase 15.5 — title with gold mask-reveal sweep. */}
+          <MaskReveal direction="right" duration="long" delay={0.25}>
+            The KP astrology tool
+          </MaskReveal>
           <br />
-          every professional will{" "}
-          <span style={{ color: "#c9a96e", fontStyle: "italic" }}>open daily</span>
+          <MaskReveal direction="right" duration="long" delay={0.5}>
+            <span>every professional will </span>
+            <span style={{ color: "#c9a96e", fontStyle: "italic" }}>open daily</span>
+          </MaskReveal>
         </h1>
-        <p
-          style={{
-            fontSize: 18,
-            lineHeight: 1.6,
-            color: "#94A3B8",
-            maxWidth: 620,
-            margin: "0 auto 36px",
-          }}
-        >
-          Modern practice companion for serious KP astrologers and curious
-          seekers. Rigorous chart math, bilingual AI analysis, and prediction
-          tracking — in one beautifully crafted workspace.
-        </p>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "row",
-            gap: 12,
-            justifyContent: "center",
-            flexWrap: "wrap",
-            marginBottom: 40,
-          }}
-        >
-          <Link href="/app" className="v2-btn-cyan">
-            Open the app <ArrowRight size={14} />
-          </Link>
-          <a href="#features" className="v2-btn-ghost">
-            See features
-          </a>
-        </div>
+        <FadeIn distance="small" duration="base" delay={0.95}>
+          <p
+            style={{
+              fontSize: 18,
+              lineHeight: 1.6,
+              color: "#94A3B8",
+              maxWidth: 620,
+              margin: "0 auto 36px",
+            }}
+          >
+            Modern practice companion for serious KP astrologers and curious
+            seekers. Rigorous chart math, bilingual AI analysis, and prediction
+            tracking — in one beautifully crafted workspace.
+          </p>
+        </FadeIn>
+        <FadeIn distance="small" duration="base" delay={1.1}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              gap: 12,
+              justifyContent: "center",
+              flexWrap: "wrap",
+              marginBottom: 40,
+            }}
+          >
+            <Link href="/app" className="v2-btn-cyan">
+              Open the app <ArrowRight size={14} />
+            </Link>
+            <a href="#features" className="v2-btn-ghost">
+              See features
+            </a>
+          </div>
+        </FadeIn>
         <div
           style={{
             display: "flex",
@@ -247,14 +266,20 @@ function Hero() {
   );
 }
 
+// Phase 15.5 — used inside StatsBanner for animated count-up reveals.
+// Lives alongside Hero to keep the marketing surface motion-rich.
+
 /* ───────────── STATS ───────────── */
 
 function StatsBanner() {
-  const stats = [
-    { value: "249", unit: "", label: "KP Horary numbers", sub: "full prashna system" },
-    { value: "9×12", unit: "", label: "Significator grid", sub: "4-level chains" },
-    { value: "120", unit: "yr", label: "Vimshottari cycle", sub: "MD / AD / PAD precision" },
-    { value: "2", unit: "lang", label: "Telugu + English", sub: "bilingual AI analysis" },
+  // Phase 15.5 — `countTo` is numeric target for CountUp; `display`
+  // is the final rendered string (e.g. "9×12" can't count up so we
+  // skip animation for it). Each stat counts up when scrolled into view.
+  const stats: { countTo?: number; display: string; unit: string; label: string; sub: string }[] = [
+    { countTo: 249, display: "249", unit: "",     label: "KP Horary numbers", sub: "full prashna system" },
+    { display: "9×12",                unit: "",     label: "Significator grid", sub: "4-level chains" },
+    { countTo: 120, display: "120", unit: "yr",   label: "Vimshottari cycle", sub: "MD / AD / PAD precision" },
+    { countTo: 2,   display: "2",   unit: "lang", label: "Telugu + English", sub: "bilingual AI analysis" },
   ];
   return (
     <section className="v2-section" style={{ position: "relative" }}>
@@ -304,10 +329,16 @@ function StatsBanner() {
             gap: 16,
           }}
         >
-          {stats.map((s) => (
-            <div key={s.label} className="v2-stat-card">
+          {stats.map((s, i) => (
+            <FadeIn key={s.label} as="div" whileInView distance="small" duration="base" delay={i * 0.08}>
+            <div className="v2-stat-card">
               <div className="v2-stat-number">
-                {s.value}
+                {/* Phase 15.5 — numeric stats count up on scroll into view. */}
+                {s.countTo !== undefined ? (
+                  <CountUp to={s.countTo} duration={1.4} whileInView />
+                ) : (
+                  s.display
+                )}
                 {s.unit && (
                   <span style={{ fontSize: 22, color: "#4A6080", marginLeft: 4 }}>{s.unit}</span>
                 )}
@@ -316,6 +347,7 @@ function StatsBanner() {
               <div className="v2-stat-label">{s.label}</div>
               <div className="v2-stat-sub">{s.sub}</div>
             </div>
+            </FadeIn>
           ))}
         </div>
       </div>
@@ -364,6 +396,9 @@ function FeatureSection({
           padding: "96px 24px",
         }}
       >
+        {/* Phase 15.5 — entire feature section reveals on scroll into view.
+            Left column (text) and right column (mock) each get their own
+            FadeIn so they enter with slight offset for visual interest. */}
         <div
           data-mobile-stack
           style={{
@@ -373,7 +408,7 @@ function FeatureSection({
             alignItems: "center",
           }}
         >
-          <div style={{ order: reverse ? 2 : 1 }}>
+          <FadeIn whileInView distance="medium" duration="slow" as="div" style={{ order: reverse ? 2 : 1 } as React.CSSProperties}><div>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
               <div
                 style={{
@@ -452,12 +487,14 @@ function FeatureSection({
                 </li>
               ))}
             </ul>
-          </div>
-          <div style={{ order: reverse ? 1 : 2 }}>
+          </div></FadeIn>
+          {/* Right column: mock card, enters with 200ms offset from left
+              column to create the dual-reveal rhythm. */}
+          <FadeIn whileInView distance="medium" duration="slow" delay={0.2} as="div" style={{ order: reverse ? 1 : 2 } as React.CSSProperties}>
             <div className="v2-mockup-card" style={{ padding: 24 }}>
               {mock}
             </div>
-          </div>
+          </FadeIn>
         </div>
       </div>
     </section>

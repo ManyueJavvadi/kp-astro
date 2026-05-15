@@ -19,14 +19,19 @@ For the CSL chain:
   UNION of all → final CSL signification set
 """
 
-from app.services.chart_engine import get_sign, get_nakshatra_and_starlord, get_sub_lord
+from app.services.chart_engine import (
+    get_sign, get_nakshatra_and_starlord, get_sub_lord,
+    SIGN_LORDS as _SIGN_LORDS_LIST,
+)
 
-SIGN_LORDS = {
-    "Aries": "Mars", "Taurus": "Venus", "Gemini": "Mercury",
-    "Cancer": "Moon", "Leo": "Sun", "Virgo": "Mercury",
-    "Libra": "Venus", "Scorpio": "Mars", "Sagittarius": "Jupiter",
-    "Capricorn": "Saturn", "Aquarius": "Saturn", "Pisces": "Jupiter",
-}
+# PR A1.3-fix-24 — derive the dict-shaped SIGN_LORDS from chart_engine's
+# canonical list, so editing one place stays in sync. Was previously a
+# duplicate hardcoded dict here — silent divergence risk.
+_SIGN_NAMES = [
+    "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
+    "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces",
+]
+SIGN_LORDS = {name: _SIGN_LORDS_LIST[i] for i, name in enumerate(_SIGN_NAMES)}
 
 HOUSE_NAMES = {
     1: "Self/Health/Lagna", 2: "Wealth/Family/Speech", 3: "Siblings/Courage/Short journeys",
@@ -98,7 +103,23 @@ def compute_csl_chains(cusps: list, planets: list) -> dict:
         h = cusp["house_num"]
         csl_name = cusp.get("sub_lord_en", "")
         if not csl_name or csl_name not in planet_lons:
-            result[h] = {"csl": csl_name, "chain_text": f"H{h}: CSL {csl_name} not found in planets", "all_significations": []}
+            # PR A1.3-fix-24 — fill defensive defaults for ALL keys so
+            # downstream consumers can read csl_chains[h]["csl_house"] etc.
+            # without KeyError (today only chain_text is read, but defending
+            # against future usage).
+            result[h] = {
+                "csl": csl_name,
+                "csl_house": 0,
+                "csl_rules": [],
+                "csl_nakshatra": "",
+                "csl_star_lord": "",
+                "csl_star_lord_house": 0,
+                "csl_star_lord_rules": [],
+                "csl_sub_lord": "",
+                "csl_sub_lord_house": 0,
+                "all_significations": [],
+                "chain_text": f"H{h}: CSL {csl_name} not found in planets",
+            }
             continue
 
         csl_lon = planet_lons[csl_name]

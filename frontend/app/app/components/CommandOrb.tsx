@@ -155,6 +155,16 @@ export default function CommandOrb({
     const pinnedSide = side;
     const pinnedYPct = yPct;
 
+    // PR A1.3-fix-24 — Track LIVE position for the up() handler.
+    // The previous code read `side` and `yPct` directly inside up(), which
+    // are React-state values captured in this closure at pointerdown time
+    // — STALE. setSide/setYPct calls during drag updated React state but
+    // not these closure-captured values. Result: persistPosition() wrote
+    // the START position to localStorage, so after reload the orb teleported
+    // back to where the drag began. Tracking via mutable locals fixes this.
+    let liveSideOut: "left" | "right" = side;
+    let liveYPctOut: number = yPct;
+
     // Local flag: tracks whether we've already entered zone-drag mode.
     // Using a ref-free local is safe because move/up close over it.
     let localZoneActive = false;
@@ -209,6 +219,10 @@ export default function CommandOrb({
       const liveYPct = Math.max(6, Math.min(94, (ev.clientY / vh) * 100));
       setSide(liveSide);
       setYPct(liveYPct);
+      // PR A1.3-fix-24 — keep closure-local trackers in sync so up()
+      // persists the FINAL position, not the captured-at-pointerdown one.
+      liveSideOut = liveSide;
+      liveYPctOut = liveYPct;
       if (showCoach) setShowCoach(false);
     };
 
@@ -251,7 +265,9 @@ export default function CommandOrb({
 
       // Standard reposition-drag path (unchanged from PR20/PR21).
       if (dragMoved.current) {
-        persistPosition(side, yPct);
+        // PR A1.3-fix-24 — read from closure-local trackers (live values)
+        // rather than React-state vars which were stale here.
+        persistPosition(liveSideOut, liveYPctOut);
         try { localStorage.setItem(STORAGE_KEY_COACH, "1"); } catch { /* ignore */ }
       }
     };

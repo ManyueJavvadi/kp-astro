@@ -4,8 +4,14 @@
 (K.S. Krishnamurti) deliberately broke from Parashari on several points.
 This file documents what NOT to use when answering KP questions.
 
-If the AI accidentally applies any of these rejected rules, accuracy drops
-dramatically — they are direct contradictions to KP methodology.
+PR A1.3-fix-26 also added Item 16 — the rejection of POST-KSK extensions
+(Khullar's SSL + CIL theory). KSK-strict positioning means we use ONLY
+what's in KSK's original 6 KP Readers, not later-author additions. This
+is a brand promise, not just a technical choice.
+
+If the AI accidentally applies any of these rejected rules (Parashari OR
+post-KSK extension), accuracy drops dramatically — they are direct
+contradictions to the KP methodology we deliberately committed to.
 
 ---
 
@@ -212,7 +218,51 @@ results — just less prominently. Don't write off combust planets.
 
 ---
 
-## 16. Summary — The KP Methodology Is Always:
+## 16. KSK Rejected (PR A1.3-fix-26): Khullar's Sub-Sub-Lord (SSL) and Cuspal Interlinks (CIL) Theory
+
+**Wrong (Post-KSK extension)**: Using S.P. Khullar's Sub-Sub-Lord (SSL) — the
+9-fold subdivision OF each Sub Lord, giving 27 × 9 × 9 = ~2,187 ultra-fine
+divisions of the zodiac — to drive event verdicts. Or applying Khullar's
+"Cuspal Interlinks" (CIL) theory's 6 Golden Rules ("Star Lord proposes,
+Sub Lord disposes, Sub-Sub Lord shows the end result"), or his
+favorable/neutral/unfavorable house classification (1,3,5,9,11 / 2,6,10 /
+4,7,8,12 from any involved cusp).
+
+**Right (KSK strict — what we use)**: KSK's original 6 KP Readers stop at
+the **Sub Lord**. KSK's 4-step Sub Lord chain (own + star lord + sub lord
+of CSL planet's longitude + star lord of that) walks PLANET-RELATIONSHIP
+DEPENDENCIES and is fundamentally different from Khullar's coordinate-
+subdivision SSL. KSK's complete ultra-precision toolkit is:
+
+  1. 4-step Sub Lord chain (RULE 20)
+  2. Star–Sub Harmony layered reading (RULE 16)
+  3. Pratyantardasha within Antardasha
+  4. Sookshma Dasha within PAD
+  5. Ruling Planets at query moment
+  6. Transit Gocharya confirmation (RULE 22)
+
+This 6-tool toolkit is sufficient for KP prediction at the precision KSK
+intended. SSL and CIL are extensions some modern practitioners use, but
+adding them would dilute KSK-strict positioning and import a different
+school's methodology.
+
+**If a user asks** "what does the Sub-Sub-Lord say?" or "what does Cuspal
+Interlink Theory say?" — explain politely that we're a KSK-strict KP
+engine, that SSL/CIL are Khullar's post-KSK extensions, and offer the
+KSK-canonical answer (CSL chain + Star-Sub harmony + RP confirmation)
+instead of refusing or pretending to compute SSL.
+
+**Implementation notes** (for future maintainers, not for LLM output):
+- We deliberately don't compute SSL in any service module. The
+  "sub_sub" variable name in earlier kp_advanced_compute.py was misleading
+  but the logic was always KSK 4-step (renamed `csl_planet_sub_lord` in
+  this PR). No actual Khullar leakage occurred.
+- The `sub_sub_lord` key in telugu_terms.py was orphaned (no consumer in
+  code) and was removed in this PR.
+
+---
+
+## 17. Summary — The KP Methodology Is Always:
 
 1. **Cuspal Sub Lord** of relevant cusp = primary gate (PROMISE)
 2. **Significator chain** A/B/C/D for those houses = supporting strength
@@ -227,7 +277,7 @@ That is always the right starting point.
 
 ---
 
-## 17. AI Self-Check When Producing Answers
+## 18. AI Self-Check When Producing Answers
 
 Before finalizing any response, the AI should self-verify:
 

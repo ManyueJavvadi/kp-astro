@@ -241,10 +241,30 @@ Every tool goes through the same four phases. No tool skips a phase.
 | **A1.0** | Horary research audit | `.claude/research/horary-audit.md` (no code) | ✅ shipped |
 | A1.1 | Horary engine accuracy fixes | `backend/app/services/horary_engine.py` + pytest golden + reference case | ✅ shipped |
 | A1.2 | Panchang research audit + fixes | `.claude/research/panchang-audit.md` | ✅ shipped (PR A1.2a–d) |
-| **A1.3** | **Analysis tab KB overhaul + accuracy** (originally not planned — opened mid-track after user testing) | See `.claude/HANDOFF-analysis-tab.md` for the 12-PR arc | ✅ shipped (`76368a2` → `aa31528`, fix-1 through fix-10). Fix-11 5-section refactor reverted at `07bbc7d` — see HANDOFF post-mortem. Live state = fix-10 (7-section output). |
+| **A1.3** | **Analysis tab KB overhaul + accuracy** (originally not planned — opened mid-track after user testing) | See `.claude/HANDOFF-analysis-tab.md` for the full arc | ✅ shipped (`76368a2` → `094e0e1`, fix-1 through fix-21). Fix-11 5-section refactor reverted at `07bbc7d`. Live state = fix-10 (7-section output) + fix-12→21 extensions (cost cut, type-class discipline, KP rasi chart, Tara/Chandra Bala). |
 | ~~A1.3-fix-11~~ | ~~Backend 7→5 section refactor~~ | shipped `d60527b`, **REVERTED `07bbc7d`** | ⛔ reverted — output got worse than fix-10. Frontend chat polish (avatar dot, typing dots, copy button, topic auto-collapse, follow-ups, starter questions) was KEPT — only the backend prompt was rolled back. See HANDOFF post-mortem for lessons. |
+| A1.3-fix-12 | Cache breakpoint reorder for ~67% cost cut on follow-ups | `082a4ca` | ✅ shipped |
+| A1.3-fix-13 | 1h cache TTL + conditional KB load + KB dedup | `cf9b59c` | ✅ shipped |
+| A1.3-fix-14 | General-user accuracy parity (gender wiring, KSK reasoning, citations) | `61c5365` | ✅ shipped |
+| A1.3-fix-15 | Premium user-mode UI revamp (UserModeUI component) | `c922488` | ✅ shipped |
+| A1.3-fix-16 | Phase 1+2+3 user-mode cost & UX optimization | `f6dbfdf` | ✅ shipped |
+| A1.3-fix-17 | Haiku for user mode + 3 cache fixes (mode-aware model selection) | `db05864` | ✅ shipped |
+| A1.3-fix-18 | Phase A user-mode KB trim (sub-10-cent per-question target) | `c1eab74` | ✅ shipped |
+| A1.3-fix-19 | Type-classification gap closure across all KBs (RULE 33 + RULE 35; marriage/children/foreign/divorce/health/job/wealth) | `1fc4417` | ✅ shipped — fixes "love-cum-arranged" misclassification + adds pushback discipline |
+| A1.3-fix-20 | Proper KP rasi chart (sign-fixed, S/N/E tabs) + Tara Chakra system (compute + widget + KB) | `1248957` | ✅ shipped — RasiChart.tsx + TaraChakraWidget.tsx + kp_tara_chakra.py |
+| A1.3-fix-21 | Chart bugs + Tara/Chandra Bala expansion (Telugu rendering, East Indian rewrite, inline expand, pariharam, combined verdict) | `094e0e1` | ✅ shipped |
 | A1.3e | UX polish for Analysis tab — confidence-bar visual, source-citation expandables, conflicting-signals panel rendering, life-arc timeline visualization, user-mode 3-section format | frontend changes only (backend support exists from fix-8) | ⏳ queued |
 | A1.3f (optional) | Targeted single-section refactor (only if a section in fix-10's 7-section output proves weak in real testing) | ONE section at a time, A/B vs current, never wholesale | ⏳ optional — see HANDOFF post-mortem rule #1 |
+| A1.3g | **Astrologer-mode streaming** (SSE response so first tokens appear in <2s instead of full 25-40s wait) | backend `astrologer.py` SSE endpoint + frontend EventSource consumer | ⏳ queued |
+| A1.3h | **History compression** (rolling summary of prior Q&A in same session, drop verbatim turns >5 turns old) | backend `llm_service.get_prediction()` history handling | ⏳ queued |
+| A1.3i | **Output budget RULE 32** (hard cap astrologer reply at ~2.5k tokens, user reply at ~800 tokens; today they're unbounded) | system-prompt rule + max_tokens enforcement | ⏳ queued |
+| A1.3j | **Beta header cleanup** (one of the API calls still sends a deprecated `anthropic-beta: prompt-caching-2024-07-31` header — caching is GA now) | `llm_service.py` header config | ⏳ queued |
+| A1.3k | **Format B narrative variant** (currently Q→answer is rigid 7-section; offer a Format B = flowing narrative for sub-questions where the structure feels like overkill) | system-prompt routing on question_type | ⏳ queued |
+| A1.3l | **Engine compute helpers** (move repeated math like Tara position, Chandra Bala position, sub-lord chain walk into reusable named helpers in `kp_*` modules so LLM can cite by helper name) | refactor `kp_advanced_compute.py` + `kp_tara_chakra.py` | ⏳ queued |
+| A1.3m | **Saptamsa D7 (Children)** divisional chart compute + integration into children-topic analysis | new `kp_saptamsa.py` + KB additions to `children_detailed.md` | ⏳ queued |
+| A1.3n | **Vedha + Panchaka overlay** (Tara Bala has two more sub-rules — Vedha nakshatra opposition and Panchaka Rahita; today we compute base 9-Tara only) | extend `kp_tara_chakra.py` | ⏳ queued |
+| A1.3o | **Tara overlay in Dasha tab** (show Tara nature alongside each AD/PAD lord's Moon transit during the period — useful for muhurtha-within-dasha) | Dasha tab JSX + Tara compute reuse | ⏳ queued |
+| ~~A1.3 — Quick Mode~~ | ~~Optional faster Sonnet→Haiku tier toggle for astrologer mode~~ | — | ⛔ **DROPPED 2026-05-06.** User explicitly: *"we are dropping the idea of quick mode for now"*. Don't re-queue without user signal. |
 | A1.4 | Transit research audit | `.claude/research/transit-audit.md` | ⏳ pending |
 | A1.5 | Transit engine accuracy fixes | `backend/app/services/transit_engine.py` + tests | ⏳ pending |
 | A1.6 | Muhurtha research audit | `.claude/research/muhurtha-audit.md` | ✅ shipped (PR A2.2a–f) |
@@ -322,3 +342,37 @@ User says *"we are done for the day"* → Claude appends an entry to `.claude/DA
 - Next session's top-3 priorities.
 
 **Start of next session**: read `BACKLOG.md` + tail last 60 lines of `DAILY_LOG.md` before replying to the user's first message.
+
+---
+
+## 2026-05-07 backlog additions (post Phases 1-14 polish arc)
+
+### Hot — small wins waiting for a free slot
+
+| Item | Effort | Why |
+|---|---|---|
+| Re-enable Anthropic 24h prompt-cache TTL with `extended-cache-ttl-2025-04-11` beta header | 30 min | ~15% additional Sonnet saving on top of the 40% from killing quickInsights. Single-line change to `client.messages.create()` and `async_client.messages.stream()` calls + smoke test against production before redeploy. |
+| Frontend rate-limit on Analysis tab — block re-firing the same topic within 5 sec | 20 min | Prevents accidental double-clicks from billing twice. Already have `analysisLoading` flag, just need a `lastFireMs` map keyed by topic. |
+| Per-call cache-hit logger | 1 hr | Anthropic returns `cache_read_input_tokens` / `cache_creation_input_tokens` per response. Log them per call so we can see real cache hit rates instead of guessing. Helps decide if 24h TTL re-bump is worth it. |
+| Astrologer settings UI (logo + name + contact line for PDF cover/footer) | 2-3 hr | Phase 14 PR B. Stored in localStorage, embedded into PDF. Differentiates astrologer mode without backend changes. |
+| Yogini Dasha tree section in PDF | 1 hr | `kp_yogini_dasha` module exists but data isn't in workspace payload yet. Plumb it through, then add ~2 pages to `pdf_engine_v2.py`. |
+| North + East Indian chart variants in PDF | 3-4 hr | South Indian only today. Diamond/circular layouts need fresh ReportLab rendering. |
+| Register Noto Sans Telugu font for ReportLab | 2 hr | Currently Telugu glyphs fall back to "sssss" garbage. Drop the English-only fallback in significator headers + cusps section once font registered. |
+| Phase 11 deferred Analysis items (#A11 granular loading, #A13 PDF per answer, #A18 conversation export) | 2-4 hr each | Each is its own feature. Ship one at a time when user signals priority. |
+
+### Cold — feature work, queue when business demands
+
+| Item | Why deferred |
+|---|---|
+| Per-house "promised yes/no" badge on Houses Overview | Need to define a stable rule (chain reads `signified` from CSL) — small engine spec, then UI |
+| Compare two charts inline split-view | Feature work, not polish |
+| PDF preview-before-download modal with layout choices | Needs PDF redesign + 2-3 layouts |
+| Sidebar transit heat-map across saved charts | Needs daily transit calc per saved chart, batched server-side |
+| Atimitra-style daily cards on Dasha + Match tabs | Feature work — copy the Houses tab Tara Bala pattern |
+| Cmd-K command palette | Power-user feature — not needed until v1.5+ |
+| Live RP recompute toggle in header | Small but UI-real-estate-tight |
+
+### Don't re-implement
+
+- **30-day same-chart cache + dropping `today_ist` from cache key.** Tried in Phase 13 PR 32, reverted. Staleness on age, today's RPs, dasha references is unacceptable for an astrologer-grade product. The 24h calendar-day cache is the correct trade-off.
+- **Quick-insights auto-fire on Analysis tab open.** Killed in Phase 13 PR 31, hard-disabled at backend in Phase 13.1. ~40% Sonnet saving was the win. Opt-in surface (button → fire on demand) is OK to add later if user signals demand.

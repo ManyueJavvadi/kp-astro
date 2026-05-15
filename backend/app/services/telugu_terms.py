@@ -161,7 +161,10 @@ UI_LABELS = {
     "nakshatra": "నక్షత్రం",
     "star_lord": "నక్షత్రాధిపతి",
     "sub_lord": "సబ్ లార్డ్",
-    "sub_sub_lord": "సబ్ సబ్ లార్డ్",
+    # PR A1.3-fix-26 — removed the dead "sub_sub_lord" Telugu key. Khullar's
+    # Sub-Sub-Lord is a post-KSK extension we deliberately don't use (see
+    # ksk_rejections.md item 18). The translation key was orphaned — no
+    # consumer in code referenced it. Removing prevents accidental future use.
     "house": "భావం",
     "mahadasha": "మహాదశ",
     "antardasha": "అంతర్దశ",
@@ -208,8 +211,19 @@ def get_planet_short(planet: str) -> str:
 def get_sign_telugu(sign: str) -> str:
     return SIGNS_TELUGU.get(sign, sign)
 
+# PR A1.3-fix-24 — nakshatra spelling alias map.
+# chart_engine outputs "Dhanishta" (Krishnamurti convention) but
+# NAKSHATRAS_TELUGU keys it as "Dhanishtha" (the formal English transliteration).
+# Without this alias, ~3.7% of charts (Moon in Dhanishta) silently render
+# the English name in Telugu mode. Same for "Dhanistha" (less common variant).
+_NAKSHATRA_ALIASES = {
+    "Dhanishta": "Dhanishtha",
+    "Dhanistha": "Dhanishtha",
+}
+
 def get_nakshatra_telugu(nakshatra: str) -> str:
-    return NAKSHATRAS_TELUGU.get(nakshatra, nakshatra)
+    canonical = _NAKSHATRA_ALIASES.get(nakshatra, nakshatra)
+    return NAKSHATRAS_TELUGU.get(canonical, nakshatra)
 
 def get_house_telugu(house_num: int) -> str:
     return HOUSES_TELUGU.get(house_num, f"భావం {house_num}")

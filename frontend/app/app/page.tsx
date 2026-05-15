@@ -10,6 +10,7 @@ import { PlacePicker } from "@/components/ui/place-picker";
 import { theme, styles as uiStyles } from "@/lib/theme";
 import { useLanguage } from "@/lib/i18n";
 import CommandOrb from "./components/CommandOrb";
+import UserModeUI from "./components/UserModeUI";
 import LiveLocationPill from "./components/LiveLocationPill";
 import RPContextStrip from "./components/RPContextStrip";
 import ClinicalFlagsStrip from "./components/ClinicalFlagsStrip";
@@ -21,7 +22,38 @@ import HoraryRpDashaStrip from "./components/HoraryRpDashaStrip";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useLiveLocation } from "@/hooks/useLiveLocation";
 import { formatMaskedDate, formatMaskedTime } from "./lib/maskedInput";
-import SouthIndianChart from "./components/SouthIndianChart";
+// Phase 3 — Today panchang strip + per-tab chart context strip.
+// These pull data OUT of the slim header and the sidebar so each
+// surface has one job (#A, #B, #F).
+import { TodayStrip } from "./components/workspace/TodayStrip";
+import { ChartContextStrip } from "./components/workspace/ChartContextStrip";
+// Phase 7 / PR 18 — date formatter for the Dasha tab MD/AD/PAD cards.
+// Wraps the same Phase 1 helper PersonHeroBanner uses.
+import { formatDate, formatDashaPeriod, stripSeconds } from "@/lib/format";
+// Phase 13.2 — frontend audit log for every Anthropic-billing fetch.
+// Each billing call site below MUST recordAiCall(label) before fetching;
+// the on-screen <AiCallBadge /> reads this log so the user can see in
+// real time when an AI call fires (or doesn't).
+import { recordAiCall } from "@/lib/aiAudit";
+import { AiCallBadge } from "@/components/ui/AiCallBadge";
+// Phase 15.2 — Track A serif hero. Every tab uses this single
+// component for its top-of-screen eyebrow + title + subcopy.
+// Replaces inline <header className="dasha-hero"> markup that was
+// duplicated across 3 tabs and missing from 5 others.
+import { PageHero } from "@/components/ui/PageHero";
+import { AnimatedScoreDonut } from "@/components/ui/AnimatedScoreDonut";
+// Phase 16 — Moment #1: 3.5-second cinematic chart reveal ceremony.
+// Replaces the old 1.75s tiny bloom. THIS is the signature moment.
+import { ChartRevealCeremony } from "@/components/ui/ChartRevealCeremony";
+// Phase 16 — Moment #5: PDF export ceremony (parchment + wax seal +
+// rotating subtitles). Shows whenever pdfLoading=true.
+import { PdfCeremonyOverlay } from "@/components/ui/PdfCeremonyOverlay";
+import { FadeIn, StaggerChildren, StaggerItem } from "@/components/motion";
+// PR A1.3-fix-20 — RasiChart replaces SouthIndianChart with proper KP
+// sign-fixed layout + North/South/East tabs. Drop-in replacement.
+import RasiChart from "./components/RasiChart";
+const SouthIndianChart = RasiChart;  // backwards-compat alias for existing call sites
+import TaraChakraWidget from "./components/TaraChakraWidget";
 import DashaTimeline from "./components/DashaTimeline";
 import PanchangamCard from "./components/PanchangamCard";
 import PromiseBadge from "./components/PromiseBadge";
@@ -34,7 +66,9 @@ import DashaStrip from "./components/workspace/DashaStrip";
 import type { PlaceSuggestion, BirthDetails, Message, ChartSession } from "./types";
 import type { WorkspaceData } from "./types/workspace";
 
-const API_URL = "https://devastroai.up.railway.app";
+// PR A1.3-fix-24 — env-derived. NEXT_PUBLIC_API_URL overrides for staging
+// or local dev; production fallback unchanged. Set in .env.local for dev.
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://devastroai.up.railway.app";
 
 // ── Main Component ────────────────────────────────────────────
 export default function Home() {
@@ -63,8 +97,32 @@ export default function Home() {
   const [manualLat, setManualLat] = useState("");
   const [manualLon, setManualLon] = useState("");
   const [activeTab, setActiveTab] = useState("chart");
+  // Phase 8 / PR 23 — keyboard shortcut help overlay state. Toggled by
+  // pressing `?`; closed by Escape or any tab-switch key.
+  const [showKbHelp, setShowKbHelp] = useState(false);
+  // Phase 9 / PR 25 — first-chart reveal animation. Plays once when
+  // the chart finishes generating (transition false → true on
+  // `setupDone`). Auto-clears after the CSS animation duration.
+  const [showChartReveal, setShowChartReveal] = useState(false);
+  // Phase 10 / PR 27 — live panchang for the Today strip.
+  // `workspaceData.panchangam_today` is computed at chart-load time
+  // using the BIRTH lat/lon — so Hora and Rahu Kalam are wrong for
+  // any user not currently at their birth place. When `liveLoc` has
+  // a value (browser geo or manual pick from any tab) we fetch a
+  // fresh panchang at the current location and feed THAT into
+  // TodayStrip. Stays consistent with the Panchang tab and the
+  // Horary tab, which both already use live location.
+  const [liveTodayPanchang, setLiveTodayPanchang] = useState<any>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
-  const [analysisMessages, setAnalysisMessages] = useState<{ q: string; a: string; isTopic?: boolean }[]>([]);
+  // PR A1.3-fix-24 — added optional `id` so SSE consumer can scope writes
+  // to the specific message it owns. Without an id, two streams firing
+  // back-to-back interleave their chunks into whichever message ends up
+  // at `prev[prev.length - 1]`. Renderers still use index keys; this is
+  // metadata for the streaming layer only.
+  // Phase 11 / PR 28 — added optional `t` (created-at ms) so each AI bubble
+  // can show a timestamp under it (#A16). Existing messages without `t`
+  // fall back gracefully — no migration needed.
+  const [analysisMessages, setAnalysisMessages] = useState<{ id?: string; q: string; a: string; isTopic?: boolean; t?: number }[]>([]);
   const [activeTopic, setActiveTopic] = useState("");
   const [chatQ, setChatQ] = useState("");
   const [analysisLang, setAnalysisLang] = useState<"english" | "telugu_english">("english");
@@ -118,10 +176,24 @@ export default function Home() {
   // PDF export state
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState("");
+  // PR A1.3-fix-25 — generic transient toast for non-blocking errors.
+  // Used for PDF failures, horary network errors, place-picker service errors.
+  // Auto-dismisses after 5s; user can close manually. Replaces the prior
+  // pattern where pdfError was set but never rendered (silent failure).
+  const [toast, setToast] = useState<{ msg: string; tone?: "error" | "info" } | null>(null);
+  // PR A1.3-fix-25 — inline form errors for the onboarding/new-chart form.
+  // Replaces 6× window.alert() calls in handleSetup. The banner renders
+  // above the submit button; toast also fires for visibility. Cleared on
+  // successful submit AND on any input change touching the relevant field.
+  const [setupError, setSetupError] = useState<string>("");
   // (quick insights removed)
   // Transit state
   const [transitData, setTransitData] = useState<any>(null);
   const [transitLoading, setTransitLoading] = useState(false);
+  // PR A1.3-fix-25 — track when transit data was fetched so we can show
+  // a "Last refreshed Xm ago" hint. Was missing — once loaded, the same
+  // data sat there until manual refresh with no clue it was stale.
+  const [transitFetchedAt, setTransitFetchedAt] = useState<number | null>(null);
   const [transitDate, setTransitDate] = useState("");
   // Horary / Prashna state
   const [horaryNumber, setHoraryNumber] = useState<number | "">("");
@@ -141,8 +213,13 @@ export default function Home() {
   const [chartView, setChartView] = useState<"chart"|"planets">("chart");
   const [showTransitInDasha, setShowTransitInDasha] = useState(false);
   const [transitSubTab, setTransitSubTab] = useState<"overview" | "planets" | "kp">("overview");
-  // Quick insights
-  const [quickInsights, setQuickInsights] = useState<Record<string, string>>({});
+  // Phase 13 / PR 31 — quickInsights state REMOVED.
+  // The auto-fire on Analysis tab open was burning ~$0.30 of Sonnet
+  // per visit (pre-loading 8 topic snippets the user usually never
+  // read because they immediately clicked a specific topic). Per the
+  // billing diagnosis, this single change drops daily LLM spend by
+  // ~40% on its own. AI now only fires when the user explicitly
+  // clicks a topic OR types a question.
   // Panchangam — auto-detect location, single page
   const [pcData, setPcData] = useState<any>(null);
   const [pcLoading, setPcLoading] = useState(false);
@@ -159,6 +236,22 @@ export default function Home() {
   const [pcCitySearching, setPcCitySearching] = useState(false);
   const [pcGeoError, setPcGeoError] = useState("");
   const pcCitySearchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // PR A1.3-fix-24 — fix render-time side-effect bug. The Panchang IIFE
+  // used to call `pcFetchLocation()` directly during render whenever data
+  // was missing — a React anti-pattern that would warn in StrictMode and
+  // could double-fire under fast re-renders. The IIFE now writes its
+  // local function into this ref, and a top-level useEffect (below)
+  // triggers it cleanly when the tab becomes active.
+  const pcFetchLocationRef = useRef<((d?: string) => void) | null>(null);
+
+  // PR A1.3-fix-24 — Abort controllers for in-flight SSE streams.
+  // Without these, switching topics mid-stream interleaves chunks from
+  // two streams into the latest message bubble (because both stream
+  // consumers update via `prev[prev.length - 1]` after both have appended
+  // their own placeholder). Aborting + cancelling the reader on the
+  // previous call before starting a new one prevents the race.
+  const askStreamAbortRef = useRef<AbortController | null>(null);
+  const analyzeStreamAbortRef = useRef<AbortController | null>(null);
   // CSL chain view selected house (for houses overview)
   const [cslSelectedHouse, setCslSelectedHouse] = useState<number | null>(null);
   // Timezone (auto-detected from place)
@@ -198,8 +291,135 @@ export default function Home() {
     } catch { /* ignore */ }
   }, []);
 
-  // Load quick insights when analysis tab opens
-  useEffect(() => { if (activeTab === "analysis" && workspaceData) { loadQuickInsights(); } }, [activeTab, workspaceData]);
+  // Phase 13 / PR 31 — auto-firing quickInsights on Analysis tab open
+  // was the single biggest preventable cost. Removed entirely.
+
+  // PR A1.3-fix-24 — Panchang auto-load trigger.
+  // Replaces the render-time side-effect call at the IIFE that was firing
+  // pcFetchLocation() during render. Uses the ref the IIFE writes to so the
+  // function definition can stay local (avoids hoisting a 50-line async fn).
+  useEffect(() => {
+    if (activeTab !== "panchang") return;
+    if (pcData || pcLoading || pcShowCityModal) return;
+    pcFetchLocationRef.current?.();
+  }, [activeTab, pcData, pcLoading, pcShowCityModal]);
+
+  // PR A1.3-fix-25 — auto-dismiss the toast after 5s. Manual close also
+  // works (close button calls setToast(null) directly).
+  useEffect(() => {
+    if (!toast) return;
+    const id = window.setTimeout(() => setToast(null), 5000);
+    return () => window.clearTimeout(id);
+  }, [toast]);
+
+  // PR A1.3-fix-24 — clear all pending timers / intervals on unmount.
+  // Without this, debounced searches and the horary dice-roll interval can
+  // fire setState after unmount, producing React warnings + potential
+  // memory leaks. In current SPA shape the Home component basically never
+  // unmounts, but StrictMode (dev double-render) and future route additions
+  // make this defensive.
+  useEffect(() => {
+    return () => {
+      if (placeSearchRef.current) clearTimeout(placeSearchRef.current);
+      if (mNewPSearchRef.current) clearTimeout(mNewPSearchRef.current);
+      if (mEventLocSearchRef.current) clearTimeout(mEventLocSearchRef.current);
+      if (pcCitySearchRef.current) clearTimeout(pcCitySearchRef.current);
+      if (horaryRollRef.current) clearInterval(horaryRollRef.current);
+      // Also abort any in-flight SSE streams
+      askStreamAbortRef.current?.abort();
+      analyzeStreamAbortRef.current?.abort();
+    };
+  }, []);
+
+  // Phase 8 / PR 23 — global keyboard shortcuts.
+  //   1–8           switch active tab (Chart / Houses / Dasha / Analysis /
+  //                                    Panchang / Muhurtha / Match / Horary)
+  //   ? or shift+/  toggle the keyboard-shortcut help overlay
+  //   Esc          close help overlay
+  // Active inputs (textareas, inputs, contenteditable) are skipped so
+  // typing "1" inside the question textarea doesn't switch tabs.
+  useEffect(() => {
+    const isEditable = (el: EventTarget | null): boolean => {
+      const node = el as HTMLElement | null;
+      if (!node) return false;
+      const tag = node.tagName?.toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select") return true;
+      if ((node as HTMLElement).isContentEditable) return true;
+      return false;
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (isEditable(e.target)) return;
+      if (!setupDone) return;
+      // Help toggle.
+      if (e.key === "?" || (e.shiftKey && e.key === "/")) {
+        e.preventDefault();
+        setShowKbHelp(s => !s);
+        return;
+      }
+      if (e.key === "Escape" && showKbHelp) {
+        setShowKbHelp(false);
+        return;
+      }
+      // Number keys 1-8 → tabs.
+      const n = parseInt(e.key, 10);
+      if (!isNaN(n) && n >= 1 && n <= 8) {
+        const target = ["chart","houses","dasha","analysis","panchang","muhurtha","match","horary"][n - 1];
+        if (target) {
+          e.preventDefault();
+          setActiveTab(target);
+        }
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [setupDone, showKbHelp]);
+
+  // Phase 10 / PR 27 — fetch live panchang for the Today strip whenever
+  // useLiveLocation has a value. Reuses the same `/panchangam/location`
+  // endpoint the Panchang tab uses, so the cosmos backing the Today
+  // strip is identical to what the Panchang tab shows.
+  // Caches the lat/lon we last fetched for so we don't re-call on
+  // every render — only when the live location actually changes.
+  useEffect(() => {
+    if (!setupDone) return;
+    if (!liveLoc.location) return;
+    const lat = liveLoc.location.latitude;
+    const lon = liveLoc.location.longitude;
+    // Skip if the cached panchang is already for this lat/lon.
+    if (
+      liveTodayPanchang &&
+      liveTodayPanchang._lat === lat &&
+      liveTodayPanchang._lon === lon
+    ) return;
+    axios
+      .post(`${API_URL}/panchangam/location`, {
+        latitude: lat,
+        longitude: lon,
+        timezone_offset: 0, // backend auto-resolves from lat/lon
+      })
+      .then(r => {
+        setLiveTodayPanchang({
+          ...r.data,
+          _lat: lat,
+          _lon: lon,
+          _city: liveLoc.location?.display ?? "",
+        });
+      })
+      .catch(() => { /* fall back to chart-load snapshot — silent */ });
+  }, [setupDone, liveLoc.location, liveTodayPanchang]);
+
+  // PR A1.3-fix-15 — listen for follow-up chip clicks from HeroVerdictCard.
+  // Component dispatches a `user-followup-click` CustomEvent with the
+  // suggested follow-up question; we drop it into the input box.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ce = e as CustomEvent<string>;
+      if (ce?.detail) setQuestion(ce.detail);
+    };
+    window.addEventListener("user-followup-click", handler);
+    return () => window.removeEventListener("user-followup-click", handler);
+  }, []);
 
   // AI language modal — show on FIRST entry to Analysis tab only (once
   // per astrologer-mode user, persisted in localStorage). Before PR 9
@@ -214,13 +434,12 @@ export default function Home() {
     if (seen === "1") return;
     setShowLangModal(true);
   }, [activeTab, mode]);
-  // Clear shared inline form state when switching tabs to prevent cross-tab data leakage
-  useEffect(() => {
-    setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "", timezone_offset: 5.5 });
-    setMNewPPlaceSugg([]);
-    setMShowAddParticipant(false);
-    setMatchPerson2Inline(false);
-  }, [activeTab]);
+  // PR A1.3-fix-24 — was wiping mNewP/mShowAddParticipant/matchPerson2Inline
+  // on EVERY tab change. That meant "user fills participant form → peeks
+  // chart tab → returns to match → form data lost". Reset moved to the
+  // form-open onClick handlers below (search for setMShowAddParticipant(true)
+  // and setMatchPerson2Inline(true)) so each open is a clean slate without
+  // wiping data when the user just glances at another tab.
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) setShowSuggestions(false);
@@ -229,20 +448,45 @@ export default function Home() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  // Phase 4 / PR 8 — dedupe Nominatim suggestions.
+  // Stress-test finding #1: typing "Tenali" returned two identical
+  // "Tenali · Andhra Pradesh · India" rows in every place picker.
+  // Phase 7 / PR 17 — Phase 4's dedup keyed by (display + lat-4dp +
+  // lon-4dp) but live testing on production caught a case where OSM
+  // returned two entries for Tenali with **different** lat/lon
+  // (16.2378 vs 16.2516) and identical display strings — both
+  // survived dedup. Tightened to dedup by `display` alone (case- and
+  // whitespace-normalised). Display strings already include state +
+  // country, so distant Springfields keep distinct displays
+  // ("Springfield, Illinois, United States" vs "Springfield,
+  // Massachusetts, United States") — only true duplicates collapse.
+  const dedupePlaces = useCallback((rows: PlaceSuggestion[]): PlaceSuggestion[] => {
+    const seen = new Set<string>();
+    const out: PlaceSuggestion[] = [];
+    for (const r of rows) {
+      const key = (r.display ?? "").toLowerCase().replace(/\s+/g, " ").trim();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      out.push(r);
+    }
+    return out;
+  }, []);
+
   const searchPlaces = useCallback(async (query: string) => {
     if (query.length < 3) { setSuggestions([]); setShowSuggestions(false); return; }
     setPlaceStatus("loading");
     try {
       const res = await axios.get("https://nominatim.openstreetmap.org/search", { params: { q: query, format: "json", limit: 5, addressdetails: 1, "accept-language": "en" }, headers: { "User-Agent": "DevAstroAI/1.0" } });
       const features = res.data;
-      const results: PlaceSuggestion[] = features.map((f: any) => {
+      const mapped: PlaceSuggestion[] = features.map((f: any) => {
         const addr = f.address || {};
         const parts = [addr.suburb || addr.city_district || addr.city || addr.town || addr.village || addr.county || f.display_name.split(",")[0], addr.state, addr.country].filter(Boolean);
         return { name: parts[0] || query, display: parts.join(", "), lat: parseFloat(f.lat), lon: parseFloat(f.lon) };
       });
+      const results = dedupePlaces(mapped);
       setSuggestions(results); setShowSuggestions(results.length > 0); setPlaceStatus(results.length > 0 ? "idle" : "error");
     } catch { setPlaceStatus("error"); }
-  }, []);
+  }, [dedupePlaces]);
 
   // Panchangam city search (reuses Nominatim pattern)
   const searchPcCities = useCallback(async (query: string) => {
@@ -253,14 +497,15 @@ export default function Home() {
         params: { q: query, format: "json", limit: 5, addressdetails: 1, "accept-language": "en" },
         headers: { "User-Agent": "DevAstroAI/1.0" }
       });
-      setPcCitySuggestions(res.data.map((f: any) => {
+      const mapped: PlaceSuggestion[] = res.data.map((f: any) => {
         const addr = f.address || {};
         const parts = [addr.suburb || addr.city_district || addr.city || addr.town || addr.village || addr.county || f.display_name.split(",")[0], addr.state, addr.country].filter(Boolean);
         return { name: parts[0] || query, display: parts.join(", "), lat: parseFloat(f.lat), lon: parseFloat(f.lon) };
-      }));
+      });
+      setPcCitySuggestions(dedupePlaces(mapped));
     } catch { /* silent */ }
     setPcCitySearching(false);
-  }, []);
+  }, [dedupePlaces]);
 
   const handlePlaceChange = (val: string) => {
     setBirthDetails(prev => ({ ...prev, place: val, latitude: null, longitude: null }));
@@ -295,12 +540,12 @@ export default function Home() {
       try {
         const res = await axios.get("https://nominatim.openstreetmap.org/search", { params: { q: val, format: "json", limit: 5, addressdetails: 1, "accept-language": "en" }, headers: { "User-Agent": "DevAstroAI/1.0" } });
         const features = res.data;
-        const results: PlaceSuggestion[] = features.map((f: any) => {
+        const mapped: PlaceSuggestion[] = features.map((f: any) => {
           const addr = f.address || {};
           const parts = [addr.suburb || addr.city_district || addr.city || addr.town || addr.village || addr.county || f.display_name.split(",")[0], addr.state, addr.country].filter(Boolean);
           return { name: parts[0] || val, display: parts.join(", "), lat: parseFloat(f.lat), lon: parseFloat(f.lon) };
         });
-        setMNewPPlaceSugg(results); setMNewPPlaceStatus("done");
+        setMNewPPlaceSugg(dedupePlaces(mapped)); setMNewPPlaceStatus("done");
       } catch { setMNewPPlaceStatus("idle"); }
     }, 400);
   };
@@ -314,12 +559,12 @@ export default function Home() {
       setMEventLocSearching(true);
       try {
         const res = await axios.get("https://nominatim.openstreetmap.org/search", { params: { q: val, format: "json", limit: 5, addressdetails: 1, "accept-language": "en" }, headers: { "User-Agent": "DevAstroAI/1.0" } });
-        const results: PlaceSuggestion[] = res.data.map((f: any) => {
+        const mapped: PlaceSuggestion[] = res.data.map((f: any) => {
           const addr = f.address || {};
           const parts = [addr.suburb || addr.city_district || addr.city || addr.town || addr.village || addr.county || f.display_name.split(",")[0], addr.state, addr.country].filter(Boolean);
           return { name: parts[0] || val, display: parts.join(", "), lat: parseFloat(f.lat), lon: parseFloat(f.lon) };
         });
-        setMEventLocSugg(results);
+        setMEventLocSugg(dedupePlaces(mapped));
       } catch {} finally { setMEventLocSearching(false); }
     }, 400);
   };
@@ -381,20 +626,42 @@ export default function Home() {
     };
   };
 
+  // PR A1.3-fix-25 — helper that sets BOTH the inline banner AND a toast,
+  // so the user gets visible feedback in two places (banner is sticky next
+  // to the submit button; toast is high-contrast at top-right).
+  const failSetup = (msg: string) => {
+    setSetupError(msg);
+    setToast({ msg, tone: "error" });
+  };
+
   const handleSetup = async () => {
-    if (!birthDetails.name || !birthDetails.date || !birthDetails.time) { alert("Please fill in name, date, and time of birth."); return; }
-    if (!birthDetails.latitude || !birthDetails.longitude) { alert("Please pick your birth place from the dropdown so we can get the coordinates."); return; }
+    setSetupError("");  // clear any prior error on retry
+    // PR A1.3-fix-25 — replaced 6× window.alert() with inline error pattern.
+    // alert() blocks UI, dismisses focus, can't be Esc'd, has no aria-live.
+    if (!birthDetails.name || !birthDetails.date || !birthDetails.time) {
+      failSetup("Please fill in name, date, and time of birth.");
+      return;
+    }
+    if (!birthDetails.latitude || !birthDetails.longitude) {
+      failSetup("Please pick your birth place from the dropdown so we can get the coordinates.");
+      return;
+    }
     const formattedDate = getFormattedDate();
-    if (!formattedDate) { alert("Please enter date as DD/MM/YYYY"); return; }
+    if (!formattedDate) {
+      failSetup("Please enter date as DD/MM/YYYY.");
+      return;
+    }
     // Clamp birth date to a sensible range — the v1 masked input will
     // happily accept "200000-99-99" so we guard here.
     const todayISO = new Date().toISOString().slice(0, 10);
     if (formattedDate < "1900-01-01" || formattedDate > todayISO) {
-      alert("Birth date must be between 1900-01-01 and today."); return;
+      failSetup("Birth date must be between 1900-01-01 and today.");
+      return;
     }
     const timeParts = birthDetails.time.split(":").map(Number);
     if (timeParts.length !== 2 || isNaN(timeParts[0]) || isNaN(timeParts[1]) || timeParts[0] < 1 || timeParts[0] > 12 || timeParts[1] < 0 || timeParts[1] > 59) {
-      alert("Please enter a valid time (HH:MM, hours 01–12, minutes 00–59)"); return;
+      failSetup("Please enter a valid time (HH:MM, hours 01–12, minutes 00–59).");
+      return;
     }
 
     // Duplicate detection — switch to existing session instead of re-generating
@@ -418,6 +685,11 @@ export default function Home() {
         setChartData(res.data);
       }
       setSetupDone(true);
+      // Phase 16 — Moment #1: 3.5-second cinematic chart reveal ceremony.
+      // The overlay self-dismisses via its own onComplete prop, so we
+      // don't need a setTimeout here anymore. pointer-events:none
+      // throughout so clicks fall through to the chart underneath.
+      setShowChartReveal(true);
       setCurrentSessionId(prev => prev || Date.now().toString());
       // NOTE: we deliberately do NOT show the AI-language modal here
       // anymore. The modal's purpose is to let astrologers choose
@@ -426,7 +698,21 @@ export default function Home() {
       // it right after chart generation interrupts the chart viewing
       // flow. See the useEffect below that shows it on first Analysis
       // tab entry instead.
-    } catch { alert("Could not generate chart. Please check if the backend is running."); }
+    } catch (err: any) {
+      // PR A1.3-fix-25 — was alert(); now inline + toast. Differentiates
+      // common backend statuses so the user gets a useful message.
+      const status = err?.response?.status;
+      const msg = status === 429
+        ? "Too many requests — please wait a moment."
+        : status === 422
+        ? "The chart data couldn't be processed. Please double-check your inputs."
+        : status === 413
+        ? "Your input is too large. Please shorten any free-text fields."
+        : status >= 500
+        ? "Our chart server is having trouble. Please try again in a moment."
+        : "Could not generate chart. Please check your connection.";
+      failSetup(msg);
+    }
     finally { setChartLoading(false); }
   };
 
@@ -437,66 +723,273 @@ export default function Home() {
     setLoading(true);
     const currentQuestion = question;
     setQuestion("");
+
+    // PR A1.3-fix-16 — streaming SSE flow.
+    //   1. Insert empty AI message immediately (id = msgId).
+    //   2. Hit /prediction/ask-stream and parse SSE events:
+    //        event: analysis  → set msg.analysis (renders verdict
+    //                            card shell while text streams)
+    //        event: chunk     → append data.text to msg.answer
+    //        event: done      → stream complete
+    //        event: error     → fallback message
+    //   3. HeroVerdictCard renders progressively as text arrives.
+    //      TTFT goes from 60-120s to 1-2s.
+    // PR A1.3-fix-24 — UUID instead of Date.now() (was ms-collision risk
+    // when chip-click + Enter-key fired in the same millisecond, causing
+    // the second message to overwrite the first via the m.id===msgId filter).
+    const msgId = (typeof crypto !== "undefined" && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    setMessages(prev => [...prev, {
+      id: msgId,
+      question: currentQuestion,
+      answer: "",
+      analysis: null,
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    }]);
+
+    // PR A1.3-fix-24 — abort any in-flight prior stream before starting a
+    // new one. Prevents the previous reader from continuing to write chunks
+    // into messages state after we've moved on.
+    askStreamAbortRef.current?.abort();
+    const ac = new AbortController();
+    askStreamAbortRef.current = ac;
+
+    let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
     try {
-      // PR A1.3-fix-14 — gender now wired through so the NATIVE PROFILE
-      // block reaches the LLM (kills the PCOD-for-male bug for general
-      // user mode that astrologer mode had already fixed in fix-1).
-      const res = await axios.post(`${API_URL}/prediction/ask`, {
-        name: birthDetails.name, date: formattedDate, time: getTime24(),
-        latitude: birthDetails.latitude, longitude: birthDetails.longitude,
-        timezone_offset: timezoneOffset, gender: birthDetails.gender || "",
-        topic: "auto", question: currentQuestion, mode: "user",
-        history: messages.slice(-4).map(m => ({ question: m.question, answer: m.answer }))
+      recordAiCall("user.ask-stream");
+      const response = await fetch(`${API_URL}/prediction/ask-stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: birthDetails.name, date: formattedDate, time: getTime24(),
+          latitude: birthDetails.latitude, longitude: birthDetails.longitude,
+          timezone_offset: timezoneOffset, gender: birthDetails.gender || "",
+          topic: "auto", question: currentQuestion, mode: "user",
+          history: messages.slice(-4).map(m => ({ question: m.question, answer: m.answer })),
+        }),
+        signal: ac.signal,
       });
-      setMessages(prev => [...prev, { id: Date.now().toString(), question: currentQuestion, answer: res.data.answer, analysis: res.data.analysis, timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }]);
-    } catch {
-      setMessages(prev => [...prev, { id: Date.now().toString(), question: currentQuestion, answer: "Something went wrong. Please try again.", analysis: null, timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }]);
-    } finally { setLoading(false); }
+
+      if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`);
+
+      reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        // SSE frames terminated by \n\n. Each frame may contain
+        // an `event:` line and a `data:` line.
+        let nlIdx;
+        while ((nlIdx = buffer.indexOf("\n\n")) !== -1) {
+          const frame = buffer.slice(0, nlIdx);
+          buffer = buffer.slice(nlIdx + 2);
+          const lines = frame.split("\n");
+          let evtName = "message";
+          let dataStr = "";
+          for (const ln of lines) {
+            if (ln.startsWith("event:")) evtName = ln.slice(6).trim();
+            else if (ln.startsWith("data:")) dataStr += ln.slice(5).trim();
+          }
+          if (!dataStr) continue;
+          try {
+            const data = JSON.parse(dataStr);
+            if (evtName === "analysis") {
+              setMessages(prev => prev.map(m => m.id === msgId ? { ...m, analysis: data } : m));
+            } else if (evtName === "chunk" && typeof data.text === "string") {
+              setMessages(prev => prev.map(m => m.id === msgId ? { ...m, answer: m.answer + data.text } : m));
+            } else if (evtName === "error") {
+              setMessages(prev => prev.map(m => m.id === msgId
+                ? { ...m, answer: m.answer || "Something went wrong. Please try again." }
+                : m));
+            }
+          } catch { /* malformed SSE frame — skip */ }
+        }
+      }
+    } catch (err) {
+      // PR A1.3-fix-24 — silently swallow AbortError (intentional cancellation
+      // when user fired a new question before this stream finished). Real
+      // network errors still show the fallback.
+      const isAbort = err instanceof DOMException && err.name === "AbortError";
+      if (!isAbort) {
+        setMessages(prev => prev.map(m => m.id === msgId
+          ? { ...m, answer: m.answer || "Something went wrong. Please try again." }
+          : m));
+      }
+    } finally {
+      // PR A1.3-fix-24 — release the reader and clear the abort ref if
+      // it's still ours (don't clobber a newer in-flight request's ref).
+      try { await reader?.cancel(); } catch { /* ignore */ }
+      if (askStreamAbortRef.current === ac) askStreamAbortRef.current = null;
+      setLoading(false);
+    }
+  };
+
+  // PR A1.3-fix-22 — astrologer SSE consumer.
+  // PR A1.3-fix-23 — added questionType param for Format A/B routing.
+  // Streams from /astrologer/analyze-stream and appends chunks to the
+  // last message in `analysisMessages`. Caller is responsible for
+  // inserting the placeholder message before invoking this helper and
+  // for setAnalysisLoading(false) in finally.
+  //
+  // questionType: "full_topic" → 7-section worksheet (Format A)
+  //               "sub_question" → 5-section narrative (Format B)
+  //               "auto" → backend heuristic decides
+  //
+  // PR A1.3-fix-24 — added `targetId` parameter so the consumer scopes
+  // its writes to the specific message it owns (instead of "the last
+  // message" which interleaves on rapid topic switches). Also added
+  // AbortController plumbing so a new call cancels the previous stream
+  // before starting; reader.cancel() releases the network reader.
+  // Returns false if the stream errored (caller can show fallback).
+  const streamAstrologerAnalysis = async (
+    topic: string,
+    question: string,
+    history: { question: string; answer: string }[],
+    questionType: "full_topic" | "sub_question" | "auto" = "auto",
+    targetId?: string,
+  ): Promise<boolean> => {
+    const formattedDate = getFormattedDate();
+    // Abort any in-flight prior stream before starting a new one
+    analyzeStreamAbortRef.current?.abort();
+    const ac = new AbortController();
+    analyzeStreamAbortRef.current = ac;
+
+    let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+    try {
+      recordAiCall(`astrologer.analyze-stream:${topic}:${questionType}`);
+      const response = await fetch(`${API_URL}/astrologer/analyze-stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: birthDetails.name, date: formattedDate, time: getTime24(),
+          latitude: birthDetails.latitude, longitude: birthDetails.longitude,
+          timezone_offset: timezoneOffset, gender: birthDetails.gender || "",
+          topic, question, history, language: backendLang(),
+          question_type: questionType,
+        }),
+        signal: ac.signal,
+      });
+      if (!response.ok || !response.body) return false;
+
+      reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        let nlIdx;
+        while ((nlIdx = buffer.indexOf("\n\n")) !== -1) {
+          const frame = buffer.slice(0, nlIdx);
+          buffer = buffer.slice(nlIdx + 2);
+          const lines = frame.split("\n");
+          let evtName = "message";
+          let dataStr = "";
+          for (const ln of lines) {
+            if (ln.startsWith("event:")) evtName = ln.slice(6).trim();
+            else if (ln.startsWith("data:")) dataStr += ln.slice(5).trim();
+          }
+          if (!dataStr) continue;
+          try {
+            const data = JSON.parse(dataStr);
+            if (evtName === "chunk" && typeof data.text === "string") {
+              // PR A1.3-fix-24 — scope writes by id when caller provided one,
+              // else fall back to "last message" for back-compat with any
+              // future caller that doesn't track ids.
+              setAnalysisMessages(prev => prev.map((m, i) => {
+                const isTarget = targetId
+                  ? m.id === targetId
+                  : i === prev.length - 1;
+                return isTarget ? { ...m, a: m.a + data.text } : m;
+              }));
+            } else if (evtName === "error") {
+              return false;
+            }
+            // "meta" and "done" events: no UI update needed for the
+            // astrologer Analysis tab today (verdict scaffolding lives
+            // in workspaceData, not in per-message state). Reserved for
+            // future UI affordances.
+          } catch { /* malformed SSE frame — skip */ }
+        }
+      }
+      return true;
+    } catch (err) {
+      // Silently swallow AbortError — that's an intentional cancel
+      const isAbort = err instanceof DOMException && err.name === "AbortError";
+      return isAbort ? true : false;  // treat abort as "no error to surface"
+    } finally {
+      try { await reader?.cancel(); } catch { /* ignore */ }
+      if (analyzeStreamAbortRef.current === ac) analyzeStreamAbortRef.current = null;
+    }
   };
 
   const handleTopicAnalysis = async (topic: string) => {
     if (!workspaceData) return;
     setActiveTopic(topic); setAnalysisLoading(true); setActiveTab("analysis");
-    const formattedDate = getFormattedDate();
-    const topicLabel = TOPICS.find(t => t.id === topic)?.te || topic;
-    try {
-      // Topic analysis always starts fresh — no prior history for the first message
-      const res = await axios.post(`${API_URL}/astrologer/analyze`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: timezoneOffset, gender: birthDetails.gender || "", topic, question: `Complete KP analysis for ${topic}`, history: [], language: backendLang() });
-      setAnalysisMessages(prev => [...prev, { q: `${topicLabel} — Full Analysis`, a: res.data.answer, isTopic: true }]);
-    } catch {
-      setAnalysisMessages(prev => [...prev, { q: topicLabel, a: "Analysis failed. Please try again.", isTopic: true }]);
-    } finally { setAnalysisLoading(false); }
+    // Phase 6 / PR 15 — language-aware topic label (was hardcoded Telugu).
+    const topicEntry = TOPICS.find(t => t.id === topic);
+    const topicLabel = topicEntry ? (lang === "en" ? topicEntry.en : topicEntry.te) : topic;
+    // PR A1.3-fix-24 — generate stable id so the SSE consumer scopes its
+    // chunk writes to THIS message even if user fires another topic mid-stream.
+    const targetId = (typeof crypto !== "undefined" && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `topic-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    setAnalysisMessages(prev => [...prev, { id: targetId, q: `${topicLabel} — Full Analysis`, a: "", isTopic: true, t: Date.now() }]);
+    const ok = await streamAstrologerAnalysis(
+      topic,
+      `Complete KP analysis for ${topic}`,
+      [],
+      "full_topic",  // PR A1.3-fix-23 — topic analysis = Format A (7-section)
+      targetId,
+    );
+    if (!ok) {
+      // On failure: replace placeholder with error (scope by id)
+      setAnalysisMessages(prev => prev.map(m =>
+        m.id === targetId && !m.a ? { ...m, a: "Analysis failed. Please try again." } : m
+      ));
+    }
+    setAnalysisLoading(false);
   };
 
-  const loadQuickInsights = async () => {
-    if (!workspaceData || Object.keys(quickInsights).length > 0) return;
-    const formattedDate = getFormattedDate();
-    if (!formattedDate) return;
-    try {
-      const res = await axios.post(`${API_URL}/astrologer/quick-insights`, {
-        name: birthDetails.name, date: formattedDate, time: getTime24(),
-        latitude: birthDetails.latitude, longitude: birthDetails.longitude,
-        timezone_offset: timezoneOffset,
-        gender: birthDetails.gender || "",
-        topics: ["marriage", "job", "health", "foreign_travel", "children", "education", "property", "wealth"],
-        language: backendLang(),
-      });
-      // Response is { topic: insight_string } directly
-      if (res.data && typeof res.data === "object") setQuickInsights(res.data);
-    } catch { /* silent fail — quick insights are optional */ }
-  };
+  // Phase 13 / PR 31 — loadQuickInsights() removed. The function used
+  // to auto-fire on every Analysis tab open and request 8 topic
+  // previews in a single Sonnet call. Most users immediately clicked
+  // a specific topic and never read the previews. The dedicated
+  // /astrologer/quick-insights endpoint stays in the backend (no
+  // longer hit by the frontend) — kept for any future opt-in surface.
 
   const handleWorkspaceChat = async () => {
     if (!chatQ.trim()) return;
     const q = chatQ; setChatQ(""); setAnalysisLoading(true); setActiveTab("analysis");
-    const formattedDate = getFormattedDate();
-    try {
-      // CRITICAL FIX: pass ALL prior messages (including topic analysis) as history
-      // This prevents the AI from repeating reasoning already given
-      const history = analysisMessages.slice(-6).map(m => ({ question: m.q, answer: m.a }));
-      const res = await axios.post(`${API_URL}/astrologer/analyze`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: timezoneOffset, gender: birthDetails.gender || "", topic: activeTopic || "general", question: q, history, language: backendLang() });
-      setAnalysisMessages(prev => [...prev, { q, a: res.data.answer }]);
-    } catch { } finally { setAnalysisLoading(false); }
+    // CRITICAL: pass ALL prior messages as history so the AI doesn't
+    // repeat reasoning already given. Snapshot BEFORE we append the
+    // placeholder so history doesn't include the empty new message.
+    const history = analysisMessages.slice(-6).map(m => ({ question: m.q, answer: m.a }));
+    // PR A1.3-fix-24 — stable id for SSE chunk scoping
+    const targetId = (typeof crypto !== "undefined" && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `chat-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    setAnalysisMessages(prev => [...prev, { id: targetId, q, a: "", t: Date.now() }]);
+    const ok = await streamAstrologerAnalysis(
+      activeTopic || "general",
+      q,
+      history,
+      "sub_question",  // PR A1.3-fix-23 — chat = Format B (5-section narrative)
+      targetId,
+    );
+    if (!ok) {
+      setAnalysisMessages(prev => prev.map(m =>
+        m.id === targetId && !m.a ? { ...m, a: "Sorry, the analysis failed. Please try again." } : m
+      ));
+    }
+    setAnalysisLoading(false);
   };
 
   // Match AI analysis handlers
@@ -508,6 +1001,7 @@ export default function Home() {
     setMatchAnalysisLoading(true); setMatchShowAI(true);
     const topicLabels: Record<string,string> = { promise: "వివాహ ప్రమాణం — Marriage Promise", harmony: "సామరస్యం — Harmony & Compatibility", divorce_risk: "విడాకులు ప్రమాదం — Divorce Risk", timing: "సమయం — Timing & DBA", remedies: "పరిహారాలు — Remedies" };
     try {
+      recordAiCall(`match.analyze:topic:${topic}`);
       const res = await axios.post(`${API_URL}/compatibility/analyze`, {
         person1: sessionToApiPerson(matchPerson1),
         person2: sessionToApiPerson(p2),
@@ -529,6 +1023,7 @@ export default function Home() {
     const q = matchChatQ; setMatchChatQ(""); setMatchAnalysisLoading(true); setMatchShowAI(true);
     try {
       const history = matchAnalysisMessages.slice(-6).map(m => ({ question: m.q, answer: m.a }));
+      recordAiCall("match.analyze:chat");
       const res = await axios.post(`${API_URL}/compatibility/analyze`, {
         person1: sessionToApiPerson(matchPerson1),
         person2: sessionToApiPerson(p2),
@@ -666,15 +1161,28 @@ export default function Home() {
     { id: "horary",   te: "ప్రశ్న",     en: "Horary",    Icon: HelpCircle },
   ];
 
+  // Phase 6 / PR 15 — Analysis tab topic i18n carve-out (#6).
+  // The TOPICS array used to carry only Telugu labels which leaked
+  // into the EN view. Both languages now present; render picks via `lang`.
+  // Phase 11 / PR 28 — added Finance + Legal so the Analysis grid matches
+  // the canonical Horary topic set (10 topics across both surfaces).
   const TOPICS = [
-    { id: "marriage", te: "వివాహం" }, { id: "job", te: "ఉద్యోగం" }, { id: "health", te: "ఆరోగ్యం" },
-    { id: "foreign_travel", te: "విదేశాలు" }, { id: "children", te: "సంతానం" }, { id: "education", te: "విద్య" },
-    { id: "property", te: "ఆస్తి" }, { id: "wealth", te: "సంపద" },
+    { id: "marriage",       en: "Marriage",      te: "వివాహం" },
+    { id: "job",            en: "Career",        te: "ఉద్యోగం" },
+    { id: "health",         en: "Health",        te: "ఆరోగ్యం" },
+    { id: "foreign_travel", en: "Foreign travel", te: "విదేశాలు" },
+    { id: "children",       en: "Children",      te: "సంతానం" },
+    { id: "education",      en: "Education",     te: "విద్య" },
+    { id: "property",       en: "Property",      te: "ఆస్తి" },
+    { id: "wealth",         en: "Wealth",        te: "సంపద" },
+    { id: "finance",        en: "Finance",       te: "ధనం" },
+    { id: "legal",          en: "Legal",         te: "న్యాయం" },
   ];
 
   const TOPIC_EMOJI: Record<string, string> = {
     marriage: "💍", job: "💼", health: "🏥", foreign_travel: "✈️",
     children: "👶", education: "📚", property: "🏠", wealth: "💰",
+    finance: "💵", legal: "⚖️",
   };
 
   const HOUSE_TOPICS: Record<number, string> = {
@@ -689,8 +1197,13 @@ export default function Home() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Telugu:wght@300;400;500;600&family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap');
         @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-        @keyframes slideIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-        .tab-content{animation:slideIn 0.2s ease}
+        /* Phase 15.4 — tab-content entrance upgraded from a 200ms snap-in
+           to a 420ms decelerated lift. Pairs with the cosmic-craft motion
+           grammar (cubic-bezier matches motion.ease.reveal token in theme.ts).
+           Distance bumped 6px -> 12px so the entrance reads as intentional
+           rather than incidental. */
+        @keyframes slideIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+        .tab-content{animation:slideIn 0.42s cubic-bezier(0.16,1,0.3,1)}
         .md-body h1,.md-body h2{font-size:15px;color:var(--accent2);margin:1rem 0 0.5rem;font-family:'DM Serif Display',serif}
         .md-body h3{font-size:13px;color:var(--accent);margin:0.75rem 0 0.4rem}
         .md-body p{font-size:13px;line-height:1.7;color:#c8c8d8;margin-bottom:0.5rem}
@@ -773,6 +1286,10 @@ export default function Home() {
       {/* ── SETUP SCREEN ── */}
       {!setupDone && (
         <main style={{ flex: 1, position: "relative", zIndex: 5, maxWidth: 720, margin: "0 auto", width: "100%", padding: "48px 20px 64px" }}>
+          {/* Phase 15.2 — Onboarding hero with entrance cascade.
+              Three sibling reveals (eyebrow / headline / subcopy), then
+              the form card fades in below at 0.4s. Total ~700ms. */}
+          <FadeIn distance="medium" duration="slow">
           {/* Intro (eyebrow + headline) */}
           <div style={{ textAlign: "center", marginBottom: 36 }}>
             <span
@@ -821,8 +1338,10 @@ export default function Home() {
               in astronomical computation.
             </p>
           </div>
+          </FadeIn>
 
-          {/* Birth details card */}
+          {/* Birth details card — slides up after the hero fades in */}
+          <FadeIn distance="medium" duration="slow" delay={0.4}>
           <ContentCard style={{ padding: 28, boxShadow: theme.shadow.md }}>
             <div
               style={{
@@ -891,7 +1410,7 @@ export default function Home() {
                 <div>
                   <Label icon={<Target size={11} />}>Date of birth</Label>
                   <input
-                    type="text"
+                    type="text" inputMode="numeric"
                     placeholder="DD / MM / YYYY"
                     value={birthDetails.date}
                     onChange={(e) => handleDateChange(e.target.value)}
@@ -903,7 +1422,7 @@ export default function Home() {
                   <Label icon={<Clock size={11} />}>Time of birth</Label>
                   <div style={{ display: "flex", gap: 6 }}>
                     <input
-                      type="text"
+                      type="text" inputMode="numeric"
                       placeholder="HH : MM"
                       value={birthDetails.time}
                       onChange={(e) => handleTimeChange(e.target.value)}
@@ -1091,6 +1610,26 @@ export default function Home() {
                 </div>
               </div>
 
+              {/* PR A1.3-fix-25 — inline validation error (was alert() before).
+                  role=alert auto-announces to screen readers; the toast in
+                  the page shell also fires for high-contrast feedback. */}
+              {setupError && (
+                <div
+                  role="alert"
+                  style={{
+                    background: "rgba(248,113,113,0.08)",
+                    border: "0.5px solid rgba(248,113,113,0.4)",
+                    color: "#fca5a5",
+                    padding: "8px 12px",
+                    borderRadius: 8,
+                    fontSize: 12,
+                    lineHeight: 1.4,
+                    marginTop: 4,
+                  }}
+                >
+                  {setupError}
+                </div>
+              )}
               {/* Submit */}
               <button
                 type="button"
@@ -1147,7 +1686,127 @@ export default function Home() {
               </div>
             </div>
           </ContentCard>
+          </FadeIn>
         </main>
+      )}
+
+      {/* Phase 9 / PR 25 — first-chart reveal animation. Renders ONCE
+          immediately after a successful chart generation. The CSS
+          animation auto-fades the overlay out; state cleared after
+          1.75s. pointer-events: none everywhere so clicks fall through. */}
+      {/* Phase 16 — Moment #1: Chart reveal CEREMONY.
+          Replaces the old kp-chart-reveal CSS bloom with a 3.5s
+          cinematic sequence (stars converge → planets orbit → wheel
+          draws → name + nakshatra reveal). See components/ui/
+          ChartRevealCeremony.tsx for the full choreography. */}
+      {showChartReveal && (
+        <ChartRevealCeremony
+          name={birthDetails.name || workspaceData?.name}
+          nakshatra={
+            (workspaceData?.moon_nakshatra_en as string | undefined)
+            ?? (workspaceData?.moon?.nakshatra_en as string | undefined)
+            ?? (chartData?.moon?.nakshatra_en as string | undefined)
+          }
+          subLabel={
+            workspaceData?.moon?.sign_en
+              ? `${workspaceData.moon.sign_en} Moon`
+              : undefined
+          }
+          onComplete={() => setShowChartReveal(false)}
+        />
+      )}
+
+      {/* Phase 16 — Moment #5: PDF export ceremony. Always mounted;
+          AnimatePresence controls show/hide via pdfLoading flag. */}
+      <PdfCeremonyOverlay show={pdfLoading} />
+
+      {/* Phase 8 / PR 23 — keyboard shortcut help overlay.
+          Triggered by pressing `?` anywhere outside an editable field.
+          Esc or pressing `?` again closes it. Click outside also closes. */}
+      {showKbHelp && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(7,11,20,0.78)",
+            backdropFilter: "blur(6px)",
+            WebkitBackdropFilter: "blur(6px)",
+            zIndex: 200,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "1rem",
+          }}
+          onClick={() => setShowKbHelp(false)}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: "var(--surface)",
+              border: "0.5px solid rgba(201,169,110,0.3)",
+              borderRadius: 14,
+              padding: "1.75rem 2rem",
+              minWidth: 360,
+              maxWidth: 460,
+              boxShadow: "0 12px 40px rgba(0,0,0,0.5)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 20, color: "var(--text)" }}>
+                {t("Keyboard shortcuts", "కీబోర్డ్ షార్ట్‌కట్‌లు")}
+              </div>
+              <button
+                onClick={() => setShowKbHelp(false)}
+                aria-label={t("Close", "మూసివేయండి")}
+                style={{ background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: 4 }}
+              >×</button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "10px 16px", alignItems: "center", fontSize: 12.5 }}>
+              {[
+                { keys: ["1"], label: t("Chart", "చార్ట్") },
+                { keys: ["2"], label: t("Houses", "భావాలు") },
+                { keys: ["3"], label: t("Dasha", "దశ") },
+                { keys: ["4"], label: t("Analysis", "విశ్లేషణ") },
+                { keys: ["5"], label: t("Panchang", "పంచాంగం") },
+                { keys: ["6"], label: t("Muhurtha", "ముహూర్త") },
+                { keys: ["7"], label: t("Match", "సరిపోలన") },
+                { keys: ["8"], label: t("Horary", "ప్రశ్న") },
+                { keys: ["?"], label: t("Show / hide this help", "ఈ సహాయాన్ని చూపించు / దాచు") },
+                { keys: ["Esc"], label: t("Close help / modals", "మూసివేయి") },
+              ].map(row => (
+                <React.Fragment key={row.label}>
+                  <span style={{ display: "inline-flex", gap: 4 }}>
+                    {row.keys.map(k => (
+                      <kbd
+                        key={k}
+                        style={{
+                          fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                          fontSize: 11,
+                          padding: "3px 8px",
+                          borderRadius: 5,
+                          background: "rgba(201,169,110,0.10)",
+                          border: "0.5px solid rgba(201,169,110,0.35)",
+                          color: "var(--accent)",
+                          minWidth: 24,
+                          textAlign: "center",
+                        }}
+                      >
+                        {k}
+                      </kbd>
+                    ))}
+                  </span>
+                  <span style={{ color: "var(--text)" }}>{row.label}</span>
+                </React.Fragment>
+              ))}
+            </div>
+            <div style={{ marginTop: 16, paddingTop: 12, borderTop: "0.5px solid var(--border)", fontSize: 11, color: "var(--muted)", lineHeight: 1.55 }}>
+              {t(
+                "Shortcuts work everywhere except inside text fields. Tip — press ? again to dismiss.",
+                "టెక్స్ట్ ఫీల్డ్‌ల వెలుపల ఎక్కడైనా షార్ట్‌కట్‌లు పనిచేస్తాయి. చిట్కా — మూసివేయడానికి మళ్ళీ ? నొక్కండి."
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── ASTROLOGER WORKSPACE ── */}
@@ -1204,10 +1863,20 @@ export default function Home() {
       {/* Mounted over the astrologer workspace when the user clicks "+ New
           Chart" on the Person Hero Banner. The workspace behind is blurred
           via filter on its container. Reuses birthDetails/timezone state,
-          stashing the previous values so Cancel can fully restore. */}
+          stashing the previous values so Cancel can fully restore.
+          PR A1.3-fix-25 — added role=dialog + aria-modal + aria-labelledby
+          + Esc handler so keyboard / screen-reader users can close the
+          modal without a mouse. (No focus trap helper yet — it's a future
+          PR; for now, Tab cycles into the workspace background which is
+          blurred but still visually present.) */}
       {newChartModalOpen && (
         <div
           onClick={handleCancelNewChartModal}
+          onKeyDown={(e) => { if (e.key === "Escape") handleCancelNewChartModal(); }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="new-chart-modal-title"
+          tabIndex={-1}
           style={{
             position: "fixed", inset: 0, zIndex: 200,
             background: "rgba(9,9,15,0.55)",
@@ -1243,7 +1912,7 @@ export default function Home() {
                 }}>
                   <Sparkles size={11} /> {t("New KP chart", "కొత్త KP చార్ట్")}
                 </div>
-                <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 20, color: theme.text.primary, lineHeight: 1.2 }}>
+                <div id="new-chart-modal-title" style={{ fontFamily: "'DM Serif Display', serif", fontSize: 20, color: theme.text.primary, lineHeight: 1.2 }}>
                   {t("Add a new chart", "కొత్త చార్ట్ జోడించండి")}
                 </div>
                 <div style={{ fontSize: 12, color: theme.text.muted, marginTop: 4 }}>
@@ -1283,7 +1952,7 @@ export default function Home() {
                 <div>
                   <Label icon={<Clock size={11} />}>{t("Date of birth", "పుట్టిన తేదీ")}</Label>
                   <input
-                    type="text"
+                    type="text" inputMode="numeric"
                     placeholder="DD/MM/YYYY"
                     maxLength={10}
                     value={birthDetails.date}
@@ -1295,7 +1964,7 @@ export default function Home() {
                   <Label icon={<Clock size={11} />}>{t("Time of birth", "పుట్టిన సమయం")}</Label>
                   <div style={{ display: "flex", gap: 6 }}>
                     <input
-                      type="text"
+                      type="text" inputMode="numeric"
                       placeholder="HH:MM"
                       maxLength={5}
                       value={birthDetails.time}
@@ -1388,6 +2057,24 @@ export default function Home() {
                 </div>
               </div>
 
+              {/* PR A1.3-fix-25 — same inline error pattern in NewChartModal */}
+              {setupError && (
+                <div
+                  role="alert"
+                  style={{
+                    background: "rgba(248,113,113,0.08)",
+                    border: "0.5px solid rgba(248,113,113,0.4)",
+                    color: "#fca5a5",
+                    padding: "8px 12px",
+                    borderRadius: 8,
+                    fontSize: 12,
+                    lineHeight: 1.4,
+                    marginTop: 4,
+                  }}
+                >
+                  {setupError}
+                </div>
+              )}
               {/* Submit + Cancel */}
               <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
                 <button
@@ -1451,13 +2138,33 @@ export default function Home() {
             if (!workspaceData || pdfLoading) return;
             setPdfLoading(true); setPdfError("");
             try {
-              const res = await axios.post(`${API_URL}/pdf/export`, { workspace: workspaceData }, { responseType: "blob", timeout: 30000 });
+              // Phase 14 PR A hotfix — inject `place` (which lives in
+              // birthDetails, not the workspace return) so the PDF
+              // cover and birth-details section render the proper
+              // city name instead of falling back to lat/lon.
+              const enrichedWorkspace = {
+                ...workspaceData,
+                place: birthDetails.place || (workspaceData as any).place,
+              };
+              const res = await axios.post(`${API_URL}/pdf/export`, { workspace: enrichedWorkspace }, { responseType: "blob", timeout: 30000 });
               const url = URL.createObjectURL(new Blob([res.data], { type: "application/pdf" }));
               const a = document.createElement("a"); a.href = url;
               a.download = `${workspaceData.name || "kp_chart"}_report.pdf`; a.click();
-              URL.revokeObjectURL(url);
+              // PR A1.3-fix-24 — defer revoke so slow browsers (Safari iOS,
+              // some Android Chromes) get to start the download before the
+              // blob URL is invalidated. 1s is conservative; PDFs typically
+              // start streaming in <100ms.
+              setTimeout(() => { try { URL.revokeObjectURL(url); } catch { /* ignore */ } }, 1000);
             } catch (e: any) {
-              setPdfError(e?.response?.status === 500 ? "Server error — try again" : "Download failed");
+              // PR A1.3-fix-25 — surface as a visible toast (was silently
+              // setting pdfError state that nothing rendered).
+              const msg = e?.response?.status === 500
+                ? "PDF server error — please try again"
+                : e?.response?.status === 413
+                ? "Workspace too large for PDF export"
+                : "PDF download failed — please try again";
+              setPdfError(msg);
+              setToast({ msg, tone: "error" });
             }
             setPdfLoading(false);
           }}
@@ -1466,7 +2173,56 @@ export default function Home() {
           onSwitchSession={handleSwitchSession}
           astrologerMode={true}
         />
-        <div className="workspace-layout" style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+        {/* PR A1.3-fix-25 — global toast for transient errors (PDF, horary,
+            place-picker service errors, etc.). Auto-dismisses after 5s.
+            Replaces the prior pattern where errors silently set state nothing
+            rendered. role=status + aria-live announces to screen readers. */}
+        {toast && (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              position: "fixed",
+              top: 76,
+              right: 16,
+              zIndex: 200,
+              background: toast.tone === "error" ? "rgba(248,113,113,0.12)" : "var(--surface2)",
+              border: `0.5px solid ${toast.tone === "error" ? "rgba(248,113,113,0.4)" : "var(--border2)"}`,
+              borderRadius: 10,
+              padding: "10px 14px",
+              fontSize: 13,
+              color: toast.tone === "error" ? "#fca5a5" : "var(--text)",
+              maxWidth: 360,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
+            }}
+          >
+            <span style={{ flex: 1 }}>{toast.msg}</span>
+            <button
+              onClick={() => setToast(null)}
+              aria-label="Dismiss notification"
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "inherit",
+                opacity: 0.7,
+                cursor: "pointer",
+                padding: 2,
+                fontSize: 14,
+                lineHeight: 1,
+                fontFamily: "inherit",
+              }}
+            >×</button>
+          </div>
+        )}
+        {/* Phase 9 / PR 24 — constellation backdrop. The gold-flecked
+            radial-gradient pattern lives behind the workspace at <4%
+            opacity. Adds peripheral cosmos texture without competing
+            with the chart canvas. Class-based + background-attachment
+            fixed → static stars while the workspace scrolls. */}
+        <div className="workspace-layout kp-constellation" style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
           {/* Collapsed rail — shown when sidebar is closed, gives the user
               a Claude-style reopen affordance on the left edge. */}
@@ -1558,16 +2314,36 @@ export default function Home() {
                 </button>
               </div>
 
-              {/* Session switcher */}
-              {savedSessions.length > 0 && (
+              {/* PR A1.3-fix-25 — sidebar Charts section now ALWAYS renders
+                  when in astrologer mode + setupDone, so first-time users
+                  see their current chart in the list (with the ★ Active
+                  highlight) instead of an empty sidebar with no clue.
+                  Was previously gated on `savedSessions.length > 0` which
+                  hid the entire section before any chart was generated. */}
+              {(savedSessions.length > 0 || (mode === "astrologer" && setupDone)) && (
                 <div className="sidebar-section" style={{ padding: "8px 10px", borderBottom: "0.5px solid var(--border)", flexShrink: 0 }}>
-                  <div style={{ fontSize: 9, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 5 }}>Charts</div>
-                  <div style={{ padding: "8px", borderRadius: 8, background: "rgba(201,169,110,0.08)", border: "0.5px solid rgba(201,169,110,0.4)", marginBottom: 6 }}>
-                    <div style={{ fontSize: 12, color: "var(--accent)", fontWeight: 500, marginBottom: 1 }}>
-                      {workspaceData?.name?.split(" ")[0]}
+                  {/* Phase 5 / PR 13 — i18n holes (#14). The sidebar
+                      eyebrow + active marker + the verbose help text
+                      were hardcoded English even in pure TEL mode. Now
+                      every chrome string flows through t(en, te). */}
+                  <div style={{ fontSize: 9, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 5 }}>{t("Charts", "చార్టులు")}</div>
+                  {workspaceData?.name && (
+                    <div style={{ padding: "8px", borderRadius: 8, background: "rgba(201,169,110,0.08)", border: "0.5px solid rgba(201,169,110,0.4)", marginBottom: 6 }}>
+                      <div style={{ fontSize: 12, color: "var(--accent)", fontWeight: 500, marginBottom: 1 }}>
+                        {workspaceData.name.split(" ")[0]}
+                      </div>
+                      <div style={{ fontSize: 10, color: "rgba(201,169,110,0.6)" }}>★ {t("Active", "ప్రస్తుతం")}</div>
                     </div>
-                    <div style={{ fontSize: 10, color: "rgba(201,169,110,0.6)" }}>★ Active</div>
-                  </div>
+                  )}
+                  {savedSessions.length === 0 && workspaceData?.name && (
+                    <div style={{ fontSize: 10, color: "var(--muted)", padding: "4px 2px 6px", lineHeight: 1.45 }}>
+                      {lang === "en" ? (
+                        <>Use <strong style={{ color: "var(--accent)", fontWeight: 500 }}>+ New Chart</strong> in the header to add another. Saved charts appear here.</>
+                      ) : (
+                        <><strong style={{ color: "var(--accent)", fontWeight: 500 }}>+ కొత్త చార్ట్</strong> బటన్‌తో మరొకటి జోడించండి. సేవ్ చేసిన చార్టులు ఇక్కడ కనిపిస్తాయి.</>
+                      )}
+                    </div>
+                  )}
                   {savedSessions.map(s => {
                     const dasha = s.workspaceData?.mahadasha?.lord_en || "";
                     const ad = s.workspaceData?.current_antardasha?.lord_en || "";
@@ -1584,7 +2360,7 @@ export default function Home() {
                             {gender === "male" ? "♂ " : gender === "female" ? "♀ " : "◈ "}{s.name?.split(" ")[0]}
                           </div>
                           {dashaLabel && <div style={{ fontSize: 10, color: "var(--accent)", marginBottom: 1 }}>{dashaLabel}</div>}
-                          {birthYear && <div style={{ fontSize: 10, color: "var(--muted)" }}>Born {birthYear}</div>}
+                          {birthYear && <div style={{ fontSize: 10, color: "var(--muted)" }}>{t(`Born ${birthYear}`, `${birthYear} జన్మ`)}</div>}
                         </button>
                         <button onClick={() => handleRemoveSession(s.id)}
                           style={{ position: "absolute", top: 6, right: 6, background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "2px 4px", opacity: 0.5 }}
@@ -1595,43 +2371,44 @@ export default function Home() {
                   })}
                   <button onClick={handleNewChart}
                     style={{ width: "100%", padding: "3px 8px", borderRadius: 6, background: "transparent", border: "0.5px dashed var(--border2)", fontSize: 10, color: "var(--muted)", cursor: "pointer", fontFamily: "inherit", textAlign: "center" }}>
-                    + New Chart
+                    + {t("New Chart", "కొత్త చార్ట్")}
                   </button>
                 </div>
               )}
-              <div className="sidebar-section" style={{ padding: "1rem", borderBottom: "0.5px solid var(--border)" }}>
-                <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(201,169,110,0.1)", border: "0.5px solid var(--border2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, color: "var(--accent)", fontWeight: 600, marginBottom: 8 }}>{workspaceData.name[0]?.toUpperCase()}</div>
-                <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 2 }}>{workspaceData.name}</div>
-                <div style={{ fontSize: 10, color: "var(--muted)", lineHeight: 1.6 }}>{birthDetails.date}<br />{birthDetails.time} {birthDetails.ampm}<br />{birthDetails.place}</div>
-                <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" as const }}>
-                  <span style={{ fontSize: 9, background: "rgba(201,169,110,0.1)", color: "var(--accent)", border: "0.5px solid var(--border2)", borderRadius: 3, padding: "2px 6px" }}>KP New</span>
-                  <span style={{ fontSize: 9, background: "rgba(201,169,110,0.1)", color: "var(--accent)", border: "0.5px solid var(--border2)", borderRadius: 3, padding: "2px 6px" }}>Placidus</span>
-                </div>
-              </div>
-              <div className="sidebar-section" style={{ padding: "0.75rem 1rem", borderBottom: "0.5px solid var(--border)" }}>
-                <div style={{ fontSize: 9, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6 }}>
-                  {t("Panchang · now", "పంచాంగం · ఇప్పుడు")}
-                </div>
-                {[
-                  { l: t("Weekday", "వారం"), v: lang === "en" ? (workspaceData.panchangam_today.vara_en ?? workspaceData.panchangam_today.vara) : workspaceData.panchangam_today.vara },
-                  { l: t("Tithi", "తిథి"),   v: lang === "en" ? (workspaceData.panchangam_today.tithi_en ?? workspaceData.panchangam_today.tithi) : workspaceData.panchangam_today.tithi },
-                  { l: t("Nakshatra", "నక్షత్రం"), v: lang === "en" ? (workspaceData.panchangam_today.nakshatra_en ?? workspaceData.panchangam_today.nakshatra) : workspaceData.panchangam_today.nakshatra },
-                ].map(item => (
-                  <div key={item.l} style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                    <span style={{ fontSize: 10, color: "var(--muted)" }}>{item.l}</span>
-                    <span style={{ fontSize: 11, color: "var(--text)" }}>{item.v}</span>
-                  </div>
-                ))}
-                <div style={{ marginTop: 4, padding: "3px 8px", background: "rgba(248,113,113,0.1)", border: "0.5px solid rgba(248,113,113,0.2)", borderRadius: 4, display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: 10, color: "#f87171" }}>{t("Rahu Kalam", "రాహుకాలం")}</span>
-                  <span style={{ fontSize: 10, color: "#f87171" }}>{workspaceData.panchangam_today.rahu_kalam}</span>
-                </div>
-              </div>
+              {/* Phase 3 — sidebar restructure (#B).
+                  REMOVED:
+                    1. Avatar + name + birth-details + KP/Placidus badges
+                       block. The persistent header (PersonHeroBanner)
+                       already carries this; showing it again here was
+                       pure duplication and the dead-air below it ate
+                       half the rail.
+                    2. The "PANCHANG · NOW" / "TODAY" sidebar widget. Its
+                       content moved up to <TodayStrip>, which is sticky,
+                       discoverable, and scoped to one job.
+                  KEPT: the chart switcher (the only thing that earns a
+                  permanent rail). */}
             </div>
           )}
 
           {/* Main content */}
           <div className="workspace-main" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
+            {/* Phase 3 — Today panchang strip (#F). Phase 8 / PR 21 — pills
+                are clickable shortcuts into the Panchang tab.
+                Phase 10 / PR 27 — when liveLoc has resolved (browser geo
+                or manual city pick), `liveTodayPanchang` carries today's
+                panchang for the user's CURRENT location and we render
+                that. Falls back to the chart-load `panchangam_today`
+                snapshot (birth lat/lon) when live data isn't available
+                yet — and the strip's eyebrow pill says so. */}
+            {(liveTodayPanchang || workspaceData?.panchangam_today) && (
+              <TodayStrip
+                data={liveTodayPanchang ?? workspaceData.panchangam_today}
+                isLive={!!liveTodayPanchang}
+                cityLabel={liveTodayPanchang?._city}
+                onJumpToPanchang={() => setActiveTab("panchang")}
+              />
+            )}
+
             {/* Tabs */}
             <div className="tab-bar" style={{ display: "flex", borderBottom: "0.5px solid var(--border)", background: "var(--surface)", overflowX: "auto", flexShrink: 0 }}>
               {TABS.map(tab => {
@@ -1641,16 +2418,23 @@ export default function Home() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
+                    onMouseEnter={e => { if (!active) e.currentTarget.style.background = "rgba(201,169,110,0.04)"; }}
+                    onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}
                     style={{
+                      // Phase 5 / PR 14 — active tab now reads as a filled
+                      // gold pill (subtle bg + same gold underline) instead
+                      // of just a 2px line — much clearer at a glance.
+                      // Inactive tabs get a hint of gold on hover so the
+                      // tab bar feels alive (#M).
                       padding: "10px 16px",
-                      background: "transparent",
+                      background: active ? "rgba(201,169,110,0.07)" : "transparent",
                       border: "none",
                       borderBottom: active ? "2px solid var(--accent)" : "2px solid transparent",
                       color: active ? "var(--accent)" : "var(--muted)",
                       cursor: "pointer",
                       fontFamily: "inherit",
                       whiteSpace: "nowrap",
-                      transition: "color 0.15s, border-color 0.15s",
+                      transition: "color 0.15s, border-color 0.15s, background 0.15s",
                       flexShrink: 0,
                       display: "flex",
                       flexDirection: "column",
@@ -1671,12 +2455,33 @@ export default function Home() {
               })}
             </div>
 
+            {/* Phase 3 — chart context strip (#A).
+                Lagna / Moon / Sun + current dasha (MD/AD/PAD) + RPs at
+                birth — moved here from the persistent header so they sit
+                attached to the chart-related tabs where they're relevant.
+                Skipped on Panchang / Muhurtha / Horary which have their
+                own situational context (live RPs, event RPs, prashna
+                RPs respectively) and don't need the natal chips on top. */}
+            {workspaceData && ["chart", "houses", "dasha", "analysis", "match"].includes(activeTab) && (
+              <ChartContextStrip workspaceData={workspaceData as WorkspaceData} />
+            )}
+
             {/* Tab content */}
             <div style={{ flex: 1, overflow: "auto", padding: "1.25rem" }}>
 
               {/* CHART — two-column: chart left, PlanetList right */}
               {activeTab === "chart" && (
                 <div className="tab-content">
+                  {/* Phase 15.2 — Track A serif PageHero with MaskReveal
+                      gold-sweep on the title. Replaces inline dasha-hero. */}
+                  <PageHero
+                    eyebrow={t("KP rasi · Krishnamurti Paddhati", "KP రాశి · కృష్ణమూర్తి పద్ధతి")}
+                    title={t("Your KP rasi chart", "మీ KP రాశి చార్ట్")}
+                    subcopy={t(
+                      "Planets, signs, houses, and sub lords — the full KP picture in one view. Tap any house to expand its details.",
+                      "గ్రహాలు, రాశులు, భావాలు, సబ్ లార్డ్‌లు — KP పూర్తి దృశ్యం ఒక్క చోట. వివరాల కోసం ఏ భావాన్నైనా నొక్కండి."
+                    )}
+                  />
                   {/* Chart / Planets view toggle */}
                   <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
                     {[
@@ -1714,7 +2519,7 @@ export default function Home() {
                       <div style={{ flexShrink: 0 }}>
                         {chartView === "chart" && (
                           <>
-                            <SectionEyebrow te="దక్షిణ భారత చార్ట్" en="South Indian Chart" />
+                            {/* PR fix-21 — title is rendered inside RasiChart now (dynamic per active style) */}
                             <SouthIndianChart
                               planets={workspaceData.planets}
                               cusps={workspaceData.cusps}
@@ -1777,11 +2582,22 @@ export default function Home() {
                 <div className="tab-content" style={{ padding: "1rem", height: "100%", overflowY: "auto" }}>
                   {!workspaceData ? (
                     <div style={{ textAlign: "center", padding: "3rem 1rem" }}>
-                      <div style={{ fontSize: 32, marginBottom: 8 }}>📊</div>
+                      {/* PR A1.3-fix-25 — replaced 📊 emoji with lucide
+                          icon to match the rest of the app's icon style. */}
+                      <Compass size={36} strokeWidth={1.5} color="var(--muted)" style={{ marginBottom: 12, opacity: 0.6 }} />
                       <div style={{ fontSize: 14, color: "var(--muted)" }}>{t("Load a chart above", "పైన చార్ట్ లోడ్ చేయండి")}</div>
                     </div>
                   ) : (
+                    /* Phase 15.2 — Track A serif PageHero (Houses tab) */
                     <>
+                    <PageHero
+                      eyebrow={t("12 houses · KP cusp framework", "12 భావాలు · KP కస్ప్ ఫ్రేమ్‌వర్క్")}
+                      title={t("Your house architecture", "మీ భావ నిర్మాణం")}
+                      subcopy={t(
+                        "Each cusp's sub lord gates that life area's promise. Click a house to drill into its CSL chain, occupants, and ruling planets.",
+                        "ప్రతి కస్ప్ యొక్క సబ్ లార్డ్ ఆ జీవిత ప్రాంతం యొక్క వాగ్దానాన్ని శాసిస్తుంది. CSL చైన్, నివాసులు, నియమ గ్రహాల వివరాల కోసం భావాన్ని క్లిక్ చేయండి."
+                      )}
+                    />
                       {/* Sub-tab pill switcher */}
                       <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
                         {[
@@ -1827,6 +2643,13 @@ export default function Home() {
                       {/* OVERVIEW sub-tab — HouseOverviewGrid */}
                       {housesSubTab === "overview" && (
                         <div className="tab-content">
+                          {/* PR A1.3-fix-20 — Tara Chakra widget at top of Overview */}
+                          {workspaceData?.tara_chakra && (
+                            <TaraChakraWidget
+                              taraData={workspaceData.tara_chakra}
+                              todayMoonNakshatra={workspaceData?.panchangam_today?.nakshatra_en}
+                            />
+                          )}
                           <div style={{ display: "flex", gap: 12, alignItems: "start", flexWrap: "wrap" }}>
                             <div style={{ flex: 1, minWidth: 340 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
@@ -2044,23 +2867,69 @@ export default function Home() {
                   <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: "0.75rem" }}>
                     {t("Ruling planets", "రూలింగ్ గ్రహాలు")} · {workspaceData.ruling_planets.query_time}
                   </div>
+                  {/* Phase 2 / PR 4 — KSK strength order + extended 5+2 slots.
+                      Stress-test findings #2, #3, #4: previously this list was
+                      sorted Day-Lord-first (weakest in KSK) and the extended
+                      Asc/Moon Sub Lords were missing entirely. Now strongest
+                      is at the top, weakest at the bottom, and the extended
+                      pair is grouped under a clear "Extended" subheader. The
+                      `lagna_sub_lord` / `moon_sub_lord` values come from the
+                      `rp_context` block the backend already emits — no
+                      backend change required. */}
                   <div className="setup-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                     <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 10, padding: "1rem" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, fontSize: 9, color: "var(--accent)", letterSpacing: "0.06em", textTransform: "uppercase" as const }}>
+                        <span>{t("Strength order", "శక్తి క్రమం")}</span>
+                        <span style={{ color: "var(--muted)" }}>{t("strongest →", "బలమైనది →")}</span>
+                      </div>
+                      {/* Core 5 — KSK canonical strength order:
+                            1. Asc Star Lord  (strongest)
+                            2. Asc Sign Lord
+                            3. Moon Star Lord
+                            4. Moon Sign Lord
+                            5. Day Lord       (weakest) */}
                       {[
-                        { l: t("Day lord",          "వారాధిపతి"),        en: workspaceData.ruling_planets.day_lord_en,        te: workspaceData.ruling_planets.day_lord_te },
-                        { l: t("Lagna sign lord",   "లగ్న రాశ్యధిపతి"),  en: workspaceData.ruling_planets.lagna_sign_lord_en, te: workspaceData.ruling_planets.lagna_sign_lord_te },
-                        { l: t("Lagna star lord",   "లగ్న నక్షత్రాధిపతి"), en: workspaceData.ruling_planets.lagna_star_lord_en, te: workspaceData.ruling_planets.lagna_star_lord_te },
-                        { l: t("Moon sign lord",    "చంద్ర రాశ్యధిపతి"),  en: workspaceData.ruling_planets.moon_sign_lord_en,  te: workspaceData.ruling_planets.moon_sign_lord_te },
-                        { l: t("Moon star lord",    "చంద్ర నక్షత్రాధిపతి"), en: workspaceData.ruling_planets.moon_star_lord_en, te: workspaceData.ruling_planets.moon_star_lord_te },
+                        { l: t("Asc star lord",     "లగ్న నక్షత్రాధిపతి"), en: workspaceData.ruling_planets.lagna_star_lord_en, te: workspaceData.ruling_planets.lagna_star_lord_te, rank: 1 },
+                        { l: t("Asc sign lord",     "లగ్న రాశ్యధిపతి"),  en: workspaceData.ruling_planets.lagna_sign_lord_en, te: workspaceData.ruling_planets.lagna_sign_lord_te, rank: 2 },
+                        { l: t("Moon star lord",    "చంద్ర నక్షత్రాధిపతి"), en: workspaceData.ruling_planets.moon_star_lord_en, te: workspaceData.ruling_planets.moon_star_lord_te, rank: 3 },
+                        { l: t("Moon sign lord",    "చంద్ర రాశ్యధిపతి"),  en: workspaceData.ruling_planets.moon_sign_lord_en, te: workspaceData.ruling_planets.moon_sign_lord_te, rank: 4 },
+                        { l: t("Day lord",          "వారాధిపతి"),        en: workspaceData.ruling_planets.day_lord_en,         te: workspaceData.ruling_planets.day_lord_te,         rank: 5 },
                       ].map(item => {
                         const val = lang === "en" ? item.en : (item.te ?? item.en);
                         return (
                           <div key={item.l} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, paddingBottom: 10, borderBottom: "0.5px solid var(--border)" }}>
-                            <span style={{ fontSize: 12, color: "var(--muted)" }}>{item.l}</span>
+                            <span style={{ fontSize: 12, color: "var(--muted)", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                              <span style={{ fontSize: 9, color: "var(--accent)", opacity: 0.6, fontVariantNumeric: "tabular-nums" }}>{item.rank}</span>
+                              {item.l}
+                            </span>
                             <span style={{ fontSize: 15, fontWeight: 600, color: PLANET_COLORS[item.en] || "var(--accent)" }}>{val}</span>
                           </div>
                         );
                       })}
+                      {/* Extended 5+2 — Asc Sub Lord and Moon Sub Lord.
+                          Backend (Phase 2 / PR 4) emits these as top-level
+                          *_en/*_te keys to match the existing 5-slot pattern.
+                          Visually grouped under a dimmer subheader so the KSK
+                          core 5 stays the primary read. */}
+                      {(workspaceData.ruling_planets.lagna_sub_lord_en || workspaceData.ruling_planets.moon_sub_lord_en) && (
+                        <>
+                          <div style={{ marginTop: 4, marginBottom: 8, fontSize: 9, color: "var(--muted)", letterSpacing: "0.06em", textTransform: "uppercase" as const, opacity: 0.7 }}>
+                            {t("Extended (KSK 5+2)", "విస్తరించినవి (KSK 5+2)")}
+                          </div>
+                          {[
+                            { l: t("Asc sub lord",  "లగ్న ఉప నాథ"),   en: workspaceData.ruling_planets.lagna_sub_lord_en, te: workspaceData.ruling_planets.lagna_sub_lord_te },
+                            { l: t("Moon sub lord", "చంద్ర ఉప నాథ"), en: workspaceData.ruling_planets.moon_sub_lord_en,  te: workspaceData.ruling_planets.moon_sub_lord_te },
+                          ].filter(item => item.en).map(item => {
+                            const val = lang === "en" ? item.en : (item.te ?? item.en);
+                            return (
+                              <div key={item.l} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, paddingBottom: 8, borderBottom: "0.5px solid var(--border)", opacity: 0.85 }}>
+                                <span style={{ fontSize: 11, color: "var(--muted)" }}>{item.l}</span>
+                                <span style={{ fontSize: 14, fontWeight: 500, color: PLANET_COLORS[item.en!] || "var(--accent)" }}>{val}</span>
+                              </div>
+                            );
+                          })}
+                        </>
+                      )}
                     </div>
                     <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 10, padding: "1rem" }}>
                       <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: "0.75rem" }}>{t("All ruling planets", "అన్ని రూలింగ్ గ్రహాలు")}</div>
@@ -2081,8 +2950,12 @@ export default function Home() {
               {housesSubTab === "panchang" && (
                 <div>
                   <div className="setup-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem" }}>
-                    <PanchangamCard data={workspaceData.panchangam_birth} title={t("Birth panchangam", "జన్మ పంచాంగం")} />
-                    <PanchangamCard data={workspaceData.panchangam_today} title={t("Today's panchangam", "నేటి పంచాంగం")} />
+                    {/* Phase 2 / PR 6 — pass `kind` so the Hora row reads
+                        "Birth hora" on the left card and "Hora at chart load"
+                        on the right card. Previously both said "Current hora"
+                        which was misleading on the birth card (#9). */}
+                    <PanchangamCard data={workspaceData.panchangam_birth} title={t("Birth panchangam", "జన్మ పంచాంగం")} kind="birth" />
+                    <PanchangamCard data={workspaceData.panchangam_today} title={t("Today's panchangam", "నేటి పంచాంగం")} kind="today" />
                   </div>
                 </div>
               )}
@@ -2127,26 +3000,22 @@ export default function Home() {
                 const mdProg  = periodProgress(md?.start,  md?.end);
                 const adProg  = periodProgress(ad?.start,  ad?.end);
                 const padProg = periodProgress(pad?.start, pad?.end);
-                const fmt = (s?: string) => s?.slice(0, 10) ?? "—";
+                // Phase 7 / PR 18 — was rendering ISO `2021-02-09 → 2039-02-09`.
+                // Live test caught the inconsistency vs the header chips
+                // ("Feb 2039") elsewhere. Use the canonical formatter.
+                const fmt = (s?: string) => formatDate(s) || "—";
 
                 return (
                 <div className="tab-content">
-                  {/* Page hero */}
-                  <header className="dasha-hero">
-                    <span className="dasha-hero-eyebrow">
-                      <Sparkles size={12} strokeWidth={1.8} />
-                      {t("Vimshottari · 120-year cycle", "విమ్శోత్తరి · 120 సంవత్సరాల చక్రం")}
-                    </span>
-                    <h1 className="dasha-hero-title">
-                      {t("Your dasha journey", "మీ దశ ప్రయాణం")}
-                    </h1>
-                    <p className="dasha-hero-sub">
-                      {t(
-                        "Every planet rules a window of your life. See which Mahadasha, Antardasha, and Pratyantardasha you're living in — with transits layered on top.",
-                        "ప్రతి గ్రహం మీ జీవితంలో ఒక కాలాన్ని శాసిస్తుంది. మీరు ఏ మహాదశ, అంతర్దశ, ప్రత్యంతర్దశలో ఉన్నారో చూడండి — గోచారాలతో కలిపి."
-                      )}
-                    </p>
-                  </header>
+                  {/* Phase 15.2 — Track A serif PageHero (Dasha tab) */}
+                  <PageHero
+                    eyebrow={t("Vimshottari · 120-year cycle", "విమ్శోత్తరి · 120 సంవత్సరాల చక్రం")}
+                    title={t("Your dasha journey", "మీ దశ ప్రయాణం")}
+                    subcopy={t(
+                      "Every planet rules a window of your life. See which Mahadasha, Antardasha, and Pratyantardasha you're living in — with transits layered on top.",
+                      "ప్రతి గ్రహం మీ జీవితంలో ఒక కాలాన్ని శాసిస్తుంది. మీరు ఏ మహాదశ, అంతర్దశ, ప్రత్యంతర్దశలో ఉన్నారో చూడండి — గోచారాలతో కలిపి."
+                    )}
+                  />
 
                   {/* Currently running — 3-card hero with MD breathing */}
                   {md && (
@@ -2299,12 +3168,16 @@ export default function Home() {
                         setShowTransitInDasha(next);
                         if (next && workspaceData && !transitData && !transitLoading) {
                           setTransitLoading(true);
+                          // PR A1.3-fix-24 — use astrologer's CURRENT location
+                          // for transit (KP Ruling Planet rule: live time + live
+                          // location, NOT natal). Falls back to natal if user
+                          // hasn't granted location access yet.
                           axios.post(`${API_URL}/transit/analyze`, {
                             natal: workspaceData, transit_date: undefined,
-                            latitude: workspaceData.latitude || 17.385,
-                            longitude: workspaceData.longitude || 78.4867,
-                            timezone_offset: timezoneOffset,
-                          }).then(res => { setTransitData(res.data); setTransitLoading(false); })
+                            latitude: liveLoc.location?.latitude ?? workspaceData.latitude ?? 17.385,
+                            longitude: liveLoc.location?.longitude ?? workspaceData.longitude ?? 78.4867,
+                            timezone_offset: liveLoc.location?.timezone_offset ?? timezoneOffset,
+                          }).then(res => { setTransitData(res.data); setTransitFetchedAt(Date.now()); setTransitLoading(false); })
                             .catch(() => setTransitLoading(false));
                         }
                       }}
@@ -2364,14 +3237,16 @@ export default function Home() {
                               if (!workspaceData) return;
                               setTransitLoading(true);
                               try {
+                                // PR A1.3-fix-24 — same live-location fix as the auto-fetch above
                                 const res = await axios.post(`${API_URL}/transit/analyze`, {
                                   natal: workspaceData,
                                   transit_date: transitDate || undefined,
-                                  latitude: workspaceData.latitude || 17.385,
-                                  longitude: workspaceData.longitude || 78.4867,
-                                  timezone_offset: timezoneOffset,
+                                  latitude: liveLoc.location?.latitude ?? workspaceData.latitude ?? 17.385,
+                                  longitude: liveLoc.location?.longitude ?? workspaceData.longitude ?? 78.4867,
+                                  timezone_offset: liveLoc.location?.timezone_offset ?? timezoneOffset,
                                 });
                                 setTransitData(res.data);
+                                setTransitFetchedAt(Date.now());
                               } catch { setTransitData(null); }
                               setTransitLoading(false);
                             }}
@@ -2381,6 +3256,30 @@ export default function Home() {
                               : <RefreshCw size={13} strokeWidth={2} />}
                             {transitLoading ? t("Loading…", "లోడ్...") : t("Refresh", "రిఫ్రెష్")}
                           </button>
+                          {/* PR A1.3-fix-25 — stale-data indicator. Without
+                              this, transit data sat indefinitely with no clue
+                              that planets have moved since the last fetch.
+                              Live transit positions update every minute (Moon
+                              especially); the user needs to know it's stale. */}
+                          {transitFetchedAt && !transitLoading && (() => {
+                            const ageMin = Math.floor((Date.now() - transitFetchedAt) / 60000);
+                            const isStale = ageMin >= 5;
+                            return (
+                              <span style={{
+                                fontSize: 10,
+                                color: isStale ? "#fbbf24" : "var(--muted)",
+                                fontStyle: "italic",
+                                marginLeft: 6,
+                              }}>
+                                {ageMin < 1
+                                  ? t("Just now", "ఇప్పుడే")
+                                  : ageMin === 1
+                                  ? t("1 min ago", "1 నిమిషం క్రితం")
+                                  : t(`${ageMin} min ago`, `${ageMin} నిమిషాల క్రితం`)}
+                                {isStale && " · " + t("refresh recommended", "రిఫ్రెష్ చేయండి")}
+                              </span>
+                            );
+                          })()}
                         </div>
 
                         {/* Sade Sati hero (only when active) */}
@@ -2657,8 +3556,23 @@ export default function Home() {
                     let lat: number, lon: number, tz: number;
                     if (pcDetectedCoords) {
                       lat = pcDetectedCoords.lat; lon = pcDetectedCoords.lon; tz = pcDetectedCoords.tz;
+                    } else if (liveLoc.location) {
+                      // Phase 1 / PR 3 — reconcile Panchang to the shared
+                      // useLiveLocation hook. Horary already uses it; before
+                      // this change Panchang ran its OWN navigator.geolocation
+                      // call which could resolve differently (the 2026-05-06
+                      // stress test caught Panchang showing "Could not detect"
+                      // while Horary showed "Toronto, Canada" in the same
+                      // session). Now any tab that opens after the hook has
+                      // a value seeds from the cached location.
+                      lat = liveLoc.location.latitude;
+                      lon = liveLoc.location.longitude;
+                      tz = 0; // Backend auto-resolves timezone from lat/lon
+                      setPcDetectedCoords({ lat, lon, tz });
+                      setPcLocationName(liveLoc.location.display);
                     } else {
-                      // Try browser geolocation — do NOT fall back to birth coords
+                      // No shared cache and no local state — try browser
+                      // geolocation directly. Do NOT fall back to birth coords.
                       const pos = await new Promise<GeolocationPosition>((res, rej) =>
                         navigator.geolocation.getCurrentPosition(res, rej, { timeout: 5000 })
                       ).catch(() => null);
@@ -2685,8 +3599,17 @@ export default function Home() {
                         const city = addr.neighbourhood || addr.suburb || addr.city_district
                           || addr.city || addr.town || addr.village || "";
                         const country = addr.country || "";
-                        setPcLocationName(city && country ? `${city}, ${country}` : city || country || `${lat.toFixed(3)}°, ${lon.toFixed(3)}°`);
-                      } catch { setPcLocationName(`${lat.toFixed(3)}°, ${lon.toFixed(3)}°`); }
+                        const displayName = city && country ? `${city}, ${country}` : city || country || `${lat.toFixed(3)}°, ${lon.toFixed(3)}°`;
+                        setPcLocationName(displayName);
+                        // PR 3 — push the freshly-resolved location into the
+                        // shared hook so Horary / Muhurtha / Transit see it
+                        // without re-querying.
+                        liveLoc.override({ lat, lon, display: displayName });
+                      } catch {
+                        const fallback = `${lat.toFixed(3)}°, ${lon.toFixed(3)}°`;
+                        setPcLocationName(fallback);
+                        liveLoc.override({ lat, lon, display: fallback });
+                      }
                     }
                     const r = await axios.post(`${API_URL}/panchangam/location`, {
                       latitude: lat, longitude: lon, timezone_offset: tz, ...(dateStr ? { date: dateStr } : {}),
@@ -2709,6 +3632,9 @@ export default function Home() {
                   setPcShowCityModal(false);
                   setPcCityQuery(""); setPcCitySuggestions([]); setPcGeoError("");
                   setPcData(null); setCalData(null); // Clear old data → auto-load triggers refetch
+                  // PR 3 — propagate the manual pick to the shared hook so
+                  // every other tab (Horary, Muhurtha, Transit) reflects it.
+                  liveLoc.override({ lat: s.lat, lon: s.lon, display: s.display });
                 };
                 const pcTryMyLocation = () => {
                   setPcGeoError("");
@@ -2738,8 +3664,13 @@ export default function Home() {
                   const next = calMonth.month === 12 ? { year: calMonth.year + 1, month: 1 } : { year: calMonth.year, month: calMonth.month + 1 };
                   setCalMonth(next); setCalSelectedDay(null); pcFetchCalendar(next.year, next.month);
                 };
-                // Auto-load on first open (or after city selection clears pcData)
-                if (!pcData && !pcLoading && !pcShowCityModal) { pcFetchLocation(); }
+                // PR A1.3-fix-24 — auto-load moved to a top-level useEffect.
+                // Expose the local fn via a ref so the effect can call it.
+                // Writing to a ref during render is the canonical React
+                // workaround for "I need an effect to call a closure-bound
+                // function". The state-setter side-effect that used to live
+                // here now happens cleanly post-commit.
+                pcFetchLocationRef.current = pcFetchLocation;
 
                 // Weekday headers — lang aware. EN shows Sun-Sat, te/te_en shows Telugu shorts.
                 const weekdayHeadersEn = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -3050,52 +3981,48 @@ export default function Home() {
                         )}
                       </div>
 
-                      {/* ── 3. Identity grid: Samvatsara / Ayana / Rutu / Masa ── */}
-                      <div className="pc2-identity-grid">
+                      {/* ── 3. Era info strip: Samvatsara · Ayana · Rutu · Masa · Shaka · Vikram ──
+                          Phase 4 / PR 9 — stress-test "card abuse" (C):
+                          previously these 6 facts each got their own card,
+                          eating two rows of vertical space for one line of
+                          info each. Now rendered as a single horizontal
+                          info strip with hover tooltips for the meanings.
+                          One line on desktop, wraps gracefully on mobile. */}
+                      <div
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          alignItems: "center",
+                          gap: 14,
+                          padding: "10px 14px",
+                          marginTop: 8,
+                          background: "rgba(201,169,110,0.04)",
+                          border: "0.5px solid rgba(201,169,110,0.15)",
+                          borderRadius: 10,
+                          fontSize: 12,
+                        }}
+                      >
                         {(() => {
                           const ayanaEn = pcData.ayana_te ? (AYANA_EN[pcData.ayana_te] ?? pcData.ayana_te) : "";
                           const rutuEn  = pcData.rutu_te  ? (RUTU_EN[pcData.rutu_te]   ?? pcData.rutu_te)  : "";
                           const items = [
-                            {
-                              label: "Samvatsara",
-                              // Backend only emits the Telugu name; SAMVATSARA_EN maps
-                              // to the Sanskrit transliteration ("Vijaya", "Jaya", …).
-                              value: samvatsaraValue(pcData.samvatsara_te),
-                              sub:   lang === "en" ? "60-year cycle" : "60 సంవత్సరాల చక్రం",
-                            },
-                            {
-                              label: "Ayana",
-                              value: lang === "en" ? ayanaEn : (pcData.ayana_te ?? ayanaEn),
-                              sub:   lang === "en" ? "Solar direction" : "సూర్య ప్రయాణం",
-                            },
-                            {
-                              label: "Rutu",
-                              value: lang === "en" ? rutuEn : (pcData.rutu_te ?? rutuEn),
-                              sub:   lang === "en" ? "Season" : "ఋతువు",
-                            },
-                            {
-                              label: "Masa",
-                              value: lang === "en" ? (pcData.masa_en ?? pcData.masa_te ?? "") : (pcData.masa_te ?? pcData.masa_en ?? ""),
-                              sub:   lang === "en" ? "Lunar month" : "చాంద్ర మాసం",
-                            },
-                            // PR A1.2c — Shaka year + Vikram Samvat era markers.
-                            {
-                              label: "Shaka",
-                              value: pcData.shaka_year ? String(pcData.shaka_year) : "",
-                              sub:   lang === "en" ? "Shaka era" : "శక సంవత్సరం",
-                            },
-                            {
-                              label: "Vikram",
-                              value: pcData.vikram_samvat ? String(pcData.vikram_samvat) : "",
-                              sub:   lang === "en" ? "Vikram Samvat" : "విక్రమ సంవత్",
-                            },
+                            { label: "Samvatsara", value: samvatsaraValue(pcData.samvatsara_te), tip: lang === "en" ? "60-year cycle" : "60 సంవత్సరాల చక్రం" },
+                            { label: "Ayana",      value: lang === "en" ? ayanaEn : (pcData.ayana_te ?? ayanaEn), tip: lang === "en" ? "Solar direction" : "సూర్య ప్రయాణం" },
+                            { label: "Rutu",       value: lang === "en" ? rutuEn  : (pcData.rutu_te  ?? rutuEn),  tip: lang === "en" ? "Season" : "ఋతువు" },
+                            { label: "Masa",       value: lang === "en" ? (pcData.masa_en ?? pcData.masa_te ?? "") : (pcData.masa_te ?? pcData.masa_en ?? ""), tip: lang === "en" ? "Lunar month" : "చాంద్ర మాసం" },
+                            { label: "Shaka",      value: pcData.shaka_year ? String(pcData.shaka_year) : "", tip: lang === "en" ? "Shaka era" : "శక సంవత్సరం" },
+                            { label: "Vikram",     value: pcData.vikram_samvat ? String(pcData.vikram_samvat) : "", tip: lang === "en" ? "Vikram Samvat" : "విక్రమ సంవత్" },
                           ].filter(x => x.value);
-                          return items.map(it => (
-                            <div key={it.label} className="pc2-identity-card">
-                              <span className="pc2-identity-card-label">{it.label}</span>
-                              <span className="pc2-identity-card-value">{it.value}</span>
-                              <span className="pc2-identity-card-sub">{it.sub}</span>
-                            </div>
+                          return items.map((it, idx) => (
+                            <React.Fragment key={it.label}>
+                              {idx > 0 && (
+                                <span aria-hidden style={{ width: 3, height: 3, borderRadius: "50%", background: "rgba(201,169,110,0.35)" }} />
+                              )}
+                              <span title={it.tip} style={{ display: "inline-flex", alignItems: "baseline", gap: 5, whiteSpace: "nowrap" }}>
+                                <span style={{ fontSize: 9, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{it.label}</span>
+                                <span style={{ color: "var(--text)", fontWeight: 600 }}>{it.value}</span>
+                              </span>
+                            </React.Fragment>
                           ));
                         })()}
                       </div>
@@ -3113,7 +4040,7 @@ export default function Home() {
                               <div className="pc2-element-meta">
                                 <div className="pc2-element-eyebrow">{t("Tithi", "తిథి")}</div>
                                 {pcData.tithi_ends_at && (
-                                  <div className="pc2-element-until-inline">{t("until", "వరకు")} {pcData.tithi_ends_at}</div>
+                                  <div className="pc2-element-until-inline">{t("until", "వరకు")} {stripSeconds(pcData.tithi_ends_at)}</div>
                                 )}
                               </div>
                             </div>
@@ -3247,7 +4174,7 @@ export default function Home() {
                               </div>
                               <div className="pc2-hora-lord">{lord}</div>
                             </div>
-                            <span className="pc2-hora-time">{pcData.current_hora.start} – {pcData.current_hora.end}</span>
+                            <span className="pc2-hora-time">{stripSeconds(pcData.current_hora.start)} – {stripSeconds(pcData.current_hora.end)}</span>
                           </div>
                         );
                       })()}
@@ -3257,10 +4184,12 @@ export default function Home() {
                         {/* LEFT: Sun/Moon times */}
                         <div className="pc2-celestial-grid">
                           {[
-                            { Icon: Sunrise,  color: "#fbbf24", label: t("Sunrise", "సూర్యోదయం"),   time: pcData.sunrise,             warm: true  },
-                            { Icon: Sunset,   color: "#fbbf24", label: t("Sunset", "సూర్యాస్తమయం"), time: pcData.sunset,              warm: true  },
-                            { Icon: Moon,     color: "#93c5fd", label: t("Moonrise", "చంద్రోదయం"),  time: pcData.moonrise,            warm: false },
-                            { Icon: MoonStar, color: "#93c5fd", label: t("Moonset", "చంద్రాస్తమయం"), time: pcData.moonset,             warm: false },
+                            // Phase 7 / PR 19 — strip backend seconds (`HH:MM:SS` → `HH:MM`).
+                            // Seconds aren't actionable for sunrise/moon timings.
+                            { Icon: Sunrise,  color: "#fbbf24", label: t("Sunrise", "సూర్యోదయం"),   time: stripSeconds(pcData.sunrise),  warm: true  },
+                            { Icon: Sunset,   color: "#fbbf24", label: t("Sunset", "సూర్యాస్తమయం"), time: stripSeconds(pcData.sunset),   warm: true  },
+                            { Icon: Moon,     color: "#93c5fd", label: t("Moonrise", "చంద్రోదయం"),  time: stripSeconds(pcData.moonrise), warm: false },
+                            { Icon: MoonStar, color: "#93c5fd", label: t("Moonset", "చంద్రాస్తమయం"), time: stripSeconds(pcData.moonset),  warm: false },
                           ].map(c => (
                             <div key={c.label} className={`pc2-celestial-card ${c.warm ? "warm" : "cool"}`} style={{ color: c.color }}>
                               <div className="pc2-celestial-icon"><c.Icon size={16} strokeWidth={1.8} /></div>
@@ -3290,7 +4219,7 @@ export default function Home() {
                                   <div className="pc2-time-row-label">{t("Brahma Muhurta", "బ్రహ్మ ముహూర్తం")}</div>
                                   <div className="pc2-time-row-sub">{t("Best for meditation & study", "ధ్యానం & అధ్యయనానికి ఉత్తమం")}</div>
                                 </div>
-                                <span className="pc2-time-row-value">{pcData.brahma_muhurta.start} – {pcData.brahma_muhurta.end}</span>
+                                <span className="pc2-time-row-value">{stripSeconds(pcData.brahma_muhurta.start)} – {stripSeconds(pcData.brahma_muhurta.end)}</span>
                               </div>
                             )}
                             {pcData.abhijit_muhurtha?.valid && (
@@ -3302,7 +4231,7 @@ export default function Home() {
                                   <div className="pc2-time-row-label">{t("Abhijit Muhurtha", "అభిజిత్ ముహూర్తం")}</div>
                                   <div className="pc2-time-row-sub">{t("Universally auspicious", "సార్వత్రికంగా శుభ")}</div>
                                 </div>
-                                <span className="pc2-time-row-value">{pcData.abhijit_muhurtha.start} – {pcData.abhijit_muhurtha.end}</span>
+                                <span className="pc2-time-row-value">{stripSeconds(pcData.abhijit_muhurtha.start)} – {stripSeconds(pcData.abhijit_muhurtha.end)}</span>
                               </div>
                             )}
                             {/* PR A1.2c — Amrit Kala (auspicious 1h36m window from Moon's nakshatra). */}
@@ -3315,7 +4244,7 @@ export default function Home() {
                                   <div className="pc2-time-row-label">{t("Amrit Kala", "అమృత కాలం")}</div>
                                   <div className="pc2-time-row-sub">{t("Highly auspicious nakshatra-derived window", "నక్షత్రం నుండి అత్యంత శుభ సమయం")}</div>
                                 </div>
-                                <span className="pc2-time-row-value">{pcData.amrit_kala}</span>
+                                <span className="pc2-time-row-value">{stripSeconds(pcData.amrit_kala)}</span>
                               </div>
                             )}
                           </div>
@@ -3333,7 +4262,7 @@ export default function Home() {
                                 <div className="pc2-time-row-label">Rahu Kalam</div>
                                 <div className="pc2-time-row-sub">{t("Avoid new ventures", "కొత్త పనులు నివారించండి")}</div>
                               </div>
-                              <span className="pc2-time-row-value">{pcData.rahu_kalam}</span>
+                              <span className="pc2-time-row-value">{stripSeconds(pcData.rahu_kalam)}</span>
                             </div>
                             <div className="pc2-time-row">
                               <div className="pc2-time-row-icon" style={{ background: "rgba(251,191,36,0.12)", color: "#fbbf24" }}>
@@ -3342,7 +4271,7 @@ export default function Home() {
                               <div className="pc2-time-row-body">
                                 <div className="pc2-time-row-label">Yamagandam</div>
                               </div>
-                              <span className="pc2-time-row-value">{pcData.yamagandam}</span>
+                              <span className="pc2-time-row-value">{stripSeconds(pcData.yamagandam)}</span>
                             </div>
                             <div className="pc2-time-row">
                               <div className="pc2-time-row-icon" style={{ background: "rgba(167,139,250,0.12)", color: "#a78bfa" }}>
@@ -3351,7 +4280,7 @@ export default function Home() {
                               <div className="pc2-time-row-body">
                                 <div className="pc2-time-row-label">Gulika Kalam</div>
                               </div>
-                              <span className="pc2-time-row-value">{pcData.gulika_kalam}</span>
+                              <span className="pc2-time-row-value">{stripSeconds(pcData.gulika_kalam)}</span>
                             </div>
                             {pcData.durmuhurtha?.map((dm: any, i: number) => (
                               <div key={i} className="pc2-time-row">
@@ -3361,7 +4290,7 @@ export default function Home() {
                                 <div className="pc2-time-row-body">
                                   <div className="pc2-time-row-label">{t(`Durmuhurtha ${i + 1}`, `దుర్ముహూర్తం ${i + 1}`)}</div>
                                 </div>
-                                <span className="pc2-time-row-value">{dm.start} – {dm.end}</span>
+                                <span className="pc2-time-row-value">{stripSeconds(dm.start)} – {stripSeconds(dm.end)}</span>
                               </div>
                             ))}
                             {/* PR A1.2c — Varjyam (avoid 1h36m window from Moon's nakshatra). */}
@@ -3374,7 +4303,7 @@ export default function Home() {
                                   <div className="pc2-time-row-label">{t("Varjyam", "వర్జ్యం")}</div>
                                   <div className="pc2-time-row-sub">{t("Avoid important actions", "ముఖ్యమైన పనులు నివారించండి")}</div>
                                 </div>
-                                <span className="pc2-time-row-value">{pcData.varjyam}</span>
+                                <span className="pc2-time-row-value">{stripSeconds(pcData.varjyam)}</span>
                               </div>
                             )}
                             {/* PR A1.2c — Night Rahu/Yama/Gulika (less commonly used but valuable). */}
@@ -3408,7 +4337,7 @@ export default function Home() {
                                   <div className="pc2-time-row-body">
                                     <div className="pc2-time-row-label">{t("Night Gulika", "రాత్రి గులిక")}</div>
                                   </div>
-                                  <span className="pc2-time-row-value">{pcData.gulika_kalam_night}</span>
+                                  <span className="pc2-time-row-value">{stripSeconds(pcData.gulika_kalam_night)}</span>
                                 </div>
                               </details>
                             )}
@@ -3437,10 +4366,39 @@ export default function Home() {
                       {pcData.choghadiya && pcData.choghadiya.length > 0 && (
                         <div className="pc-section">
                           <div className="pc2-section-title">{t("Choghadiya", "చోఘడియ")}</div>
+                          {/* Phase 7 / PR 20 — colour-quality legend.
+                              Dots inside each row had no visible legend
+                              before this PR; live test confirmed users can't
+                              decode green/red/purple at a glance. Kept tiny
+                              and right-aligned so it doesn't compete with
+                              the row content. */}
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: 14,
+                              alignItems: "center",
+                              flexWrap: "wrap",
+                              marginBottom: 8,
+                              fontSize: 10,
+                              color: "var(--muted)",
+                            }}
+                            aria-label={t("Choghadiya quality legend", "చోఘడియ నాణ్యత చిహ్నాలు")}
+                          >
+                            {[
+                              { color: "#34d399", label: t("Auspicious", "శుభ") },
+                              { color: "#f87171", label: t("Inauspicious", "అశుభ") },
+                              { color: "#a78bfa", label: t("Neutral", "తటస్థ") },
+                            ].map(item => (
+                              <span key={item.label} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                                <span aria-hidden style={{ width: 8, height: 8, borderRadius: "50%", background: item.color }} />
+                                {item.label}
+                              </span>
+                            ))}
+                          </div>
                           <div className="pc-half-grid">
                             {([
-                              { isDay: true,  color: "#fbbf24", title: t("Day", "పగలు"),  sub: t("Sunrise", "సూర్యోదయం"), subTime: pcData.sunrise, Icon: Sun },
-                              { isDay: false, color: "#93c5fd", title: t("Night", "రాత్రి"), sub: t("Sunset", "సూర్యాస్తమయం"), subTime: pcData.sunset, Icon: Moon },
+                              { isDay: true,  color: "#fbbf24", title: t("Day", "పగలు"),  sub: t("Sunrise", "సూర్యోదయం"), subTime: stripSeconds(pcData.sunrise), Icon: Sun },
+                              { isDay: false, color: "#93c5fd", title: t("Night", "రాత్రి"), sub: t("Sunset", "సూర్యాస్తమయం"), subTime: stripSeconds(pcData.sunset),  Icon: Moon },
                             ] as const).map(section => (
                               <div key={section.isDay ? "day" : "night"}>
                                 <div className="pc2-chog-head">
@@ -3453,19 +4411,40 @@ export default function Home() {
                                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                                   {pcData.choghadiya.filter((c: any) => c.is_day === section.isDay).map((c: any, i: number) => {
                                     const qColor = c.quality === "auspicious" ? "#34d399" : c.quality === "inauspicious" ? "#f87171" : "#a78bfa";
+                                    // Phase 4 / PR 9 — accessible legend for the
+                                    // colored dot. Stress-test #11: dots had no
+                                    // visible legend; #10: a malefic-active row
+                                    // turned the whole row red so the dot lost
+                                    // its meaning. Tooltip + always-on quality
+                                    // label fixes both. ACTIVE pill now uses a
+                                    // gold border + gold text so it never
+                                    // collides with the red/green/purple dot.
+                                    const qLabel = c.quality === "auspicious"
+                                      ? t("Auspicious", "శుభ")
+                                      : c.quality === "inauspicious"
+                                        ? t("Inauspicious", "అశుభ")
+                                        : t("Neutral", "తటస్థ");
                                     return (
                                       <div key={i}
                                         className={`pc2-chog-row${c.is_current ? " is-current" : ""}`}
+                                        title={`${c.name} — ${qLabel}${c.is_current ? ` (${t("active now", "ప్రస్తుతం")})` : ""}`}
                                         style={{
                                           background: c.is_current ? `${qColor}14` : "transparent",
                                           borderColor: c.is_current ? `${qColor}55` : "transparent",
                                         }}>
-                                        <span className="pc2-chog-dot" style={{ background: qColor }} />
+                                        <span className="pc2-chog-dot" style={{ background: qColor }} aria-label={qLabel} />
                                         <span className="pc2-chog-name" style={{ color: c.is_current ? qColor : "var(--text)", fontWeight: c.is_current ? 700 : 500 }}>{c.name}</span>
-                                        <span className="pc2-chog-time">{c.start}–{c.end}</span>
+                                        <span className="pc2-chog-time">{stripSeconds(c.start)}–{stripSeconds(c.end)}</span>
                                         {c.is_current && (
-                                          <span className="pc2-chog-active-badge" style={{ background: `${qColor}20`, color: qColor, border: `0.5px solid ${qColor}55` }}>
-                                            {t("ACTIVE", "ఇప్పుడు")}
+                                          <span
+                                            className="pc2-chog-active-badge"
+                                            style={{
+                                              background: "rgba(201,169,110,0.18)",
+                                              color: "#c9a96e",
+                                              border: "0.5px solid rgba(201,169,110,0.55)",
+                                            }}
+                                          >
+                                            ◷ {t("ACTIVE", "ఇప్పుడు")}
                                           </span>
                                         )}
                                       </div>
@@ -3526,23 +4505,15 @@ export default function Home() {
               {/* MUHURTHA */}
               {activeTab === "muhurtha" && (
                 <div className="tab-content" style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: 960 }}>
-                  {/* Page hero — sets the "this is an oracle" tone consistent with
-                      Horary (PR13/14) and Houses (PR11). Always visible above the
-                      wizard regardless of step. */}
-                  <header style={{ marginBottom: 4 }}>
-                    <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6, fontWeight: 600 }}>
-                      {t("Auspicious Timing", "శుభ ముహూర్తం")}
-                    </div>
-                    <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 28, margin: 0, lineHeight: 1.15, color: "var(--text)", letterSpacing: "-0.01em" }}>
-                      {t("Muhurtha finder", "ముహూర్తం కనుగొను")}
-                    </h1>
-                    <p style={{ fontSize: 13, color: "var(--muted)", margin: "6px 0 0", maxWidth: 620, lineHeight: 1.55 }}>
-                      {t(
-                        "Scans every 4 minutes of your date range. Scores each Lagna Sub-Lord against event-specific house requirements plus Badhaka, Moon SL, and Panchang.",
-                        "మీ ఎంచుకున్న తేదీల పరిధిని ప్రతి 4 నిమిషాలకు స్కాన్ చేస్తుంది. ప్రతి లగ్న సబ్‌లార్డ్‌ని ఈవెంట్‌కి తగిన భావాలు + బాధక + చంద్ర SL + పంచాంగంతో స్కోర్ చేస్తుంది."
-                      )}
-                    </p>
-                  </header>
+                  {/* Phase 15.2 — Track A serif PageHero (Muhurtha tab) */}
+                  <PageHero
+                    eyebrow={t("Auspicious Timing", "శుభ ముహూర్తం")}
+                    title={t("Muhurtha finder", "ముహూర్తం కనుగొను")}
+                    subcopy={t(
+                      "Scans every 4 minutes of your date range. Scores each Lagna Sub-Lord against event-specific house requirements plus Badhaka, Moon SL, and Panchang.",
+                      "మీ ఎంచుకున్న తేదీల పరిధిని ప్రతి 4 నిమిషాలకు స్కాన్ చేస్తుంది. ప్రతి లగ్న సబ్‌లార్డ్‌ని ఈవెంట్‌కి తగిన భావాలు + బాధక + చంద్ర SL + పంచాంగంతో స్కోర్ చేస్తుంది."
+                    )}
+                  />
 
                   {/* Step wizard — always visible so the user knows which step
                       they're on and which are complete. Going back is
@@ -3672,7 +4643,15 @@ export default function Home() {
                                 </select>
                               </div>
                             )}
-                            <button onClick={() => setMShowAddParticipant(true)}
+                            <button onClick={() => {
+                              // PR A1.3-fix-24 — reset mNewP on open so each
+                              // "Add Participant" click is a clean slate.
+                              // (Was previously reset on every tab change,
+                              // which destroyed user data on tab peeks.)
+                              setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "", timezone_offset: 5.5 });
+                              setMNewPPlaceSugg([]);
+                              setMShowAddParticipant(true);
+                            }}
                               style={{ padding: "7px 12px", background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 6, color: "var(--muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" as const }}>
                               + {t("New", "కొత్తగా")}
                             </button>
@@ -3712,7 +4691,7 @@ export default function Home() {
                                     <Clock size={10} strokeWidth={2} /> {t("Date of birth", "పుట్టిన తేదీ")}
                                   </div>
                                   <input
-                                    type="text"
+                                    type="text" inputMode="numeric"
                                     placeholder="DD/MM/YYYY"
                                     maxLength={10}
                                     value={mNewP.date}
@@ -3726,7 +4705,7 @@ export default function Home() {
                                   </div>
                                   <div style={{ display: "flex", gap: 6 }}>
                                     <input
-                                      type="text"
+                                      type="text" inputMode="numeric"
                                       placeholder="HH:MM"
                                       maxLength={5}
                                       value={mNewP.time}
@@ -4045,6 +5024,7 @@ export default function Home() {
                           setMAiLoading(true);
                           setMAiQuestion("");
                           try {
+                            recordAiCall(isTopic ? "muhurtha.analyze:topic" : "muhurtha.analyze:chat");
                             const res = await axios.post(`${API_URL}/muhurtha/analyze`, {
                               muhurtha_data: mResults,
                               question: questionText,
@@ -4592,46 +5572,76 @@ export default function Home() {
                                 )}
                               </div>
                               <div style={{ display: "flex", flexDirection: "column" as const, gap: 6 }}>
-                                {mResults.soft_flagged_windows.slice(0, 25).map((sw: any, i: number) => (
-                                  <div
-                                    key={i}
-                                    style={{
-                                      padding: "8px 10px",
-                                      background: "rgba(0,0,0,0.2)",
-                                      border: "0.5px solid rgba(255,255,255,0.04)",
-                                      borderRadius: 6,
-                                      display: "flex",
-                                      gap: 12,
-                                      alignItems: "flex-start",
-                                    }}
-                                  >
-                                    <div style={{ minWidth: 0, flex: 1 }}>
-                                      <div style={{ fontSize: 12, color: "var(--text)", fontWeight: 500, marginBottom: 2 }}>
-                                        {sw.date_display || sw.date} · {sw.start_time}–{sw.end_time}
-                                      </div>
-                                      <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 4 }}>
-                                        Lagna {sw.lagna} · SL {sw.lagna_sublord} · Score {sw.score}
-                                      </div>
-                                      <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 4 }}>
-                                        {(sw.hard_rejected_for || []).map((r: string, ri: number) => (
+                                {/* Phase 4 / PR 10 — jargon tooltips on hard-filter
+                                    chips (#16) + Score tooltip (#17). The
+                                    reason strings come straight from the engine
+                                    and were opaque to non-power users; the lookup
+                                    below maps the most common patterns to a
+                                    one-line plain-English explanation, with a
+                                    sensible fallback for unknown reasons. */}
+                                {(() => {
+                                  const reasonHelp = (raw: string): string => {
+                                    const s = (raw || "").toLowerCase();
+                                    if (s.includes("badhaka")) return t("The CSL or its star lord coincides with the Badhaka/Maraka house chain — Krishnamurti rejects this for any positive event.", "బాధక/మారక భావంతో అనుసంధానం — KP లో నిషిద్ధం");
+                                    if (s.includes("missing primary")) return t("The Lagna sub-lord does not signify the event's primary house. Without primary signification, no event can occur per KP §1.", "లగ్న ఉపనాథ ముఖ్య భావాన్ని సూచించడం లేదు — KP §1 ప్రకారం కుదరదు");
+                                    if (s.includes("missing h11"))     return t("Lagna sub-lord doesn't signify H11 (gain/fulfillment) — KP requires H11 confirmation for benefic events.", "H11 (లాభ) సూచన లేదు — KP §2 ప్రకారం అవసరం");
+                                    if (s.includes("retrograde"))      return t("A key signifying planet is retrograde — KP downgrades benefic results for the retrograde period.", "ముఖ్య గ్రహం వక్రం — ఫలితాలు తగ్గుతాయి");
+                                    if (s.includes("moon sl"))         return t("Moon's sub-lord opposes the event's KP requirements (moon represents the mind/promise).", "చంద్ర ఉపనాథ అనుకూలంగా లేదు");
+                                    if (s.includes("rahu kalam") || s.includes("yamaganda") || s.includes("gulika")) return t("Falls inside an inauspicious panchang window (Rahu Kalam / Yamaganda / Gulika).", "రాహుకాలం/యమగండం/గులిక లో పడుతుంది");
+                                    return t("KP hard filter — open the rule reference for this event before overriding.", "KP హార్డ్ ఫిల్టర్ — KP నియమావళి సంప్రదించి మాత్రమే ఓవర్‌రైడ్ చేయండి");
+                                  };
+                                  return mResults.soft_flagged_windows.slice(0, 25).map((sw: any, i: number) => (
+                                    <div
+                                      key={i}
+                                      style={{
+                                        padding: "8px 10px",
+                                        background: "rgba(0,0,0,0.2)",
+                                        border: "0.5px solid rgba(255,255,255,0.04)",
+                                        borderRadius: 6,
+                                        display: "flex",
+                                        gap: 12,
+                                        alignItems: "flex-start",
+                                      }}
+                                    >
+                                      <div style={{ minWidth: 0, flex: 1 }}>
+                                        <div style={{ fontSize: 12, color: "var(--text)", fontWeight: 500, marginBottom: 2 }}>
+                                          {sw.date_display || sw.date} · {sw.start_time}–{sw.end_time}
+                                        </div>
+                                        <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 4 }}>
+                                          Lagna {sw.lagna} · SL {sw.lagna_sublord} ·{" "}
                                           <span
-                                            key={ri}
-                                            style={{
-                                              fontSize: 10,
-                                              padding: "2px 8px",
-                                              borderRadius: 4,
-                                              background: "rgba(248,113,113,0.12)",
-                                              color: "#f87171",
-                                              border: "0.5px solid rgba(248,113,113,0.25)",
-                                            }}
+                                            title={t(
+                                              "Score 0–100. 80+ excellent · 60–80 acceptable · <60 typically hard-filtered out (shown here for transparency).",
+                                              "స్కోర్ 0–100. 80+ అత్యుత్తమం · 60–80 ఆమోదయోగ్యం · <60 సాధారణంగా హార్డ్ ఫిల్టర్ చేయబడుతుంది."
+                                            )}
+                                            style={{ borderBottom: "1px dotted var(--muted)", cursor: "help" }}
                                           >
-                                            {r}
+                                            Score {sw.score}
                                           </span>
-                                        ))}
+                                        </div>
+                                        <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 4 }}>
+                                          {(sw.hard_rejected_for || []).map((r: string, ri: number) => (
+                                            <span
+                                              key={ri}
+                                              title={reasonHelp(r)}
+                                              style={{
+                                                fontSize: 10,
+                                                padding: "2px 8px",
+                                                borderRadius: 4,
+                                                background: "rgba(248,113,113,0.12)",
+                                                color: "#f87171",
+                                                border: "0.5px solid rgba(248,113,113,0.25)",
+                                                cursor: "help",
+                                              }}
+                                            >
+                                              {r}
+                                            </span>
+                                          ))}
+                                        </div>
                                       </div>
                                     </div>
-                                  </div>
-                                ))}
+                                  ));
+                                })()}
                                 {mResults.soft_flagged_windows.length > 25 && (
                                   <div style={{ fontSize: 10, color: "var(--muted)", textAlign: "center" as const, paddingTop: 4, fontStyle: "italic" as const }}>
                                     +{mResults.soft_flagged_windows.length - 25} {t("more soft-flagged windows not shown", "మరిన్ని సాఫ్ట్-ఫ్లాగ్ చేయబడిన సమయాలు చూపబడలేదు")}
@@ -4728,20 +5738,15 @@ export default function Home() {
                 return (
                 <div className="tab-content" style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: 1020 }}>
 
-                  {/* Page hero — consistent with Horary / Muhurtha / Panchang (PR14-16). */}
-                  <header className="match-header">
-                    <div className="match-header-eyebrow">
-                      <Heart size={12} strokeWidth={1.8} />
-                      {t("KP + Ashtakoota compatibility", "KP + అష్టకూట సరిపోలన")}
-                    </div>
-                    <h1 className="match-header-title">{t("Marriage match", "వివాహ సరిపోలన")}</h1>
-                    <p className="match-header-sub">
-                      {t(
-                        "Combines KP 7th-cusp sub-lord analysis, Venus karaka, Dasha-Bhukti timing, D9 Navamsa, Kuja Dosha, and the 36-gun Ashtakoota into a single compatibility verdict.",
-                        "KP 7-భావ సబ్ లార్డ్, శుక్ర కారక, దశా-భుక్తి సమయం, D9 నవాంశ, కుజ దోష, 36-గుణ అష్టకూటను కలిపి ఒకే సరిపోలన నిర్ణయంగా మార్చుతుంది."
-                      )}
-                    </p>
-                  </header>
+                  {/* Phase 15.2 — Track A serif PageHero (Match tab) */}
+                  <PageHero
+                    eyebrow={t("KP + Ashtakoota compatibility", "KP + అష్టకూట సరిపోలన")}
+                    title={t("Marriage match", "వివాహ సరిపోలన")}
+                    subcopy={t(
+                      "Combines KP 7th-cusp sub-lord analysis, Venus karaka, Dasha-Bhukti timing, D9 Navamsa, Kuja Dosha, and the 36-gun Ashtakoota into a single compatibility verdict.",
+                      "KP 7-భావ సబ్ లార్డ్, శుక్ర కారక, దశా-భుక్తి సమయం, D9 నవాంశ, కుజ దోష, 36-గుణ అష్టకూటను కలిపి ఒకే సరిపోలన నిర్ణయంగా మార్చుతుంది."
+                    )}
+                  />
 
                   {/* Step wizard — always visible. People → Verdict. Same
                       pattern as Muhurtha's stepper so the user always knows
@@ -4849,7 +5854,14 @@ export default function Home() {
                                   ))}
                                 </select>
                               )}
-                              <button onClick={() => setMatchPerson2Inline(true)}
+                              <button onClick={() => {
+                                // PR A1.3-fix-24 — reset mNewP on open (same
+                                // rationale as the Muhurtha "Add Participant"
+                                // button above — was tab-change-reset, now per-click).
+                                setMNewP({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: 17.385, longitude: 78.4867, gender: "", timezone_offset: 5.5 });
+                                setMNewPPlaceSugg([]);
+                                setMatchPerson2Inline(true);
+                              }}
                                 style={{ padding: "9px 14px", background: "var(--surface)", border: "0.5px dashed var(--border2)", borderRadius: 8, color: "var(--muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit", textAlign: "left" as const, transition: "border-color 140ms, color 140ms" }}
                                 onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(147,197,253,0.5)"; e.currentTarget.style.color = "#93c5fd"; }}
                                 onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border2)"; e.currentTarget.style.color = "var(--muted)"; }}
@@ -4875,14 +5887,14 @@ export default function Home() {
                               <div className="pf-row">
                                 <div>
                                   <div className="pf-field-label"><Clock size={10} strokeWidth={2} /> {t("Date of birth", "పుట్టిన తేదీ")}</div>
-                                  <input type="text" placeholder="DD/MM/YYYY" maxLength={10} value={mNewP.date}
+                                  <input type="text" inputMode="numeric" placeholder="DD/MM/YYYY" maxLength={10} value={mNewP.date}
                                     onChange={e => handleMNewPDateChange(e.target.value)}
                                     className={`pf-input${mNewP.date ? " filled" : ""}`} />
                                 </div>
                                 <div>
                                   <div className="pf-field-label"><Clock size={10} strokeWidth={2} /> {t("Time of birth", "పుట్టిన సమయం")}</div>
                                   <div style={{ display: "flex", gap: 6 }}>
-                                    <input type="text" placeholder="HH:MM" maxLength={5} value={mNewP.time}
+                                    <input type="text" inputMode="numeric" placeholder="HH:MM" maxLength={5} value={mNewP.time}
                                       onChange={e => handleMNewPTimeChange(e.target.value)}
                                       className={`pf-input${mNewP.time ? " filled" : ""}`} style={{ flex: 1 }} />
                                     <button onClick={() => setMNewP(p => ({ ...p, ampm: p.ampm === "AM" ? "PM" : "AM" }))}
@@ -5039,6 +6051,27 @@ export default function Home() {
                           </>
                         )}
                       </button>
+                      {/* Phase 4 / PR 11 — disabled-CTA hint (#21).
+                          Stress-test: the gold→grey "Compute" button gave
+                          no clue why it was inactive. Now a small caption
+                          underneath spells out exactly which slot is missing,
+                          mirroring the Horary "TYPE A QUESTION FIRST" pattern. */}
+                      {!matchLoading && (!matchPerson1 || !matchResults?.__p2) && (
+                        <div
+                          style={{
+                            fontSize: 11,
+                            color: "var(--muted)",
+                            textAlign: "center",
+                            marginTop: 8,
+                            letterSpacing: "0.04em",
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          {!matchPerson1
+                            ? t("GENERATE A CHART FIRST", "ముందు చార్ట్ సృష్టించండి")
+                            : t("ADD PERSON 2 TO COMPUTE", "వ్యక్తి 2 జోడించండి")}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -5097,15 +6130,14 @@ export default function Home() {
                           </div>
                           {/* Score donut + serif verdict */}
                           <div style={{ flex: 1, display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 6, minWidth: 200 }}>
-                            <svg width={84} height={84} viewBox="0 0 84 84">
-                              <circle cx={42} cy={42} r={34} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={8} />
-                              <circle cx={42} cy={42} r={34} fill="none" stroke={verdictColor} strokeWidth={8}
-                                strokeDasharray={`${((ast?.total_score ?? 0)/(ast?.max_score ?? 36)) * 213.6} 213.6`}
-                                strokeLinecap="round" strokeDashoffset={53.4}
-                                style={{ filter: `drop-shadow(0 0 8px ${verdictColor}60)` }} />
-                              <text x={42} y={44} textAnchor="middle" className="match-score-donut-num" fontSize={18} fill={verdictColor}>{ast?.total_score ?? "?"}</text>
-                              <text x={42} y={58} textAnchor="middle" fontSize={9} fill="var(--muted)">/{ast?.max_score ?? 36}</text>
-                            </svg>
+                            {/* Phase 15.4 — animated compatibility donut.
+                                Arc draws from 0 over 1.2s while the center
+                                number counts up 0 -> final score. */}
+                            <AnimatedScoreDonut
+                              score={ast?.total_score ?? 0}
+                              max={ast?.max_score ?? 36}
+                              color={verdictColor}
+                            />
                             <div className="match-verdict-word" style={{ color: verdictColor }}>
                               {r.overall_verdict}
                             </div>
@@ -5680,23 +6712,20 @@ export default function Home() {
                 <div className="tab-content">
                   <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 720 }}>
 
-                    {/* Page header (ported from developv2 — gives this tab a proper title) */}
+                    {/* Phase 15.2 — Track A serif PageHero (Horary tab) */}
                     {!horaryResult && (
-                      <header style={{ marginBottom: 2 }}>
-                        <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6, fontWeight: 600 }}>
-                          {t("Krishnamurti Paddhati · 1–249", "కృష్ణమూర్తి పద్ధతి · 1–249")}
-                        </div>
-                        <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 28, margin: 0, lineHeight: 1.15, color: "var(--text)", letterSpacing: "-0.01em" }}>
-                          {t("Horary · Prashna", "హోరరీ · ప్రశ్న")}
-                        </h1>
-                        <p style={{ fontSize: 13, color: "var(--muted)", margin: "6px 0 0", maxWidth: 600, lineHeight: 1.55 }}>
-                          {t(
-                            "Ask a question, pick a number between 1 and 249, get a YES/NO verdict based on Lagna Sub-Lord + topic cusp CSL + Ruling Planets confirmation.",
-                            "ఒక ప్రశ్న అడగండి, 1–249 మధ్య సంఖ్య ఎంచుకోండి. లగ్న సబ్‌లార్డ్ + భావ CSL + నియమిత గ్రహాలతో YES/NO నిర్ణయం పొందండి."
-                          )}
-                        </p>
-                        {/* PR A1.1 — live location pill; astrologer can override */}
-                        <div style={{ marginTop: 10 }}>
+                      <>
+                      <PageHero
+                        eyebrow={t("Krishnamurti Paddhati · 1–249", "కృష్ణమూర్తి పద్ధతి · 1–249")}
+                        title={t("Horary · Prashna", "హోరరీ · ప్రశ్న")}
+                        subcopy={t(
+                          "Ask a question, pick a number between 1 and 249, get a YES/NO verdict based on Lagna Sub-Lord + topic cusp CSL + Ruling Planets confirmation.",
+                          "ఒక ప్రశ్న అడగండి, 1–249 మధ్య సంఖ్య ఎంచుకోండి. లగ్న సబ్‌లార్డ్ + భావ CSL + నియమిత గ్రహాలతో YES/NO నిర్ణయం పొందండి."
+                        )}
+                        bottomGap={12}
+                      />
+                      <FadeIn delay={0.5} distance="small" duration="base">
+                        <div style={{ marginTop: 0, marginBottom: 16 }}>
                           <LiveLocationPill
                             location={liveLoc.location}
                             status={liveLoc.status}
@@ -5705,7 +6734,8 @@ export default function Home() {
                             onRefresh={liveLoc.refresh}
                           />
                         </div>
-                      </header>
+                      </FadeIn>
+                      </>
                     )}
 
                     {!horaryResult ? (
@@ -5836,7 +6866,12 @@ export default function Home() {
                             >+</button>
                           </div>
 
-                          {/* PR A1.1b — real draggable slider (was decorative). */}
+                          {/* PR A1.1b — real draggable slider (was decorative).
+                              Phase 4 / PR 12 (#23) — when no number is picked
+                              the digit shows "?" but the slider used to park
+                              at 1, which read as "1 selected". Park the thumb
+                              at the midpoint (125) and dim it so the un-set
+                              state is visually consistent with the "?" digit. */}
                           <div className="horary-slider-row">
                             <span className="horary-slider-end">1</span>
                             <input
@@ -5844,10 +6879,11 @@ export default function Home() {
                               min={1}
                               max={249}
                               step={1}
-                              value={typeof horaryNumber === "number" ? horaryNumber : 1}
+                              value={typeof horaryNumber === "number" ? horaryNumber : 125}
                               onChange={e => setHoraryNumber(parseInt(e.target.value, 10))}
                               className="horary-slider"
                               aria-label={t("Prashna number slider", "ప్రశ్న సంఖ్య స్లైడర్")}
+                              style={{ opacity: typeof horaryNumber === "number" ? 1 : 0.45 }}
                             />
                             <span className="horary-slider-end">249</span>
                           </div>
@@ -5891,10 +6927,14 @@ export default function Home() {
                                 // LIVE location, not natal. Refuse to submit
                                 // if we don't yet have one.
                                 if (!liveLoc.location) {
-                                  alert(t(
-                                    "We need your current location for KP Ruling Planets. Please enable geolocation or pick your city in the Location pill above.",
-                                    "KP నియమ గ్రహాల కోసం మీ ప్రస్తుత ప్రదేశం అవసరం. దయచేసి లొకేషన్ అనుమతించండి లేదా పైన మీ నగరం ఎంచుకోండి."
-                                  ));
+                                  // PR A1.3-fix-25 — was alert(), now toast
+                                  setToast({
+                                    msg: t(
+                                      "Need your current location for KP Ruling Planets. Enable geolocation or pick a city in the Location pill above.",
+                                      "KP నియమ గ్రహాల కోసం మీ ప్రస్తుత ప్రదేశం అవసరం. దయచేసి లొకేషన్ అనుమతించండి లేదా పైన మీ నగరం ఎంచుకోండి."
+                                    ),
+                                    tone: "error",
+                                  });
                                   return;
                                 }
                                 setHoraryLoading(true);
@@ -5917,7 +6957,22 @@ export default function Home() {
                                     await new Promise(r => setTimeout(r, 650 - elapsed));
                                   }
                                   setHoraryResult(res.data);
-                                } catch { setHoraryResult(null); }
+                                } catch (err: any) {
+                                  // PR A1.3-fix-25 — was silently swallowing
+                                  // errors with setHoraryResult(null), leaving
+                                  // the user staring at a re-enabled button
+                                  // with no message. Now surfaces a toast.
+                                  setHoraryResult(null);
+                                  const status = err?.response?.status;
+                                  setToast({
+                                    msg: status === 429
+                                      ? t("Too many requests — please wait a moment.", "చాలా అభ్యర్థనలు — దయచేసి కొంచెం వేచి ఉండండి.")
+                                      : status === 422
+                                      ? t("Input couldn't be processed. Please check your question.", "ఇన్‌పుట్ ప్రాసెస్ చేయలేకపోయాము. మీ ప్రశ్నను తనిఖీ చేయండి.")
+                                      : t("Could not compute the horary verdict. Please try again.", "హోరారీ వెర్డిక్ట్ లెక్కించలేకపోయాము. మళ్లీ ప్రయత్నించండి."),
+                                    tone: "error",
+                                  });
+                                }
                                 setHoraryLoading(false);
                               }}
                               disabled={!horaryNumber || !horaryQuestion.trim() || horaryLoading}
@@ -6499,18 +7554,70 @@ export default function Home() {
                 </div>
               )}
 
-              {/* ANALYSIS — chat bubble design + quick insights */}
+              {/* ANALYSIS — chat bubble design + quick insights.
+                  Phase 11 / PR 28 — Analysis polish batch:
+                    - Topic chip strip is now sticky so users can switch
+                      topics without scrolling to top in long sessions (#A6)
+                    - Clear button asks for confirmation before wiping
+                      conversation history (#A8)
+                    - Topic grid expanded to 10 to match Horary canon (#A9)
+                    - AI bubbles capped to 80ch readable width (#A17)
+                    - Timestamps under each AI bubble (#A16) */}
               {activeTab === "analysis" && (
                 <div className="tab-content" style={{ display: "flex", flexDirection: "column", height: "100%", gap: 0 }}>
+                  {/* Phase 15.2 — Track A serif PageHero (Analysis tab).
+                      Only on the empty state (before chat starts) — once
+                      a conversation is active the sticky topic strip takes
+                      over and a big hero would waste vertical space. */}
+                  {analysisMessages.length === 0 && (
+                    <PageHero
+                      eyebrow={t("AI · KP Sonnet", "AI · KP సోనెట్")}
+                      title={t("Ask the chart", "చార్ట్‌ని అడగండి")}
+                      subcopy={t(
+                        "Pick a life topic for a full 7-section KP worksheet, or type any question. Every verdict cites the chart's CSL chains and dasha context.",
+                        "పూర్తి 7-సెక్షన్ KP వర్క్‌షీట్ కోసం జీవిత అంశాన్ని ఎంచుకోండి, లేదా ఏదైనా ప్రశ్న టైప్ చేయండి. ప్రతి నిర్ణయం చార్ట్ CSL చైన్‌లు + దశ సందర్భాన్ని ఉదహరిస్తుంది."
+                      )}
+                      bottomGap={16}
+                    />
+                  )}
                   {/* Topics — full grid before chat starts, compact horizontal strip after */}
-                  <div style={{ marginBottom: "0.75rem", flexShrink: 0 }}>
+                  <div
+                    style={{
+                      marginBottom: "0.75rem",
+                      flexShrink: 0,
+                      // Phase 11 / PR 28 (#A6) — sticky chip strip when chat is active.
+                      ...(analysisMessages.length > 0
+                        ? { position: "sticky" as const, top: 0, zIndex: 5, background: "var(--bg)", paddingTop: 8, paddingBottom: 8 }
+                        : {}),
+                    }}
+                  >
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                       <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" as const }}>
-                        {analysisMessages.length > 0 ? `Topics · ${activeTopic ? TOPICS.find(t => t.id === activeTopic)?.te || activeTopic : "switch anytime"}` : "Topics"}
+                        {(() => {
+                          const tpHeading = t("Topics", "అంశాలు");
+                          if (analysisMessages.length === 0) return tpHeading;
+                          const active = TOPICS.find(tp => tp.id === activeTopic);
+                          const activeLabel = active ? (lang === "en" ? active.en : active.te) : "";
+                          const subtle = activeTopic ? activeLabel : t("switch anytime", "ఎప్పుడైనా మార్చండి");
+                          return `${tpHeading} · ${subtle}`;
+                        })()}
                       </div>
                       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                         {analysisMessages.length > 0 && (
-                          <button onClick={() => { setAnalysisMessages([]); setActiveTopic(""); }} style={{ background: "transparent", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "3px 10px", fontSize: 11, color: "var(--muted)", cursor: "pointer" }}>{t("Clear", "క్లియర్")}</button>
+                          <button
+                            onClick={() => {
+                              // Phase 11 / PR 28 (#A8) — confirm before destructive wipe.
+                              const ok = typeof window !== "undefined"
+                                ? window.confirm(t(
+                                    "Clear the entire analysis conversation? This cannot be undone.",
+                                    "మొత్తం విశ్లేషణ సంభాషణను తుడిచివేయాలా? దీన్ని తిరిగి పొందలేరు."
+                                  ))
+                                : true;
+                              if (!ok) return;
+                              setAnalysisMessages([]); setActiveTopic("");
+                            }}
+                            style={{ background: "transparent", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "3px 10px", fontSize: 11, color: "var(--muted)", cursor: "pointer" }}
+                          >{t("Clear", "క్లియర్")}</button>
                         )}
                         <div style={{ display: "flex", background: "var(--surface2)", borderRadius: 6, border: "0.5px solid var(--border2)", overflow: "hidden" }}>
                           {([["english", "EN"], ["telugu_english", "తె+EN"]] as const).map(([val, label]) => (
@@ -6519,24 +7626,33 @@ export default function Home() {
                         </div>
                       </div>
                     </div>
-                    {/* Before chat starts: full 4×2 grid */}
+                    {/* Before chat starts: full 4×2 grid.
+                        Phase 6 / PR 15 — topic labels now respect `lang`
+                        (#6). Was hardcoded Telugu before, leaking into
+                        the EN view of the Analysis tab. */}
                     {analysisMessages.length === 0 ? (
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
+                      /* Phase 15.3 — 8 topic chips cascade in (60ms gap)
+                         after the PageHero settles (delay 0.5s).
+                         Each chip wraps a button with StaggerItem for
+                         per-item motion variants. */
+                      <StaggerChildren
+                        gap="base"
+                        delay={0.5}
+                        immediate
+                        style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}
+                      >
                         {TOPICS.map(tp => (
-                          <button key={tp.id} onClick={() => handleTopicAnalysis(tp.id)} disabled={analysisLoading}
-                            style={{ padding: "10px 6px", borderRadius: 10, border: `0.5px solid ${activeTopic === tp.id ? "var(--accent)" : "var(--border2)"}`, background: activeTopic === tp.id ? "rgba(201,169,110,0.15)" : "var(--card)", cursor: analysisLoading ? "default" : "pointer", fontFamily: "inherit", textAlign: "center", transition: "all 0.2s" }}
-                            onMouseEnter={e => { if (activeTopic !== tp.id) (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(201,169,110,0.4)"; }}
-                            onMouseLeave={e => { if (activeTopic !== tp.id) (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border2)"; }}>
-                            <div style={{ fontSize: 22, marginBottom: 4 }}>{TOPIC_EMOJI[tp.id]}</div>
-                            <div style={{ fontSize: 11, color: activeTopic === tp.id ? "var(--accent)" : "var(--text)", fontWeight: activeTopic === tp.id ? 500 : 400 }}>{tp.te}</div>
-                            {quickInsights[tp.id] && (
-                              <div style={{ fontSize: 9, color: "var(--muted)", marginTop: 4, lineHeight: 1.4, textAlign: "left" }}>
-                                {quickInsights[tp.id].split("\n")[0]?.slice(0, 60)}…
-                              </div>
-                            )}
-                          </button>
+                          <StaggerItem key={tp.id}>
+                            <button onClick={() => handleTopicAnalysis(tp.id)} disabled={analysisLoading}
+                              style={{ width: "100%", padding: "10px 6px", borderRadius: 10, border: `0.5px solid ${activeTopic === tp.id ? "var(--accent)" : "var(--border2)"}`, background: activeTopic === tp.id ? "rgba(201,169,110,0.15)" : "var(--card)", cursor: analysisLoading ? "default" : "pointer", fontFamily: "inherit", textAlign: "center", transition: "all 0.2s" }}
+                              onMouseEnter={e => { if (activeTopic !== tp.id) (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(201,169,110,0.4)"; }}
+                              onMouseLeave={e => { if (activeTopic !== tp.id) (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border2)"; }}>
+                              <div style={{ fontSize: 22, marginBottom: 4 }}>{TOPIC_EMOJI[tp.id]}</div>
+                              <div style={{ fontSize: 11, color: activeTopic === tp.id ? "var(--accent)" : "var(--text)", fontWeight: activeTopic === tp.id ? 500 : 400 }}>{lang === "en" ? tp.en : tp.te}</div>
+                            </button>
+                          </StaggerItem>
                         ))}
-                      </div>
+                      </StaggerChildren>
                     ) : (
                       // Once chat is active: compact horizontal topic strip
                       <div className="topic-strip">
@@ -6544,15 +7660,30 @@ export default function Home() {
                           <button key={tp.id} onClick={() => handleTopicAnalysis(tp.id)} disabled={analysisLoading}
                             className={`topic-chip ${activeTopic === tp.id ? "active" : ""}`}>
                             <span style={{ fontSize: 14 }}>{TOPIC_EMOJI[tp.id]}</span>
-                            <span>{tp.te}</span>
+                            <span>{lang === "en" ? tp.en : tp.te}</span>
                           </button>
                         ))}
                       </div>
                     )}
                   </div>
 
+                  {/* Phase 12 / PR 30 — chat area + right-rail TOC.
+                      The TOC is power-user navigation for long sessions
+                      (#A5). Lists each AI bubble in order; clicking jumps
+                      to that message. Only shown after 2+ messages so a
+                      single-answer view stays uncluttered. */}
+                  <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
                   {/* Chat messages — bubble style */}
-                  <div style={{ flex: 1, overflowY: "auto", minHeight: 0, paddingRight: 2 }}>
+                  {/* PR A1.3-fix-25 — role=log + aria-live=polite so screen
+                      readers announce streaming AI chunks as they arrive.
+                      Was completely silent for AT users in astrologer mode
+                      (user mode already had this). */}
+                  <div
+                    role="log"
+                    aria-live="polite"
+                    aria-label={t("AI analysis conversation", "AI విశ్లేషణ సంభాషణ")}
+                    style={{ flex: 1, overflowY: "auto", minHeight: 0, paddingRight: 2 }}
+                  >
                     {analysisMessages.length === 0 && !analysisLoading && (
                       <div style={{ textAlign: "center", padding: "2.25rem 1rem 1.25rem" }}>
                         <div style={{ fontSize: 32, marginBottom: 10, color: "var(--accent)", opacity: 0.7 }}>↑</div>
@@ -6576,7 +7707,7 @@ export default function Home() {
                       </div>
                     )}
                     {analysisMessages.map((msg, i) => (
-                      <div key={i} style={{ marginBottom: "1.25rem" }} className="fade-in">
+                      <div key={i} style={{ marginBottom: "1.25rem" }} className="fade-in" id={`analysis-msg-${msg.id ?? i}`}>
                         {/* User question bubble — right aligned */}
                         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
                           <div className="chat-bubble-user" style={{ padding: "8px 14px", maxWidth: "72%", fontSize: 12, color: "#d0d0d8", lineHeight: 1.5 }}>
@@ -6584,10 +7715,21 @@ export default function Home() {
                             {msg.q}
                           </div>
                         </div>
-                        {/* AI answer bubble — left aligned, with avatar dot + copy button */}
+                        {/* AI answer bubble — left aligned, with avatar dot + copy button.
+                            Phase 11 / PR 28 — capped readable width (#A17) so long answers
+                            don't stretch to ~120ch on wide monitors. 78ch ≈ classic
+                            book-column readability. The bubble keeps `flex: 1` so on
+                            narrow viewports it still fills available space. */}
                         <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
                           <div className="chat-ai-dot" title="DevAstroAI">D</div>
-                          <div className="chat-bubble-ai md-body" style={{ padding: "1rem 1.25rem", maxWidth: "calc(94% - 34px)", flex: 1 }}>
+                          <div
+                            className="chat-bubble-ai md-body"
+                            style={{
+                              padding: "1rem 1.25rem",
+                              maxWidth: "min(78ch, calc(94% - 34px))",
+                              flex: 1,
+                            }}
+                          >
                             <button
                               className="copy-btn"
                               data-copy-id={`copy-${i}`}
@@ -6602,7 +7744,105 @@ export default function Home() {
                                 }, 1500);
                               }}
                             >Copy</button>
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.a}</ReactMarkdown>
+                            {/* PR A1.3-fix-22 — streaming placeholder: render typing dots
+                                inline while the bubble is empty and streaming, then swap
+                                to markdown as chunks arrive. Avoids the duplicate-bubble
+                                glitch (empty placeholder + standalone loading-dots block). */}
+                            {i === analysisMessages.length - 1 && analysisLoading && !msg.a ? (
+                              <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--muted)", fontSize: 12 }}>
+                                <span className="typing-dots"><span /><span /><span /></span>
+                                <span>{(() => {
+                                  // Phase 6 / PR 15 — Analyzing-loader uses
+                                  // language-aware topic label.
+                                  if (!activeTopic) return t("Thinking…", "ఆలోచిస్తున్నాను…");
+                                  const tp = TOPICS.find(tp => tp.id === activeTopic);
+                                  const enLabel = tp?.en || activeTopic;
+                                  const teLabel = tp?.te || activeTopic;
+                                  return t(`Analyzing ${enLabel}…`, `${teLabel} విశ్లేషిస్తున్నాను…`);
+                                })()}</span>
+                                {/* Phase 11 / PR 29 (#A2) — Stop generation.
+                                    Aborts the in-flight SSE stream. Both the
+                                    topic-analysis and chat streams expose
+                                    AbortControllers via refs at the top of
+                                    page.tsx, so this is a tiny click handler
+                                    over those existing channels. */}
+                                <button
+                                  onClick={() => {
+                                    askStreamAbortRef.current?.abort();
+                                    analyzeStreamAbortRef.current?.abort();
+                                    setAnalysisLoading(false);
+                                  }}
+                                  className="analysis-stop-btn"
+                                  title={t("Stop generating this answer (Esc)", "జనరేషన్ ఆపండి (Esc)")}
+                                  style={{
+                                    marginLeft: 6,
+                                    padding: "3px 10px",
+                                    fontSize: 10.5,
+                                    background: "rgba(248,113,113,0.12)",
+                                    border: "0.5px solid rgba(248,113,113,0.4)",
+                                    color: "#f87171",
+                                    borderRadius: 5,
+                                    cursor: "pointer",
+                                    fontFamily: "inherit",
+                                    letterSpacing: "0.04em",
+                                    textTransform: "uppercase",
+                                  }}
+                                >■ {t("Stop", "ఆపండి")}</button>
+                              </div>
+                            ) : (
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.a}</ReactMarkdown>
+                            )}
+                            {/* Phase 11 / PR 28 (#A16) — timestamp + Phase 11 / PR 29 (#A3) — Regenerate.
+                                Timestamp surfaces "when was this generated"; Regenerate
+                                re-fires the same topic/question against the same
+                                streaming endpoint. Only shown after the response
+                                finishes streaming. Subtle row, doesn't fight content. */}
+                            {msg.a && !(i === analysisMessages.length - 1 && analysisLoading) && (
+                              <div className="analysis-meta-row">
+                                {msg.t && (
+                                  <span title={new Date(msg.t).toLocaleString()}>
+                                    {(() => {
+                                      const mins = Math.floor((Date.now() - msg.t) / 60000);
+                                      if (mins < 1) return t("just now", "ఇప్పుడే");
+                                      if (mins < 60) return t(`${mins}m ago`, `${mins} నిమిషాల క్రితం`);
+                                      const hrs = Math.floor(mins / 60);
+                                      if (hrs < 24) return t(`${hrs}h ago`, `${hrs} గంటల క్రితం`);
+                                      const days = Math.floor(hrs / 24);
+                                      return t(`${days}d ago`, `${days} రోజుల క్రితం`);
+                                    })()}
+                                  </span>
+                                )}
+                                {!analysisLoading && (
+                                  <button
+                                    className="analysis-regen-btn"
+                                    title={t(
+                                      "Regenerate — drops this answer and re-fires the same prompt",
+                                      "మళ్ళీ తయారు చేయండి — ఈ సమాధానాన్ని తీసివేసి అదే ప్రశ్న మళ్ళీ అడుగుతుంది"
+                                    )}
+                                    onClick={() => {
+                                      const wasTopic = msg.isTopic;
+                                      const sameQ = msg.q;
+                                      // Drop this message + everything below it.
+                                      setAnalysisMessages(prev => prev.slice(0, i));
+                                      if (wasTopic) {
+                                        // Topic q is "<Label> — Full Analysis";
+                                        // reverse-lookup id from TOPICS.
+                                        const found = TOPICS.find(tp =>
+                                          sameQ.startsWith((lang === "en" ? tp.en : tp.te))
+                                        );
+                                        if (found) handleTopicAnalysis(found.id);
+                                      } else {
+                                        // Chat message — repopulate input so the
+                                        // user can re-submit with one Enter (avoids
+                                        // a stale-closure bug on handleWorkspaceChat
+                                        // which reads chatQ from React state).
+                                        setChatQ(sameQ);
+                                      }
+                                    }}
+                                  >↻ {t("Regenerate", "మళ్ళీ")}</button>
+                                )}
+                              </div>
+                            )}
                             {/* Suggested follow-up chips on the LATEST AI message only */}
                             {i === analysisMessages.length - 1 && !analysisLoading && (
                               <div className="followup-chips">
@@ -6623,29 +7863,82 @@ export default function Home() {
                         </div>
                       </div>
                     ))}
-                    {analysisLoading && (
+                    {/* PR A1.3-fix-22 — standalone loading-dots block removed.
+                        Streaming now renders typing dots INSIDE the placeholder
+                        AI bubble (above) so there's no duplicate-bubble glitch.
+                        Fallback safety: if loading is true but no placeholder
+                        exists yet (race window), show a minimal indicator. */}
+                    {analysisLoading && analysisMessages.length === 0 && (
                       <div style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "0.5rem 0" }}>
                         <div className="chat-ai-dot">D</div>
                         <div className="chat-bubble-ai" style={{ padding: "0.85rem 1.1rem" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--muted)", fontSize: 12 }}>
                             <span className="typing-dots"><span /><span /><span /></span>
-                            <span>{activeTopic ? t(`Analyzing ${TOPICS.find(tp => tp.id === activeTopic)?.te || activeTopic}…`, `${TOPICS.find(tp => tp.id === activeTopic)?.te || activeTopic} విశ్లేషిస్తున్నాను…`) : t("Thinking…", "ఆలోచిస్తున్నాను…")}</span>
+                            <span>{t("Thinking…", "ఆలోచిస్తున్నాను…")}</span>
                           </div>
                         </div>
                       </div>
                     )}
                     <div ref={chatEndRef} />
                   </div>
+
+                  {/* Phase 12 / PR 30 — right-rail TOC. Lists every
+                      message in order with a jump-scroll handler. Topic
+                      messages get the topic emoji + bold; chat messages
+                      get a light truncated preview. Hidden on viewports
+                      below 1100px (mobile/tablet) and when there are
+                      fewer than 2 messages. */}
+                  {analysisMessages.length >= 2 && (
+                    <nav
+                      className="analysis-toc kp-hide-below-1100"
+                      aria-label={t("Conversation outline", "సంభాషణ సూచిక")}
+                    >
+                      <div className="analysis-toc-eyebrow">
+                        {t("Outline", "సూచిక")}
+                      </div>
+                      {analysisMessages.map((msg, i) => {
+                        const isTopic = !!msg.isTopic;
+                        // For topic messages, find the topic to grab the emoji.
+                        const topic = isTopic
+                          ? TOPICS.find(tp =>
+                              msg.q.startsWith((lang === "en" ? tp.en : tp.te))
+                            )
+                          : undefined;
+                        const emoji = topic ? TOPIC_EMOJI[topic.id] : "·";
+                        const preview = isTopic
+                          ? (topic ? (lang === "en" ? topic.en : topic.te) : msg.q)
+                          : msg.q.length > 38 ? `${msg.q.slice(0, 38)}…` : msg.q;
+                        return (
+                          <button
+                            key={msg.id ?? i}
+                            type="button"
+                            className={`analysis-toc-item ${isTopic ? "is-topic" : "is-followup"}`}
+                            onClick={() => {
+                              const el = document.getElementById(`analysis-msg-${msg.id ?? i}`);
+                              if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                            }}
+                          >
+                            {isTopic && <span className="analysis-toc-emoji">{emoji}</span>}
+                            {preview}
+                          </button>
+                        );
+                      })}
+                    </nav>
+                  )}
+                  </div>
                 </div>
               )}
             </div>
 
             {/* Chat input (workspace-level — visible on every tab except
-                Horary and Panchang, where it would misleadingly route to
-                Analysis AI which doesn't know about those tabs' data.
+                Horary, Panchang, Muhurtha, where it would either route
+                to Analysis AI which doesn't know about those tabs' data,
+                or duplicate the tab's own dedicated Ask strip.
                 PR A1.1b hid it on Horary, PR A1.2b extends to Panchang.
-                Per-tab Ask AI will replace it in a future PR. */}
-            {activeTab !== "horary" && activeTab !== "panchang" && (
+                Phase 4 / PR 10 (#22) extends to Muhurtha — the AI
+                Muhurtha Analysis card has its own Ask + suggestion
+                chips, so showing this strip below it was strict noise. */}
+            {activeTab !== "horary" && activeTab !== "panchang" && activeTab !== "muhurtha" && (
             <div style={{ borderTop: "0.5px solid var(--border)", padding: "0.75rem 1.25rem", background: "var(--surface)", display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
               <input
                 value={chatQ}
@@ -6666,136 +7959,29 @@ export default function Home() {
       )}
 
       {/* ── USER CHAT ── */}
+      {/* PR A1.3-fix-15 — User-mode UI revamp.
+          The old 130-line inline JSX was replaced by the UserModeUI
+          component which delivers a 2-column premium layout (chat +
+          chart panel), HeroVerdictCard rendering, TimingStrip,
+          ActiveAnalysisPanel, EmptyStateHero with categorized starter
+          questions, and mobile bottom-sheet collapse. */}
       {setupDone && mode === "user" && (
-        <main style={{ flex: 1, position: "relative", zIndex: 5, maxWidth: 760, margin: "0 auto", width: "100%", padding: "2rem 1.5rem" }}>
-          <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 120px)" }}>
-            {/* Chart summary bar */}
-            <div style={{ background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 10, padding: "0.875rem 1.25rem", display: "flex", alignItems: "center", gap: 14, marginBottom: "0.75rem", flexShrink: 0 }}>
-              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--surface2)", border: "0.5px solid var(--border2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: "var(--accent)", fontWeight: 500 }}>{birthDetails.name[0]?.toUpperCase()}</div>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 500 }}>{birthDetails.name}</div>
-                <div style={{ fontSize: 11, color: "var(--muted)" }}>{birthDetails.date} · {birthDetails.time} {birthDetails.ampm} · {birthDetails.place}</div>
-              </div>
-              <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
-                <span style={{ fontSize: 10, background: "rgba(201,169,110,0.1)", color: "var(--accent)", border: "0.5px solid rgba(201,169,110,0.2)", borderRadius: 4, padding: "3px 8px" }}>KP New</span>
-              </div>
-            </div>
-
-            {/* Collapsible chart details */}
-            {chartData && (
-              <div style={{ marginBottom: "0.75rem", flexShrink: 0 }}>
-                <button onClick={() => setShowChartDetails(!showChartDetails)} style={{ width: "100%", background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: showChartDetails ? "8px 8px 0 0" : 8, padding: "0.75rem 1.25rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", color: "var(--muted)", fontSize: 12, letterSpacing: "0.04em" }}>
-                  <span style={{ display: "flex", alignItems: "center", gap: 8 }}><span style={{ color: "var(--accent)", fontSize: 14 }}>◈</span>Chart Details</span>
-                  <span style={{ fontSize: 10 }}>{showChartDetails ? "▲ Hide" : "▼ Show"}</span>
-                </button>
-                {showChartDetails && (
-                  <div style={{ background: "var(--surface)", border: "0.5px solid var(--border2)", borderTop: "none", borderRadius: "0 0 8px 8px", padding: "1.25rem", overflowX: "auto", maxHeight: "40vh", overflowY: "auto" }}>
-                    <div style={{ marginBottom: "1rem" }}>
-                      <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.12em", textTransform: "uppercase" as const, marginBottom: "0.75rem" }}>Planet Positions</div>
-                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 400 }}>
-                        <thead><tr>{["Planet", "Sign", "Degree", "Nakshatra", "Star Lord", "Sub Lord"].map(h => <th key={h} style={{ textAlign: "left", padding: "6px 10px", color: "var(--muted)", fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase" as const, borderBottom: "0.5px solid var(--border)", fontWeight: 400 }}>{h}</th>)}</tr></thead>
-                        <tbody>
-                          {chartData.chart && Object.entries(chartData.chart.planets).map(([planet, data]: [string, any]) => (
-                            <tr key={planet} style={{ borderBottom: "0.5px solid var(--border)" }}>
-                              <td style={{ padding: "8px 10px", color: "var(--accent2)", fontWeight: 500 }}>{planet}</td>
-                              <td style={{ padding: "8px 10px", color: "var(--text)" }}>{data.sign}</td>
-                              <td style={{ padding: "8px 10px", color: "var(--muted)", fontSize: 11 }}>{data.longitude?.toFixed(2)}°</td>
-                              <td style={{ padding: "8px 10px", color: "var(--text)" }}>{data.nakshatra}</td>
-                              <td style={{ padding: "8px 10px", color: "var(--text)" }}>{data.star_lord}</td>
-                              <td style={{ padding: "8px 10px" }}><span style={{ background: "rgba(201,169,110,0.1)", color: "var(--accent)", border: "0.5px solid rgba(201,169,110,0.2)", borderRadius: 4, padding: "2px 8px", fontSize: 11 }}>{data.sub_lord}</span></td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    {chartData.dashas?.current_mahadasha && (
-                      <div>
-                        <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.12em", textTransform: "uppercase" as const, marginBottom: "0.5rem" }}>Current Dasha</div>
-                        <div style={{ background: "var(--surface2)", borderRadius: 8, padding: "0.875rem", border: "0.5px solid var(--border)", marginBottom: "0.5rem" }}>
-                          <div style={{ fontSize: 10, color: "var(--muted)" }}>Mahadasha</div>
-                          <div style={{ fontSize: 15, fontWeight: 500, color: "var(--accent2)" }}>{chartData.dashas.current_mahadasha.lord}</div>
-                          <div style={{ fontSize: 10, color: "var(--muted)" }}>{chartData.dashas.current_mahadasha.start} → {chartData.dashas.current_mahadasha.end}</div>
-                          {chartData.dashas.current_antardasha && (
-                            <div style={{ paddingTop: "0.5rem", borderTop: "0.5px solid var(--border)", marginTop: "0.5rem" }}>
-                              <div style={{ fontSize: 10, color: "var(--muted)" }}>Antardasha</div>
-                              <div style={{ fontSize: 14, color: "var(--text)" }}>{chartData.dashas.current_antardasha.antardasha_lord}</div>
-                              <div style={{ fontSize: 10, color: "var(--muted)" }}>{chartData.dashas.current_antardasha.start} → {chartData.dashas.current_antardasha.end}</div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Messages */}
-            <div style={{ flex: 1, overflowY: "auto", paddingRight: 4, minHeight: 0 }}>
-              {messages.length === 0 && (
-                <div style={{ textAlign: "center", padding: "2.5rem 1rem" }}>
-                  <div style={{ fontSize: 24, marginBottom: "0.75rem", opacity: 0.3 }}>✦</div>
-                  <div style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.7 }}>Your chart is ready. Ask anything about your life.</div>
-                  <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: "1.25rem", flexWrap: "wrap" }}>
-                    {["Will I get a good job soon?", "When will I get married?", "Should I travel abroad?", "How is my health this year?"].map(q => (
-                      <button key={q} onClick={() => setQuestion(q)} style={{ background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 20, padding: "6px 14px", fontSize: 12, color: "var(--muted)", cursor: "pointer" }}>{q}</button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {messages.map((msg) => (
-                <div key={msg.id} style={{ marginBottom: "1.75rem" }}>
-                  <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "0.75rem" }}>
-                    <div style={{ background: "var(--accent)", color: "#09090f", borderRadius: "12px 12px 2px 12px", padding: "10px 16px", fontSize: 14, maxWidth: "78%", lineHeight: 1.6 }}>{msg.question}</div>
-                  </div>
-                  <div style={{ background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: "2px 12px 12px 12px", padding: "1.25rem", maxWidth: "94%" }}>
-                    {/* 3-state promise badge */}
-                    {msg.analysis && (
-                      <div style={{ display: "flex", gap: 8, marginBottom: "1rem", flexWrap: "wrap" }}>
-                        <PromiseBadge analysis={msg.analysis} />
-                        {msg.analysis.current_dasha?.mahadasha && <span style={{ fontSize: 10, padding: "3px 10px", borderRadius: 4, background: "rgba(201,169,110,0.08)", color: "var(--accent)", border: "0.5px solid rgba(201,169,110,0.15)" }}>{msg.analysis.current_dasha.mahadasha.lord}–{msg.analysis.current_dasha.antardasha?.antardasha_lord} Dasha</span>}
-                        {msg.analysis.timing_analysis?.timing_favorable && <span style={{ fontSize: 10, padding: "3px 10px", borderRadius: 4, background: "rgba(201,169,110,0.08)", color: "var(--accent2)", border: "0.5px solid rgba(201,169,110,0.15)" }}>⏱ Timing Active</span>}
-                      </div>
-                    )}
-                    <div className="markdown-body"><ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.answer}</ReactMarkdown></div>
-                    <div style={{ fontSize: 11, color: "var(--muted)", marginTop: "0.75rem" }}>{msg.timestamp}</div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: "1rem", paddingTop: "1rem", borderTop: "0.5px solid var(--border)" }}>
-                      <span style={{ fontSize: 11, color: "var(--muted)" }}>Accurate?</span>
-                      <button onClick={() => handleFeedback(msg.id, "correct")} style={{ padding: "3px 12px", borderRadius: 4, border: "0.5px solid", fontSize: 11, cursor: "pointer", background: "transparent", borderColor: msg.feedback === "correct" ? "var(--green)" : "var(--border2)", color: msg.feedback === "correct" ? "var(--green)" : "var(--muted)" }}>✓ Correct</button>
-                      <button onClick={() => handleFeedback(msg.id, "incorrect")} style={{ padding: "3px 12px", borderRadius: 4, border: "0.5px solid", fontSize: 11, cursor: "pointer", background: "transparent", borderColor: msg.feedback === "incorrect" ? "var(--red)" : "var(--border2)", color: msg.feedback === "incorrect" ? "var(--red)" : "var(--muted)" }}>✗ Incorrect</button>
-                      <button onClick={() => { setActiveNote(msg.id); setNoteInput(msg.note || ""); }} style={{ padding: "3px 12px", borderRadius: 4, border: "0.5px solid var(--border2)", fontSize: 11, cursor: "pointer", background: "transparent", color: "var(--muted)", marginLeft: "auto" }}><MessageCircle size={11} style={{ display: "inline", marginRight: 4 }} />{msg.note ? "Edit note" : "Add note"}</button>
-                    </div>
-                    {activeNote === msg.id && (
-                      <div style={{ marginTop: "0.75rem" }}>
-                        <textarea value={noteInput} onChange={e => setNoteInput(e.target.value)} rows={3} style={{ width: "100%", background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "var(--text)", outline: "none", resize: "none" }} />
-                        <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-                          <button onClick={() => handleNoteSubmit(msg.id)} style={{ background: "var(--accent)", color: "#09090f", border: "none", borderRadius: 6, padding: "6px 14px", fontSize: 12, cursor: "pointer" }}>Save note</button>
-                          <button onClick={() => setActiveNote(null)} style={{ background: "transparent", color: "var(--muted)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "6px 14px", fontSize: 12, cursor: "pointer" }}>Cancel</button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {loading && (
-                <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: "1.5rem" }}>
-                  <div style={{ background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: "2px 12px 12px 12px", padding: "1rem 1.25rem", display: "flex", alignItems: "center", gap: 10, color: "var(--muted)", fontSize: 13 }}>
-                    <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />Analyzing your chart...
-                  </div>
-                </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Input bar */}
-            <div className="chat-input-container" style={{ background: "var(--surface)", border: "0.5px solid var(--border2)", borderRadius: 12, padding: "0.875rem 1rem", display: "flex", alignItems: "flex-end", gap: 10, marginTop: "0.75rem", flexShrink: 0 }}>
-              <textarea value={question} onChange={e => setQuestion(e.target.value)} onKeyDown={handleKeyDown} placeholder="Ask about career, marriage, travel, health... (Enter to send)" rows={2} style={{ flex: 1, background: "transparent", border: "none", color: "var(--text)", fontSize: 14, resize: "none", outline: "none", lineHeight: 1.6, fontFamily: "inherit" }} />
-              <button onClick={handleAsk} disabled={loading || !question.trim()} style={{ background: question.trim() ? "var(--accent)" : "var(--surface2)", color: question.trim() ? "#09090f" : "var(--muted)", border: "none", borderRadius: 8, padding: "10px 18px", fontSize: 13, fontWeight: 500, cursor: question.trim() ? "pointer" : "default", display: "flex", alignItems: "center", gap: 6, transition: "all 0.2s", flexShrink: 0 }}>
-                {loading ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <ArrowRight size={14} />}Ask
-              </button>
-            </div>
-          </div>
-        </main>
+        <UserModeUI
+          birthDetails={birthDetails}
+          chartData={chartData}
+          messages={messages}
+          question={question}
+          setQuestion={setQuestion}
+          loading={loading}
+          handleAsk={handleAsk}
+          activeNote={activeNote}
+          setActiveNote={setActiveNote}
+          noteInput={noteInput}
+          setNoteInput={setNoteInput}
+          handleFeedback={handleFeedback}
+          handleNoteSubmit={handleNoteSubmit}
+          isMobile={isMobile}
+        />
       )}
 
       {/* PR20 — Mobile Command Orb. Renders only on mobile viewports,
@@ -6812,6 +7998,12 @@ export default function Home() {
           onSwitchSession={handleSwitchSession}
         />
       )}
+
+      {/* Phase 13.2 — on-screen Anthropic call counter. Always visible
+          so the user can verify that billing changes correlate with
+          their actions. Click to expand the last-10 call log.
+          Counts every Anthropic-billing fetch this browser session. */}
+      <AiCallBadge />
     </div>
   );
 }

@@ -2,6 +2,11 @@ import swisseph as swe
 from datetime import datetime
 import math
 
+# PR A1.3-fix-24 — single source of truth for "today" (IST midnight rollover).
+# See app/services/today.py for the rationale. Without this import, dasha-period
+# detection was 5.5 hours stale per day on UTC servers vs the answer cache.
+from app.services.today import today_ist_str
+
 # KP New Ayanamsa - confirmed with father
 swe.set_sid_mode(swe.SIDM_KRISHNAMURTI_VP291)
 
@@ -40,6 +45,19 @@ DASHA_YEARS = {
 # Total dasha years
 TOTAL_YEARS = sum(DASHA_YEARS.values())  # 120
 
+# PR A1.3-fix-24 — DASHA_SEQUENCE was previously defined at line 187 (and
+# DASHA_YEARS was duplicated at line 192). Hoisted to the canonical block
+# here, duplicates removed below. `lords_order` at L71 also collapsed to
+# use DASHA_SEQUENCE. Same byte-identical values; fix is dedup only.
+DASHA_SEQUENCE = [
+    "Ketu", "Venus", "Sun", "Moon", "Mars",
+    "Rahu", "Jupiter", "Saturn", "Mercury"
+]
+
+# Backwards-compatible alias for the old name. Some external code may still
+# reference TOTAL_DASHA_YEARS. Both point at the same 120-year cycle.
+TOTAL_DASHA_YEARS = TOTAL_YEARS
+
 # Each nakshatra span in degrees
 NAKSHATRA_SPAN = 360 / 27  # 13.333...
 
@@ -67,11 +85,10 @@ def get_sub_lord(longitude: float) -> str:
     # Determine starting lord of this nakshatra
     nakshatra_lord = NAKSHATRAS[nakshatra_index % 27][1]
 
-    # Build sub-division sequence starting from nakshatra lord
-    lords_order = ["Ketu", "Venus", "Sun", "Moon", "Mars",
-                   "Rahu", "Jupiter", "Saturn", "Mercury"]
-    start_index = lords_order.index(nakshatra_lord)
-    sequence = lords_order[start_index:] + lords_order[:start_index]
+    # PR A1.3-fix-24 — uses canonical DASHA_SEQUENCE (hoisted to top of file).
+    # Was a duplicate hardcoded list here.
+    start_index = DASHA_SEQUENCE.index(nakshatra_lord)
+    sequence = DASHA_SEQUENCE[start_index:] + DASHA_SEQUENCE[:start_index]
 
     # Calculate sub spans proportional to dasha years
     current_position = 0.0
@@ -82,6 +99,98 @@ def get_sub_lord(longitude: float) -> str:
         current_position += span
 
     return sequence[-1]  # fallback
+
+
+# PR A1.3-fix-26 Part E — nakshatra/sub boundary proximity detection.
+# When a cusp's longitude is within a small threshold of a sub-lord
+# boundary, even a 4-minute birth-time error could flip the CSL from
+# one planet to another, which can flip the entire verdict. RULE 37
+# requires the LLM to acknowledge this when borderline. We expose the
+# distance + boundary flag here so the engine output can include it.
+def sub_boundary_distance(longitude: float) -> dict:
+    """Return distance (degrees) to the NEAREST sub-lord boundary at this
+    longitude, plus the planets on each side.
+
+    A "sub boundary" is the longitude where the sub lord changes from
+    one planet to another within the same nakshatra (or across nakshatras).
+    Returns:
+        {
+          "current_sub_lord": str,
+          "next_sub_lord": str,    # the sub lord just past the boundary ahead
+          "prev_sub_lord": str,    # the sub lord just before the boundary behind
+          "deg_to_next_boundary": float,   # always >= 0
+          "deg_to_prev_boundary": float,   # always >= 0
+          "deg_to_nearest_boundary": float,  # min of next/prev
+        }
+    """
+    # Normalize longitude to [0, 360)
+    longitude = longitude % 360
+    nakshatra_index = int(longitude / NAKSHATRA_SPAN)
+    position_in_nakshatra = longitude - (nakshatra_index * NAKSHATRA_SPAN)
+    nakshatra_lord = NAKSHATRAS[nakshatra_index % 27][1]
+    start_index = DASHA_SEQUENCE.index(nakshatra_lord)
+    sequence = DASHA_SEQUENCE[start_index:] + DASHA_SEQUENCE[:start_index]
+
+    # Walk the sub spans within this nakshatra to find current sub + bounds
+    current_position = 0.0
+    for i, lord in enumerate(sequence):
+        span = (DASHA_YEARS[lord] / TOTAL_YEARS) * NAKSHATRA_SPAN
+        sub_start = current_position
+        sub_end = current_position + span
+        if sub_end >= position_in_nakshatra:
+            # We're inside this sub. Compute distances + neighbours.
+            deg_to_next = sub_end - position_in_nakshatra
+            deg_to_prev = position_in_nakshatra - sub_start
+            # Determine prev_sub_lord (sub before this one)
+            if i == 0:
+                # First sub of this nakshatra — prev sub is last sub of
+                # previous nakshatra. Build the previous nakshatra sequence
+                # quickly to identify it.
+                prev_nak_lord = NAKSHATRAS[(nakshatra_index - 1) % 27][1]
+                prev_start = DASHA_SEQUENCE.index(prev_nak_lord)
+                prev_seq = DASHA_SEQUENCE[prev_start:] + DASHA_SEQUENCE[:prev_start]
+                prev_sub_lord = prev_seq[-1]
+            else:
+                prev_sub_lord = sequence[i - 1]
+            # Next sub lord
+            if i + 1 < len(sequence):
+                next_sub_lord = sequence[i + 1]
+            else:
+                # Last sub of this nakshatra — next sub is first sub of next nakshatra
+                next_nak_lord = NAKSHATRAS[(nakshatra_index + 1) % 27][1]
+                next_sub_lord = next_nak_lord  # first sub of any nakshatra is its own lord
+            return {
+                "current_sub_lord": lord,
+                "next_sub_lord": next_sub_lord,
+                "prev_sub_lord": prev_sub_lord,
+                "deg_to_next_boundary": round(deg_to_next, 4),
+                "deg_to_prev_boundary": round(deg_to_prev, 4),
+                "deg_to_nearest_boundary": round(min(deg_to_next, deg_to_prev), 4),
+            }
+        current_position += span
+    # Fallback (shouldn't reach here in normal flow)
+    return {
+        "current_sub_lord": sequence[-1],
+        "next_sub_lord": sequence[-1],
+        "prev_sub_lord": sequence[-1],
+        "deg_to_next_boundary": 0.0,
+        "deg_to_prev_boundary": 0.0,
+        "deg_to_nearest_boundary": 0.0,
+    }
+
+
+def is_borderline_csl(longitude: float, threshold_deg: float = 0.3) -> bool:
+    """True if this longitude is within `threshold_deg` of a sub-lord
+    boundary — i.e., a small birth-time error could flip the sub lord.
+
+    KP sensitivity: 0.3 degrees ≈ 1.2 minutes of clock time at the
+    average ascendant rate (~15 deg per hour). For a typical user-supplied
+    birth time rounded to the nearest minute, longitudes within 0.3°
+    of a boundary are at-risk. RULE 37 requires the LLM to acknowledge
+    this caveat when this flag fires.
+    """
+    info = sub_boundary_distance(longitude)
+    return info["deg_to_nearest_boundary"] <= threshold_deg
 
 
 def date_time_to_julian(date: str, time: str, timezone_offset: float = 5.5) -> float:
@@ -183,18 +292,10 @@ def generate_chart(date: str, time: str, latitude: float,
 # VIMSHOTTARI DASHA CALCULATION
 # ============================================================
 
-# Dasha sequence and years
-DASHA_SEQUENCE = [
-    "Ketu", "Venus", "Sun", "Moon", "Mars",
-    "Rahu", "Jupiter", "Saturn", "Mercury"
-]
-
-DASHA_YEARS = {
-    "Ketu": 7, "Venus": 20, "Sun": 6, "Moon": 10,
-    "Mars": 7, "Rahu": 18, "Jupiter": 16, "Saturn": 19, "Mercury": 17
-}
-
-TOTAL_DASHA_YEARS = 120
+# PR A1.3-fix-24 — DASHA_SEQUENCE / DASHA_YEARS / TOTAL_DASHA_YEARS now
+# hoisted to the canonical block at top of file. Duplicate definitions
+# removed here. Functions below use the same names — Python module-level
+# binding makes them visible regardless of definition order at call time.
 
 
 def get_dasha_balance(moon_longitude: float) -> dict:
@@ -279,8 +380,8 @@ def get_current_dasha(dashas: list) -> dict:
     """
     Find which Mahadasha is currently running.
     """
-    from datetime import datetime
-    today = datetime.now().strftime("%Y-%m-%d")
+    # PR A1.3-fix-24 — IST not server-local (see app/services/today.py)
+    today = today_ist_str()
 
     for dasha in dashas:
         if dasha["start"] <= today <= dasha["end"]:
@@ -328,8 +429,8 @@ def calculate_antardashas(mahadasha: dict) -> list:
 
 def get_current_antardasha(antardashas: list) -> dict:
     """Find currently running antardasha."""
-    from datetime import datetime
-    today = datetime.now().strftime("%Y-%m-%d")
+    # PR A1.3-fix-24 — IST not server-local (see app/services/today.py)
+    today = today_ist_str()
 
     for ad in antardashas:
         if ad["start"] <= today <= ad["end"]:
@@ -883,8 +984,8 @@ def calculate_pratyantardashas(antardasha: dict) -> list:
 
 def get_current_pratyantardasha(pratyantardashas: list) -> dict:
     """Find currently running Pratyantardasha."""
-    from datetime import datetime
-    today = datetime.now().strftime("%Y-%m-%d")
+    # PR A1.3-fix-24 — IST not server-local (see app/services/today.py)
+    today = today_ist_str()
 
     for pad in pratyantardashas:
         if pad["start"] <= today <= pad["end"]:
@@ -944,8 +1045,8 @@ def calculate_sookshma_dashas(pratyantardasha: dict) -> list:
 
 def get_current_sookshma(sookshmas: list) -> dict:
     """Find currently running Sookshma (sub-PAD) period."""
-    from datetime import datetime
-    today = datetime.now().strftime("%Y-%m-%d")
+    # PR A1.3-fix-24 — IST not server-local (see app/services/today.py)
+    today = today_ist_str()
 
     for sd in sookshmas:
         if sd["start"] <= today <= sd["end"]:
@@ -956,8 +1057,8 @@ def get_current_sookshma(sookshmas: list) -> dict:
 
 def get_upcoming_pratyantardashas(pratyantardashas: list, limit: int = 9) -> list:
     """Return current + upcoming PADs (not past ones)."""
-    from datetime import datetime
-    today = datetime.now().strftime("%Y-%m-%d")
+    # PR A1.3-fix-24 — IST not server-local (see app/services/today.py)
+    today = today_ist_str()
     result = []
     found_current = False
     for pad in pratyantardashas:

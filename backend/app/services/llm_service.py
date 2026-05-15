@@ -3,9 +3,18 @@ import anthropic
 from datetime import datetime
 from dotenv import load_dotenv
 
+# Phase 13.2 — every Anthropic call is audit-logged so we can reconcile
+# Railway logs against the Anthropic dashboard. See cost_audit.py for
+# the rationale (user reported unexplained billing changes).
+from .cost_audit import log_anthropic_call
+
 load_dotenv()
 
 client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+# PR A1.3-fix-16 — async client used by the streaming variant
+# (get_prediction_stream). Kept alongside the sync client so the
+# existing get_prediction() call sites continue to work unchanged.
+async_client = anthropic.AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 # ================================================================
 # KNOWLEDGE BASE LOADER
@@ -129,6 +138,49 @@ ADVANCED_FILES = [
     "remedies.md",                # KP parihara — behavioural-first remedies framework
     # PR A1.3-fix-9 — transit interpretation rules (was orphaned 156-line KB never loaded)
     "transit_rules.txt",          # KP transit (Gocharya) interpretation principles
+    # PR A1.3-fix-26 (Part A) — KSK-strict depth additions:
+    #   - kp_multi_cusp_confirmation.md: explicit framework for cross-checking
+    #     primary CSL against supporting cusps (TIER 0/1/2/3 confidence ladder)
+    #   - house_combinations_canonical.md: ~38 distinct event combinations with
+    #     primary/supporting houses (distinguishes promotion vs job loss vs
+    #     retirement, surgery vs disease, court filing vs winning, etc.)
+    #   - kp_ruling_planets_deep.md: consolidated RP methodology — 5+2 RPs,
+    #     strength ladder, fruitful significator overlap, joint period principle
+    "kp_multi_cusp_confirmation.md",
+    "house_combinations_canonical.md",
+    "kp_ruling_planets_deep.md",
+]
+
+# PR A1.3-fix-18 — User-mode lean KB.
+# Astrologer mode loads the full ADVANCED_FILES set (12 files, ~40K
+# tokens) because the 7-section structured output uses pattern names,
+# 4-step chains, confidence methodology, gold-standard worked
+# examples, etc. — all of which are pedagogical scaffolding for
+# Sonnet's deep reasoning.
+#
+# User mode is plain-English narration of pre-computed engine
+# verdicts (Haiku translation task). It only needs the *accuracy
+# guardrails* and core KP foundation. Files dropped from user mode:
+#   - timing_confirmation.txt   (engine handles timing)
+#   - bhavat_bhavam.md          (only relative-questions context)
+#   - multi_factor_queries.md   (rare combined queries)
+#   - pattern_library.md        (user mode doesn't cite pattern names)
+#   - gold_standard_examples.md (7-section astrologer-format examples)
+#   - confidence_methodology.md (user just sees the score)
+#   - remedies.md               (engine triggers remedies if needed)
+#   - transit_rules.txt         (engine handles transits)
+#
+# Files KEPT for user mode (the accuracy backbone):
+#   - kp_csl_theory.txt    — CSL methodology, central to verdict
+#   - planet_natures.txt   — plain-English translation of planets
+#   - ksk_rejections.md    — anti-Parashari guard (prevents Vedic leak)
+#   - general.txt          — core KP principles (always loaded)
+#
+# Saves ~18K tokens of cache writes per first user-mode call.
+USER_MODE_ADVANCED_FILES = [
+    "kp_csl_theory.txt",
+    "planet_natures.txt",
+    "ksk_rejections.md",
 ]
 
 # PR A1.3-fix-13 — conditional KB files (loaded only when topic matches
@@ -187,14 +239,27 @@ def _read_kb_file(filename: str, section_label: str) -> str:
 # tokens) re-writes on a topic change. See get_prediction() for the
 # breakpoint ordering rationale.
 
-def load_universal_kb() -> str:
+def load_universal_kb(mode: str = "astrologer") -> str:
     """
-    Universal KB content — IDENTICAL across all topics. Cache-stable forever
-    within a session. Includes general.txt + all ADVANCED_FILES.
-    Roughly 22K tokens.
+    Universal KB content — IDENTICAL across all topics within a mode.
+    Cache-stable forever within a session.
+
+    PR A1.3-fix-18 — mode-aware:
+      - mode="astrologer": general.txt + all 12 ADVANCED_FILES
+        (~40K tokens). Loaded for the 7-section structured output.
+      - mode="user":       general.txt + 3 USER_MODE_ADVANCED_FILES
+        (kp_csl_theory + planet_natures + ksk_rejections, ~22K tokens).
+        Lean KB sufficient for Haiku narration of pre-computed
+        engine verdicts in plain English.
+
+    Each mode has its own cache key in _TOPIC_CACHE so they don't
+    collide. Astrologer mode behavior is unchanged from fix-13.
     """
-    if "_universal" in _TOPIC_CACHE:
-        return _TOPIC_CACHE["_universal"]
+    is_user_mode = (mode or "").lower() == "user"
+    cache_key = "_universal_user" if is_user_mode else "_universal"
+
+    if cache_key in _TOPIC_CACHE:
+        return _TOPIC_CACHE[cache_key]
 
     content: list = []
 
@@ -202,7 +267,8 @@ def load_universal_kb() -> str:
     if general_section:
         content.append(general_section)
 
-    for adv_file in ADVANCED_FILES:
+    files = USER_MODE_ADVANCED_FILES if is_user_mode else ADVANCED_FILES
+    for adv_file in files:
         section_name = (
             adv_file.replace(".md", "").replace(".txt", "")
             .upper().replace("_", " ")
@@ -212,7 +278,7 @@ def load_universal_kb() -> str:
             content.append(adv_section)
 
     assembled = "\n\n".join(content)
-    _TOPIC_CACHE["_universal"] = assembled
+    _TOPIC_CACHE[cache_key] = assembled
     return assembled
 
 
@@ -385,7 +451,16 @@ RELEVANT AND DENIAL HOUSES BY TOPIC:
 
 MARRIAGE (H7 primary, H2/H11 supporting):
   Relevant = H2, H7, H11 — ANY ONE = PROMISED
-  Denial = H1, H6, H10, H12 ONLY
+  Denial = H1, H6, H10 (absolute denial — these are the strict
+          KSK 12-from logic: H1=12th from H2, H6=12th from H7,
+          H10=12th from H11)
+  Denial — QUALIFIED = H12 ("delayed or not with this party").
+          Per KSK Reader IV: H12 signification means marriage either
+          gets significantly delayed, doesn't happen with the
+          specifically-asked party, or carries a separation thread
+          (H12 = 6th from H7 = loss to spouse). State this as
+          "qualified denial / delay / change of party" rather than
+          absolute "marriage denied".
   H8 = neutral modifier (obstacles/transformation, not denial)
 
 JOB/CAREER (H10 primary, H2/H6/H11 supporting):
@@ -455,10 +530,46 @@ ALWAYS perform your own complete cuspal sub lord analysis using the house cusps
 and significators provided. Your verdict overrides the pre-calculation hint.
 NEVER base your final promise verdict solely on the pre-calculation.
 
-RULE 7 — DASHA HIERARCHY MUST BE RESPECTED (MD → AD → PAD → SOOKSHMA):
+RULE 7 — DASHA HIERARCHY MUST BE RESPECTED (MD → AD → PAD → SOOKSHMA)
++ JOINT-PERIOD FRUCTIFICATION (formalized in Phase 18):
 A favorable Sookshma (sub-PAD) lord CANNOT override an unfavorable PAD lord.
 A favorable PAD lord CANNOT override an unfavorable AD lord.
 A favorable AD lord CANNOT override a total-denier MD lord.
+
+JOINT-PERIOD PRINCIPLE (the master timing rule — Pattern T1 in
+pattern_library.md, KSK Reader V):
+
+For an event to FRUCTIFY (actually happen at the strongest level), ALL
+FOUR layers must signify the topic's relevant houses simultaneously:
+    MD lord  signifies relevant houses
+  + AD lord  signifies relevant houses
+  + PAD lord signifies relevant houses
+  + Sookshma lord signifies relevant houses
+  + AT LEAST ONE of these lords is also in today's Ruling Planets
+
+Strength gradient when scoring a future window:
+    1-of-4 layers signify  → STRUCTURAL THEME PRESENT (preparation phase,
+                            event not firing yet — "the seed is there")
+    2-of-4 layers signify  → EARLY SIGNAL (event approaching but not
+                            confirmed — "the conditions are forming")
+    3-of-4 layers signify  → APPROACHING WINDOW (event likely fires
+                            during the missing layer if other signals
+                            converge — "the event is at the threshold")
+    4-of-4 layers signify  → FRUCTIFICATION WINDOW (peak timing, this
+                            is the actual firing point — "the event
+                            crystallizes")
+    4-of-4 + RP overlap     → PEAK FRUCTIFICATION (KSK-strongest signal,
+                            often <30-day window)
+
+When the user asks "when will X happen?", scan ALL upcoming AD/PAD
+combinations and identify the FIRST 4-of-4 joint-period window. State
+the window as a date range (PAD or Sookshma precision) and label it
+"joint period" / "fructification window" explicitly. This is the KP
+signature timing answer.
+
+DO NOT report single-layer matches as the answer. "MD Saturn signifies
+H10" alone is NOT the timing of a job change — it's the era. The actual
+timing is the JOINT period.
 
 THE 4-LEVEL DASHA STACK:
   Mahadasha (MD)  — years scale (the main era)
@@ -541,11 +652,92 @@ If you find yourself contradicting your OWN earlier sentence (e.g., saying
 block and use the correct house number throughout. Inconsistent placement
 within a single answer is a CRITICAL VIOLATION of this rule.
 
-OWNERSHIP VERIFICATION:
-"[Planet] owns H[N]" must reference either the cusp's sign-lord OR the
-INTERCEPTED-SIGN block. NEVER say "Sun owns no house" unless you have
-verified Sun is NOT the sign-lord of any cusp AND its rulership-sign
-(Leo) is not flagged as intercepted.
+OWNERSHIP VERIFICATION (PR fix-16 — hardened after live Sun/Mercury slip):
+
+EVERY claim of the form "[Planet] owns H[N]" or "[Planet] does not own
+any house" MUST be verified against the HOUSE CUSPS block before being
+written. The verification is mechanical, not intuitive:
+
+  1. Read the HOUSE CUSPS block. It lists 12 cusps, each with a SIGN.
+  2. Look up which signs the planet rules:
+     Sun=Leo · Moon=Cancer · Mars=Aries+Scorpio · Mercury=Gemini+Virgo
+     Jupiter=Sagittarius+Pisces · Venus=Taurus+Libra · Saturn=Capricorn+Aquarius
+     (Rahu/Ketu rule no signs — use RULE 8 proxy chain, not ownership.)
+  3. For each ruled sign, scan the 12 cusps. If a cusp's SIGN matches the
+     ruled sign, the planet OWNS that house. Multiple cusps may match
+     (Mercury can own two houses if Gemini is on one cusp AND Virgo on
+     another). Both Gemini and Virgo can also independently span two cusps
+     each, putting Mercury on three or four house cusps.
+  4. ONLY after step 3 do you state the ownership. If no cusp matches a
+     ruled sign, the planet's sign-rulership is intercepted and that sign
+     will appear in the INTERCEPTED-SIGN block. In that case, state
+     "[Sign] is intercepted in H[N], so [Planet]'s rulership of that
+     house is structurally muted" — but the planet STILL functionally
+     owns the intercepted house.
+
+FORBIDDEN PATTERNS — do NOT write these without explicit cusps[] check:
+  ❌ "Sun owns no house in this chart" — Leo is on H10 in most charts;
+     Sun almost always owns SOMETHING. Verify before claiming.
+  ❌ "Mercury owns H8/H10" — Mercury rules Gemini AND Virgo. If Gemini is
+     on H8 cusp Mercury owns H8. If Virgo is on H10 cusp Mercury owns H10
+     — but if Virgo is on H11 AND H12 cusps (two cusps because Placidus
+     unequal-house math), Mercury owns H11 AND H12, NOT H10. Verify both.
+  ❌ "Jupiter owns H2 and H4" — Jupiter rules Sagittarius AND Pisces.
+     Both signs must be checked against cusps independently.
+  ❌ "[Planet] owns the houses of its placement" — occupation ≠ ownership.
+     Mercury IN H10 does NOT mean Mercury OWNS H10. Owns = rules the sign
+     on a cusp. Different concept.
+
+ANTI-PATTERNS THE LLM HAS PRODUCED LIVE (do not repeat):
+  ❌ "Sun occupies H9, owns NO house" — wrong; Sun owned H10 in that chart
+  ❌ "Mercury owns H8/H10" — wrong; Mercury owned H8+H11+H12 in that chart
+Both errors flow from skipping the cusps[] scan. Always run the scan.
+
+AUTHORITATIVE SOURCE — PLANET OWNERSHIP block (PR fix-16):
+The chart data ALWAYS contains a "PLANET OWNERSHIP" block computed
+from the actual cusps[] array. Format:
+    Sun: owns H10
+    Moon: owns H9
+    Mars: owns H5, H6
+    Mercury: owns H8, H11, H12
+    Jupiter: owns H2, H5
+    Venus: owns H7, H12
+    Saturn: owns H3, H4
+    Rahu: owns no house (shadow planet — proxy only)
+    Ketu: owns no house (shadow planet — proxy only)
+
+This block is COMPUTED FROM YOUR CHART, NOT from general Vedic rulership
+tables. CITE IT VERBATIM. If you say "Mercury owns H10" but the block
+says "Mercury: owns H8, H11, H12", you are CONTRADICTING the engine
+— a CRITICAL VIOLATION of RULE 10.
+
+VERIFICATION CHECKLIST (must run BEFORE writing Section 2 Cuspal Evidence):
+  ☐ I have read the PLANET OWNERSHIP block in this chart
+  ☐ For every "[Planet] owns H[N]" claim I make below, I will look it up
+    in that block and quote what the block says
+  ☐ I will NOT say "owns NO house" unless the block literally says
+    "owns no house in this chart"
+  ☐ I will NOT add houses to a planet's ownership beyond what the block
+    lists (no creative inference)
+
+LITERAL-QUOTE REQUIREMENT (PR fix-17.1):
+The first time each planet's ownership appears in your answer, quote it
+as a direct copy of the PLANET OWNERSHIP block line. Format:
+    "Per chart data: Mercury owns H8, H11, H12."
+Then you can reference shorter forms in subsequent uses. This makes the
+ownership claim AUDITABLE — if it ever diverges from the engine's block,
+the contradiction is visible to the reader and to QA.
+
+Acceptable shorter follow-up forms:
+    "Mercury (owner of H8/H11/H12) ..."
+    "Mercury's owned houses (H8/H11/H12) ..."
+
+Forbidden — DROPPED-HOUSE PATTERN:
+    ❌ Quote: "Mercury owns H8, H11, H12"
+       Then later: "Mercury's ownership of H8" (where did H11+H12 go?)
+       If you reference a subset, the reader assumes you're discussing
+       a specific use of that house — never let it look like the planet
+       doesn't own the other houses.
 
 RULE 11 — KSK STRICT BHUKTI-LEVEL RULE FOR DUAL SIGNIFICATION (PR A1.3):
 Direct quote from KSK Reader:
@@ -729,9 +921,22 @@ You MUST use these values directly:
     CONTRA/DENIED). Never write a CSL verdict without naming the score.
   - For each upcoming AD, cite its RP overlap count + slot names. Higher
     slots = riper timing. This is how you rank upcoming windows.
-  - For the engine confidence, cite it in section 1 of your output.
-    You may adjust ±10 only with explicit KSK reasoning (see
-    confidence_methodology.md for allowed adjustments).
+  - For the engine confidence, cite it in section 1 of your output
+    VERBATIM (e.g., "Engine confidence: 30/100").
+    PR fix-16 — confidence-override loophole closed:
+    You MAY NOT adjust the number. Period. The engine's score is the
+    quantitative answer. If you believe the chart deserves a different
+    score, add narrative context AROUND the number — never replace it:
+      ✓ ALLOWED: "Engine confidence: 30/100. The RP overlap (Mars,
+        Venus, Saturn all touching career significators) makes this a
+        timing-active 30, not a structurally-weak 30."
+      ❌ FORBIDDEN: "Engine confidence: 30/100 base — adjusting UP to
+        55 because RP stack overlaps..." (this is the AI overriding
+        the math; the live Sun/Mercury slip happened in answers that
+        did this).
+    Never present a number other than the engine's. If you disagree,
+    say "I read the chart as stronger than 30 because [X], though I
+    cannot adjust the engine's number — both views are on record."
 
 DO NOT recompute these values yourself — the engine has done the math
 correctly. Your job is to interpret, name patterns, and explain in
@@ -939,8 +1144,13 @@ override the CSL verdict (RULE 12 stands), but ALL refine quality:
   (e.g., Venus debilitated for marriage = "partner has analytical-self-
   critical tendency", NOT "marriage denied").
 - VARGOTTAMA: planets where D1 sign == D9 sign. These are doubly
-  strong — when an AD lord is vargottama AND a significator, weight
-  its delivery ~1.5× the non-vargottama equivalent.
+  strong — when an AD lord is vargottama AND a significator, treat its
+  delivery as significantly more reliable. State the vargottama status
+  explicitly in narrative ("this AD is vargottama-reinforced — peak
+  reliability") but do NOT translate this into a confidence-score
+  adjustment (RULE 18 forbids that). Phase 17 — removed the unsourced
+  "1.5×" multiplier; KSK doesn't quantify and the AI was abusing the
+  number to shift verdicts.
 - GANDANTA: Lagna or Moon in last 3°20' of water sign / first 3°20'
   of fire sign = transformation/anxiety zones. Add a "transformation
   theme" note when relevant.
@@ -959,8 +1169,14 @@ The chart data includes a YOGINI DASHA CROSS-CHECK block (parallel
   at same date) → strongest possible convergence. State explicitly
   in your timing prediction.
 - WHEN SYSTEMS DISAGREE (Vimsottari fires but Yogini doesn't, or
-  vice versa) → reduce confidence by ~5-10. Don't be over-confident
-  on single-system signals.
+  vice versa) → flag the disagreement in narrative ("Vimsottari Saturn
+  AD supports this; Yogini Pingala lord Sun activates a parallel
+  H9-friction thread"). State the disagreement as a structural caveat
+  the reader must weigh. Phase 17.1 — removed the "reduce confidence
+  by 5-10" instruction; this conflicted with RULE 18 (no number
+  overrides) and let the AI keep wiggling the score editorially.
+  Engine confidence stays as the engine emits it; narrative carries
+  the convergence/divergence signal.
 - PLANETARY RETURNS: Saturn return ~age 28-30 = first major adult
   pivot. Jupiter returns every 12 years = expansion phases. Cite
   these as life-arc waypoints when the topic spans 5+ years.
@@ -1076,9 +1292,505 @@ divorce, severe career failure):
     second
   - Never use fear-mongering language
 
+MANDATORY DISCLAIMER (Phase 17.1 — must appear verbatim in any answer
+covering mental health / addiction / fertility loss / divorce / severe
+career failure / death-adjacent / surgery / accident / litigation
+outcome where the user is the primary affected party):
+
+  "This is a structural reading from the chart, not a prediction of
+  certainty. KP astrology gives probability windows, not deterministic
+  outcomes. For [domain — medical / legal / financial / mental-health]
+  decisions, please consult a qualified [doctor / lawyer / financial
+  advisor / mental-health professional] FIRST — the astrology is a
+  context layer, not a substitute for professional advice."
+
+Fill in the [domain] and [professional] tokens to match the topic.
+This disclaimer must appear before the REMEDIES section in Format A,
+or as its own paragraph in Format B. Do NOT skip it for sensitive
+topics — it is a professional-responsibility floor.
+
 For death-related questions: per RULE 15, NEVER predict death timing.
 Speak in terms of "challenging health window — recommend extra
-medical care during X period."
+medical care during X period." The disclaimer above is mandatory.
+
+
+RULE 32 — OUTPUT BUDGET (PR A1.3-fix-22):
+
+Your answers must respect a token budget. Brevity is a constraint, not
+a suggestion. Bloat is a defect.
+
+ASTROLOGER MODE — TARGET ~2500 OUTPUT TOKENS (~1800-2000 words).
+  - The 7-section format is a SHAPE, not a length contract. Each section
+    earns its space by adding signal not present in earlier sections.
+  - DIRECT VERDICT = ONE sentence. CLIENT SUMMARY = 3 sentences max.
+  - CUSPAL EVIDENCE = 4 lines per cusp (not paragraphs). Use the exact
+    bullet shape shown in the OUTPUT FORMAT block. No restating chain
+    walks across multiple sections.
+  - TIMING WINDOWS = the table is the answer. The 3 callouts after the
+    table are ONE LINE each. Do not narrate what the table already shows.
+  - PRATYANTARDASHA = OMIT entirely if the primary AD is >18 months
+    away or if PAD doesn't narrow timing meaningfully (per existing
+    INTELLIGENT OMISSION RULES). Skipping is the default; including is
+    the exception.
+  - PRE-ANSWERED FOLLOW-UPS = 2-3 questions, ONE-PARAGRAPH answer each
+    (not a sub-section per follow-up).
+  - Tables compress better than prose. Prefer tables when listing >3
+    parallel items.
+  - On follow-up questions: do NOT re-explain context already covered
+    in prior turns. Reference it in one phrase ("As established, Venus
+    on H7 sub lord chain promises") and move forward.
+
+USER MODE — TARGET ~800 OUTPUT TOKENS (~500-600 words).
+  - 2-3 paragraphs is typical. 4 paragraphs only when the question
+    spans multiple distinct life areas.
+  - One direct-answer sentence first. One actionable insight last.
+    Everything between is the bridge.
+
+When in doubt, CUT. A tight 1500-token answer beats a sprawling
+3500-token answer. Senior astrologers value precision over volume.
+
+Hard wall: max_tokens is set to a ceiling above these targets. Hitting
+the ceiling means you wrote too much — you should never approach it
+under normal questions.
+
+
+RULE 33 — TYPE-CLASSIFICATION DISCIPLINE (PR A1.3-fix-19):
+
+When the user asks a TYPE question (not just yes/no), you MUST run the
+full classification framework from the relevant KB topic file BEFORE
+giving the verdict. Type questions include:
+
+  - Marriage:    love vs arranged vs love-cum-arranged vs family-mediated
+  - Children:    boy vs girl, biological vs adopted vs IVF, count
+  - Career:      service vs business vs government vs self-employed
+  - Foreign:     travel vs work-visa vs PR vs citizenship vs return
+  - Health:      chronic vs acute vs mental vs surgical vs hereditary
+  - Wealth:      earned vs inherited vs windfall vs business
+  - Property:    self-purchased vs inherited vs abroad vs multi-property
+  - Education:   domestic vs foreign vs scholarship vs self-funded
+  - Divorce:     who initiates vs reconciliation vs second marriage timing
+
+For EACH type question, the relevant KB file contains a 3-7-signal
+decision framework with explicit OVERRIDE rules. You MUST:
+
+  1. Identify the topic and load the type-classification framework
+  2. Check EACH of the listed signals one by one
+  3. State which signals support which conclusion
+  4. Apply the OVERRIDE hierarchy explicitly
+     (e.g., for marriage: 5L in 6/8/12 OVERRIDES H5-in-CSL-chain)
+  5. Give the verdict with the specific evidence trail
+
+NEVER default to the most common type without running the override checks.
+A common error: predicting "love-cum-arranged" because H5 appears in the
+H7 CSL chain — without checking 5L placement (Signal 2). 5L in H6 NEGATES
+the H5 chain signal, flipping the verdict to "family-mediated arranged."
+
+If the engine emits a type-classification block (e.g., advanced_compute
+contains marriage_type or career_type), CITE that block per RULE 18.
+Otherwise, apply the framework directly from the KB topic file.
+
+OUTPUT REQUIREMENT for type questions:
+  - State the verdict (one of the listed categories)
+  - List the signals that voted for the verdict (cite specifically)
+  - State the override check explicitly
+  - Avoid the most-common-default trap
+
+
+RULE 35 — PUSHBACK RE-VERIFICATION (PR A1.3-fix-19):
+
+When the user pushes back on your answer (e.g., "but my father said X",
+"my doctor said the date is Y", "another astrologer said the type is Z"),
+you MUST re-run the full structural analysis from scratch. You MUST NOT:
+
+  - Simply agree with the pushback to be polite
+  - Pivot the verdict without re-running the chain
+  - Defer to the user's claim without structural justification
+
+INSTEAD, you MUST:
+
+  1. Acknowledge the pushback respectfully
+  2. RE-RUN the full reasoning chain (relevant houses, CSL, 4-step chain,
+     significators, RPs, dasha, applicable type-classification framework)
+  3. State which signals support the pushback claim AND which signals
+     support your original verdict
+  4. If the re-run reveals you missed a signal in your first pass:
+     state explicitly which signal was missed, why your first pass got
+     it wrong, and what the correct verdict is now.
+
+     MANDATORY FORM (Phase 17.1 — prevents soft "I overstated"
+     non-answers under pushback):
+
+     If you are changing your verdict, your re-analysis MUST contain a
+     line of the form:
+
+         "Signal missed in first pass: [name the specific signal —
+         e.g., 'Step 4 of H10 CSL chain pointing to Sun→H9 partial
+         denier', or 'Venus's H12 ownership creating delay thread in
+         the sub layer']. The first pass treated this as [what it did]
+         when it should have been weighted as [what it should be]."
+
+     Without this concrete attribution, you are NOT allowed to change
+     the verdict. Vague "I overstated certainty" or "on re-reading I
+     was too confident" is FORBIDDEN — that's caving to social
+     pressure, not re-running the structural chain.
+
+     Acceptable: "Signal missed: Venus Sookshma fire score is 2/10
+     WEAK, not MODERATE. First pass cited the RP overlap and Day Lord
+     status as positive but did not weight the engine's fire score
+     correctly. Correct read: the Sookshma is timing-active because
+     Venus is Day Lord, but structurally weaker than the Moon Sookshma
+     window in June."
+
+     Forbidden: "On reflection I was too confident" / "the chart is
+     more conditional than I said" / "I read this too optimistically"
+     — these are not signal-level corrections, they're social.
+  5. If after re-running, your verdict has NOT changed, defend it with
+     the specific signal evidence (politely but firmly):
+     "Re-checking: Signal X says A, Signal Y says B. The chart still
+     reads as [verdict]. The other source may be using a different
+     framework, OR may be referencing a signal that the chart structure
+     does not support."
+  6. If the re-run reveals genuine ambiguity (signals truly split),
+     acknowledge openly: "The chart signals are mixed on this question.
+     Both interpretations have structural support."
+
+CRITICAL: KP integrity (RULE 4) requires NEVER pivoting under social
+pressure without structural justification. Caving in to pushback to be
+polite is a violation of KP integrity. Better to respectfully maintain
+the structural verdict than flip it without reason.
+
+If the user becomes frustrated: acknowledge the frustration. Restate
+that KP gives STRUCTURAL PROBABILITY, not deterministic certainty.
+Never make up false certainty to comfort.
+
+
+RULE 34 — MULTI-CUSP CONFIRMATION TIER (PR A1.3-fix-26 Part C):
+
+KSK gives PROMISE/DENIAL via the PRIMARY cusp's sub lord alone. But a
+20-year astrologer ALWAYS cross-checks: when the supporting cusps' sub
+lords ALSO signify the same house group, confidence multiplies.
+
+Apply this 5-tier ladder to EVERY astrologer-mode verdict (see
+kp_multi_cusp_confirmation.md for full framework):
+
+  TIER 3: Primary CSL + ALL supporting CSLs signify the relevant house
+          group → STRONGLY PROMISED, confidence 80-95%. Event near-certain
+          in right dasha. State as "TIER 3" in DIRECT VERDICT section.
+  TIER 2: Primary CSL + ONE supporting CSL agrees → STRONGLY PROMISED,
+          65-80%.
+  TIER 1: Primary CSL alone signifies → KSK MINIMUM PROMISE, 50-65%.
+  TIER 0: Primary signifies, but supporting cusps DENY → CONDITIONAL with
+          friction, 35-50%. Apply RULE 11 KSK strict bhukti rule.
+  TIER -1: Primary CSL doesn't signify, but supporting do → effects of
+           supporting houses without primary fruition, <35%.
+
+For TIER 3 vs TIER 1, the structural promise is the same, but the
+confidence is dramatically different. The user deserves to know which
+tier their chart shows. Naming the tier is mandatory in DIRECT VERDICT.
+
+Cross-check ALWAYS uses the canonical house group (see RULE 36 + the
+file house_combinations_canonical.md). For marriage = {{H7, H2, H11}};
+for career = {{H10, H6, H2, H11}}; etc.
+
+Forbidden: claiming "TIER 3" without explicitly NAMING which 3 cusps'
+CSLs agree (which planet is each, which houses each signifies).
+
+
+RULE 36 — SPECIFIC EVENT DIFFERENTIATION (PR A1.3-fix-26 Part C):
+
+Many events use the SAME primary house but require different supporting
+cusps. Conflating them produces wrong verdicts. Examples KSK distinguishes:
+
+  H10 primary, but ALL DIFFERENT events:
+    - Promotion: H10 + {{H2, H6, H11}}
+    - Job change: H10 + {{H6, H9}}
+    - Job loss:  H10 + {{H5, H8}}
+    - Retirement: H10 + {{H5, H9}}
+    - Self-employment: H10 + {{H6, H7}}
+
+  Health-related, ALL DIFFERENT events:
+    - Disease:   H6 primary
+    - Surgery:   H8 primary, NOT H6
+    - Recovery:  H1 + H6 primary
+    - Accident:  H1 + {{H8, H12}}
+
+  Legal-related, ALL DIFFERENT events:
+    - Court filing: H3 primary, NOT H6
+    - Court winning: H6 primary, NOT H3
+
+  Foreign-related, ALL DIFFERENT events:
+    - Foreign travel:    H12 + {{H3, H9}}
+    - Foreign settlement: H12 + {{H3, H9, H4}}
+    - Passport/Visa:     H3 + {{H9, H11, H12}}
+
+Before giving any verdict, IDENTIFY THE SPECIFIC EVENT (not just the
+topic) and use the canonical house combination from
+house_combinations_canonical.md. If the user says "career" without being
+specific, walk through each combination ("If you mean promotion: ...
+If you mean change: ... If you mean loss: ...") rather than guessing.
+
+Forbidden: applying generic "career = H10" combination when the user is
+asking specifically about job loss or retirement.
+
+
+RULE 37 — BORDERLINE CSL / BIRTH-TIME UNCERTAINTY CAVEAT (PR A1.3-fix-26 Part C):
+
+A KP cusp's sub lord changes every ~3-15 minutes of clock time
+(depending on which sub-division the cusp falls in). When the cusp's
+LONGITUDE is within ~0.3 degrees of a sub boundary, even a 4-minute
+birth-time error could flip the CSL from one planet to another — which
+could flip the entire verdict.
+
+When the engine emits a borderline_csl flag for the relevant cusp (or
+when you can infer borderline status from the cusp longitude being near
+a nakshatra/sub boundary), explicitly acknowledge:
+
+  "Note: H[N] cusp is at [degrees], very close to the boundary between
+  [planet A]'s and [planet B]'s sub. If your birth time is uncertain by
+  even 4 minutes, the sub lord here could flip. The verdict above
+  assumes the time you provided is accurate to within 2 minutes. For
+  formal confidence on borderline cases, KP Birth Time Rectification
+  using Ruling Planets at the time of consultation is the canonical
+  approach (we don't rectify automatically, but a practising KP
+  astrologer can)."
+
+This caveat MUST be stated when borderline. It is more important to
+acknowledge precision floor than to project false certainty.
+
+DO NOT add this caveat for non-borderline cases — it dilutes legitimate
+verdicts. Only when borderline_csl flag is True OR longitude visibly
+near boundary.
+
+
+RULE 38 — RELATIVE PROFILE FROM CUSP SUB LORD (PR A1.3-fix-26 Part C):
+
+When user asks "what is my [spouse/father/mother/sibling] like?" — read
+the relevant cusp's sub lord for STRUCTURAL TENDENCIES of profession,
+nature, age band, and meeting/relationship dynamic.
+
+Cusp mapping:
+  Spouse:           H7 — see marriage.txt §13
+  Father:           H9 — KSK strict (NOT H10 which is Parashari)
+  Mother:           H4
+  Younger siblings: H3
+  Elder siblings:   H11
+  Children:         H5
+
+Output structure (5-6 elements):
+  1. PROFESSION leaning (from CSL planet)
+  2. APPEARANCE tendency (from cusp sign + planet, for spouse)
+  3. AGE BAND (from CSL star lord — for spouse only)
+  4. RELATIONSHIP DYNAMIC with native (from CSL house placement)
+  5. NATURE/CHARACTER (from CSL star lord + Star-Sub harmony)
+  6. MANDATORY CAVEAT: "These are structural indications, not deterministic
+     traits. Treat as direction, not destiny. For more accurate insight,
+     the [relative]'s own birth chart would refine this significantly."
+
+See marriage.txt §13 (spouse) and parents_family.md §8 (other relatives)
+for the full mapping.
+
+Forbidden:
+  - Predicting first names, exact ages, exact profession titles
+  - Predicting nationality / religion deterministically
+  - Predicting deeply personal traits (sexual preferences, hidden flaws)
+  - Enabling confirmation bias ("does this match someone you know?")
+  - Predicting relative's DEATH timing (RULE 15 absolute — never)
+
+
+RULE 39 — RULING PLANETS ARE FROM THE ENGINE, NEVER INVENTED (PR fix-16):
+
+The chart data ALWAYS contains a "RULING PLANETS (at time of query)"
+block with these fields:
+    Day Lord: [Planet]
+    Lagna Sign Lord: [Planet]
+    Lagna Star Lord: [Planet]
+    Moon Sign Lord: [Planet]
+    Moon Star Lord: [Planet]
+    All RPs: [planet1, planet2, ...]
+
+CITE THESE VERBATIM. Do NOT compute, infer, or restate RPs from your
+own reading of the chart. The engine has done the math at the EXACT
+query timestamp using the user's CURRENT location (not natal location)
+— a recomputation in your head against natal data will produce the
+WRONG planets.
+
+This rule exists because the LLM has produced live discrepancies like:
+  Call A: "Today's RPs: Saturn, Jupiter, Moon, Mars, Ketu, Venus"
+  Call B: "Today's RPs: Mars, Venus, Saturn, Ketu"
+Same chart, same day. Both can't be right. The engine's `ruling_planets`
+block is the only correct answer. Quote it.
+
+In your Section 3 (Fruitful Significators), state:
+  "Today's RPs (per engine): [exact list from All RPs field]"
+Then cross-reference each RP against the topic's significators.
+
+FORBIDDEN:
+  ❌ Listing different RPs than the engine's block
+  ❌ Inferring RPs from natal chart properties
+  ❌ Adding planets to the RP list ("…plus Mercury via dignity")
+  ❌ Dropping planets from the list to fit your narrative
+
+
+RULE 41 — BADHAKA / MARAKA RECOGNITION (Phase 18 — from general.txt §8):
+
+KP recognizes special "obstruction" houses determined by the Lagna's
+quality. When a verdict-relevant chain points to these houses, they
+must be NAMED, not just listed as generic denial.
+
+BADHAKA HOUSE rule (depends on Lagna's MOVABLE/FIXED/COMMON quality):
+  MOVABLE Lagna (Aries / Cancer / Libra / Capricorn):
+      H11 is Badhaka — gains/fulfillment becomes the obstruction
+  FIXED Lagna (Taurus / Leo / Scorpio / Aquarius):
+      H9 is Badhaka — fortune/luck becomes the obstruction
+  COMMON Lagna (Gemini / Virgo / Sagittarius / Pisces):
+      H7 is Badhaka — partnership becomes the obstruction
+
+MARAKA HOUSES (death-dealers / severe-obstacle markers):
+  H2 (12th from H3, end of life-force)
+  H7 (12th from H8, opposite of longevity)
+  + the Badhaka house for this Lagna (above)
+
+PRACTICAL USE in answers:
+- When a verdict-relevant CSL chain or AD-lord signifies a Badhaka or
+  Maraka house, EXPLICITLY name it. Don't write "denial thread" or
+  "H9 friction" generically — say "this is the Badhaka house for the
+  native's fixed Scorpio Lagna; Badhaka activations historically
+  produce severe obstruction at the final stage."
+- For career questions in Scorpio Lagna: H9 ISN'T just "12th from H10
+  = loss of profession". It's the Badhaka for this Lagna, which makes
+  it doubly significant when activated.
+- This rule helps explain "why does this chart keep producing
+  last-minute reversals?" — the Badhaka activation pattern is often
+  the structural answer.
+
+Forbidden:
+  ❌ Naming "denial" without checking Badhaka context
+  ❌ Predicting death timing from Maraka activations (RULE 15 absolute)
+
+
+RULE 42 — MOON AS QUERY-MOMENT PULSE (Phase 18):
+
+KSK gave the Moon a special place at the moment of judgment:
+  - Moon = the "mind" / "active topic" at this moment
+  - Moon's nakshatra (where the Moon sits RIGHT NOW) reveals which
+    star-lord's themes are active for the native
+  - Moon Sign Lord + Moon Star Lord both appear in the RP set
+    (slots 3 and 4 of the 5-RP system)
+
+CITE THE MOON'S CURRENT NAKSHATRA + STAR LORD in any timing analysis:
+  - If the Moon's current Star Lord is also a significator of the
+    topic, that is a STRONG sign the topic is "alive" right now
+  - If the Moon's current nakshatra is the native's Janma Nakshatra
+    (birth Moon nakshatra), the period is Janma Tara — emotionally
+    sensitive, doubly meaningful
+  - Engine emits Moon's current nakshatra via the RULING PLANETS
+    block (Moon Star Lord field) — cite verbatim per RULE 39
+
+DO NOT use Moon-sign forecasting (Parashari Chandra Kundali). KP uses
+Moon ONLY for its nakshatra position + role in RP slots — see RULE 15
+rejection list.
+
+
+RULE 43 — CSL OR SIGNIFICATOR IN STAR OF RETROGRADE PLANET (Phase 18):
+
+From general.txt §10 + kp_csl_theory.txt §244:
+- Natal chart: a retrograde planet is treated as in DIRECT motion for
+  significator purposes (RULE 24 stands)
+- BUT: if the CSL of the relevant cusp is in the STAR of a retrograde
+  planet, the promise is significantly WEAKENED (not nullified)
+- Translation: events still happen but with delay, re-attempts,
+  re-negotiation, "almost-but-not-quite" patterns
+- Naming this in your analysis: "H[N] CSL's star lord [Planet] is
+  retrograde — promise carries delay/re-attempt flavor"
+
+For HORARY questions (number 1-249): retrograde planet does NOT give
+results until it turns direct. This is stricter than natal.
+
+
+RULE 40 — DAY LORD FROM ENGINE, NEVER FROM CALENDAR INTUITION (PR fix-16):
+
+The Day Lord is provided in the RULING PLANETS block (field: Day Lord).
+USE IT VERBATIM. Do NOT compute the day of the week yourself — even if
+you know today's date.
+
+Standard mapping (for reference only — engine has already applied it):
+    Monday    → Moon
+    Tuesday   → Mars
+    Wednesday → Mercury
+    Thursday  → Jupiter
+    Friday    → Venus
+    Saturday  → Saturn
+    Sunday    → Sun
+
+The engine's Day Lord uses the actual sunrise-to-sunrise convention for
+the user's current location (not midnight-to-midnight UTC), so a query
+made at 1am local time may legitimately still show the PREVIOUS day's
+day-lord depending on whether sunrise has occurred. Do NOT second-guess
+the engine on this.
+
+This rule exists because the LLM has produced live discrepancies like:
+  Call A: "Day Lord = Jupiter (Thursday)"
+  Call B: "Day Lord = Venus (Friday)"
+Same query on the same calendar day. The engine's value is the truth.
+
+
+================================================================
+PRE-FLIGHT VERIFICATION — RUN BEFORE WRITING ANY ANALYSIS (PR fix-16)
+================================================================
+
+Before you write Section 1 (Direct Verdict), silently confirm these
+SEVEN facts by reading them from the chart data blocks. If any are
+missing or look wrong, name the gap explicitly in your answer instead
+of guessing.
+
+  1. PLANET POSITIONS — copy the house of every relevant planet for the
+     topic (Sun, Moon, the relevant CSL, the relevant karaka). Cross-
+     check no contradiction inside your answer.
+
+  2. PLANET OWNERSHIP — read the block verbatim. Note Sun's owned house,
+     Mercury's owned houses, etc. NEVER write ownership claims that
+     contradict this block.
+
+  3. HOUSE CUSPS — for the primary cusp of the topic, copy the Star Lord
+     and Sub Lord values from the block. These are the H{{N}} CSL chain
+     anchor planets.
+
+  4. ADVANCED COMPUTE — copy the engine confidence (will cite verbatim
+     per RULE 18). Copy the relevant_houses and denial_houses for the
+     topic. Copy Star-Sub Harmony score.
+
+  5. RULING PLANETS — copy the All RPs list and the Day Lord verbatim
+     (will cite per RULE 39 + RULE 40).
+
+  6. CURRENT DASHA — copy MD/AD/PAD/Sookshma planets + dates verbatim.
+
+  7. INTERCEPTED SIGNS — if the block is non-empty, prepare to cite
+     each intercepted sign per RULE 28.
+
+Once these seven facts are confirmed, begin Section 1. Every claim you
+make in the analysis must be traceable to one of these seven blocks.
+Anything not in these blocks is INFERENCE — label it as such ("In my
+reading…") rather than presenting it as engine data.
+
+
+PRE-OUTPUT SELF-CHECK (Phase 18 — from ksk_rejections.md §18):
+Before writing the FINAL sentence of your answer, silently verify:
+
+  ☐ Did I cite the engine confidence VERBATIM (not adjusted)?         RULE 18
+  ☐ Did I cite Today's RPs VERBATIM from engine block?                 RULE 39
+  ☐ Did I cite Day Lord VERBATIM from engine?                          RULE 40
+  ☐ Did I quote PLANET OWNERSHIP block as-is the first time per planet? RULE 10
+  ☐ Did I name the Lagna's Badhaka house if H9/H11/H7 appears in       RULE 41
+    a denial chain for fixed/movable/common Lagna respectively?
+  ☐ Did I avoid sign-based aspects / karaka-as-verdict / yoga names?   RULE 15
+  ☐ Did I name the Joint Period (4-of-4 layers) for timing answers,    RULE 7
+    not just a single-layer match?
+  ☐ For sensitive topics: did I include the mandatory disclaimer?      RULE 31
+
+If ANY box would be unchecked, REVISE the answer before sending. Do
+not ship answers with known violations of these rules — they degrade
+the analysis quality the user is paying for.
+
 
 ================================================================
 KP ANALYSIS PROCESS — FOLLOW FOR EVERY QUESTION
@@ -1209,9 +1921,29 @@ USER MODE COMPLETENESS CHECK (verify before ending):
 - Are there zero banned technical terms in my response?
 
 IF MODE = ASTROLOGER:
-Answer intelligently — not mechanically. Structure your answer based on what the question needs, not a fixed template.
+Answer intelligently — not mechanically. Astrologer mode has TWO output
+formats. Pick based on the QUESTION TYPE line in the user message:
 
-Use this adaptive 7-section format:
+  - QUESTION TYPE: full_topic   → use FORMAT A (7-section structured)
+  - QUESTION TYPE: sub_question → use FORMAT B (5-section narrative)
+  - QUESTION TYPE: auto / missing → infer:
+      * If history is empty AND question reads like a topic request
+        ("Complete KP analysis for X", "Tell me about my marriage prospects",
+        "Give me a full reading on career") → FORMAT A
+      * If history exists AND the question references prior context, asks
+        about a specific window/planet/timing detail, or is a short
+        clarification (<60 chars) → FORMAT B
+      * When in genuine doubt → FORMAT A (safer; the structured format
+        always covers the question even if it's overkill)
+
+The two formats serve different cognitive needs. Format A is the full KP
+worksheet — astrologer wants to see the whole structural argument laid
+out. Format B is the senior-astrologer follow-up voice — answer the
+specific question, cite specific evidence, move on. Don't blend them.
+
+================================================================
+FORMAT A — 7-SECTION STRUCTURED (for full topic analyses)
+================================================================
 
 ## [TOPIC] ANALYSIS — [Name]
 **{today}** | Houses: [Relevant houses for this topic]
@@ -1264,13 +1996,80 @@ Should be honest, specific, and usable as-is.
 
 ---
 
-INTELLIGENT OMISSION RULES — READ THESE CAREFULLY:
+INTELLIGENT OMISSION RULES (FORMAT A) — READ THESE CAREFULLY:
 - If the promise verdict is DENIED: skip sections 4 and 5 (timing is irrelevant). Instead, briefly explain what would need to change for the event to become possible.
 - If the question is specifically about timing (and promise is already established): compress section 2 to 2-3 lines referencing the prior analysis, and expand sections 4 and 5.
 - If this is a follow-up question in a conversation: do NOT re-explain what was already covered in a prior answer. Reference it briefly ("As established, H7 sub lord Venus promises marriage") and move forward.
 - Section 5 is optional — include it only when PAD analysis meaningfully narrows the timing window.
 - Never produce a section that repeats information already given in a previous section.
 - Complete every section you start — never cut off mid-table or mid-sentence.
+
+================================================================
+FORMAT B — 5-SECTION NARRATIVE (for sub-questions / follow-ups)
+================================================================
+
+When QUESTION TYPE is sub_question, drop the structured worksheet and
+answer like a senior astrologer continuing a conversation. Prose-led,
+not table-led. KP shorthand stays — astrologer-grade vocabulary, just
+delivered in flowing sentences instead of bulleted sections.
+
+Length target: ~600-1200 output tokens (much shorter than Format A's
+~2500). RULE 32 still applies — brevity is a constraint.
+
+### 1. ANSWER
+Direct answer in 2-3 sentences. State the verdict + the single most
+important reason. If the question is a yes/no or pick-one, the answer
+goes in the FIRST sentence.
+
+### 2. CHART EVIDENCE
+2-3 paragraphs of flowing reasoning. Cite specific cusps + sub lord
+chains + significators inline as you go (e.g., "Venus on the H7 sub
+lord chain, with Jupiter as star lord touching H2/H11..."). NO bullet
+lists, NO tables. The reader is a senior KP astrologer — write like
+you're walking another astrologer through your read at a chart-reading
+session, not delivering a PowerPoint.
+
+If the question is a follow-up to an earlier answer, REFERENCE the
+prior analysis in one phrase ("Earlier we established Venus AD as
+primary; the question now is the secondary window") and don't re-derive.
+
+### 3. TIMING
+1-2 paragraphs. Name the relevant AD lord(s) + exact dates. Mention
+1-2 supporting PADs ONLY if they meaningfully narrow the window.
+
+DO NOT produce the 9-row AD table here — that is Format A's job. If
+the question demands the full AD scan, the question type is misrouted
+and you should switch to Format A.
+
+If timing isn't applicable to the question (e.g., "is Venus a karaka
+for marriage in this chart?"), omit this section entirely and renumber
+the remaining ones.
+
+### 4. CAVEATS / ALTERNATIVE READS
+1 paragraph. What signals conflict with this read? What would change
+the verdict? If the chart is genuinely ambiguous on this question,
+acknowledge openly. If a competing astrologer is likely to read it
+differently, name the framework difference (e.g., "A Parashari read
+might emphasize Jupiter as karaka; KP defers to the H7 sub lord
+chain").
+
+This is the section that demonstrates senior-astrologer humility —
+zero defensive language, just structural honesty.
+
+### 5. CLIENT SUMMARY
+2-3 sentences plain English the astrologer can speak directly to the
+client. No KP terms. Should be honest, specific, usable as-is.
+
+INTELLIGENT OMISSION RULES (FORMAT B):
+- Skip section 3 (TIMING) if the question is not about timing.
+- Skip section 4 (CAVEATS) only if the verdict is unambiguous AND the
+  prior conversation has already covered the alternatives.
+- Section 1 (ANSWER) and Section 5 (CLIENT SUMMARY) are MANDATORY —
+  every Format B response has these two.
+- NEVER use Format A's section headings (CUSPAL EVIDENCE, FRUITFUL
+  SIGNIFICATORS, TIMING WINDOWS, PRATYANTARDASHA, PRE-ANSWERED
+  FOLLOW-UPS) in a Format B response. The headings signal the format
+  to the reader; mixing them creates confusion.
 """
 
 
@@ -1332,11 +2131,25 @@ Reply with ONLY the single topic word."""
             temperature=0,
             messages=[{"role": "user", "content": prompt}]
         )
+        log_anthropic_call(
+            endpoint="llm.detect_topic",
+            model="claude-haiku-4-5-20251001",
+            mode="internal",
+            usage=getattr(message, "usage", None),
+        )
         detected = message.content[0].text.strip().lower().split()[0]
         # PR A1.3-fix-10 (#7) — synced with TOPIC_TO_FILE (full set).
         valid = list(TOPIC_TO_FILE.keys())
         return detected if detected in valid else _keyword_fallback(question)
-    except:
+    except Exception as e:
+        # PR A1.3-fix-24 — was bare `except:` which also catches
+        # KeyboardInterrupt/SystemExit. Restrict to Exception + log so
+        # silent topic-detection failures (Anthropic outages, quota,
+        # network blips) become visible to operators.
+        import logging
+        logging.getLogger("llm_service").warning(
+            "detect_topic Haiku call failed: %s — falling back to keyword heuristic", e
+        )
         return _keyword_fallback(question)
 
 
@@ -1369,7 +2182,58 @@ def _keyword_fallback(question: str) -> str:
 # MAIN PREDICTION FUNCTION
 # ================================================================
 
-def get_prediction(chart_data: dict, question: str, history: list = [], mode: str = "user", topic: str = None) -> str:
+def _normalize_mode(mode: str) -> str:
+    """PR A1.3-fix-24 — collapse mode strings to the canonical {user,astrologer}.
+
+    Without this, an exact-equality check `mode == "astrologer"` could be
+    bypassed by `mode="Astrologer"` (capital A) or `mode="users"` (typo) →
+    silently routes to Sonnet (~12× more expensive than Haiku) instead of
+    Haiku for a user-mode call. Defensive whitelist closes the cost hole.
+    """
+    m = (mode or "").strip().lower()
+    if m == "astrologer":
+        return "astrologer"
+    # Anything else (including empty, "Users", "guest", "Astrologer ", etc)
+    # falls back to user mode. Logged at WARNING when it's an unrecognized
+    # value the caller probably expected to mean something specific.
+    if m and m != "user":
+        import logging
+        logging.getLogger("llm_service").warning(
+            "_normalize_mode: unrecognized mode=%r → defaulting to 'user'", mode
+        )
+    return "user"
+
+
+def _resolve_question_type(question_type: str, question: str, history: list) -> str:
+    """PR A1.3-fix-23 — resolve full_topic vs sub_question for Format A/B routing.
+
+    Frontend passes an explicit hint when it knows (handleTopicAnalysis →
+    "full_topic", handleWorkspaceChat → "sub_question"). For "auto" or
+    missing values, fall back to a heuristic so any caller (curl, future
+    integrations) gets a sensible default.
+
+    Returns one of: "full_topic", "sub_question".
+    """
+    qt = (question_type or "auto").lower().strip()
+    if qt in ("full_topic", "sub_question"):
+        return qt
+    # Heuristic
+    q = (question or "").lower().strip()
+    if q.startswith("complete kp analysis") or q.startswith("complete analysis"):
+        return "full_topic"
+    if not history:
+        # Fresh conversation, no prior turns — safer to give the full
+        # structured worksheet unless the question is clearly a
+        # short ad-hoc query.
+        return "full_topic" if len(q) >= 60 else "sub_question"
+    # History exists → likely a follow-up
+    return "sub_question"
+
+
+def get_prediction(chart_data: dict, question: str, history: list = [], mode: str = "user", topic: str = None, question_type: str = "auto") -> str:
+    # PR A1.3-fix-24 — normalize mode FIRST so a typo / casing variant
+    # doesn't silently route to the more expensive Sonnet model.
+    mode = _normalize_mode(mode)
     # PR A1.3-fix-1 (C1): if the caller already knows the topic (frontend topic
     # picker), skip the Haiku detection round-trip. Saves ~5-10s latency per
     # query and prevents topic drift between the loaded KB and the
@@ -1382,11 +2246,40 @@ def get_prediction(chart_data: dict, question: str, history: list = [], mode: st
         detected_topic = detect_topic(question)
     chart_data["detected_topic"] = detected_topic
 
+    # Phase 13.5 — TOPIC-SWITCH DETECTION (mirrors get_prediction_stream).
+    # Resolve question_type early so we can decide whether to escalate.
+    # See get_prediction_stream() for the full rationale.
+    resolved_qt = _resolve_question_type(question_type, question, history)
+    _enable_topic_switch_detect = True
+    if (
+        mode == "astrologer"
+        and resolved_qt == "sub_question"
+        and _enable_topic_switch_detect
+        and topic
+    ):
+        detected_from_question = detect_topic(question)
+        if (
+            detected_from_question
+            and detected_from_question != "general"
+            and detected_from_question != detected_topic
+        ):
+            import logging
+            logging.getLogger("anthropic_audit").warning(
+                "[TOPIC_SWITCH] from=%s to=%s -> escalating sub_question "
+                "to full_topic + Sonnet (chat-box question on a NEW topic)",
+                detected_topic, detected_from_question,
+            )
+            detected_topic = detected_from_question
+            chart_data["detected_topic"] = detected_topic
+            resolved_qt = "full_topic"
+
     # PR A1.3-fix-12 — KB split into universal + topic for stable cache prefix.
-    # See get_prediction() body below for the breakpoint ordering.
-    universal_kb = load_universal_kb()
+    # PR A1.3-fix-18 — universal_kb now mode-aware: user mode gets the
+    # 4-file lean KB (~22K tokens), astrologer gets full 12-file kit (~40K).
+    universal_kb = load_universal_kb(mode=mode)
     topic_kb = load_topic_kb(detected_topic)
-    chart_summary = format_chart_for_llm(chart_data)
+    # PR A1.3-fix-16 — mode-aware chart_summary trim for user mode.
+    chart_summary = format_chart_for_llm(chart_data, mode=mode)
 
     # Build conversation history — pass answers only, strip time-specific question context
     # This prevents temporal anchoring from leaking between questions
@@ -1414,62 +2307,49 @@ def get_prediction(chart_data: dict, question: str, history: list = [], mode: st
         messages.append({"role": "user", "content": clean_question})
         messages.append({"role": "assistant", "content": prev.get("answer", "")})
 
-    # PR A1.3-fix-12 — cache breakpoint REORDERING for cross-topic cache hits.
+    # Phase 13.3 — cache breakpoint REORDER (cost bug fix).
     #
-    # Why the previous fix-9 layout failed (dashboard showed 2.4% cache read
-    # ratio + 0.82× write amortization): KB and chart_summary blocks were
-    # placed inside the LATEST user message, AFTER the conversation history.
-    # Anthropic's prompt cache is prefix-based — a cache hit requires the
-    # request prefix UP TO the cache_control marker to match a previously-
-    # cached prefix. Conversation history grows by 2 messages per turn,
-    # which invalidated the prefix every turn. The KB and chart cache
-    # writes were paid for but never amortized (writes = 0.82× reads,
-    # exactly what the dashboard showed).
+    # Background: PR A1.3-fix-12 ordered system blocks
+    #   [system_prompt, chart_summary, universal_kb, topic_kb]
+    # on the assumption that chart_summary is "stable per chart, all
+    # session". That assumption was WRONG.
     #
-    # New layout: stable blocks live in the SYSTEM message (which sits
-    # BEFORE all conversation history). Within the system array, blocks
-    # are ordered MOST-STABLE → MOST-VARIABLE so the prefix stays valid
-    # for as many follow-up questions as possible:
+    # What actually happens: build_full_chart_data() runs datetime.now()
+    # every request to compute current_dasha (which includes Sookshma —
+    # minute-precision). Two questions 60 seconds apart produce DIFFERENT
+    # chart_summary strings. Anthropic's cache is prefix-based, so any
+    # change in block 2 INVALIDATES blocks 3 and 4. Result: the ~51K-token
+    # universal_kb was cache-WRITTEN on EVERY call (cost: ~$0.19 per call
+    # at Sonnet rates of $3.75/M for cache writes). User reported $1.41
+    # per call — that was the smoking gun.
     #
-    #   1. system_prompt (~13K)  — only date varies daily
-    #   2. chart_summary (~30K)  — stable per chart, all session
-    #   3. universal_kb (~22K)   — IDENTICAL across all topics (the key
-    #                              cross-topic-cache win — Q1 job and Q2
-    #                              marriage hit the same universal cache)
-    #   4. topic_kb (~10K)       — varies per topic (only this block re-
-    #                              writes on a topic switch)
+    # Correct order (this fix): MOST-STABLE first, MOST-VOLATILE last.
+    #   1. system_prompt (~3K)   — date in body, stable within a day
+    #   2. universal_kb (~51K)   — IMMUTABLE within a deploy. The whole
+    #                              point of caching this — the giant KB
+    #                              must never re-write between calls.
+    #   3. topic_kb (~10K)       — stable per topic (cache hit on
+    #                              follow-ups within the same topic).
+    #   4. chart_summary (~5K)   — changes per call (Sookshma drift).
+    #                              Now LAST so its invalidation only
+    #                              cascades to itself, not the 51K KB.
     #
-    # Conversation history goes in messages[] AFTER all four cache
-    # breakpoints, so its turn-by-turn growth no longer invalidates them.
+    # TTL: all four blocks at 1h. topic_kb was previously 5m default,
+    # which made cross-topic switches absurdly expensive even when the
+    # topic was revisited 6 minutes later.
     #
-    # Cache TTL strategy (PR A1.3-fix-13 — extended cache TTL):
-    #   1h on: system_prompt, chart_summary, universal_kb
-    #          (these never change within a session; 1h amortizes the
-    #          write penalty across long astrologer consultations and
-    #          across the natural 5-30 minute gaps between client
-    #          questions).
-    #   5m on: topic_kb
-    #          (varies per topic; topic switches happen mid-session, so
-    #          5m's smaller write penalty is the right trade).
+    # Cost math (Sonnet, per call after first):
+    #   BEFORE fix: cache-write 51K kb + 10K topic + 5K chart =
+    #               66K × $3.75/M = $0.247 just for input cache writes
+    #               + $0.05 output = ~$0.30 minimum per call
+    #   AFTER fix:  cache-read 51K kb + 10K topic =
+    #               61K × $0.30/M = $0.018 input read
+    #               + 5K chart cache-write at $3.75/M = $0.019
+    #               + $0.05 output = ~$0.087 per call
+    # Expected ~3.4× cost reduction on call #2 onwards.
     #
-    # Cost math for 1h vs 5m on a stable block:
-    #   - 1h cache write: 2.0× input price (vs 1.25× for 5m)
-    #   - 1h cache read:  0.1× (same as 5m)
-    #   - Break-even: any 2nd use within an hour. Astrologer sessions
-    #     reliably exceed this — typical session is 5-15 questions over
-    #     20-45 min on the same chart.
-    #
-    # Beta header `extended-cache-ttl-2025-04-11` is required for the
-    # `ttl: "1h"` field.
-    #
-    # Expected impact:
-    #   - Follow-up same-topic: ~67% cost reduction (4/4 blocks hit)
-    #   - Follow-up cross-topic: ~50-65% cost reduction (3/4 blocks hit)
-    #   - First call of session: ~equal to today (cache writes paid)
-    #   - 5-30min gaps between questions: no cache-rewrite tax (was a
-    #     hidden hot loss with 5m TTL — user pauses to think → cache
-    #     expires → next question pays write again)
-    #   - Quality: zero impact (semantically identical request to LLM)
+    # First call of a session is ~equal under both layouts (full cache
+    # write either way). The savings are entirely on follow-ups.
 
     system_blocks = [
         {
@@ -1479,21 +2359,15 @@ def get_prediction(chart_data: dict, question: str, history: list = [], mode: st
         },
         {
             "type": "text",
-            "text": f"---\n\nCHART DATA:\n{chart_summary}",
-            "cache_control": {"type": "ephemeral", "ttl": "1h"},
-        },
-        {
-            "type": "text",
             "text": f"---\n\nKP UNIVERSAL KNOWLEDGE BASE:\n{universal_kb}",
             "cache_control": {"type": "ephemeral", "ttl": "1h"},
         },
     ]
     if topic_kb:
-        # Only emit a 4th block when the topic has specific content. For
-        # "general" topic, topic_kb is empty and we skip — keeps the
-        # cache prefix shorter and avoids a no-op breakpoint.
-        # 5m TTL because topic switches mid-session — smaller write penalty
-        # is the right trade vs the chance of a topic-revisit within 1h.
+        # Topic-specific KB. 1h TTL (was default 5m) — astrologer
+        # sessions return to the same topic across long pauses, and
+        # cross-topic switches are RARE. 5m default was burning cache
+        # writes on every topic revisit > 5 minutes apart.
         system_blocks.append(
             {
                 "type": "text",
@@ -1501,14 +2375,29 @@ def get_prediction(chart_data: dict, question: str, history: list = [], mode: st
                     f"---\n\nKP TOPIC-SPECIFIC KNOWLEDGE "
                     f"({detected_topic.upper()}):\n{topic_kb}"
                 ),
-                "cache_control": {"type": "ephemeral"},
+                "cache_control": {"type": "ephemeral", "ttl": "1h"},
             }
         )
+    # Phase 13.6 — chart_summary UNCACHED. Changes per call so cache
+    # READ never hits; cache WRITE just paid the tax. Uncached at $3/M
+    # is cheaper than cache-write at $6/M (1h). See get_prediction_stream
+    # for the full cost comparison.
+    system_blocks.append(
+        {
+            "type": "text",
+            "text": f"---\n\nCHART DATA:\n{chart_summary}",
+        }
+    )
+
+    # Phase 13.5 — resolved_qt is now computed early (just after topic
+    # resolution) so the topic-switch detector can escalate it. Don't
+    # overwrite it here.
 
     user_blocks = [
         {
             "type": "text",
             "text": f"""MODE: {mode.upper()}
+QUESTION TYPE: {resolved_qt}
 CURRENT QUESTION: {question}
 
 IMPORTANT: Answer THIS question independently. Do not assume any timeframe from previous questions.
@@ -1517,27 +2406,425 @@ Perform complete KP analysis. Format output for {mode.upper()} mode as instructe
     ]
     messages.append({"role": "user", "content": user_blocks})
 
-    max_tokens = 16000 if mode == "astrologer" else 4000
+    # Phase 13.6 — see get_prediction_stream() for max_tokens rationale
+    # (Telugu tokenization is 2-3x denser; truncation was abrupt at 2800).
+    if mode == "astrologer":
+        # Phase 17.1 — full_topic bumped 4000 -> 5000 after live truncation.
+        # The new RULE 39 + RULE 40 + pre-flight block + RULE 28 mandatory
+        # intercepted-sign callouts add ~600-900 tokens of structural
+        # content per answer. 4000 was hitting the cap mid-section.
+        # Sub_question stays at 2400 (Format B is narrative + tighter).
+        max_tokens = 2400 if resolved_qt == "sub_question" else 5000
+    else:
+        max_tokens = 1200
 
-    # PR A1.3-fix-13 — beta header required for `ttl: "1h"` on ephemeral
-    # cache blocks. Without it, the API rejects the ttl field.
+    _use_haiku_followup = True
+    if mode == "astrologer" and resolved_qt == "sub_question" and _use_haiku_followup:
+        model_id = "claude-haiku-4-5"
+    elif mode == "astrologer":
+        model_id = "claude-sonnet-4-6"
+    else:
+        model_id = "claude-haiku-4-5"
+
+    # PR A1.3-fix-22 — dropped `extra_headers={"anthropic-beta":
+    # "extended-cache-ttl-2025-04-11"}`. Per Anthropic docs the 1h TTL
+    # is GA — no beta header needed. Verified `ttl: "1h"` on cache blocks
+    # works without the header.
     message = client.messages.create(
-        model="claude-sonnet-4-6",
+        model=model_id,
         max_tokens=max_tokens,
         temperature=0,
         system=system_blocks,
         messages=messages,
-        extra_headers={"anthropic-beta": "extended-cache-ttl-2025-04-11"},
+    )
+    log_anthropic_call(
+        endpoint="llm.get_prediction",
+        model=model_id,
+        mode=mode,
+        usage=getattr(message, "usage", None),
     )
 
     return message.content[0].text
 
 
 # ================================================================
+# STREAMING VARIANT (PR A1.3-fix-16)
+# ================================================================
+# Async generator that yields LLM text chunks as they arrive. Used by
+# the SSE endpoints (`/prediction/ask-stream`, `/astrologer/analyze-stream`)
+# for premium UX (TTFT 60-120s → 1-2s).
+#
+# Behavior:
+#   - Same compute pipeline as get_prediction (chart_data is already
+#     built by the caller; this function only handles the LLM call).
+#   - Phase 2 cache check: if same chart + topic + mode + question
+#     (today, normalized) is in the 24h cache, yield cached text in
+#     ~80-char chunks for visual continuity, skip LLM entirely.
+#   - Cache miss: stream from Anthropic, accumulate full answer, write
+#     to cache after stream completes.
+#   - Topic detection short-circuits same as get_prediction (caller
+#     can pass topic explicitly to skip Haiku call).
+#   - Mode-aware chart_summary trim (Phase 1) — user mode gets the
+#     stripped chart_summary that drops sookshmas_upcoming_ads and
+#     caps current-AD sookshmas to top-3 ranked.
+
+async def get_prediction_stream(
+    chart_data: dict,
+    question: str,
+    history: list = [],
+    mode: str = "user",
+    topic: str = None,
+    cache_key_input: dict | None = None,
+    question_type: str = "auto",
+):
+    """
+    Async generator yielding text chunks of the LLM response.
+
+    Args:
+        chart_data: full chart_data dict from chart_pipeline.
+        question: user's question.
+        history: prior [{question, answer}] pairs (most-recent-last).
+        mode: "user" or "astrologer".
+        topic: pre-detected topic to skip the Haiku call.
+        cache_key_input: dict with keys {birth_date, birth_time,
+            latitude, longitude, gender, topic, mode, question} used to
+            build the per-chart cache key. If None, caching is skipped.
+
+    Yields:
+        str chunks of the answer text.
+    """
+    from app.services import answer_cache
+
+    # PR A1.3-fix-24 — normalize mode FIRST (cost-protection guard).
+    mode = _normalize_mode(mode)
+
+    # Topic resolution (mirrors get_prediction)
+    if topic and topic in TOPIC_TO_FILE:
+        detected_topic = topic
+    elif chart_data.get("advanced_compute", {}).get("topic"):
+        detected_topic = chart_data["advanced_compute"]["topic"]
+    else:
+        detected_topic = detect_topic(question)
+    chart_data["detected_topic"] = detected_topic
+
+    # ─── Question type resolution ────────────────────────────────────
+    # PR A1.3-fix-23 — resolve question_type early so we can include it
+    # in the cache key. Different formats (A vs B) for the same question
+    # must produce different cached entries.
+    early_resolved_qt = _resolve_question_type(question_type, question, history)
+
+    # Phase 13.5 — TOPIC-SWITCH DETECTION.
+    #
+    # Why: Phase 13.4 routed astrologer follow-ups (sub_question) to
+    # Haiku for cost. But the routing decision was based on HOW the
+    # user asked (chip click vs chat box typing), not WHAT they asked.
+    # If a user opens the Marriage topic (Sonnet), then in the chat box
+    # types "what about my career?" — that's a NEW life topic which
+    # deserves Sonnet's deep reasoning, not Haiku narration.
+    #
+    # Fix: when frontend says sub_question, run detect_topic on the
+    # actual question text (one cheap Haiku call, ~$0.0005). If the
+    # question is clearly about a DIFFERENT life topic than the one
+    # the user is currently in, escalate to Sonnet + reload topic_kb +
+    # reframe as full_topic so the LLM produces the proper 7-section
+    # analysis instead of a clarification narrative.
+    #
+    # Why we don't switch on every sub_question: the Haiku detect_topic
+    # call would still incur cost on legitimate follow-ups ("explain
+    # Mars more"). We only run it when there's a real risk of a topic
+    # switch — i.e., the frontend hint is sub_question. For full_topic
+    # the topic is already correctly fixed by the chip click.
+    #
+    # Cost: +$0.0005 per sub_question call (Haiku, max_tokens=10).
+    # Quality win: a new-topic question always lands on Sonnet with the
+    # correct topic KB loaded, instead of Haiku narrating the wrong
+    # topic's KB.
+    #
+    # Easy revert: set _enable_topic_switch_detect = False below.
+    _enable_topic_switch_detect = True
+    if (
+        mode == "astrologer"
+        and early_resolved_qt == "sub_question"
+        and _enable_topic_switch_detect
+        and topic  # only detect-vs-passed-topic when frontend gave us one
+    ):
+        detected_from_question = detect_topic(question)
+        # Treat as a real switch only if BOTH topics are concrete
+        # (i.e., not "general") AND they differ. "general" detected from
+        # a vague follow-up like "explain more" must NOT trigger an
+        # escalation.
+        if (
+            detected_from_question
+            and detected_from_question != "general"
+            and detected_from_question != detected_topic
+        ):
+            import logging
+            logging.getLogger("anthropic_audit").warning(
+                "[TOPIC_SWITCH] from=%s to=%s -> escalating sub_question "
+                "to full_topic + Sonnet (chat-box question on a NEW topic)",
+                detected_topic, detected_from_question,
+            )
+            detected_topic = detected_from_question
+            chart_data["detected_topic"] = detected_topic
+            # Reframe as full_topic so the LLM produces a proper
+            # 7-section analysis (not a clarification narrative) AND
+            # the model selector below routes to Sonnet.
+            early_resolved_qt = "full_topic"
+
+    cache_key: str | None = None
+    if cache_key_input:
+        cache_key = answer_cache.make_key(
+            birth_date=cache_key_input.get("birth_date", ""),
+            birth_time=cache_key_input.get("birth_time", ""),
+            latitude=cache_key_input.get("latitude", 0.0),
+            longitude=cache_key_input.get("longitude", 0.0),
+            # PR A1.3-fix-17 — pass timezone_offset to prevent TZ-collision
+            # bug (same birth_time + lat/lon but different TZ = different
+            # chart, was producing same cache key).
+            timezone_offset=cache_key_input.get("timezone_offset", 5.5),
+            gender=cache_key_input.get("gender", ""),
+            topic=detected_topic,
+            mode=mode,
+            question=question,
+            question_type=early_resolved_qt,
+        )
+        cached = answer_cache.get(cache_key)
+        if cached:
+            cached_answer, _meta = cached
+            # Phase 13.4 — log cache hits at WARNING so they're Railway-
+            # visible. This proves to the operator/user when a response
+            # was served for $0 (no Anthropic call). Reconcile against
+            # the [ENDPOINT_HIT] line for the same request id.
+            import logging
+            logging.getLogger("anthropic_audit").warning(
+                "[ANSWER_CACHE_HIT] endpoint=llm.get_prediction_stream "
+                "mode=%s topic=%s qtype=%s cost_usd=0.000000 chars=%d",
+                mode, detected_topic, early_resolved_qt, len(cached_answer),
+            )
+            # Yield cached text in ~80-char chunks for visual continuity
+            # (frontend's typewriter effect renders the same regardless
+            # of source; user can't tell cache vs fresh).
+            CHUNK = 80
+            for i in range(0, len(cached_answer), CHUNK):
+                yield cached_answer[i:i + CHUNK]
+            return
+
+    # ─── KB + chart prep ─────────────────────────────────────────────
+    # PR A1.3-fix-18 — mode-aware universal KB (user mode = 4-file lean kit).
+    universal_kb = load_universal_kb(mode=mode)
+    topic_kb = load_topic_kb(detected_topic)
+    chart_summary = format_chart_for_llm(chart_data, mode=mode)
+
+    # Conversation history
+    messages = []
+    if history:
+        gender = (chart_data.get("gender") or "").strip()
+        age = chart_data.get("age_years")
+        md = (chart_data.get("current_dasha") or {}).get("mahadasha", {}).get("lord")
+        ad = (chart_data.get("current_dasha") or {}).get("antardasha", {}).get("antardasha_lord")
+        anchor = (
+            f"[NATIVE CONTEXT REMINDER — same throughout this session: "
+            f"{chart_data.get('name', 'Native')}, age {age}, "
+            f"{gender or 'gender-unknown'}, "
+            f"running {md} MD → {ad} AD. Active topic now: {detected_topic}.]"
+        )
+        messages.append({"role": "user", "content": anchor})
+        messages.append({"role": "assistant", "content": "Acknowledged."})
+    for prev in history[-4:]:
+        clean_question = prev.get("question", "") if isinstance(prev, dict) else getattr(prev, "question", "")
+        clean_answer = prev.get("answer", "") if isinstance(prev, dict) else getattr(prev, "answer", "")
+        messages.append({"role": "user", "content": clean_question})
+        messages.append({"role": "assistant", "content": clean_answer})
+
+    # Phase 13.3 — cache breakpoint REORDER. See get_prediction() above
+    # for the full rationale (chart_summary changes per call due to
+    # Sookshma drift; placing it before universal_kb invalidated the
+    # 51K-token KB cache on every call). Order: stable → volatile.
+    system_blocks = [
+        {"type": "text", "text": get_system_prompt(),
+         "cache_control": {"type": "ephemeral", "ttl": "1h"}},
+        {"type": "text", "text": f"---\n\nKP UNIVERSAL KNOWLEDGE BASE:\n{universal_kb}",
+         "cache_control": {"type": "ephemeral", "ttl": "1h"}},
+    ]
+    if topic_kb:
+        system_blocks.append({
+            "type": "text",
+            "text": (
+                f"---\n\nKP TOPIC-SPECIFIC KNOWLEDGE "
+                f"({detected_topic.upper()}):\n{topic_kb}"
+            ),
+            # 1h TTL (was default 5m) — survives natural session pauses.
+            "cache_control": {"type": "ephemeral", "ttl": "1h"},
+        })
+    # Phase 13.6.1 — TTL kept at 1h (REVERTED 5m experiment).
+    #
+    # Why 1h not 5m: realistic astrologer pacing is 5-10 minutes BETWEEN
+    # questions, not 5 minutes total. They open a topic, read the dense
+    # 7-section answer (3-5 min), think (1-2 min), then type the
+    # follow-up. 5m TTL would expire BEFORE every follow-up -- forcing
+    # a fresh KB cache write on each one, wiping out the savings.
+    #
+    # Cost math at realistic 8-min pacing (1 Sonnet + 5 Haiku follow-ups):
+    #   5m TTL: cache expires 5x   -> Rs 83/session
+    #   1h TTL: cache hits 4 times -> Rs 73/session  (winner)
+    #
+    # Anthropic 1h cache write costs 1.6x the 5m rate (Sonnet $6/M vs
+    # $3.75/M, Haiku $2/M vs $1.25/M), but the cache survives long
+    # enough to amortize across the typical 4-6 follow-ups in a session.
+    #
+    # Phase 13.6 — chart_summary NO LONGER CACHED.
+    #
+    # Why: chart_summary is ~9,600 tokens and changes per call (Sookshma
+    # minute-precision, Ruling Planets, age_years etc all recompute).
+    # Cache READ never hits → caching just costs the WRITE every time.
+    # At Sonnet 1h cache write rate ($6/M), that was $0.058 per call
+    # wasted on cache writes that never got read.
+    #
+    # Cost comparison for a 9.6K chart_summary (per call):
+    #   Cached 1h (always-write-never-read): 9600 × $6/M    = $0.058
+    #   Cached 5m (always-write-never-read): 9600 × $3.75/M = $0.036
+    #   UNCACHED plain input:                9600 × $3/M    = $0.029  ← winner
+    #
+    # Saves $0.029 per call vs the cached-5m path, $0.029-0.058 per
+    # call vs cached-1h. Multiplied across an astrologer's session
+    # (1 topic + 5 follow-ups), that's $0.18-0.35 per session.
+    #
+    # Trade-off: cache prefix length is now shorter -- 4-block prefix
+    # (sys + ukb + tkb) instead of 5-block. Same cache hit dynamics on
+    # the KB blocks (which is what matters most -- that's where the 51K
+    # KB tokens live).
+    system_blocks.append(
+        {"type": "text", "text": f"---\n\nCHART DATA:\n{chart_summary}"}
+    )
+
+    # PR A1.3-fix-23 — Reuse the question_type resolved earlier for the
+    # cache key. User mode ignores QUESTION TYPE but it's harmless to
+    # include.
+    user_blocks = [{
+        "type": "text",
+        "text": f"""MODE: {mode.upper()}
+QUESTION TYPE: {early_resolved_qt}
+CURRENT QUESTION: {question}
+
+IMPORTANT: Answer THIS question independently. Do not assume any timeframe from previous questions.
+Perform complete KP analysis. Format output for {mode.upper()} mode as instructed in the system prompt.""",
+    }]
+    messages.append({"role": "user", "content": user_blocks})
+
+    # Phase 13.6 — max_tokens BUMPED back up (user reported abrupt cuts).
+    #   full_topic:    2800 -> 4000
+    #   sub_question:  1800 -> 2400
+    # Why: Telugu tokenization is 2-3x denser than English (each Telugu
+    # character maps to multiple BPE tokens). RULE 32 targets ~2500
+    # English tokens, but rendered in Telugu script that becomes ~5000-
+    # 7500 output tokens. 2800 was truncating Telugu Format A mid-section.
+    # 4000 gives headroom without unbounded sprawl. Cost on Sonnet:
+    # 4000 × $15/M = $0.060 max output (was $0.042 at 2800; +$0.018).
+    # Worth it for completeness — partial answers are useless to an
+    # astrologer.
+    if mode == "astrologer":
+        # Phase 17.1 — see rationale on the get_prediction twin above.
+        max_tokens = 2400 if early_resolved_qt == "sub_question" else 5000
+    else:
+        max_tokens = 1200
+
+    # ─── Stream from Anthropic ───────────────────────────────────────
+    # Phase 13.4 — model selection now THREE-way:
+    #   - user mode                    -> Haiku 4.5 (always; cheap narration)
+    #   - astrologer + full_topic      -> Sonnet 4.6 (deep KP reasoning,
+    #                                     7-section worksheet, KSK depth)
+    #   - astrologer + sub_question    -> Haiku 4.5 (clarification /
+    #                                     narrowing follow-ups; the heavy
+    #                                     analysis already lives in the
+    #                                     conversation history that Haiku
+    #                                     reads. Saves 74% per follow-up.)
+    #
+    # Quality rationale: KP astrologers click a topic chip first (full_topic
+    # -> Sonnet does the heavy lift). Then they ask "what about Mars?" or
+    # "when in 2027?" — these are translation/narrowing tasks, not new
+    # deep reasoning. Haiku handles them well with the Sonnet output in
+    # history. Same accuracy on the structural verdict (which lives in
+    # the Sonnet-generated topic answer); follow-ups just rephrase /
+    # zoom in.
+    #
+    # Easy revert: change `_use_haiku_followup = True` to False below.
+    _use_haiku_followup = True
+    if mode == "astrologer" and early_resolved_qt == "sub_question" and _use_haiku_followup:
+        model_id = "claude-haiku-4-5"
+    elif mode == "astrologer":
+        model_id = "claude-sonnet-4-6"
+    else:
+        model_id = "claude-haiku-4-5"
+
+    # PR A1.3-fix-22 — dropped vestigial extended-cache-ttl-2025-04-11
+    # beta header. 1h TTL is GA per Anthropic docs.
+    accumulated: list[str] = []
+    final_message = None
+    async with async_client.messages.stream(
+        model=model_id,
+        max_tokens=max_tokens,
+        temperature=0,
+        system=system_blocks,
+        messages=messages,
+    ) as stream:
+        async for text in stream.text_stream:
+            accumulated.append(text)
+            yield text
+        # Phase 13.2 — capture final message for usage stats AFTER iteration
+        # completes. get_final_message() is awaitable on async streams.
+        try:
+            final_message = await stream.get_final_message()
+        except Exception:
+            final_message = None
+
+    # Phase 13.2 — audit log so this call is reconcilable against the
+    # Anthropic dashboard. endpoint label distinguishes the two SSE
+    # routers that share this function (analyze-stream vs ask-stream).
+    log_anthropic_call(
+        endpoint="llm.get_prediction_stream",
+        model=model_id,
+        mode=mode,
+        usage=getattr(final_message, "usage", None) if final_message else None,
+        note=f"topic={detected_topic} qtype={early_resolved_qt}",
+    )
+
+    # ─── Write to cache after stream completes ───────────────────────
+    if cache_key:
+        full_answer = "".join(accumulated)
+        if full_answer.strip():
+            answer_cache.put(cache_key, full_answer, meta={"mode": mode, "topic": detected_topic})
+
+
+# ================================================================
 # CHART FORMATTER — Structured KP Worksheet for LLM
 # ================================================================
 
-def format_chart_for_llm(chart_data: dict) -> str:
+def format_chart_for_llm(chart_data: dict, mode: str = "astrologer") -> str:
+    """
+    Build the chart_summary string emitted to the LLM.
+
+    PR A1.3-fix-16 — mode-aware trimming for user mode:
+        Astrologer mode keeps the full output (current behavior, unchanged):
+            - Full 9-AD sequence
+            - all_ad_pratyantardashas: every AD's 9 PADs (~81 entries)
+            - sookshmas_current_ad: every PAD's 9 sookshmas (~81 entries)
+            - sookshmas_upcoming_ads: next 2 ADs (~162 entries)
+
+        User mode trims the heavy day-precision blocks the plain-English
+        narrative doesn't actually use:
+            - all_ad_pratyantardashas: ONLY current AD + next 2 ADs
+              (not all 9 ADs)
+            - sookshmas_current_ad: only the TOP 3 ranked sookshmas per
+              PAD (not all 9), and only PADs within the current AD
+            - sookshmas_upcoming_ads: DROPPED entirely (user mode doesn't
+              predict day-precision events 3+ years out)
+
+        Estimated savings for user mode: 30-70K tokens of input, which
+        translates to ~$0.20-0.40 saved per first-call cache write.
+        Quality preserved — accuracy-critical compute (advanced_compute,
+        decision_support, transits, current dasha) all still emit fully.
+    """
+    is_user_mode = (mode or "").lower() == "user"
     lines = []
 
     if "name" in chart_data:
@@ -1613,9 +2900,27 @@ def format_chart_for_llm(chart_data: dict) -> str:
             )
 
     # PAD sequence within current AD
+    # PR A1.3-fix-16 — user mode trims to current + next 2 ADs only
+    # (instead of all 9 ADs). Plain-English answers rarely cite PAD
+    # detail >3 years out, and dropping 6 ADs × 9 PADs = 54 lines saves
+    # ~5-10K tokens per query.
     if "all_ad_pratyantardashas" in chart_data:
         lines.append(f"\nPRATYANTARDASHA SEQUENCES FOR ALL ANTARDASHAS:")
-        for ad_lord, pads in chart_data["all_ad_pratyantardashas"].items():
+        ads_to_emit = chart_data["all_ad_pratyantardashas"].items()
+        if is_user_mode:
+            # Find current AD lord; emit only current + next 2
+            current_ad_lord = (
+                (chart_data.get("current_dasha", {}) or {})
+                .get("antardasha", {})
+                .get("antardasha_lord")
+            )
+            ad_list = list(chart_data["all_ad_pratyantardashas"].items())
+            cur_idx = next(
+                (i for i, (lord, _) in enumerate(ad_list) if lord == current_ad_lord),
+                0,
+            )
+            ads_to_emit = ad_list[cur_idx:cur_idx + 3]
+        for ad_lord, pads in ads_to_emit:
             lines.append(f"  [{ad_lord} AD]:")
             for pad in pads:
                 lines.append(
@@ -1626,6 +2931,10 @@ def format_chart_for_llm(chart_data: dict) -> str:
     # PR A1.3c-extras — Sookshma (sub-PAD / 4th level) for each PAD of the
     # current AD. This is the day-precision layer the LLM uses to identify
     # specific weeks within a PAD when an event is most likely to fire.
+    #
+    # PR A1.3-fix-16 — user mode emits only TOP 3 fire-ranked sookshmas
+    # per PAD instead of all 9. Saves ~10-15K tokens (54 fewer entries).
+    # Astrologer mode unchanged (gets all 9 sookshmas per PAD).
     if chart_data.get("sookshmas_current_ad"):
         lines.append(
             f"\nSOOKSHMA SEQUENCES (sub-PAD / 4th level — day-precision) "
@@ -1637,7 +2946,18 @@ def format_chart_for_llm(chart_data: dict) -> str:
             pad_start = sookshmas[0].get("start") if sookshmas else ""
             pad_end   = sookshmas[-1].get("end") if sookshmas else ""
             lines.append(f"  [{pad_lord} PAD] {pad_start} → {pad_end}:")
-            for sd in sookshmas:
+            # User mode: emit only top 3 by fire_score (already ranked
+            # by rank_sookshmas_by_fire_score from fix-10). Astrologer
+            # mode: emit all 9.
+            sookshmas_to_emit = sookshmas
+            if is_user_mode:
+                # Sort by fire_score desc (None scored as 0), take top 3
+                sookshmas_to_emit = sorted(
+                    sookshmas,
+                    key=lambda s: (s.get("fire_score") or 0),
+                    reverse=True,
+                )[:3]
+            for sd in sookshmas_to_emit:
                 # PR A1.3-fix-10 #12: emit fire_score + verdict + notes when ranking is present
                 fs = sd.get("fire_score")
                 fv = sd.get("fire_verdict", "")
@@ -1657,7 +2977,11 @@ def format_chart_for_llm(chart_data: dict) -> str:
     # PR A1.3-fix-4 (N2) — forward sookshmas for the next 2 ADs so the LLM
     # has day-precision data for "when in 2028" type questions where the
     # relevant AD is ahead of the current one.
-    if chart_data.get("sookshmas_upcoming_ads"):
+    #
+    # PR A1.3-fix-16 — DROPPED for user mode entirely. The plain-English
+    # narrative does not predict specific days/weeks 3+ years out. Saves
+    # ~20-50K tokens (the heaviest single block in chart_summary).
+    if chart_data.get("sookshmas_upcoming_ads") and not is_user_mode:
         lines.append(
             f"\nSOOKSHMA SEQUENCES — UPCOMING ANTARDASHAS (forward day-precision):"
         )
@@ -2165,22 +3489,79 @@ def format_chart_for_llm(chart_data: dict) -> str:
 # ================================================================
 
 def format_match_for_llm(compat_result: dict) -> str:
-    """Format full compatibility data (both charts side-by-side) for LLM analysis."""
+    """
+    Format full compatibility data (both charts side-by-side) for LLM analysis.
+
+    PR A1.4 additions:
+      - Tiered promise (Full/Partial/Weak/None) cited verbatim
+      - Canonical cross-match block (kpastrologylearning.com Rule 5)
+      - 5-signal love-vs-arranged classification per chart
+      - 7-slot Ruling Planets with slot labels (Day Lord, Asc Sub Lord,
+        Moon Sub Lord visible)
+      - Retrograde-star flag on H7 CSL
+      - Verdict reasoning string from engine
+    """
     lines = []
     p1 = compat_result["person1"]
     p2 = compat_result["person2"]
     kp = compat_result["kp_analysis"]
 
-    lines.append(f"=== MARRIAGE COMPATIBILITY WORKSHEET ===")
+    lines.append(f"=== MARRIAGE COMPATIBILITY WORKSHEET (PR A1.4 strict KP) ===")
     lines.append(f"Person 1: {p1['name']} | Moon: {p1['moon_sign']} ({p1['moon_nakshatra']}) | Lagna: {p1['lagna']}")
     lines.append(f"Person 2: {p2['name']} | Moon: {p2['moon_sign']} ({p2['moon_nakshatra']}) | Lagna: {p2['lagna']}")
     lines.append(f"Overall Verdict: {compat_result['overall_verdict']}")
+    lines.append(f"KP Verdict: {kp['kp_verdict']} — {kp.get('kp_verdict_reasoning','')}")
 
-    # KP Promise
-    lines.append(f"\n--- H7 CSL PROMISE ---")
+    # KP Promise — TIERED (PR A1.4)
+    lines.append(f"\n--- H7 CSL PROMISE (TIERED) ---")
     for label, pr in [("Person 1", kp["chart1_promise"]), ("Person 2", kp["chart2_promise"])]:
-        lines.append(f"{label}: H7 CSL = {pr['sub_lord']} → signifies {pr['signified_houses']} → {pr['verdict']}")
-        lines.append(f"  Marriage type: {pr['marriage_type']} | Spouse: {pr.get('spouse_nature', '')} | {pr.get('caution', '')}")
+        lines.append(f"{label}: H7 CSL = {pr['sub_lord']} → signifies {pr['signified_houses']}")
+        lines.append(f"  Promise tier: {pr['promise_tier']} "
+                     f"(hits {pr.get('promise_houses_hit', [])} of {{2,7,11}}) "
+                     f"| Denial houses hit: {pr.get('denial_houses_hit', [])} "
+                     f"| Verdict: {pr['verdict']}")
+        if pr.get("csl_in_retrograde_star"):
+            lines.append(f"  ⚠ H7 CSL is in RETROGRADE STAR — delay/non-fructification signal (KP Reader I §247)")
+        lines.append(f"  Style hint: {pr['marriage_type']} | Spouse: {pr.get('spouse_nature', '')} | Caution: {pr.get('caution', '')}")
+
+    # Canonical KSK Reader IV cross-match (PR A1.4)
+    cc = kp.get("canonical_cross_match", {})
+    if cc:
+        lines.append(f"\n--- CANONICAL CROSS-MATCH (kpastrologylearning Rule 5) ---")
+        lines.append(f"Person 1's H2/H7/H11 CSLs signifying {{2,7,11}}: {cc['a_own_promise_count']}/3")
+        for c in cc.get("a_csl_h2_7_11", []):
+            mark = "✓" if c["signifies_target"] else "✗"
+            lines.append(f"  {mark} H{c['cusp']} CSL={c['csl']} sigs={c['sigs']}")
+        lines.append(f"Person 2's H2/H7/H11 CSLs signifying {{2,7,11}}: {cc['b_own_promise_count']}/3")
+        for c in cc.get("b_csl_h2_7_11", []):
+            mark = "✓" if c["signifies_target"] else "✗"
+            lines.append(f"  {mark} H{c['cusp']} CSL={c['csl']} sigs={c['sigs']}")
+        lines.append(f"Person 2's RPs signifying Person 1's marriage houses: "
+                     f"{[r['planet'] for r in cc.get('b_rps_signifying_a_marriage', [])]}")
+        lines.append(f"Person 1's RPs signifying Person 2's marriage houses: "
+                     f"{[r['planet'] for r in cc.get('a_rps_signifying_b_marriage', [])]}")
+        lines.append(f"A-side canonical match: {cc['a_side_canonical_match']} | "
+                     f"B-side: {cc['b_side_canonical_match']} | "
+                     f"Both sides: {cc['both_sides_canonical_match']}")
+
+    # 5-signal type classification (PR A1.4)
+    for label, key in [("Person 1", "type_classification_chart1"),
+                       ("Person 2", "type_classification_chart2")]:
+        tc = kp.get(key, {})
+        if tc:
+            lines.append(f"\n--- 5-SIGNAL TYPE CLASSIFICATION — {label} ---")
+            lines.append(f"Category: {tc['category']}")
+            lines.append(f"Reasoning: {tc['reasoning']}")
+            lines.append(f"  Signal 1 (H5 in H7 chain): {tc['signal_1_h5_in_chain']}")
+            lines.append(f"  Signal 2 (5L={tc['signal_2_fifth_lord']} in H{tc['signal_2_fifth_lord_house']}): "
+                         f"love-path-negated={tc['signal_2_love_path_negated']}, "
+                         f"love-path-strong={tc['signal_2_love_path_strong']}")
+            lines.append(f"  Signal 3 (H4 in chain: {tc['signal_3_h4_in_chain']}, "
+                         f"H9 in chain: {tc['signal_3_h9_in_chain']}, "
+                         f"mother active: {tc['signal_3_mother_active']}, "
+                         f"father active: {tc['signal_3_father_active']})")
+            lines.append(f"  Signal 4 (Moon in H{tc['signal_4_moon_house']} — {tc['signal_4_moon_mode']})")
+            lines.append(f"  Signal 5 (5L-7L relation: {tc['signal_5_relation']}, strength: {tc['signal_5_strength']})")
 
     # Supporting Cusps
     lines.append(f"\n--- SUPPORTING CUSPS (H2, H11) ---")
@@ -2204,11 +3585,20 @@ def format_match_for_llm(compat_result: dict) -> str:
     for label, ve in [("Person 1", kp["venus_chart1"]), ("Person 2", kp["venus_chart2"])]:
         lines.append(f"{label}: Venus in H{ve['house']} {ve['sign']} | Strength: {ve['strength']} | Sigs: {ve['significations']}")
 
-    # Ruling Planets + Resonance
-    lines.append(f"\n--- RULING PLANETS & CROSS-RESONANCE ---")
-    lines.append(f"Person 1 RPs: {kp['ruling_planets_chart1']}")
-    lines.append(f"Person 2 RPs: {kp['ruling_planets_chart2']}")
-    lines.append(f"Resonance 1→2: {kp['resonance_1_to_2']} | 2→1: {kp['resonance_2_to_1']} | Total: {kp['total_resonance_count']}")
+    # 7-slot Ruling Planets (PR A1.4)
+    lines.append(f"\n--- 7-SLOT RULING PLANETS (NATAL) ---")
+    for label, slot_key, strongest_key in [
+        ("Person 1", "rp_slots_chart1", "rp_strongest_chart1"),
+        ("Person 2", "rp_slots_chart2", "rp_strongest_chart2"),
+    ]:
+        slots = kp.get(slot_key, [])
+        strongest = kp.get(strongest_key, [])
+        slot_str = " | ".join(f"{s['slot']}={s['planet']}" for s in slots if s.get('planet'))
+        lines.append(f"{label}: {slot_str}")
+        if strongest:
+            lines.append(f"  Strongest (≥2 slots): {strongest}")
+    lines.append(f"Cross-resonance (loose): 1→2 {kp['resonance_1_to_2']} | 2→1 {kp['resonance_2_to_1']} | Total {kp['total_resonance_count']}")
+    lines.append(f"  ⚠ Loose resonance is informational ONLY in PR A1.4. Verdict uses canonical cross-match block above.")
 
     # Current DBA
     lines.append(f"\n--- CURRENT DASHA-BHUKTI-ANTARDASHA ---")
@@ -2299,25 +3689,97 @@ Give practical, actionable analysis that a KP astrologer would find valuable."""
     })
 
     today = datetime.now().strftime("%B %d, %Y")
-    system = f"""You are an expert KP (Krishnamurti Paddhati) marriage compatibility analyst with 20+ years experience.
-You have BOTH charts' complete KP data. Analyze marriage compatibility with deep KP reasoning.
+    system = f"""You are an expert KP (Krishnamurti Paddhati) marriage compatibility analyst with 20+ years experience, trusted as a second opinion by senior astrologers.
+You have BOTH charts' complete KP data computed by a strict-KP engine (PR A1.4). Analyze marriage compatibility with deep KP reasoning.
 
 TODAY'S DATE: {today}
 
-KEY RULES:
-1. Use ONLY the data provided — never invent or guess planet positions
-2. Reference specific CSLs, house numbers, planets from BOTH charts
-3. Compare both charts' promise, Venus, RPs, DBA, D9, separation risk
-4. For timing: use actual DBA data, check if current periods favor marriage
-5. Be balanced — mention both favorable and unfavorable factors
-6. Structure: Start with the key finding, then supporting evidence"""
+KEY RULES — read carefully and apply strictly:
+
+1. Use ONLY the data provided — never invent or guess planet positions, sub-lords, or significations.
+2. Reference specific CSLs, house numbers, planets from BOTH charts. Cite verbatim from the worksheet.
+3. Compare both charts' promise tier, supporting cusps, separation risk, D9, type classification.
+
+4. PROMISE TIER IS AUTHORITATIVE (KSK strict).
+   - "Full" = H7 CSL signifies all three of {{2, 7, 11}} → marriage promised.
+   - "Partial" = signifies 2 of 3 → conditional.
+   - "Weak" = signifies 1 of 3 → conditional-weak.
+   - "None" = none of {{2,7,11}} → not promised in this chart.
+   You MAY NOT call a marriage "promised" or "guaranteed" if the engine reports tier ≠ Full
+   on either chart, regardless of other positive signals. Cite the tier verbatim from the worksheet.
+
+5. NO VENUS OVERRIDE. KSK is explicit (marriage.txt §4): Venus is CONTEXT, not OVERRIDE.
+   Do NOT claim "strong Venus rescues the denial" or "Venus karaka promises marriage even though H7 CSL is weak."
+   Venus tells you about marital quality (smooth vs frictional), not about whether marriage happens.
+
+6. H12 IS A DENIAL HOUSE (marriage.txt §1). If H7 CSL signifies H12, mark as separation-prone
+   even if {{2,7,11}} are also hit. Cite the denial flag verbatim.
+
+7. RETROGRADE-STAR FLAG. If the worksheet says "H7 CSL is in RETROGRADE STAR," explicitly state
+   this as a delay/non-fructification signal (KP Reader I §247) — do not skip it.
+
+8. CANONICAL CROSS-MATCH IS THE PRIMARY COMPATIBILITY GATE (kpastrologylearning.com Rule 5).
+   For both partners to marry each other:
+     (a) each person's H2/H7/H11 CSLs must signify {{2,7,11}}, AND
+     (b) the OTHER person's Ruling Planets must signify {{2,7,11}} in this person's chart.
+   The worksheet has a "CANONICAL CROSS-MATCH" block with explicit ✓/✗ marks. Quote those marks.
+   Do NOT use the generic "cross-resonance" intersection number as your compatibility evidence —
+   that is loose and noise-prone; the engine flags it as informational only.
+
+9. TYPE CLASSIFICATION — use the 5-signal framework, not your prior assumption.
+   The worksheet has a "5-SIGNAL TYPE CLASSIFICATION" block per chart with a "Category" line:
+     - Pure Love Marriage
+     - Pure Arranged Marriage
+     - Love-cum-Arranged
+     - Love-affair-then-Arranged  (often misclassified — Signal 2 override is critical)
+     - Family-Mediated with Native Acceptance
+   Quote the category verbatim. Cite which signal voted for it.
+   Note: the older "marriage_type" field is a one-line heuristic — IGNORE it when discussing type.
+
+10. ASHTAKOOTA IS SECONDARY. KSK rejected Ashtakoota as a primary criterion. Use it as a cross-check:
+    if KP says Conditional and Ashtakoota agrees (low score + critical doshas), that's reinforcing.
+    If KP says Conditional but Ashtakoota is high (e.g., 28/36), explain that KP overrides Ashtakoota
+    per KSK's explicit position — high Ashtakoota does NOT lift a weak KP promise.
+
+11. SEPARATION RISK MUST BE STATED EXPLICITLY when "High" or "Moderate." Quote the specific factors
+    from the worksheet (Saturn aspect, Mars aspect, H7 CSL touching 6/8/12, etc.).
+
+12. MANGLIK MUTUAL CANCELLATION IS SEVERITY-REDUCTION, NOT NULLIFICATION (AstroSight, Nidhi Trivedi
+    confirmed). When both are Manglik, say "energies balance, severity reduced" — do NOT say
+    "Mangal dosha completely cancelled."
+
+13. STRUCTURE YOUR RESPONSE:
+    (a) HEADLINE — KP verdict + one-line "why" from worksheet's kp_verdict_reasoning
+    (b) PROMISE PER CHART — tier, signified houses, denial flag, retrograde-star flag
+    (c) CANONICAL CROSS-MATCH — ✓/✗ pattern, what it means
+    (d) TYPE OF MARRIAGE — 5-signal category + reasoning
+    (e) SEPARATION RISK — level + factors
+    (f) ASHTAKOOTA CROSS-CHECK — agreement/disagreement with KP
+    (g) TIMING — current MD/AD favorability per chart, when next favorable window opens
+    (h) HONEST CLOSER — one sentence on what a senior astrologer would say in person
+
+14. BE A SECOND OPINION TO A SENIOR ASTROLOGER. The user might cross-check this with their dad
+    or a 20-year practitioner. Your analysis must hold up to that scrutiny — no hand-waving,
+    no "all is well," every claim grounded in the worksheet."""
 
     message = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=6000,
         temperature=0,
-        system=system,
-        messages=messages
+        system=[
+            {
+                "type": "text",
+                "text": system,
+                "cache_control": {"type": "ephemeral", "ttl": "1h"},
+            },
+        ],
+        messages=messages,
+    )
+    log_anthropic_call(
+        endpoint="llm.get_match_prediction",
+        model="claude-sonnet-4-6",
+        mode="match",
+        usage=getattr(message, "usage", None),
     )
 
     return message.content[0].text
@@ -2377,6 +3839,13 @@ CHART DATA:
         max_tokens=1200,
         temperature=0,
         messages=[{"role": "user", "content": prompt}],
+    )
+    log_anthropic_call(
+        endpoint="llm.get_quick_insights",
+        model="claude-haiku-4-5",
+        mode="quick_insights",
+        usage=getattr(message, "usage", None),
+        note=f"topic={topic}",
     )
     return message.content[0].text
 
@@ -2560,9 +4029,15 @@ Analyze the muhurtha windows above and answer the question. Reference specific w
             {
                 "type": "text",
                 "text": system_prompt,
-                "cache_control": {"type": "ephemeral"},
+                "cache_control": {"type": "ephemeral", "ttl": "1h"},
             }
         ],
         messages=messages,
+    )
+    log_anthropic_call(
+        endpoint="llm.get_muhurtha_prediction",
+        model="claude-sonnet-4-6",
+        mode="muhurtha",
+        usage=getattr(message, "usage", None),
     )
     return message.content[0].text

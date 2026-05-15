@@ -72,7 +72,13 @@ def _south_indian_chart(planets: list, cusps: list) -> Table:
     # Map house → planets
     house_map: dict[int, list[str]] = {i: [] for i in range(1, 13)}
     for p in planets:
-        h = p.get("house", 0)
+        # PR A1.3-fix-24 — chart_formatter emits "house" as a STRING
+        # (e.g. "7"). Without int() coercion, `1 <= "7" <= 12` raises
+        # TypeError → PDF crashed for every chart with planets in houses.
+        try:
+            h = int(p.get("house", 0))
+        except (ValueError, TypeError):
+            h = 0
         if 1 <= h <= 12:
             short = p.get("planet_short", p.get("planet_en", "")[:2])
             if p.get("retrograde"):

@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from app.services.chart_engine import (
     generate_chart, calculate_dashas, get_current_dasha,
     calculate_antardashas, get_current_antardasha,
@@ -9,28 +9,28 @@ from app.services.chart_engine import (
 
 router = APIRouter()
 
+# PR A1.3-fix-24 — input bounds + dropped duplicate chart_engine import
+# block that lived between class defs (dead code).
 class ChartRequest(BaseModel):
-    name: str
-    date: str
-    time: str
-    latitude: float
-    longitude: float
-    timezone_offset: float = 5.5
+    name: str = Field(..., min_length=1, max_length=120)
+    date: str = Field(..., min_length=8, max_length=12)
+    time: str = Field(..., min_length=4, max_length=8)
+    latitude: float = Field(..., ge=-90, le=90)
+    longitude: float = Field(..., ge=-180, le=180)
+    timezone_offset: float = Field(5.5, ge=-14, le=14)
 
-from app.services.chart_engine import (
-    generate_chart, calculate_dashas, get_current_dasha,
-    calculate_antardashas, get_current_antardasha,
-    get_all_house_significators, get_ruling_planets
-)
 
 @router.post("/generate")
 def get_chart(request: ChartRequest):
+    # PR A1.3-fix-24 — was silently dropping caller-supplied timezone_offset
+    # (passed only 4 positional args). Non-IST callers got wrong charts.
     chart = generate_chart(
         request.date, request.time,
-        request.latitude, request.longitude
+        request.latitude, request.longitude,
+        request.timezone_offset,
     )
     moon_longitude = chart["planets"]["Moon"]["longitude"]
-    dashas = calculate_dashas(request.date, request.time, moon_longitude)
+    dashas = calculate_dashas(request.date, request.time, moon_longitude, request.timezone_offset)
     current_md = get_current_dasha(dashas)
     antardashas = calculate_antardashas(current_md)
     current_ad = get_current_antardasha(antardashas)
@@ -54,13 +54,13 @@ def get_chart(request: ChartRequest):
 
 
 class TopicRequest(BaseModel):
-    name: str
-    date: str
-    time: str
-    latitude: float
-    longitude: float
-    timezone_offset: float = 5.5
-    topic: str
+    name: str = Field(..., min_length=1, max_length=120)
+    date: str = Field(..., min_length=8, max_length=12)
+    time: str = Field(..., min_length=4, max_length=8)
+    latitude: float = Field(..., ge=-90, le=90)
+    longitude: float = Field(..., ge=-180, le=180)
+    timezone_offset: float = Field(5.5, ge=-14, le=14)
+    topic: str = Field(..., min_length=1, max_length=60)
 
 @router.post("/analyze")
 def analyze_topic(request: TopicRequest):

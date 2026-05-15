@@ -65,6 +65,15 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     setLangState(readInitial());
   }, []);
 
+  // Phase 16 — Moment #6: mirror the current language onto the <html>
+  // element as data-lang so the Telugu typography CSS in globals.css
+  // (kolam flourishes, gold under-glow, indicator dot) can scope its
+  // rules without each consuming component needing to know.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.documentElement.dataset.lang = lang;
+  }, [lang]);
+
   const setLang = useCallback((l: Lang) => {
     setLangState(l);
     try {

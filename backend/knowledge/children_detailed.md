@@ -229,3 +229,136 @@ When asked about children, structure response as:
 - **For miscarriage / fertility issues**, ALWAYS recommend medical consultation alongside the astro reading
 - **For IVF questions**, KP indicates likelihood; medical doctors decide treatment
 - Speak with empathy — these questions are often asked after months/years of trying
+
+---
+
+## 12. Boy or Girl — Detailed Predictive Framework (PR A1.3-fix-19)
+
+The user often asks specifically about the gender of an expected child, sometimes with a doctor-scheduled delivery date. The previous Section 7 said tendencies only — this section adds the FULL KP framework so the analysis is rigorous, with the same ethical caveat preserved.
+
+### The 5-signal gender framework (KP Reader chapter on progeny)
+
+SIGNAL 1: H5 cusp sub lord planet sex
+  Male planets at H5 sub lord: Sun, Mars, Jupiter
+  Female planets at H5 sub lord: Moon, Venus
+  Mercury and Saturn: neutral (depend on sign + association)
+  Rahu/Ketu: read through their dispositor (planet they conjoin or whose star they are in)
+
+SIGNAL 2: H5 cusp sign sex
+  Male signs (odd zodiac): Aries, Gemini, Leo, Libra, Sagittarius, Aquarius
+  Female signs (even zodiac): Taurus, Cancer, Virgo, Scorpio, Capricorn, Pisces
+
+SIGNAL 3: H5 occupant sex
+  If H5 has occupants, count male vs female planets sitting there.
+
+SIGNAL 4: Saptamsa (D7) — divisional chart for progeny
+  In D7, examine where H5 cusp falls and what planet rules that sign.
+  D7 is the gold-standard divisional for child-related questions.
+  If D7 unavailable in the engine output, skip this signal.
+
+SIGNAL 5: For specific delivery date question (the doctor-scheduled case)
+  Build a prashna (horary) chart at the moment the question is asked, then:
+    - Examine the prashna H5 sub lord
+    - Examine the moon star lord at moment of question
+    - Examine the ascendant lord at moment of question
+  These three layered sex signals at prashna time often disambiguate
+  when the natal chart signals are split.
+
+### Decision tree
+
+  4-of-5 signals point to MALE planets/signs    = Boy (high probability)
+  4-of-5 signals point to FEMALE planets/signs  = Girl (high probability)
+  3 vs 2 split                                  = Lean indication; lower confidence
+  2 vs 2 vs 1 mixed                             = Genuinely ambiguous; KP cannot reliably predict
+
+### Mandatory caveat — apply ALWAYS
+
+  KP gender prediction is a tendency reading, NOT a medical-grade certainty.
+  Modern medicine (ultrasound) gives 95%+ certainty after week 18-20.
+  KP gives 65-75% confidence even at peak signal alignment.
+
+  In jurisdictions where pre-natal gender disclosure is illegal (e.g., India
+  under PCPNDT Act), the response MUST:
+    1. Acknowledge the legal restriction
+    2. Frame as the chart energy leans toward... rather than the child will be...
+    3. Recommend the user wait for medical confirmation through legal channels
+
+### Output template for gender questions
+
+  If 4-of-5 signals align: The chart energy strongly leans toward [male/female]
+    energy. Confidence: [65-75%]. [Specific evidence from each signal.]
+    Note: This is a probabilistic reading, not a medical-grade prediction.
+    [Legal-jurisdiction caveat as above.]
+
+  If 3-of-5: The chart energy leans toward [male/female] but not strongly.
+    Confidence: [50-60%]. The mixed signals suggest [name the conflicting
+    indicators]. Defer to medical confirmation.
+
+  If 2-of-2 split or worse: KP cannot give a confident answer in this case.
+    Both [male/female] tendencies are present. Defer to medical confirmation.
+
+---
+
+## 13. Number of Children — Detailed With Timing (PR A1.3-fix-19)
+
+Section 6 had the basics. Adding precision:
+
+### Counting method (classical KP)
+  H5 = first child
+  H7 (3rd from H5) = second child
+  H9 (3rd from H7) = third child
+  H11 (3rd from H9) = fourth child
+
+  For each subsequent house: check its sub lord and significators.
+  If that house cusp sub lord signifies H2/H5/H11 = that child is promised.
+  If denied (signifies H1/H4/H10 only) = that child does not happen.
+
+### Spacing rule
+  The dasha periods of each childs significators determine the gap.
+  Typical: 2-4 years between two children when both are promised.
+  Saturn period between two child-promising ADs = longer gap.
+  Jupiter period = shorter gap.
+
+### Twins / multiples
+  H5 cusp in dual sign (Gem/Vir/Sag/Pis) + Mercury/Rahu involvement
+    = possible twins
+  Strong dual-sign ascendant + H5 dual sign = elevated probability
+  KP estimate twin probability: ~3% baseline; up to ~8% with strong indicators
+
+### Order of children (boy first vs girl first)
+  Read the H5 gender signals (Section 12 above) for the FIRST child.
+  Then for the SECOND child, read H7 gender signals (3rd from 5th).
+  Order is NOT predetermined by chart; it follows house-by-house reading.
+
+---
+
+## 14. Adopted vs Biological Child (PR A1.3-fix-19)
+
+Distinguishing adopted from biological:
+
+  ADOPTED child indicators:
+    H5 sub lord signifies H8 + H11 (acquired through external means)
+    H5 sub lord in star of planet in H12 (foreign / through agency)
+    Ketu in H5 (sudden / unexpected child via non-traditional path)
+    H5 weakly signified naturally + H5 sub lord links to H6/H8 (medical/external)
+
+  BIOLOGICAL child:
+    H5 sub lord signifies H2 + H5 + H11 (natural family flow)
+    Strong Jupiter in chain = natural conception
+    H5 cusp NOT in barren sign
+
+  IVF / SURROGACY (assisted):
+    H5 + H8 link (medical intervention)
+    Saturn or Mars in H5 with Mercury support
+    H5 sub lord with H6 connection (medical service)
+
+---
+
+## 15. Pushback Discipline for Child Questions (PR A1.3-fix-19)
+
+When the user pushes back saying another astrologer or doctor said different:
+  Re-run the 5-signal framework above. Do NOT just defer.
+  State which signals support which prediction.
+  If signals truly are ambiguous (2-of-2 split), acknowledge openly that
+  the chart cannot give a confident reading and suggest medical confirmation.
+  Never just agree with pushback to be polite. Re-verify structurally.

@@ -3,6 +3,9 @@ import React from "react";
 import { PLANET_COLORS } from "../constants";
 import { Planet, PLANET_SYMBOLS } from "../../types/workspace";
 import { useLanguage } from "@/lib/i18n";
+// Phase 15.3 — planet rows now cascade in (tight 30ms gap for a snappy
+// data-table feel rather than the bigger 60ms for cards).
+import { StaggerChildren, StaggerItem } from "@/components/motion";
 
 interface PlanetListProps {
   planets: Planet[];
@@ -23,13 +26,17 @@ export default function PlanetList({ planets }: PlanetListProps) {
     lang === "en" ? (p[`${base}_en`] ?? "") : (p[`${base}_te`] ?? p[`${base}_en`] ?? "");
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+    <StaggerChildren
+      gap="tight"
+      immediate
+      style={{ display: "flex", flexDirection: "column", gap: 0 }}
+    >
       {planets.map((p, i) => {
         const color = PLANET_COLORS[p.planet_en] ?? "#888899";
         const sym   = PLANET_SYMBOLS[p.planet_en] ?? p.planet_en[0];
         const isLast = i === planets.length - 1;
         return (
-          <div
+          <StaggerItem
             key={p.planet_en}
             style={{
               display: "flex",
@@ -40,8 +47,6 @@ export default function PlanetList({ planets }: PlanetListProps) {
               transition: "background 0.12s",
               borderRadius: i === 0 ? "12px 12px 0 0" : isLast ? "0 0 12px 12px" : 0,
             }}
-            onMouseEnter={e => (e.currentTarget.style.background = hexToRgba(color, 0.05))}
-            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
           >
             {/* Planet icon circle */}
             <div
@@ -105,9 +110,9 @@ export default function PlanetList({ planets }: PlanetListProps) {
                 Star · Sub
               </div>
             </div>
-          </div>
+          </StaggerItem>
         );
       })}
-    </div>
+    </StaggerChildren>
   );
 }

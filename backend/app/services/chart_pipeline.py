@@ -68,12 +68,22 @@ def compute_age_years(birth_date_str: str) -> int:
     """Compute current age in whole years from a YYYY-MM-DD birth date."""
     try:
         bd = datetime.strptime(birth_date_str, "%Y-%m-%d")
-        today = datetime.utcnow()
+        # PR A1.3-fix-24 — datetime.utcnow() is deprecated in Python 3.12+.
+        # Switched to IST helper so age boundary aligns with Indian users'
+        # perceived "today" (small but real edge case at IST midnight).
+        from app.services.today import now_ist
+        today = now_ist()
         years = today.year - bd.year - (
             (today.month, today.day) < (bd.month, bd.day)
         )
         return max(0, years)
-    except Exception:
+    except Exception as e:
+        # PR A1.3-fix-24 — log instead of silent 0 (was hiding date-parse
+        # bugs as "age 0" which the LLM then hedges around in output)
+        import logging
+        logging.getLogger("chart_pipeline").warning(
+            "compute_age_years failed for %r: %s — defaulting to 0", birth_date_str, e
+        )
         return 0
 
 
@@ -256,6 +266,40 @@ def build_full_chart_data(
         _log.warning("Sookshma ranking failed: %s", e)
         ranked_sookshmas_current_ad = sookshmas_current_ad
 
+    # ── 10b. Tara Chakra + Chandra Bala (PR A1.3-fix-20 / fix-21) ────
+    # Tara Bala uses NAKSHATRAS (27/9-tara). Chandra Bala uses SIGNS
+    # (12-rashi). Both axes paired for full muhurtha favorability.
+    try:
+        from app.services.kp_tara_chakra import (
+            compute_tara_chakra, compute_today_tara, compute_transit_taras,
+            compute_today_chandra_bala, TARA_PARIHARAM,
+        )
+        natal_moon_nak = chart["planets"].get("Moon", {}).get("nakshatra", "")
+        natal_moon_sign = chart["planets"].get("Moon", {}).get("sign", "")
+        tara_chakra_full = compute_tara_chakra(natal_moon_nak)
+        today_tara = None
+        today_chandra_bala = None
+        transit_taras: list = []
+        if transits.get("current_transits"):
+            cur_moon_nak = transits["current_transits"].get("Moon", {}).get("nakshatra", "")
+            cur_moon_sign = transits["current_transits"].get("Moon", {}).get("sign", "")
+            today_tara = compute_today_tara(natal_moon_nak, cur_moon_nak)
+            today_chandra_bala = compute_today_chandra_bala(natal_moon_sign, cur_moon_sign)
+            transit_taras = compute_transit_taras(
+                natal_moon_nak, transits["current_transits"]
+            )
+        tara_data = {
+            "chakra": tara_chakra_full,
+            "natal_moon_sign": natal_moon_sign,
+            "today_tara": today_tara,
+            "today_chandra_bala": today_chandra_bala,
+            "transit_taras": transit_taras,
+            "pariharam": TARA_PARIHARAM,
+        }
+    except Exception as e:
+        _log.warning("Tara/Chandra Bala compute failed: %s", e)
+        tara_data = {}
+
     # ── 11. Assemble chart_data dict ────────────────────────────────
     chart_data: dict[str, Any] = {
         "name": name,
@@ -288,6 +332,7 @@ def build_full_chart_data(
         "yogini_dasha": yogini_data,
         "decision_support": decision_data,
         "dasha_conflicts": conflict_flags,
+        "tara_chakra": tara_data,  # PR A1.3-fix-20
         # Raw chart for the response payload (kept separately so the
         # routers can return it to the frontend without re-running the
         # compute).

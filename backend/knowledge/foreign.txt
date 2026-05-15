@@ -146,3 +146,134 @@ Step 7: Cross-reference with Ruling Planets
 Step 8: Check current MD+AD for foreign house significations
 Step 9: Scan future ADs for foreign activation
 Step 10: Identify PRIMARY window and complete timeline
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 8: PR / CITIZENSHIP / VISA — DETAILED FRAMEWORK (PR A1.3-fix-19)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The current KB conflates travel + settlement + visa. Real questions need
+finer distinction. Apply this when user asks about specific immigration
+status (work visa vs PR vs citizenship), or asks for date-specific timing.
+
+═══════════════════════════════════════════════════════════════════════
+THE FIVE STATUS LEVELS (in order of permanence):
+═══════════════════════════════════════════════════════════════════════
+
+1. SHORT VISIT (tourist, business trip, conference)
+   Houses: H3 (short journey) + H9 (long journey, if overseas) + H11 (purpose)
+   Dasha: any AD signifying H3 + H9 briefly
+   Duration: weeks to months
+   Indicator: H9 active without H12 strong = visit only, no stay
+
+2. WORK VISA / STUDY VISA (temporary status)
+   Houses: H6 (service) or H4 (education) + H9 + H12
+   H12 sub lord must be activated for the stay component
+   H11 connection = visa approved successfully
+   Dasha: AD signifying H6/H4 + H9 + H12 simultaneously
+   Duration: 1-6 years typically
+
+3. PERMANENT RESIDENCY (PR / Green Card / equivalent)
+   Houses: H4 (permanent home) + H9 (long journey) + H11 (gain) + H12 (foreign land)
+   ALL FOUR must be signified for PR to actually be granted
+   H4 is the differentiator — without H4, native is on temporary visa only
+   Dasha: AD signifying H4 + H11 + H12 for the application timing
+   Specific PR timing: when AD AND PD both signify H4 + H11 + H12 = grant date
+
+   Common error: predicting PR when only H9 + H12 are signified (that is just
+   work-stay continuation). H4 must enter the chain for PR specifically.
+
+4. CITIZENSHIP (full naturalization)
+   Houses: H4 + H9 + H10 + H11 + H12 (most layered status)
+   H10 = formal status (citizenship has formal rights)
+   H4 = permanent home
+   H11 = fulfillment of permanence
+   Dasha: AD signifying ALL FIVE, often with Jupiter or Saturn involvement
+   Citizenship typically comes 5-10 years after PR; check next major AD shift
+   after PR-grant period.
+
+5. RETURN TO HOMELAND (reverse migration)
+   Houses: H4 (homeland) becoming activated WHILE H12 weakens
+   Specifically: H4 sub lord signifying H4 + H2 + H11 = return home with gain
+   Saturn AD often triggers return-home if Saturn signifies H4
+   Dasha pattern: any AD where H12 is no longer activated AND H4 is
+
+═══════════════════════════════════════════════════════════════════════
+SPECIFIC PR-DATE QUESTION FRAMEWORK
+═══════════════════════════════════════════════════════════════════════
+
+When user asks Will my PR be approved by [specific date]? :
+
+Step 1: Identify the dasha at that date (MD + AD + PAD + Sookshma)
+Step 2: Check if AD lord signifies H4 + H9 + H11 + H12 (the PR signature)
+Step 3: Check if PAD lord signifies same (precision layer)
+Step 4: Check Sookshma fire-rank for the specific week
+Step 5: Cross-check with Ruling Planets at moment of asking
+Step 6: If all four layers (AD/PAD/Sookshma/RP) align on PR-houses = HIGH prob
+        If 3 of 4 align = MODERATE prob (likely with possible delay)
+        If 2 or fewer = LOW prob (likely deferred to a later AD)
+
+When the PR is structurally promised but the specific date does not align:
+  Predict the actual fire-window from the dasha analysis.
+  E.g., PR is structurally promised but the AD at user-specified date
+   does not signify H4 strongly. Looking ahead, the next AD where
+   H4+H11+H12 align is [Mercury AD, Jan 2029]. PR most likely fires
+   in Mercury AD, with the strongest precision in [PAD] window.
+
+═══════════════════════════════════════════════════════════════════════
+DUAL-RESIDENCE / SPLIT-TIME PATTERN
+═══════════════════════════════════════════════════════════════════════
+
+Some natives split time between countries (e.g., 6 months home, 6 abroad):
+
+  Indicator: H4 AND H12 BOTH simultaneously activated in long-running dasha
+  Often: H4 sub lord signifies H12 OR H12 sub lord signifies H4
+  Dual-sign Lagna or H7 amplifies dual-residence pattern
+  Common configuration: native works abroad but maintains property/family at home
+
+═══════════════════════════════════════════════════════════════════════
+DIRECTION OF FOREIGN COUNTRY (cardinal direction of destination)
+═══════════════════════════════════════════════════════════════════════
+
+Classical KP rule (less reliable but suggestive):
+
+  H12 sub lord planet direction:
+    Sun     = East
+    Moon    = North-West (water bodies)
+    Mars    = South
+    Mercury = North
+    Jupiter = North-East
+    Venus   = South-East
+    Saturn  = West
+    Rahu    = South-West / hidden direction
+    Ketu    = South / spiritually-leaning direction
+
+  This is a soft indicator. Combine with H9 sub lord direction for
+  refinement. Native chart birth-place is the reference point.
+
+═══════════════════════════════════════════════════════════════════════
+RETURN-FROM-ABROAD INDICATORS
+═══════════════════════════════════════════════════════════════════════
+
+When the native asks Will I return home? :
+
+  Saturn AD signifying H4 = high return probability (Saturn closes cycles)
+  Any AD with H4 + H2 + H11 signified = return with gains
+  Jupiter AD often = return for family duties or expansion
+  Ketu AD = sudden / unexpected return
+  Rahu AD continuing = native stays abroad longer
+
+  CAVEAT: Return is NEVER predicted on H12 weakening alone — need POSITIVE
+  H4 signal. H12 alone weakening might mean visa change, not actual return.
+
+═══════════════════════════════════════════════════════════════════════
+PUSHBACK DISCIPLINE
+═══════════════════════════════════════════════════════════════════════
+
+If user pushes back (e.g., my immigration lawyer said the date is X):
+  Re-run the dasha + significator + RP analysis at that specific date.
+  State which structural signals support the lawyer date vs your analysis.
+  If signals truly do not support the lawyer date, say so respectfully:
+   The chart structure does not strongly support that specific date.
+   The structurally-strongest window is [X]. Process timing in real life
+   can shift due to administrative factors not visible to the chart.

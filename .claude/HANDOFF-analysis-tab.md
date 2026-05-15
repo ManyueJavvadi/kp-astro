@@ -403,3 +403,109 @@ frontend/
 ---
 
 *Append entries below this line as the arc continues. Don't rewrite history above.*
+
+---
+
+## EXTENSION ARC — Cost / Accuracy / Chart Renderer / Tara System
+## (PR fix-12 → fix-21, post-revert continuation, ~2026-04-27 → 2026-05-06)
+
+After fix-10/revert-fix-11 closed the original 7-section output arc, the user
+opened a new working track focused on (1) astrologer-mode cost reduction,
+(2) general-user mode accuracy parity, (3) chart-renderer correctness, and
+(4) Tara Chakra / Chandra Bala system.
+
+10 more PRs shipped (76368a2 → 094e0e1 cumulative).
+
+### Shipped PR Table
+
+| PR | Commit | Scope |
+|---|---|---|
+| `fix-12` | `082a4ca` | Cache breakpoint reorder — moved KB + chart_summary into SYSTEM message blocks (was in latest user message AFTER history → 0 cache reads). Order most-stable→variable: system_prompt → chart_summary → universal_kb → topic_kb. ~67% cost reduction on follow-ups. |
+| `fix-13` | `cf9b59c` | 1h cache TTL for system_prompt + chart_summary + universal_kb (5m for topic_kb), beta header `extended-cache-ttl-2025-04-11`. Conditional KB loading (personality_psychology gated by topic relevance). KB dedup of ksk_rejections exalt/debil section. |
+| `fix-14` | `61c5365` | **CRITICAL ACCURACY FIX**: shared `chart_pipeline.build_full_chart_data` so `/prediction/ask` (general user mode) uses IDENTICAL compute as `/astrologer/analyze`. Before this, user mode was missing compute_advanced_for_topic, transit bundle, Yogini, decision_support, sookshma rank, gender field, age — running gender-hallucination + age-hedging bugs that astrologer mode had already fixed in fix-1. |
+| `fix-15` | `c922488` | Premium UserModeUI revamp: HeroVerdictCard, TimingStrip, ChartSnapshot, ActiveAnalysisPanel, EmptyStateHero, TrustBand. Two-column desktop, mobile bottom-sheet. ~600 lines TSX + ~280 lines CSS. |
+| `fix-16` | `f6dbfdf` | User-mode Phase 1+2+3: (1) chart_summary trim (drop sookshmas_upcoming_ads + cap PADs/sookshmas), (2) per-chart 24h answer cache (in-memory LRU), (3) SSE streaming endpoint `/prediction/ask-stream` — TTFT 60-120s → 1-2s. |
+| `fix-17` | `db05864` | **Haiku 4.5 for user mode** (Sonnet kept for astrologer). Mode-aware model_id selection. Cache audit fixes: `timezone_offset` added to make_key, IST date-roll (was UTC), GET /cache-stats admin endpoint. User-mode cost: $0.44 → $0.18 first / $0.10 → $0.03 follow-up. |
+| `fix-18` | `c1eab74` | Phase A KB trim — user-mode universal_kb reduced to 4 lean files (general + kp_csl_theory + planet_natures + ksk_rejections, ~22K tokens; was 12 files / ~40K). 8 files dropped that encoded 7-section astrologer-format thinking (timing_confirmation, bhavat_bhavam, multi_factor_queries, pattern_library, gold_standard_examples, confidence_methodology, remedies, transit_rules). User-mode first call: ~$0.10. Astrologer mode unchanged. **Tag**: `april-28-2026-bestusermode`. |
+| `fix-19` | `1fc4417` | **Type-classification gap closure**: 8 KB files expanded with detailed type-of-X frameworks (5-signal marriage type, gender prediction, PR vs citizenship, divorce who-initiates, wealth types, career govt/private/self-employed, health type framework, specific-date question framework). NEW RULE 33 (type-classification discipline) + RULE 35 (pushback re-verification — re-run analysis instead of pivoting under social pressure). +896 lines. |
+| `fix-20` | `1248957` | **RasiChart rewrite + Tara Chakra system**. Frontend: new RasiChart with North/South/East tabs (sign-fixed canonical KP layout, replaces wrong house-cell SouthIndianChart). Backend: NEW `kp_tara_chakra.py` with 27-nakshatra Navatara Chakra, today's Tara, transit Taras. Integrated into chart_pipeline + workspace endpoint. NEW TaraChakraWidget. +1,328 lines. |
+| `fix-21` | `094e0e1` | Chart bug fixes (East Indian completely rewrote to canonical Bengali 3×3 split-corners + Telugu rendering fix + dynamic title + North sizing). Tara expansions: Chandra Bala (12-sign Moon transit favorability — paired axis with Tara Bala), Pariharam (remedies for unfavorable Taras), modal → inline expand. +664 lines. |
+
+**Cumulative state (post fix-21):**
+- 35 system-prompt rules (1, 1B, 2-21, 21B, 22-31, 33, 35)
+- 8 KB files expanded with type-classification frameworks (post fix-19)
+- 6 compute modules: chart_engine, kp_advanced_compute, kp_transit_compute, kp_yogini_dasha, chart_pipeline (NEW shared), kp_tara_chakra (NEW)
+- 1 answer cache module (per-chart 24h LRU, IST date-roll, /cache-stats endpoint)
+- 2 model paths: Haiku 4.5 for user mode, Sonnet 4.6 for astrologer mode
+- 4 chart components: RasiChart (3-tab), HeroVerdictCard, TimingStrip, TaraChakraWidget
+- 27 nakshatra Tara Chakra + 12-sign Chandra Bala + 4 Pariharam remedies
+
+### Key principles added in extension arc
+
+**P11 — Accuracy lives in the engine, not in the LLM.**
+The user mode → Haiku swap was safe because engine compute (Star-Sub Harmony, decision_support, supporting cusps, sookshma fire-rank) is deterministic Python. LLM is a presentation layer for user mode (translation task, not analysis task). Haiku narration of pre-computed verdicts ≠ Haiku reasoning the verdicts.
+
+**P12 — KP South Indian = sign-fixed, planets-by-SIGN.**
+Old SouthIndianChart was rendering cells as houses (planets-by-house) which is structurally wrong for KP. Real KP astrologers read sign cells first, then map cusps to houses. Pisces top-left, signs FIXED, Roman-numeral cusp markers inside whichever sign cell each cusp falls in.
+
+**P13 — Type questions need override-checked frameworks, not single-rule defaults.**
+RULE 33 mandates: when user asks a TYPE question (love-vs-arranged, govt-vs-private, PR-vs-citizenship, etc.), run the full N-signal framework from KB, apply override hierarchy explicitly, never default to most-common type. The original "love-cum-arranged at workplace 2027" bug was because LLM saw H5 in CSL chain → defaulted to love-cum-arranged without checking 5L placement (in H6 = NEGATES love). Now framework forces all overrides.
+
+**P14 — Pushback ≠ pivot.**
+RULE 35 mandates: when user pushes back ("but my father said X"), RE-RUN the structural analysis from scratch. State which signals support which conclusion. If verdict shifts, name explicitly which signal was missed. If verdict doesn't shift, defend with evidence respectfully. Never just agree to be polite (RULE 4 + RULE 21B compatibility).
+
+**P15 — Tara Bala + Chandra Bala paired.**
+For full muhurtha favorability, both axes must be checked. Tara Bala = 27-nakshatra / 9-tara classification. Chandra Bala = 12-sign favorability of current Moon vs natal Moon. Senior KP astrologers always pair them. Combined verdict: both favorable = Strongly Favorable; both unfavorable = Avoid; mixed = case-by-case with pariharam.
+
+### Queued PRs (in order of impact, post-fix-21)
+
+**Cost optimization track (astrologer mode still ~$0.40-0.50)** — note: Quick Mode dropped per user direction:
+1. **Astrologer streaming endpoint** — mirror `/prediction/ask-stream` for `/astrologer/analyze-stream`. TTFT 60-120s → 1-2s, no cost change. ~100 lines, 2 hours.
+2. **History compression** (Codex's C — last 4 Q&A → 1 turn + summary). Save ~$0.015/follow-up. Medium quality risk. ~50 lines, 1.5 hours.
+3. **Output budget RULE 32 for full astrologer mode** — system prompt instruction: max 4000 output tokens, skip preambles. $0.50 → $0.30 first call. ~10 lines prompt, 30 min.
+4. **Drop vestigial `extended-cache-ttl-2025-04-11` beta header** — no longer needed (1h TTL is now standard). ~5 lines cleanup.
+5. **Redis-backed answer cache** — when scale demands cross-instance persistence. ~80 lines + Redis dep.
+
+**Quality / Feature track:**
+1. **Format B narrative restructure for astrologer mode** — 5-section flowing narrative (samples reviewed earlier; user approved direction but said wait until type-classification fix-19 ships first — done now). ~150 lines prompt, 2 hours.
+2. **Engine compute helpers for type classification** (`classify_marriage_type`, `classify_career_type`, etc.) — Python pre-compute deterministic type → LLM cites per RULE 18 instead of inferring. ~250 lines, 4 hours.
+3. **Saptamsa D7 divisional chart compute** — referenced in children gender framework Signal 4 but engine doesn't emit yet. ~120 lines compute + emission, 3 hours.
+4. **More worked examples in gold_standard_examples.md** — 5 more end-to-end examples spanning topics. ~250 lines KB, 2 hours.
+5. **Vedha nakshatras + Panchaka compute** — for marriage matching + auspicious-date filtering. ~80 lines, 1.5 hours.
+6. **Tara overlay in Dasha tab** (per-AD lord's Tara) — show each AD lord's Tara classification in the Dasha timeline. ~60 lines, 1.5 hours.
+
+**Other tracks (deferred):**
+- Real-world calibration (record actual outcomes vs engine predictions)
+- A1.4-A1.5 Transit research audit + accuracy fixes
+- A1.8-A1.9 Match research audit + accuracy fixes
+- Track B (auth + CRM + billing) — pending pricing-research session
+
+### What got DROPPED from the queue (and why)
+
+- **Astrologer Quick Mode toggle** (was queued in fix-22 plan): user dropped this idea explicitly. Reason: don't want to maintain two output formats for astrologer mode; Format B narrative restructure addresses verbosity differently.
+
+### Status block (UPDATED post fix-21 ship)
+
+- **Last code commit**: `094e0e1` (PR A1.3-fix-21).
+- **Total arc**: 21 PRs cumulative (`76368a2` → `094e0e1`) over original arc (fix-1 → fix-10 + revert-fix-11) plus extension arc (fix-12 → fix-21).
+- **Branch**: `develop` / worktree: `claude/eager-elbakyan`.
+- **Cost reality (post fix-17/18)**:
+  - User mode: ~$0.10 first call / ~$0.03 follow-up / $0 repeat-question (24h cache)
+  - Astrologer mode: ~$0.40-0.50 first call / ~$0.10-0.15 follow-up — **still high; queued PRs would address**
+- **Live backend output**: 7-section astrologer (fix-10 baseline), plain-English narrative for user mode
+- **Live frontend**: RasiChart with 3 tabs (canonical KP South default), TaraChakraWidget with Chandra Bala + Pariharam (inline expand), HeroVerdictCard for user mode
+- **Models**: Sonnet 4.6 (astrologer), Haiku 4.5 (user mode)
+- **Status**: **STRUCTURALLY + RENDERING-CORRECT + TARA-CHAKRA-COMPLETE**. Astrologer cost reduction queued. Format B narrative restructure queued. Quick Mode dropped.
+- **Tags**: `april-28-2026-bestusermode` (fix-17 rollback anchor).
+
+### Notes for future Claude (post-compaction)
+
+- READ THIS FILE FIRST when touching anything in `backend/app/services/llm_service.py`, `kp_advanced_compute.py`, `kp_transit_compute.py`, `kp_yogini_dasha.py`, `kp_tara_chakra.py`, `chart_pipeline.py`, `backend/knowledge/*`, or `backend/app/routers/{astrologer,prediction}.py`.
+- **15 principle commitments (P1-P15)** are sacrosanct. Don't undo without explicit user approval.
+- **Quick Mode is OFF the queue** — don't propose it. User opted for Format B narrative restructure as the verbosity solution.
+- **Astrologer mode cost is the next big lever** — bundle streaming + history compression + output budget rule into a single PR-fix-22 when user is ready.
+- **Type-classification frameworks** (RULE 33) — when adding new topic KB content, follow the marriage.txt Section 12 pattern (5-signal decision tree with explicit override hierarchy).
+- **Pushback discipline** (RULE 35) — when user disagrees, re-run structural analysis. Never agree to be polite.
+- **Engine compute = ground truth** (P11) — LLM presentation can use Haiku for user mode without quality loss because verdicts come from Python engine, not LLM reasoning.
+- **South Indian chart layout** (P12) — sign-fixed (Pisces top-left), planets-by-SIGN, Roman-numeral cusp markers. Don't regress to house-cell layout.
+- **Tara + Chandra Bala paired** (P15) — when implementing muhurtha or daily-favorability features, always check both axes.

@@ -281,3 +281,80 @@ MENTAL HEALTH SIGNALS (depression, anxiety):
 
 The engine emits these signals via 8L disposition, aspects, dignity,
 and combustion blocks. Cite specifically rather than generally.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+HEALTH-TYPE CLASSIFICATION FRAMEWORK (PR A1.3-fix-19)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Distinguish chronic vs acute vs mental vs surgical for any health question.
+
+CHRONIC CONDITION (long-term, manageable):
+  Saturn dominant in H6 chain
+  H6 sub lord in fixed sign
+  H6 + H8 with Saturn = chronic + degenerative
+  Examples: diabetes, hypertension, arthritis, kidney disease
+
+ACUTE CONDITION (sudden, short):
+  Mars dominant in H6 chain
+  H6 sub lord in moveable sign
+  H6 + H8 with Mars + Rahu = sudden / accident
+  Examples: fever, infection, accident, surgery emergency
+
+MENTAL HEALTH (anxiety, depression, psychiatric):
+  Moon afflicted (Saturn aspect or conjunction)
+  H4 + H12 connection (peace of mind disturbed)
+  Mercury afflicted = cognitive disturbance
+  Saturn + Moon + H6 = depression-leaning
+  Mars + Moon + H6 = anxiety-leaning
+
+SURGICAL INTERVENTION:
+  Mars + H6 + H8 (cutting + medical service + transformation)
+  Mars in H6 or H8 directly
+  Mars + Saturn + H6 = scheduled / repeated surgery
+  Sun + H6 + H8 = major surgery / hospitalization
+
+HEREDITARY CONDITION:
+  H4 (mother-side) or H9 (father-side) + H6 connection
+  Saturn or Rahu in parental house chain
+  H4 sub lord signifies H6 = mother-side hereditary
+  H9 sub lord signifies H6 = father-side hereditary
+
+ORGAN-SYSTEM MAPPING (planet to body):
+  Sun     = heart, eyes (right), spine, head
+  Moon    = stomach, breast, lungs, mind, body fluids
+  Mars    = blood, muscles, head injuries, accidents
+  Mercury = nervous system, skin, lungs (with Moon)
+  Jupiter = liver, pancreas, fat, hips
+  Venus   = reproductive organs, kidneys, throat
+  Saturn  = bones, joints, knees, teeth, skin (chronic)
+  Rahu    = mysterious illness, environmental toxins
+  Ketu    = parasitic disease, sudden disorders, immunity
+
+HOUSE-TO-BODY MAPPING:
+  H1 = head, body overall, vitality
+  H2 = face, mouth, throat (lower)
+  H3 = arms, shoulders, lungs
+  H4 = chest, heart, stomach (upper)
+  H5 = abdomen, liver, heart (lower)
+  H6 = waist, intestines, kidneys
+  H7 = lumbar, navel, kidneys, urinary
+  H8 = generative organs, anus, prostate
+  H9 = thighs, hips, arteries
+  H10 = knees, joints, skeletal
+  H11 = legs (calves), ankles, circulation
+  H12 = feet, sleep, hospitalization, immunity
+
+RECOVERY TIMING:
+  AD lord signifies H1 + H5 + H11 (vitality + recovery + gain) = recovery active
+  AD lord signifies H6 + H8 + H12 = condition deepening
+  Saturn AD = slow recovery
+  Jupiter AD = recovery with wisdom-based intervention
+  Sun AD = vitality returning
+
+PUSHBACK DISCIPLINE:
+  If user pushes back (e.g., my doctor said it is permanent or terminal):
+  Re-run H6 + H8 + H12 vs H1 + H5 + H11 dasha analysis.
+  KP gives structural disposition; medical realities differ.
+  Always recommend medical follow-up for actual diagnosis/treatment.
+  Never make absolute death-timing predictions (RULE 15 prohibits).

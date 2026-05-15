@@ -231,3 +231,95 @@ Step 9: Check current MD + AD significations
 Step 10: Scan ALL upcoming ADs for career relevance
 Step 11: Identify PRIMARY career window and SECONDARY windows
 Step 12: Complete timing verdict with specific AD dates and reasoning
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 9: GOVERNMENT vs PRIVATE vs SELF-EMPLOYED (PR A1.3-fix-19)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The service-vs-business distinction in Section 4 needs a third axis:
+GOVERNMENT vs PRIVATE-SECTOR work (which has different KP signatures).
+
+GOVERNMENT JOB (state employment):
+  Sun involvement is critical (Sun = government, authority, formal status)
+  H10 sub lord linked to Sun = government tendency
+  H10 + H6 + Sun = government service specifically (PSU/civil service)
+  Saturn involvement = lower-grade government / structured / long-tenure
+  Jupiter involvement = senior government / advisory / judiciary
+
+PRIVATE-SECTOR JOB:
+  H10 sub lord NOT linked to Sun
+  Mercury or Mars dominant in H10 chain
+  H6 + H7 partial (private employer = partnership with employer)
+  Rahu involvement = MNC / multinational / foreign private
+
+SELF-EMPLOYED / FREELANCE / CONSULTING:
+  H10 + H7 (own business / public dealings)
+  H10 sub lord NOT linked to H6 strongly
+  Mercury + Rahu = consultant / freelance / digital
+  Mars + Mercury = trade / commerce / direct selling
+
+DUAL (gov-pension + private side / consulting + permanent job):
+  H10 sub lord in dual sign + connection to BOTH H6 and H7
+  Common in late-career natives (e.g., gov-retired + consulting)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 10: PROMOTION vs JOB CHANGE vs STAGNATION (PR A1.3-fix-19)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROMOTION IN EXISTING JOB:
+  H10 + H11 + H6 (rise within current employer)
+  H4 NOT activated (not changing place/employer)
+  AD lord signifies H10 + H11 in same employer dasha
+
+JOB CHANGE (new employer, similar level):
+  H4 + H10 + H6 (change of place + new role + new service)
+  H3 + H10 (3rd = movement, H10 = new career setting)
+  H12 weak — not abroad change, just employer change
+
+PROMOTION + JOB CHANGE (better role at new employer):
+  H4 + H10 + H11 + H6 (place change + better role + gain)
+  Mercury or Jupiter dominant in firing AD
+
+CAREER STAGNATION:
+  H10 + H11 sub lords NOT activated in current AD
+  Saturn dominant + signifying H1/H8/H12 = pause/stagnation period
+  This is a dasha-specific phase, not permanent
+
+VOLUNTARY EXIT (resignation):
+  H10 sub lord + H12 (12th from H1, loss of service)
+  Native chart shows H4 (settling down) + H1 (self-decision)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 11: SPECIFIC INDUSTRY MAPPING — FINER DETAIL (PR A1.3-fix-19)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Beyond the planet-level mapping in Section 5, refine by combinations:
+
+  Mercury + Rahu          = AI / ML / Data Engineering / unconventional tech
+  Mercury + Saturn        = Backend / DevOps / Infrastructure
+  Mercury + Jupiter       = Senior tech leadership / consulting
+  Mercury + Mars          = Systems / hardware / embedded
+  Mercury + Sun           = Government tech / regulatory tech
+  Mercury + Moon          = Customer-facing tech / product / UX
+  Mars + Saturn           = Heavy industry / manufacturing / mining
+  Mars + Sun              = Defense / law enforcement / surgery
+  Jupiter + Sun           = Finance / banking / law / academia
+  Jupiter + Moon          = Education / counseling / psychiatry
+  Venus + Sun             = Diplomacy / luxury brands / arts admin
+  Venus + Moon            = Hospitality / arts / fashion / beauty
+  Saturn + Rahu           = Mining / heavy industry / outsourced ops
+  Sun + Rahu              = Tech in govt / regulatory tech / political tech
+  Moon + Mars             = Real estate / shipping / liquids
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 12: PUSHBACK DISCIPLINE FOR CAREER (PR A1.3-fix-19)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+If user pushes back (e.g., my career counsellor said I should switch to X):
+  Re-run the H10 + H6 + H7 + H11 chain analysis. Check if X aligns with the
+  planetary combinations above. State which signals support which path. KP
+  identifies STRUCTURAL FIT, not the only viable career.

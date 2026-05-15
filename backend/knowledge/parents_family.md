@@ -200,3 +200,123 @@ spouse's family, in-laws, and other relatives via Bhavat Bhavam (see
    speak in terms of "health crisis", "extra care needed", "advise medical attention".
 7. **70% accuracy from native's chart alone** via Bhavat Bhavam. **85-90% with relative's chart**.
    Be honest about confidence level.
+
+---
+
+## SECTION 8: RELATIVE PROFILES — READING CHARACTER FROM CUSP SUB LORD (PR A1.3-fix-26 Part B)
+
+**Source**: KSK Reader IV/V — extension of the spouse-profile rule (marriage.txt §13)
+to other relatives. Each relative has a primary house; the sub lord of THAT cusp
+gives indications about the relative's nature, profession, and dynamic with the
+native.
+
+**Caveat (CRITICAL)**: STRUCTURAL TENDENCIES, not deterministic descriptions.
+Frame all output as "the chart leans toward X" — never "your father IS X." A
+20-year astrologer reads tendencies, not pronouncements.
+
+### 8.1 Father — H9 cusp sub lord (KSK strict)
+
+**Primary cusp**: H9 (KSK Reader IV).
+
+Note: Some practitioners use H10 for father since H10 = paternal authority in
+Parashari. KSK uses H9 (father = dharma source, 9th from Lagna). When the two
+diverge, defer to H9 per KSK strict.
+
+**Father's profession** from H9 CSL planet:
+- Sun        — government, authority, judiciary, medicine
+- Moon       — public-service, healthcare, hospitality
+- Mars       — engineering, military, sports, surgery, real estate
+- Mercury    — business, accounting, communication, education
+- Jupiter    — teaching, law, religion, banking, advisory
+- Venus      — arts, hospitality, luxury, design
+- Saturn     — labor, manual work, mining, civil service, farming
+- Rahu       — unconventional, foreign-related, technology
+- Ketu       — research, spirituality, isolation-friendly fields
+
+**Father's relationship with native** from H9 CSL HOUSE PLACEMENT:
+- H9 CSL in H1  — father strong influence on self-identity (hands-on, present)
+- H9 CSL in H4  — father deeply tied to home/domestic life (provider role)
+- H9 CSL in H6  — conflict / debt / strained relationship (denial pattern)
+- H9 CSL in H10 — father very career-focused, status-driven
+- H9 CSL in H12 — father absent / distant / overseas / health issues
+
+### 8.2 Mother — H4 cusp sub lord
+
+**Primary cusp**: H4 (KSK + classical agreement).
+
+**Mother's profession** from H4 CSL planet (similar map as father, but H4
+connection means nurturing/domestic/emotional fields lean stronger):
+- Sun        — admin, leadership, public-facing
+- Moon       — strongest mother indicator: caregiver, nursing, teaching, hospitality
+- Mars       — physically active, sports, healthcare
+- Mercury    — teacher, writer, accountant, communicator
+- Jupiter    — teacher, counselor, advisor, religious role
+- Venus      — homemaker, artistic, hospitality, fashion
+- Saturn     — long-tenure work, farming, service
+- Rahu       — unconventional path, foreign-influenced
+- Ketu       — spiritual/devotional, isolation-tolerant
+
+**Mother's relationship with native** from H4 CSL HOUSE PLACEMENT:
+- H4 CSL in H1  — mother strong influence on self, nurturing presence
+- H4 CSL in H6  — conflict / health burden / strained relationship
+- H4 CSL in H7  — mother as partner-figure (often single-mother dynamic)
+- H4 CSL in H10 — mother career-focused, less domestic time
+- H4 CSL in H12 — mother distant / absent / health issues / overseas
+
+### 8.3 Siblings
+
+**Primary cusps**:
+- **Younger siblings**: H3 (3rd house — co-born after self)
+- **Elder siblings**: H11 (= 3rd from H9, also "gain house" of elder peer)
+
+**Sibling's profession** uses the same planet-to-profession map.
+
+**Sibling relationship dynamic**:
+- H3/H11 CSL signifying H6  — friction, rivalry, disputes
+- H3/H11 CSL signifying H11 — supportive, helpful sibling
+- H3/H11 CSL signifying H12 — distant sibling / sibling abroad / loss
+- H3/H11 CSL signifying H8  — sudden events / inheritance disputes with sibling
+
+**Number of siblings indication** (rough tendency):
+- Strong H3 chain + strong H11 chain — multiple siblings
+- Weak H3, strong H11             — only elder sibling(s)
+- Strong H3, weak H11             — only younger sibling(s)
+- Both weak                        — only-child possibility
+
+### 8.4 Children — H5 cusp sub lord
+
+For child-character reading (vs child-promise reading), use H5 CSL planet the
+same way. See `children_detailed.md` Section 12 for gender and Section 13 for
+number-of-children timing.
+
+### 8.5 Spouse — H7 cusp sub lord
+
+See `marriage.txt` Section 13 for the full spouse-profile framework
+(profession, appearance, age band, meeting context, nature).
+
+### 8.6 Output guidance for relative profiles
+
+When user asks "what is my [relative] like?" produce a profile section:
+
+1. PROFESSION leaning (1-2 sentences from CSL planet + house occupation)
+2. NATURE / TEMPERAMENT (1-2 sentences from CSL star lord + Star-Sub harmony)
+3. RELATIONSHIP DYNAMIC with native (1-2 sentences from CSL house placement)
+4. KEY LIFE EVENTS for that relative (only if user asks specifically) — use
+   Bhavat Bhavam (e.g., mother's marriage = 7th from H4 = H10 in native chart)
+5. CAVEAT: "These are structural indications drawn from your own chart. For
+   more accurate insights into your [relative], their own birth chart would
+   refine the picture significantly."
+
+### 8.7 Do NOT do
+
+- Do NOT predict relative's death timing (RULE 15 absolute — never).
+- Do NOT predict relative's exact appearance / first name / specific
+  identifying details.
+- Do NOT enable confirmation bias ("does this match my dad?") — let the user
+  draw their own conclusions.
+- Do NOT extend profile to relative's hidden personality flaws or private
+  matters even if the chart suggests them. Privacy + dignity caveat.
+- DO acknowledge the 70% confidence ceiling when reading relative profile
+  from native's chart alone.
+- DO recommend the relative's own chart for deeper insight if user wants
+  more.

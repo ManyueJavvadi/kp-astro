@@ -88,6 +88,80 @@ export const theme = {
   },
 } as const;
 
+// ════════════════════════════════════════════════════════════════
+// Motion tokens (Phase 15.1 — "Cosmic Craft")
+// ════════════════════════════════════════════════════════════════
+// EVERY animation in the app pulls easing/timing from this single source.
+// Consistent rhythm is what brains read as "well-made". Adding a new motion
+// shape? Either reuse a token below, or extend the token set — never inline
+// a magic cubic-bezier in component code.
+//
+// Used by:
+//   - <FadeIn>, <StaggerChildren>, <MaskReveal> primitives
+//   - Motion components throughout the app
+//   - CSS keyframes that need to match Motion timing
+//
+// Reference grammar (oryzo/Lusion-style "weight & inertia"):
+//   - Reveals: emphasized decelerate (heavy entrance, soft landing)
+//   - Hover/press: gentle overshoot (responsive but not bouncy)
+//   - Continuous: slow ease loop (breathing rhythm)
+//   - Layout: spring with low damping (organic, never snappy)
+// ════════════════════════════════════════════════════════════════
+
+export const motion = {
+  // ── Easings (use these strings as Motion's `ease` prop) ──────────────
+  ease: {
+    // Material 3 "emphasized decelerate" — perfect for reveals.
+    // Fast initial, soft landing. Feels like content "arriving".
+    reveal: [0.16, 1, 0.3, 1] as [number, number, number, number],
+    // Gentle overshoot — for hover/press micro-interactions.
+    // Just enough bounce to feel alive, not cartoonish.
+    overshoot: [0.34, 1.56, 0.64, 1] as [number, number, number, number],
+    // Strong decelerate — for important entrances (page heroes, modals).
+    emphasized: [0.05, 0.7, 0.1, 1] as [number, number, number, number],
+    // In-out — for continuous loops (breathing, idle pulses).
+    breathing: [0.45, 0, 0.55, 1] as [number, number, number, number],
+  },
+
+  // ── Durations (seconds — Motion expects seconds, not ms) ─────────────
+  duration: {
+    instant: 0.12,    // hover tint, focus ring
+    fast: 0.25,       // small UI feedback (button press, chip select)
+    base: 0.4,        // most reveals
+    slow: 0.6,        // hero reveals, larger components
+    long: 1.2,        // dramatic entrances (chart bloom, page hero)
+    breathing: 3.8,   // continuous loops (orb breath, pulse-gold)
+  },
+
+  // ── Stagger gaps (seconds between siblings in a cascade) ─────────────
+  stagger: {
+    tight: 0.03,      // dense lists (planet table rows, panchang day cells)
+    base: 0.06,       // most lists (house grid, dasha tree, topic chips)
+    relaxed: 0.1,     // hero sections, large cards
+    dramatic: 0.18,   // small set of items meant to feel intentional
+  },
+
+  // ── Spring presets (Motion's spring config objects) ──────────────────
+  spring: {
+    // Default — for most layout animations. Smooth, settles fast.
+    soft: { type: "spring" as const, stiffness: 200, damping: 24, mass: 1 },
+    // Snappier — for buttons, chip selects.
+    crisp: { type: "spring" as const, stiffness: 360, damping: 28, mass: 0.8 },
+    // Bouncy — for celebration moments (chart bloom, score reveal).
+    elastic: { type: "spring" as const, stiffness: 180, damping: 14, mass: 1.1 },
+    // Heavy — for large UI (sheet open, modal lift).
+    weighty: { type: "spring" as const, stiffness: 140, damping: 22, mass: 1.3 },
+  },
+
+  // ── Distances (pixels — used for translateY/X on reveal) ─────────────
+  distance: {
+    nudge: 6,         // subtle (hover lift)
+    small: 12,        // most reveals (text fade-up)
+    medium: 20,       // cards (slide-up)
+    large: 32,        // page-level entrances
+  },
+} as const;
+
 /** Inline style helpers for common patterns. */
 export const styles = {
   primaryButton: {

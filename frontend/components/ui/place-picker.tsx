@@ -33,7 +33,10 @@ export function PlacePicker({
 }) {
   const [suggestions, setSuggestions] = useState<PlacePick[]>([]);
   const [open, setOpen] = useState(false);
-  const [status, setStatus] = useState<"idle" | "searching" | "found" | "none">(
+  // PR A1.3-fix-25 — added "error" status to distinguish network failure
+  // from "no results". Both used to show "No matches — try adding state…"
+  // which gave users no way to recover from a Nominatim outage.
+  const [status, setStatus] = useState<"idle" | "searching" | "found" | "none" | "error">(
     "idle"
   );
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -73,7 +76,7 @@ export function PlacePicker({
         }
       );
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const items: PlacePick[] = (res.data as any[]).map((f) => {
+      const mapped: PlacePick[] = (res.data as any[]).map((f) => {
         const addr = f.address || {};
         const first =
           addr.suburb ||
@@ -92,11 +95,28 @@ export function PlacePicker({
           lon: parseFloat(f.lon),
         };
       });
+      // Phase 4 / PR 8 + Phase 7 / PR 17 — dedupe by display alone
+      // (normalised). Phase 4's lat/lon-keyed dedup let through a
+      // production-confirmed Tenali case where OSM returned two
+      // entries with the same display but different lat/lons. Display
+      // already carries state + country so distant Springfields keep
+      // distinct strings — only true duplicates collapse.
+      const seen = new Set<string>();
+      const items: PlacePick[] = [];
+      for (const p of mapped) {
+        const key = (p.display ?? "").toLowerCase().replace(/\s+/g, " ").trim();
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        items.push(p);
+      }
       setSuggestions(items);
       setOpen(items.length > 0);
       setStatus(items.length > 0 ? "idle" : "none");
     } catch {
-      setStatus("none");
+      // PR A1.3-fix-25 — distinct error status. "none" = zero results
+      // for a valid query; "error" = network/service failure (Nominatim
+      // down, CORS, browser offline). Different recoveries.
+      setStatus("error");
     }
   };
 
@@ -111,7 +131,13 @@ export function PlacePicker({
     setOpen(false);
     setSuggestions([]);
     setStatus("found");
-    // Best-effort timezone lookup from coords
+    // PR A1.3-fix-24 — was reading `res.data.timezone.ianaTimeId` which
+    // bigdatacloud DOES NOT return — the actual field path is
+    // `data.localityInfo.administrative[i].timeZone.name` (per
+    // `frontend/hooks/useLiveLocation.ts` which uses it correctly).
+    // The bug meant tz was ALWAYS undefined → every place pick fell back
+    // to Asia/Kolkata regardless of where the user picked. Real chart-
+    // accuracy bug for non-IST birthplaces.
     let tz: string | undefined;
     try {
       const res = await axios.get(
@@ -124,7 +150,12 @@ export function PlacePicker({
           },
         }
       );
-      const resolved = res.data?.timezone?.ianaTimeId;
+      const d = res.data;
+      const resolved =
+        (d?.localityInfo?.administrative || []).find(
+          (a: { timeZone?: { name?: string } }) => a?.timeZone?.name
+        )?.timeZone?.name
+        || d?.timeZone?.name;
       if (typeof resolved === "string" && resolved.length > 0) {
         tz = resolved;
       }
@@ -234,6 +265,20 @@ export function PlacePicker({
         >
           No matches — try adding the state or country (e.g. &quot;Tenali,
           Andhra Pradesh&quot;).
+        </div>
+      )}
+      {/* PR A1.3-fix-25 — separate copy for service errors so the user
+          knows it's not their typing that's wrong. */}
+      {status === "error" && value.length >= 3 && (
+        <div
+          role="alert"
+          style={{
+            marginTop: 4,
+            fontSize: 11,
+            color: "#fca5a5",
+          }}
+        >
+          Couldn&apos;t reach the place lookup service. Check your connection or try again in a moment.
         </div>
       )}
     </div>
