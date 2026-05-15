@@ -1,16 +1,43 @@
 """
 KP Marriage Compatibility Engine.
-Computes KP-based compatibility + full 8-kuta Ashtakoota + Kuja/Manglik dosha.
-Includes D9 Navamsa, detailed significators, DBA, 5th CSL, and divorce risk.
+
+PR A1.4 (Phase 19 — 2026-05-15) — Track A.1 deep accuracy rebuild.
+Audit doc: .claude/research/match-audit.md
+Goal: bring this engine to "20-year KP astrologer second-opinion" depth.
+
+Material changes vs the pre-A1.4 version:
+
+  1. Tara kuta inversion fixed   (was {1,3,5,7} auspicious; now {2,4,6,8,0})
+  2. MARRIAGE_DENIAL_HOUSES adds 12 (separation/loss)
+  3. H7 CSL promise is now TIERED (full / partial / weak / none)
+     via the KSK strict-AND rule on {2,7,11}
+  4. KP UNION method (step 4) — _planet_significations now also gathers
+     the sub-lord's house occupation, not just the star lord's
+  5. 7-slot Ruling Planets at NATAL time (Day Lord, Asc Sub Lord, Moon
+     Sub Lord added — KSK's "Moon sub lord decides yes/no" rule)
+  6. Canonical cross-chart match (kpastrologylearning.com Rule 5):
+     each chart's H2/H7/H11 CSL must signify {2,7,11} AND the other
+     chart's 7-slot RPs must also signify {2,7,11}
+  7. Venus override REMOVED (KSK strict: Venus is context, not override)
+  8. 5-signal love-vs-arranged classification (marriage.txt Section 12)
+  9. Saturn 3rd/7th/10th aspect to H7 — counted in separation risk
+ 10. Manglik mutual cancellation SOFTENED (reduces severity, not zero)
+ 11. _dasha_overlap_check renamed/rewritten as _marriage_window_overlap
+     — actual time-window scan of next 60 months
+ 12. Overall verdict combiner reweighted: capped by individual promise,
+     separation_risk + D9 H7 feed in
 """
 import swisseph as swe
+from datetime import datetime as _dt
 from app.services.chart_engine import (
     get_sub_lord, get_nakshatra_and_starlord, get_sign,
     get_planet_positions, date_time_to_julian,
     generate_chart,
+    get_sign_lord,
     calculate_dashas, get_current_dasha,
     calculate_antardashas, get_current_antardasha,
     calculate_pratyantardashas, get_current_pratyantardasha,
+    DAY_LORDS,
 )
 from app.services.chart_formatter import format_chart_for_frontend
 
@@ -116,9 +143,24 @@ VASYA_MAP = {
     "Scorpio": ["Cancer"], "Capricorn": ["Aries"], "Pisces": ["Capricorn"],
 }
 
-MARRIAGE_DENIAL_HOUSES = {1, 6, 10}
+# PR A1.4 — KSK Reader IV strict reading + marriage.txt:12.
+# H12 = isolation / separation / foreign separation / loss. Earlier
+# constant omitted H12 which let charts with H7 CSL signifying H12
+# never trigger has_denial — separation-prone charts read "Compatible".
+MARRIAGE_DENIAL_HOUSES = {1, 6, 10, 12}
 MARRIAGE_PROMISE_HOUSES = {2, 7, 11}
 KUJA_HOUSES = {1, 2, 4, 7, 8, 12}
+
+# PR A1.4 — Tiered promise.
+# KSK strict rule (kpastrologylearning.com Rule 1 + marriage.txt:24):
+# "The sub lord of the 7th cusp signifies 2 AND 7 AND 11"   → FULL promise
+# Two of three                                              → PARTIAL
+# One of three                                              → WEAK
+# None of three (or only denial houses)                     → NONE
+PROMISE_FULL    = "Full"
+PROMISE_PARTIAL = "Partial"
+PROMISE_WEAK    = "Weak"
+PROMISE_NONE    = "None"
 
 # H7 sub-lord interpretations for marriage type / spouse nature
 H7_SUBLORD_TRAITS = {
@@ -264,6 +306,16 @@ def _build_chart(person: dict) -> dict:
 
     h7_sl = get_sub_lord(cusp_lons[6] % 360)
 
+    # PR A1.4 — Day Lord of birth (for 7-slot natal RP).
+    # Parse the input date "YYYY-MM-DD" and compute its weekday in LOCAL
+    # time. The DAY_LORDS dict in chart_engine maps Python weekday()
+    # (0=Mon..6=Sun) → planet.
+    try:
+        date_obj = _dt.strptime(person["date"], "%Y-%m-%d")
+        day_lord = DAY_LORDS[date_obj.weekday()]
+    except Exception:
+        day_lord = ""
+
     return {
         "jd": jd,
         "planets": planets,
@@ -276,6 +328,7 @@ def _build_chart(person: dict) -> dict:
         "moon_sign": moon_sign,
         "lagna_sign": lagna_sign,
         "h7_sub_lord": h7_sl,
+        "day_lord": day_lord,
     }
 
 
@@ -296,16 +349,52 @@ def _get_planet_house(planet_lon: float, cusp_lons: list) -> int:
 
 
 def _planet_significations(planet_name: str, planets: dict, cusp_lons: list) -> set:
+    """
+    KP UNION-method 4-step significator collection for ONE planet.
+
+    Per kp_csl_theory.txt + KSK Reader I:
+      Step 1: house occupied by the planet
+      Step 2: houses owned (sign lordship) by the planet
+      Step 3: house occupied by the planet's STAR LORD
+      Step 4: house occupied by the planet's SUB LORD     ← NEW in PR A1.4
+                (we additionally union the SUB LORD's owned houses, as
+                 KSK Reader I §53 includes both occupation and ownership
+                 at every chain step)
+
+    The earlier (pre-A1.4) implementation stopped at Step 3. KP UNION
+    method strictly requires Step 4 — otherwise a planet's sub lord
+    chain is silently dropped, under-counting H7-CSL connections to
+    the marriage triplet {2,7,11}.
+    """
     if planet_name not in planets:
         return set()
     plon = planets[planet_name]["longitude"]
     occupied = _get_planet_house(plon, cusp_lons)
-    ruled = {i + 1 for i in range(12) if SIGN_LORDS.get(get_sign(cusp_lons[i] % 360)) == planet_name}
-    star_lord = get_nakshatra_and_starlord(plon).get("star_lord", "")
-    sl_house = _get_planet_house(planets[star_lord]["longitude"], cusp_lons) if star_lord in planets else 0
+    ruled = {i + 1 for i in range(12)
+             if SIGN_LORDS.get(get_sign(cusp_lons[i] % 360)) == planet_name}
     result = {occupied} | ruled
-    if sl_house:
-        result.add(sl_house)
+
+    # Step 3 — star lord's occupation
+    star_lord = get_nakshatra_and_starlord(plon).get("star_lord", "")
+    if star_lord in planets:
+        result.add(_get_planet_house(planets[star_lord]["longitude"], cusp_lons))
+
+    # Step 4 — sub lord's occupation + ownership (PR A1.4)
+    # NOTE on Rahu/Ketu: get_sub_lord operates on a longitude, so we read
+    # the planet's own sub lord. For shadow planets KSK reads them through
+    # the sign-lord of their position; we approximate by adding the sub
+    # lord's house only (most KP tools do this; finer Rahu/Ketu chains
+    # are out of scope for A1.4).
+    sub_lord = get_sub_lord(plon)
+    if sub_lord and sub_lord in planets:
+        result.add(_get_planet_house(planets[sub_lord]["longitude"], cusp_lons))
+        # Union the houses owned by the sub lord (sign lordship)
+        for i in range(12):
+            if SIGN_LORDS.get(get_sign(cusp_lons[i] % 360)) == sub_lord:
+                result.add(i + 1)
+
+    # Drop the placeholder 0 (means "house unknown") if it crept in
+    result.discard(0)
     return result
 
 
@@ -318,31 +407,94 @@ def _get_cusp_sub_lord_sigs(house_num: int, chart: dict) -> tuple[str, set]:
 
 
 def _h7_sublord_promise(chart: dict) -> dict:
-    """Check if H7 sub-lord promises marriage. Includes richer KP data."""
+    """
+    Check H7 sub-lord promise — TIERED in PR A1.4.
+
+    KSK strict reading (kpastrologylearning.com Rule 1, marriage.txt:24):
+       Promise = H7 CSL signifies 2 AND 7 AND 11 (intersection has 3 elements)
+       Partial = intersection has 2 elements
+       Weak    = intersection has 1 element
+       None    = intersection is empty (or only denial houses)
+
+    Pre-A1.4 had `has_promise = bool(sigs & {2,7,11})` — fired on any
+    one match. Combined with 4-step significator collection, virtually
+    every chart hit `has_promise=True`, which propagated to the
+    cross-chart compatibility logic and produced default-Compatible
+    verdicts.
+    """
     h7_sl = chart["h7_sub_lord"]
     sigs = _planet_significations(h7_sl, chart["planets"], chart["cusp_lons"])
-    has_promise = bool(sigs & MARRIAGE_PROMISE_HOUSES)
-    has_denial = bool(sigs & MARRIAGE_DENIAL_HOUSES)
+    promise_intersection = sigs & MARRIAGE_PROMISE_HOUSES
+    denial_intersection  = sigs & MARRIAGE_DENIAL_HOUSES
+
+    promise_count = len(promise_intersection)
+    if promise_count == 3:
+        promise_tier = PROMISE_FULL
+    elif promise_count == 2:
+        promise_tier = PROMISE_PARTIAL
+    elif promise_count == 1:
+        promise_tier = PROMISE_WEAK
+    else:
+        promise_tier = PROMISE_NONE
+
+    has_promise = promise_tier == PROMISE_FULL
+    has_denial  = bool(denial_intersection)
+
+    # PR A1.4 — verdict logic respects both tier AND denial.
+    # FULL promise with any denial → "Promised with caution" (partial)
+    # PARTIAL or WEAK with denial   → "Denied" (denial wins)
+    # PARTIAL with no denial        → "Conditional"
+    # WEAK with no denial           → "Conditional - weak"
+    if promise_tier == PROMISE_FULL and not has_denial:
+        verdict = "Promised"
+    elif promise_tier == PROMISE_FULL and has_denial:
+        verdict = "Promised with caution"
+    elif promise_tier == PROMISE_PARTIAL and not has_denial:
+        verdict = "Conditional"
+    elif promise_tier == PROMISE_PARTIAL and has_denial:
+        verdict = "Denied"
+    elif promise_tier == PROMISE_WEAK and not has_denial:
+        verdict = "Conditional - weak"
+    elif promise_tier == PROMISE_WEAK and has_denial:
+        verdict = "Denied"
+    elif has_denial:
+        verdict = "Denied"
+    else:
+        verdict = "Inconclusive"
+
+    # H7 CSL in retrograde star — KP delay/denial signal (Phase 18 rule).
+    # Per kp_csl_theory.txt §247: "If the CSL is in a retrograde star,
+    # the event fructifies only at the end of the retro period or not at all."
+    h7_csl_in_retro_star = False
+    if h7_sl and h7_sl in chart["planets"]:
+        sl_pos = chart["planets"][h7_sl]
+        sl_star_lord = get_nakshatra_and_starlord(sl_pos["longitude"]).get("star_lord", "")
+        if sl_star_lord and sl_star_lord in chart["planets"]:
+            h7_csl_in_retro_star = bool(chart["planets"][sl_star_lord].get("retrograde", False))
 
     # H7 sign lord (not sub-lord) — additional indicator
     h7_lon = chart["cusp_lons"][6] % 360
     h7_sign_lord = SIGN_LORDS.get(get_sign(h7_lon), "")
     h7_lord_sigs = _planet_significations(h7_sign_lord, chart["planets"], chart["cusp_lons"])
     h7_lord_supports = bool(h7_lord_sigs & MARRIAGE_PROMISE_HOUSES)
+    h7_lord_house = (_get_planet_house(chart["planets"][h7_sign_lord]["longitude"], chart["cusp_lons"])
+                     if h7_sign_lord in chart["planets"] else 0)
 
     # H7 sub-lord traits (marriage type, spouse nature, caution)
     traits = H7_SUBLORD_TRAITS.get(h7_sl, {})
 
-    # Marriage type classification
+    # Marriage style snapshot (NOT the authoritative type classification —
+    # that uses _five_signal_classification below). This is a one-liner for
+    # display only.
     sigs_set = set(sigs)
     if h7_sl in ("Rahu", "Ketu"):
         marriage_type = "Unconventional/Karmic"
     elif 5 in sigs_set and 7 in sigs_set and 11 in sigs_set:
-        marriage_type = "Love Marriage"
+        marriage_type = "Love-and-legal (5+7+11)"
     elif 12 in sigs_set and 7 in sigs_set and 11 in sigs_set:
-        marriage_type = "Secret/Private Marriage"
-    elif 2 in sigs_set and 7 in sigs_set and 11 in sigs_set:
-        marriage_type = "Traditional/Arranged Marriage"
+        marriage_type = "Secret/Private (12+7+11)"
+    elif promise_tier == PROMISE_FULL:
+        marriage_type = "Traditional/Arranged (2+7+11)"
     elif 5 in sigs_set:
         marriage_type = "Love component present"
     else:
@@ -351,10 +503,15 @@ def _h7_sublord_promise(chart: dict) -> dict:
     return {
         "sub_lord": h7_sl,
         "signified_houses": sorted(sigs),
-        "has_promise": has_promise,
+        "promise_houses_hit": sorted(promise_intersection),
+        "denial_houses_hit": sorted(denial_intersection),
+        "promise_tier": promise_tier,
+        "has_promise": has_promise,        # back-compat — only True for FULL
         "has_denial": has_denial,
-        "verdict": "Promised" if has_promise and not has_denial else ("Denied" if has_denial else "Conditional"),
+        "verdict": verdict,
+        "csl_in_retrograde_star": h7_csl_in_retro_star,
         "h7_sign_lord": h7_sign_lord,
+        "h7_sign_lord_house": h7_lord_house,
         "h7_lord_supports": h7_lord_supports,
         "marriage_type": marriage_type,
         "spouse_nature": traits.get("spouse_nature", ""),
@@ -504,11 +661,19 @@ def _h5_sublord_analysis(chart: dict) -> dict:
 
 def _separation_risk(chart: dict) -> dict:
     """
-    Divorce/separation risk analysis.
-    Checks H7 CSL for 6/8/12 signification + Mars in 7th/8th.
+    Divorce/separation risk — PR A1.4 expanded.
+
+    Additions vs pre-A1.4:
+      - Saturn 3rd/7th/10th VEDIC ASPECT to H7 (delay/coldness signal,
+        not just Saturn IN H7)
+      - Rahu / Ketu on H1-H7 axis flag
+      - H7 CSL in retrograde star flag
+      - Mars 4th/7th/8th aspect to H7 (Mars's special aspects)
     """
     h7_promise = _h7_sublord_promise(chart)
     sigs = set(h7_promise["signified_houses"])
+    cusp_lons = chart["cusp_lons"]
+    planets = chart["planets"]
     risk_factors = []
 
     if 6 in sigs:
@@ -517,20 +682,43 @@ def _separation_risk(chart: dict) -> dict:
         risk_factors.append("H7 CSL signifies H12 (loss/separation)")
     if 8 in sigs:
         risk_factors.append("H7 CSL signifies H8 (obstacles/transformation)")
+    if h7_promise.get("csl_in_retrograde_star"):
+        risk_factors.append("H7 CSL is in retrograde star (delay / non-fructification)")
 
-    # Mars in 7th or 8th
-    if "Mars" in chart["planets"]:
-        mars_house = _get_planet_house(chart["planets"]["Mars"]["longitude"], chart["cusp_lons"])
+    # Mars — occupation in H7/H8 + special Vedic aspects to H7
+    # Mars special aspects: 4th, 7th, 8th from itself
+    if "Mars" in planets:
+        mars_house = _get_planet_house(planets["Mars"]["longitude"], cusp_lons)
         if mars_house in (7, 8):
             risk_factors.append(f"Mars in H{mars_house} (aggression in partnership)")
+        # Special aspect to H7
+        if mars_house in (4, 12, 1):  # Mars from 4→7, 12→7 (8th asp), 1→7 (7th asp)
+            risk_factors.append(f"Mars in H{mars_house} casts special aspect to H7 (conflict signal)")
 
-    # Saturn in 7th
-    if "Saturn" in chart["planets"]:
-        sat_house = _get_planet_house(chart["planets"]["Saturn"]["longitude"], chart["cusp_lons"])
+    # Saturn — occupation in H7 + special Vedic aspects to H7
+    # Saturn special aspects: 3rd, 7th, 10th from itself
+    if "Saturn" in planets:
+        sat_house = _get_planet_house(planets["Saturn"]["longitude"], cusp_lons)
         if sat_house == 7:
             risk_factors.append("Saturn in H7 (delays/coldness in marriage)")
+        # Saturn 3rd aspect: from H5 → H7
+        # Saturn 7th aspect: from H1 → H7 (Saturn in H1)
+        # Saturn 10th aspect: from H10 → H7
+        if sat_house == 5:
+            risk_factors.append("Saturn in H5 casts 3rd-aspect to H7 (long delay/maturity demand)")
+        elif sat_house == 1:
+            risk_factors.append("Saturn in H1 casts 7th-aspect to H7 (delay + serious tone)")
+        elif sat_house == 10:
+            risk_factors.append("Saturn in H10 casts 10th-aspect to H7 (career-marriage tension)")
 
-    if len(risk_factors) >= 3:
+    # Rahu / Ketu on H1-H7 axis
+    for shadow in ("Rahu", "Ketu"):
+        if shadow in planets:
+            h = _get_planet_house(planets[shadow]["longitude"], cusp_lons)
+            if h in (1, 7):
+                risk_factors.append(f"{shadow} on H1-H7 axis at H{h} (unconventional/karmic delay)")
+
+    if len(risk_factors) >= 4:
         risk_level = "High"
     elif len(risk_factors) >= 2:
         risk_level = "Moderate"
@@ -546,16 +734,69 @@ def _separation_risk(chart: dict) -> dict:
 
 
 def _ruling_planets(chart: dict) -> set:
-    moon_info = get_nakshatra_and_starlord(chart["moon_lon"])
-    lagna_info = get_nakshatra_and_starlord(chart["lagna_lon"])
-    rps = {
-        SIGN_LORDS.get(chart["moon_sign"], ""),
-        moon_info.get("star_lord", ""),
-        SIGN_LORDS.get(chart["lagna_sign"], ""),
-        lagna_info.get("star_lord", ""),
+    """
+    7-slot natal Ruling Planets — PR A1.4.
+
+    Pre-A1.4: 4-slot RP (Moon sign lord, Moon star lord, Lagna sign lord,
+    Lagna star lord). This omitted the Day Lord, Ascendant Sub Lord, and
+    most critically the MOON SUB LORD — which per KSK's writings
+    (ajmerastro.com / KP Reader I) "frequently decides yes/no when other
+    ruling planets are split."
+
+    PR A1.4 returns the canonical KP 7-slot natal RP set. We use natal
+    birth time (not query time) because compatibility analysis evaluates
+    the chart's *promise*, not a horary moment. For Match-mode query-time
+    RPs we'd use chart_engine.get_ruling_planets() instead.
+
+    For richer downstream consumers, _ruling_planets_full() (below) gives
+    the slot assignments + strongest list.
+    """
+    return set(_ruling_planets_full(chart)["ruling_planets"])
+
+
+def _ruling_planets_full(chart: dict) -> dict:
+    """7-slot natal RP with slot assignments + strongest list."""
+    # 1. Day Lord — weekday of birth, in local time at birth place.
+    #    The chart was built with the user's timezone_offset already, so
+    #    we can read the local-time weekday by parsing the input date.
+    #    chart["jd"] is the UT julian day; convert to local time.
+    day_lord = chart.get("day_lord", "")  # populated in _build_chart
+
+    moon_lon = chart["moon_lon"]
+    lagna_lon = chart["lagna_lon"]
+    moon_info = get_nakshatra_and_starlord(moon_lon)
+    lagna_info = get_nakshatra_and_starlord(lagna_lon)
+
+    slot_assignments = [
+        {"slot": "Day Lord",       "planet": day_lord},
+        {"slot": "Asc Sign Lord",  "planet": SIGN_LORDS.get(chart["lagna_sign"], "")},
+        {"slot": "Asc Star Lord",  "planet": lagna_info.get("star_lord", "")},
+        {"slot": "Asc Sub Lord",   "planet": get_sub_lord(lagna_lon)},
+        {"slot": "Moon Sign Lord", "planet": SIGN_LORDS.get(chart["moon_sign"], "")},
+        {"slot": "Moon Star Lord", "planet": moon_info.get("star_lord", "")},
+        {"slot": "Moon Sub Lord",  "planet": get_sub_lord(moon_lon)},
+    ]
+    planet_slots: dict[str, list[str]] = {}
+    for a in slot_assignments:
+        p = a["planet"]
+        if not p:
+            continue
+        planet_slots.setdefault(p, []).append(a["slot"])
+
+    # Rank: planets in more slots float to top; ties → earliest slot
+    def _rank(p):
+        first_idx = min(i for i, a in enumerate(slot_assignments) if a["planet"] == p)
+        return (-len(planet_slots[p]), first_idx, p)
+
+    ranked = sorted(planet_slots.keys(), key=_rank)
+    strongest = [p for p in ranked if len(planet_slots[p]) >= 2]
+
+    return {
+        "ruling_planets": ranked,
+        "slot_assignments": slot_assignments,
+        "planet_slots": planet_slots,
+        "strongest": strongest,
     }
-    rps.discard("")
-    return rps
 
 
 # ── Extended KP Marriage Analysis ────────────────────────────
@@ -611,6 +852,173 @@ def _venus_analysis(chart: dict) -> dict:
         "afflicted": afflicted,
         "strength": strength,
         "enhances_promise": enhances,
+    }
+
+
+def _five_signal_classification(chart: dict) -> dict:
+    """
+    Five-signal love-vs-arranged classification — PR A1.4.
+
+    Source: marriage.txt Section 12 (canonical KP framework). Externally
+    confirmed by redastrologer.com, astrogle.com on 2026-05-15.
+
+    The five signals (in order):
+      Signal 1: H5 presence in H7 CSL chain (love-tendency indicator)
+      Signal 2: 5L placement quality (THE CRITICAL OVERRIDE — H6/8/12
+                negates love path even if Signal 1 is positive)
+      Signal 3: H4 + H9 in H7 CSL chain (parental-mediation indicator)
+      Signal 4: Moon house position (family-driven indicator)
+      Signal 5: 5L-7L relationship (the binder — same planet, conjunction,
+                parivartana, mutual aspect)
+
+    Verdict categories: Pure Love / Pure Arranged / Love-cum-Arranged /
+    Love-affair-then-Arranged / Family-Mediated-with-Native-Acceptance.
+    """
+    h7_csl = chart["h7_sub_lord"]
+    cusp_lons = chart["cusp_lons"]
+    planets = chart["planets"]
+
+    # H7 CSL chain houses (using UNION method via _planet_significations)
+    h7_chain_houses = _planet_significations(h7_csl, planets, cusp_lons)
+
+    # Signal 1: H5 in H7 chain?
+    s1_h5_in_chain = 5 in h7_chain_houses
+
+    # Signal 2: 5L placement quality
+    h5_lon = cusp_lons[4] % 360
+    fifth_lord = SIGN_LORDS.get(get_sign(h5_lon), "")
+    fifth_lord_house = (_get_planet_house(planets[fifth_lord]["longitude"], cusp_lons)
+                        if fifth_lord in planets else 0)
+    s2_love_path_negated = fifth_lord_house in {6, 8, 12}
+    s2_love_path_strong = fifth_lord_house in {5, 7, 11}
+
+    # Signal 3: H4 + H9 in H7 chain?
+    s3_h4_in_chain = 4 in h7_chain_houses
+    s3_h9_in_chain = 9 in h7_chain_houses
+    # H4 sub lord and H9 sub lord signifying H7 — extra parental check
+    h4_csl, h4_sigs = _get_cusp_sub_lord_sigs(4, chart)
+    h9_csl, h9_sigs = _get_cusp_sub_lord_sigs(9, chart)
+    s3_mother_active = 7 in h4_sigs
+    s3_father_active = 7 in h9_sigs
+    s3_strong_arranged = s3_h4_in_chain and s3_h9_in_chain
+    s3_one_parent     = s3_h4_in_chain ^ s3_h9_in_chain
+
+    # Signal 4: Moon house position
+    moon_house = _get_planet_house(chart["moon_lon"], cusp_lons)
+    if moon_house in {2, 4}:
+        s4_moon_mode = "family-driven"
+    elif moon_house in {7, 11}:
+        s4_moon_mode = "joint-decision"
+    elif moon_house in {5, 9}:
+        s4_moon_mode = "romance+dharma"
+    elif moon_house in {8, 12}:
+        s4_moon_mode = "hidden/secretive"
+    elif moon_house in {1, 10}:
+        s4_moon_mode = "self/career-driven"
+    else:
+        s4_moon_mode = "neutral"
+
+    # Signal 5: 5L-7L relationship
+    seventh_lord = SIGN_LORDS.get(get_sign(cusp_lons[6] % 360), "")
+    if fifth_lord and seventh_lord:
+        if fifth_lord == seventh_lord:
+            s5_relation = "5L = 7L (same planet)"
+            s5_strength = "strong"
+        else:
+            # conjunction within 8°?
+            if (fifth_lord in planets and seventh_lord in planets):
+                lon5 = planets[fifth_lord]["longitude"] % 360
+                lon7 = planets[seventh_lord]["longitude"] % 360
+                sep = abs((lon5 - lon7 + 180) % 360 - 180)
+                if sep <= 8:
+                    s5_relation = f"5L-7L conjunct ({round(sep,1)}°)"
+                    s5_strength = "strong"
+                else:
+                    # parivartana check
+                    fifth_house_sign = get_sign(planets[fifth_lord]["longitude"] % 360)
+                    seventh_house_sign = get_sign(planets[seventh_lord]["longitude"] % 360)
+                    if (SIGN_LORDS.get(fifth_house_sign) == seventh_lord
+                        and SIGN_LORDS.get(seventh_house_sign) == fifth_lord):
+                        s5_relation = "5L-7L parivartana (exchange)"
+                        s5_strength = "mild"
+                    else:
+                        s5_relation = "5L-7L unconnected"
+                        s5_strength = "none"
+            else:
+                s5_relation = "5L or 7L missing"
+                s5_strength = "none"
+    else:
+        s5_relation = "lords missing"
+        s5_strength = "none"
+
+    # Apply decision tree (marriage.txt Section 12)
+    # The CRITICAL override: if Signal 2 negates love (5L in 6/8/12),
+    # then even if Signal 1 is positive, the love-marriage path is closed.
+    if s2_love_path_negated and s1_h5_in_chain:
+        category = "Love-affair-then-Arranged"
+        reasoning = (
+            "H5 appears in H7 CSL chain (Signal 1: love-tendency exists) "
+            "BUT 5L in H{} negates the love-marriage path (Signal 2 override). "
+            "Family arrangement takes over.".format(fifth_lord_house)
+        )
+    elif s1_h5_in_chain and s2_love_path_strong and s5_strength == "strong":
+        category = "Pure Love Marriage"
+        reasoning = (
+            "H5 in H7 CSL chain (Signal 1) + 5L in H{} well-placed (Signal 2) + "
+            "{} (Signal 5).".format(fifth_lord_house, s5_relation)
+        )
+    elif s1_h5_in_chain and s2_love_path_strong and s3_one_parent:
+        category = "Love-cum-Arranged"
+        reasoning = (
+            "Love tendency present (H5 in chain, 5L well-placed) AND "
+            "one-parent network involved (H{} in chain).".format(4 if s3_h4_in_chain else 9)
+        )
+    elif s3_strong_arranged and not s1_h5_in_chain:
+        category = "Pure Arranged Marriage"
+        reasoning = (
+            "Both H4 and H9 in H7 CSL chain (Signal 3 strong arranged) + "
+            "no H5 in chain (Signal 1 absent)."
+        )
+    elif s3_strong_arranged and s2_love_path_negated:
+        category = "Pure Arranged Marriage"
+        reasoning = (
+            "Parental mediation strong (H4+H9 in chain) + 5L in H{} "
+            "(love path negated).".format(fifth_lord_house)
+        )
+    elif (s3_h4_in_chain or s3_h9_in_chain) and not s1_h5_in_chain:
+        category = "Family-Mediated with Native Acceptance"
+        reasoning = (
+            "Parental network present (H{} in chain), love tendency absent — "
+            "family arranges and native approves.".format(4 if s3_h4_in_chain else 9)
+        )
+    elif not s1_h5_in_chain and not s3_h4_in_chain and not s3_h9_in_chain:
+        category = "Inconclusive"
+        reasoning = "No strong signals from H5, H4, or H9 in H7 CSL chain."
+    else:
+        category = "Mixed signals — Love-cum-Arranged most likely"
+        reasoning = (
+            f"H5 in chain: {s1_h5_in_chain} | 5L in H{fifth_lord_house} | "
+            f"Parental: H4={s3_h4_in_chain}, H9={s3_h9_in_chain} | "
+            f"Moon: {s4_moon_mode} | 5L-7L: {s5_relation}"
+        )
+
+    return {
+        "category": category,
+        "reasoning": reasoning,
+        "signal_1_h5_in_chain": s1_h5_in_chain,
+        "signal_2_fifth_lord_house": fifth_lord_house,
+        "signal_2_fifth_lord": fifth_lord,
+        "signal_2_love_path_negated": s2_love_path_negated,
+        "signal_2_love_path_strong": s2_love_path_strong,
+        "signal_3_h4_in_chain": s3_h4_in_chain,
+        "signal_3_h9_in_chain": s3_h9_in_chain,
+        "signal_3_mother_active": s3_mother_active,
+        "signal_3_father_active": s3_father_active,
+        "signal_4_moon_house": moon_house,
+        "signal_4_moon_mode": s4_moon_mode,
+        "signal_5_relation": s5_relation,
+        "signal_5_strength": s5_strength,
+        "seventh_lord": seventh_lord,
     }
 
 
@@ -687,11 +1095,105 @@ def _dasha_overlap_check(chart1_data: dict, chart2_data: dict, chart1: dict, cha
 
 # ── KP Compatibility ──────────────────────────────────────────
 
+def _canonical_cross_match(chart_a: dict, chart_b: dict) -> dict:
+    """
+    Canonical KP two-chart matching rule — PR A1.4.
+
+    Source: kpastrologylearning.com Rule 5 (KSK Reader IV):
+    "Both persons' 7th cusp sub lords AND the other's ruling planets
+    should signify 2, 7, and 11 for harmonious union."
+
+    Concretely, for chart A:
+      Q1: Does A's H7 CSL signify {2, 7, 11}?  (own promise)
+      Q2: Do B's 7-slot RPs signify {2, 7, 11} in A's chart?
+          (i.e. do those B-RP planets, when read as significators
+           IN A's chart, hit A's marriage houses?)
+
+    And the mirror for chart B (Q3, Q4).
+
+    The "Both will marry" rule (per the same source): "If at least 2
+    ruling planets match with 2 out of 3 sub lords of {2,7,11} cusps
+    and Vimsottari dasas are favorable for both" → marriage promised.
+
+    Pre-A1.4: a generic intersection of "A's marriage significators ∩
+    B's 4-slot RPs" was used — that is too loose (5-8 sigs × 4 RPs ≈
+    always ≥ 3 hits regardless of actual compatibility).
+    """
+    target_houses = MARRIAGE_PROMISE_HOUSES
+
+    # Q1 — A's H7/H2/H11 CSLs
+    a_csls = []
+    for h in (2, 7, 11):
+        csl, sigs = _get_cusp_sub_lord_sigs(h, chart_a)
+        a_csls.append({"cusp": h, "csl": csl, "sigs": sorted(sigs),
+                       "signifies_target": bool(sigs & target_houses)})
+    a_own_promise = sum(1 for c in a_csls if c["signifies_target"])
+
+    # Q2 — does each B-RP, READ IN A's chart, signify A's marriage houses?
+    b_rps = _ruling_planets_full(chart_b)["ruling_planets"]
+    b_rp_in_a_marriage = []
+    for rp in b_rps:
+        if rp in chart_a["planets"]:
+            sigs_in_a = _planet_significations(rp, chart_a["planets"], chart_a["cusp_lons"])
+            if sigs_in_a & target_houses:
+                b_rp_in_a_marriage.append({"planet": rp, "sigs": sorted(sigs_in_a & target_houses)})
+
+    # Mirror: Q3, Q4 — B side
+    b_csls = []
+    for h in (2, 7, 11):
+        csl, sigs = _get_cusp_sub_lord_sigs(h, chart_b)
+        b_csls.append({"cusp": h, "csl": csl, "sigs": sorted(sigs),
+                       "signifies_target": bool(sigs & target_houses)})
+    b_own_promise = sum(1 for c in b_csls if c["signifies_target"])
+
+    a_rps = _ruling_planets_full(chart_a)["ruling_planets"]
+    a_rp_in_b_marriage = []
+    for rp in a_rps:
+        if rp in chart_b["planets"]:
+            sigs_in_b = _planet_significations(rp, chart_b["planets"], chart_b["cusp_lons"])
+            if sigs_in_b & target_houses:
+                a_rp_in_b_marriage.append({"planet": rp, "sigs": sorted(sigs_in_b & target_houses)})
+
+    # Canonical match strength — each side requires:
+    #   own H7 CSL signifies {2,7,11} (at least 1 of 3 marriage cusps) AND
+    #   partner's RPs hit own marriage houses (≥ 2 such RPs)
+    a_side_ok = (a_own_promise >= 1) and (len(b_rp_in_a_marriage) >= 2)
+    b_side_ok = (b_own_promise >= 1) and (len(a_rp_in_b_marriage) >= 2)
+
+    # Strict canonical: both sides OK (Rule 5 full form)
+    both_sides_ok = a_side_ok and b_side_ok
+    # Looser asymmetric: one side fully OK
+    one_side_ok = a_side_ok or b_side_ok
+
+    return {
+        "a_csl_h2_7_11": a_csls,
+        "b_csl_h2_7_11": b_csls,
+        "a_own_promise_count": a_own_promise,
+        "b_own_promise_count": b_own_promise,
+        "b_rps_signifying_a_marriage": b_rp_in_a_marriage,
+        "a_rps_signifying_b_marriage": a_rp_in_b_marriage,
+        "a_side_canonical_match": a_side_ok,
+        "b_side_canonical_match": b_side_ok,
+        "both_sides_canonical_match": both_sides_ok,
+        "one_side_canonical_match": one_side_ok,
+    }
+
+
 def _kp_compatibility(chart1: dict, chart2: dict) -> dict:
+    """
+    KP two-chart compatibility verdict — PR A1.4 strict rebuild.
+
+    Key changes vs pre-A1.4:
+      - Promise tiered Full/Partial/Weak/None — strict {2 AND 7 AND 11}
+      - VENUS OVERRIDE REMOVED (KSK explicit: Venus is context, not override)
+      - Canonical 4-way cross-match (kpastrologylearning.com Rule 5)
+      - Verdict capped by individual promise tier on BOTH sides
+      - Loose resonance metric demoted to supplementary info
+    """
     promise1 = _h7_sublord_promise(chart1)
     promise2 = _h7_sublord_promise(chart2)
 
-    # Venus karaka analysis for both charts
+    # Venus karaka analysis — kept for QUALITY notes, NOT for verdict override.
     venus1 = _venus_analysis(chart1)
     venus2 = _venus_analysis(chart2)
 
@@ -699,35 +1201,27 @@ def _kp_compatibility(chart1: dict, chart2: dict) -> dict:
     support1 = _supporting_cusps(chart1)
     support2 = _supporting_cusps(chart2)
 
+    # Canonical KSK Reader IV / kpastrologylearning Rule 5 cross-check.
+    canonical = _canonical_cross_match(chart1, chart2)
+
+    # 5-signal type classification per chart
+    type1 = _five_signal_classification(chart1)
+    type2 = _five_signal_classification(chart2)
+
+    # Significators + RP info (kept for AI worksheet context, NOT for verdict)
     sigs1 = _marriage_significators(chart1)
     sigs2 = _marriage_significators(chart2)
-    rp1 = _ruling_planets(chart1)
-    rp2 = _ruling_planets(chart2)
+    rp1_full = _ruling_planets_full(chart1)
+    rp2_full = _ruling_planets_full(chart2)
+    rp1 = set(rp1_full["ruling_planets"])
+    rp2 = set(rp2_full["ruling_planets"])
 
+    # Resonance kept for context but NO LONGER drives verdict.
     resonance_1to2 = sorted(sigs1 & rp2)
     resonance_2to1 = sorted(sigs2 & rp1)
     total_resonance = len(set(resonance_1to2) | set(resonance_2to1))
 
-    # Critical Venus Override: if Venus is strong in a chart, it can elevate
-    # a "Denied" promise to "Conditional" (KP rule: karaka strength overrides weak CSL)
-    p1_effective = promise1["has_promise"]
-    p2_effective = promise2["has_promise"]
-
-    if promise1["has_denial"] and venus1["enhances_promise"]:
-        p1_effective = True  # Venus karaka overrides denial → Conditional
-        promise1 = dict(promise1)
-        promise1["verdict"] = "Conditional (Venus overrides)"
-        promise1["venus_override"] = True
-    if promise2["has_denial"] and venus2["enhances_promise"]:
-        p2_effective = True
-        promise2 = dict(promise2)
-        promise2["verdict"] = "Conditional (Venus overrides)"
-        promise2["venus_override"] = True
-
-    # H7 sign lord support adds another layer of confirmation
-    h7_lord_both = promise1.get("h7_lord_supports", False) and promise2.get("h7_lord_supports", False)
-
-    # Supporting cusps strengthen the verdict
+    # Supporting cusp score (H2 + H11 for both charts)
     support_score = sum([
         1 if support1["h2_supports"] else 0,
         1 if support1["h11_supports"] else 0,
@@ -735,19 +1229,52 @@ def _kp_compatibility(chart1: dict, chart2: dict) -> dict:
         1 if support2["h11_supports"] else 0,
     ])
 
-    # Verdict determination (enriched)
-    if p1_effective and p2_effective and total_resonance >= 3 and support_score >= 2:
+    # ── KP Verdict — strict-rule cascade (PR A1.4) ────────────────
+    # Tier 1: both Full promise + both supporting cusps + canonical both-sides
+    # Tier 2: both Full promise + canonical at least one side
+    # Tier 3: both Partial-or-Full + canonical at least one side
+    # Tier 4: at least one Full promise + some supporting evidence
+    # Tier 5: at least one Partial + some supporting evidence
+    # Tier 6: any denial + no countervailing → Caution
+    # Tier 7: else → Inconclusive
+    p1_tier = promise1["promise_tier"]
+    p2_tier = promise2["promise_tier"]
+    p1_denial = promise1["has_denial"]
+    p2_denial = promise2["has_denial"]
+    p1_full = p1_tier == PROMISE_FULL and not p1_denial
+    p2_full = p2_tier == PROMISE_FULL and not p2_denial
+    p1_partial_or_better = p1_tier in (PROMISE_FULL, PROMISE_PARTIAL) and not p1_denial
+    p2_partial_or_better = p2_tier in (PROMISE_FULL, PROMISE_PARTIAL) and not p2_denial
+
+    if p1_full and p2_full and canonical["both_sides_canonical_match"] and support_score >= 3:
         verdict = "Strong Match"
-    elif p1_effective and p2_effective and total_resonance >= 3:
-        verdict = "Strong Match"
-    elif p1_effective and p2_effective and total_resonance >= 1:
+        verdict_reasoning = "Both charts FULL promise + canonical cross-match both sides + strong H2/H11 support."
+    elif p1_full and p2_full and canonical["one_side_canonical_match"]:
         verdict = "Good Match"
-    elif (p1_effective or p2_effective) and total_resonance >= 1:
-        verdict = "Fair Match"
-    elif promise1["has_denial"] or promise2["has_denial"]:
-        verdict = "Caution"
-    else:
+        verdict_reasoning = "Both charts FULL promise + canonical cross-match at least one side."
+    elif p1_partial_or_better and p2_partial_or_better and canonical["both_sides_canonical_match"]:
+        verdict = "Good Match"
+        verdict_reasoning = "Both charts ≥ Partial promise + canonical cross-match both sides."
+    elif p1_partial_or_better and p2_partial_or_better and canonical["one_side_canonical_match"]:
         verdict = "Conditional"
+        verdict_reasoning = "Both charts ≥ Partial promise + canonical cross-match one side only."
+    elif (p1_partial_or_better or p2_partial_or_better) and canonical["one_side_canonical_match"]:
+        verdict = "Conditional - weak"
+        verdict_reasoning = "Only one chart promises, only one side canonical match. Marriage possible but unbalanced."
+    elif p1_denial or p2_denial:
+        verdict = "Caution"
+        verdict_reasoning = "Denial signal active in {} chart{}; insufficient promise to override.".format(
+            "either" if (p1_denial and p2_denial) else ("Person 1's" if p1_denial else "Person 2's"),
+            "s" if (p1_denial and p2_denial) else ""
+        )
+    else:
+        verdict = "Inconclusive"
+        verdict_reasoning = "Neither chart shows clean promise; canonical cross-match weak. More data needed."
+
+    # Augment promise with the cross-resonance fact (NOT to flip verdict —
+    # only to enrich the LLM worksheet).
+    h7_lord_both = (promise1.get("h7_lord_supports", False)
+                    and promise2.get("h7_lord_supports", False))
 
     return {
         "chart1_promise": promise1,
@@ -756,16 +1283,24 @@ def _kp_compatibility(chart1: dict, chart2: dict) -> dict:
         "venus_chart2": venus2,
         "supporting_cusps_chart1": support1,
         "supporting_cusps_chart2": support2,
+        "type_classification_chart1": type1,
+        "type_classification_chart2": type2,
+        "canonical_cross_match": canonical,
         "significators_chart1": sorted(sigs1),
         "significators_chart2": sorted(sigs2),
         "ruling_planets_chart1": sorted(rp1),
         "ruling_planets_chart2": sorted(rp2),
+        "rp_slots_chart1": rp1_full["slot_assignments"],
+        "rp_slots_chart2": rp2_full["slot_assignments"],
+        "rp_strongest_chart1": rp1_full["strongest"],
+        "rp_strongest_chart2": rp2_full["strongest"],
         "resonance_1_to_2": resonance_1to2,
         "resonance_2_to_1": resonance_2to1,
         "total_resonance_count": total_resonance,
         "h7_lord_both_support": h7_lord_both,
         "support_score": support_score,
         "kp_verdict": verdict,
+        "kp_verdict_reasoning": verdict_reasoning,
     }
 
 
@@ -797,30 +1332,79 @@ def _calc_vasya(chart_boy: dict, chart_girl: dict) -> dict:
 
 
 def _calc_tara(chart_boy: dict, chart_girl: dict) -> dict:
+    """
+    Tara Kuta — PR A1.4 SMOKING-GUN FIX.
+
+    The pre-A1.4 code had the auspicious set INVERTED:
+       auspicious = {1, 3, 5, 7}   (wrong — these are the worst three!)
+
+    Per Brihat Parashara + Tara ladder (externally confirmed against
+    AstroSight, FutureScope Astrology, Astroyogi, Vedik Astrologer,
+    AstrologyFutureEye, AstrologerPanditJi — unanimous):
+
+      Remainder  Tara name        Nature
+      1          Janma            conditionally auspicious (half credit)
+      2          Sampat           AUSPICIOUS (Wealth)
+      3          Vipat            INAUSPICIOUS (Danger)
+      4          Kshema           AUSPICIOUS (Prosperity)
+      5          Pratyari         INAUSPICIOUS (Obstacle)
+      6          Sadhaka          AUSPICIOUS (Achievement)
+      7          Vadha            INAUSPICIOUS (Slaughter)
+      8          Mitra            AUSPICIOUS (Friend)
+      0 (=9)     Ati Mitra        AUSPICIOUS (Great Friend)
+
+    Auspicious set: {2, 4, 6, 8, 0}.
+    Inauspicious set: {3, 5, 7}.
+    Janma (1) is borderline — we give half credit (0.75 of full direction).
+
+    This single fix moves many "Compatible" → "Conditionally Compatible".
+    """
     naks = NAKSHATRA_ORDER
     girl_nak = chart_girl["moon_nakshatra"]
     boy_nak = chart_boy["moon_nakshatra"]
-    if girl_nak in naks and boy_nak in naks:
-        g_idx = naks.index(girl_nak)
-        b_idx = naks.index(boy_nak)
-        count_gb = ((b_idx - g_idx) % 27) + 1
-        count_bg = ((g_idx - b_idx) % 27) + 1
-        r_gb = count_gb % 9 or 9
-        r_bg = count_bg % 9 or 9
-        auspicious_gb = r_gb in {1, 3, 5, 7}
-        auspicious_bg = r_bg in {1, 3, 5, 7}
-        if auspicious_gb and auspicious_bg:
-            score = 3
-        elif auspicious_gb or auspicious_bg:
-            score = 1.5
-        else:
-            score = 0
-    else:
-        score = 0
-        auspicious_gb = auspicious_bg = False
-    return {"kuta": "Tara", "max": 3, "score": score,
-            "girl_nakshatra": girl_nak, "boy_nakshatra": boy_nak,
-            "auspicious_girl_to_boy": auspicious_gb, "auspicious_boy_to_girl": auspicious_bg}
+    if girl_nak not in naks or boy_nak not in naks:
+        return {"kuta": "Tara", "max": 3, "score": 0,
+                "girl_nakshatra": girl_nak, "boy_nakshatra": boy_nak,
+                "tara_girl_to_boy": "?", "tara_boy_to_girl": "?",
+                "note": "Nakshatra lookup failed"}
+
+    TARA_NAMES = {
+        1: "Janma", 2: "Sampat", 3: "Vipat", 4: "Kshema", 5: "Pratyari",
+        6: "Sadhaka", 7: "Vadha", 8: "Mitra", 0: "Ati Mitra",
+    }
+    AUSPICIOUS_TARAS = {2, 4, 6, 8, 0}        # full credit
+    HALF_CREDIT_TARAS = {1}                    # Janma — borderline
+    INAUSPICIOUS_TARAS = {3, 5, 7}             # Vipat, Pratyari, Vadha
+
+    g_idx = naks.index(girl_nak)
+    b_idx = naks.index(boy_nak)
+    # KP convention: count is inclusive of both endpoints.
+    count_gb = ((b_idx - g_idx) % 27) + 1     # from girl's janma to boy's
+    count_bg = ((g_idx - b_idx) % 27) + 1     # from boy's janma to girl's
+    r_gb = count_gb % 9
+    r_bg = count_bg % 9
+
+    def _direction_credit(r):
+        if r in AUSPICIOUS_TARAS:
+            return 1.5                          # full half of 3 points
+        if r in HALF_CREDIT_TARAS:
+            return 0.75                         # Janma half
+        return 0.0                              # 3 / 5 / 7
+
+    score = _direction_credit(r_gb) + _direction_credit(r_bg)
+    note_parts = [
+        f"Girl→Boy: {TARA_NAMES.get(r_gb, '?')} ({r_gb})",
+        f"Boy→Girl: {TARA_NAMES.get(r_bg, '?')} ({r_bg})",
+    ]
+    return {
+        "kuta": "Tara", "max": 3, "score": round(score, 2),
+        "girl_nakshatra": girl_nak, "boy_nakshatra": boy_nak,
+        "tara_girl_to_boy": TARA_NAMES.get(r_gb, "?"),
+        "tara_boy_to_girl": TARA_NAMES.get(r_bg, "?"),
+        "remainder_gb": r_gb, "remainder_bg": r_bg,
+        "has_dosha": (r_gb in INAUSPICIOUS_TARAS) or (r_bg in INAUSPICIOUS_TARAS),
+        "note": " | ".join(note_parts),
+    }
 
 
 def _calc_yoni(chart_boy: dict, chart_girl: dict) -> dict:
@@ -1085,32 +1669,115 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
     sep_risk1 = _separation_risk(chart1)
     sep_risk2 = _separation_risk(chart2)
 
-    # Kuja dosha mutual cancellation
+    # Kuja dosha mutual cancellation — PR A1.4 SOFTENED.
+    # Pre-A1.4: zeroed both doshas entirely. Per AstroSight + Nidhi Trivedi,
+    # canonical behavior is "energies balance, severity reduced" — not
+    # full nullification. We now keep `has_dosha = True` for both but
+    # downgrade severity by one tier and record the cancellation note.
     kuja_both = dosha_p1["has_dosha_raw"] and dosha_p2["has_dosha_raw"]
     if kuja_both:
-        dosha_p1["has_dosha"] = False
-        dosha_p1["cancellations"].append("Both partners have Kuja dosha — cancelled")
-        dosha_p2["has_dosha"] = False
-        dosha_p2["cancellations"].append("Both partners have Kuja dosha — cancelled")
+        # Severity downgrade: Severe → Moderate → Mild → None
+        for d in (dosha_p1, dosha_p2):
+            if d.get("severity") == "Severe":
+                d["severity"] = "Moderate"
+            elif d.get("severity") == "Moderate":
+                d["severity"] = "Mild"
+            # has_dosha stays True — energies balance, they don't disappear
+            d["cancellations"].append(
+                "Both partners Manglik — severity reduced (not nullified)"
+            )
 
-    # Overall verdict
-    kp_score = {"Strong Match": 3, "Good Match": 2, "Fair Match": 1, "Conditional": 1, "Caution": 0}.get(kp["kp_verdict"], 1)
-    ast_score = 2 if ashtakoota["total_score"] >= 25 else 1 if ashtakoota["total_score"] >= 18 else 0
-    dosha_penalty = sum([
-        1 if dosha_p1["has_dosha"] else 0,
-        1 if dosha_p2["has_dosha"] else 0,
-        1 if "Nadi" in ashtakoota["critical_doshas"] else 0,
-    ])
-    combined = kp_score + ast_score - dosha_penalty
+    # ── Overall verdict — PR A1.4 strict combiner ────────────────────
+    # The pre-A1.4 combiner gave kp_score=1 to Conditional + ast_score=1
+    # for any Ashtakoota ≥ 18 → "Compatible" was the default state.
+    #
+    # PR A1.4 rules:
+    #   1. KP verdict is PRIMARY — it sets the ceiling
+    #   2. Ashtakoota is SECONDARY — can confirm but not override
+    #   3. Separation risk + D9 H7 contradiction can downgrade
+    #   4. If EITHER chart's H7 CSL has denial AND promise not Full,
+    #      cap the verdict at "Conditionally Compatible" regardless
+    #      of Ashtakoota
+    #   5. If EITHER chart's promise_tier is None, cap at
+    #      "Needs Careful Consideration"
+    kp_verdict = kp["kp_verdict"]
 
-    if combined >= 4:
-        overall = "Highly Compatible"
-    elif combined >= 2:
-        overall = "Compatible"
-    elif combined >= 1:
-        overall = "Conditionally Compatible"
-    else:
+    # KP-anchored base
+    kp_base = {
+        "Strong Match":       "Highly Compatible",
+        "Good Match":         "Compatible",
+        "Conditional":        "Conditionally Compatible",
+        "Conditional - weak": "Conditionally Compatible",
+        "Caution":            "Needs Careful Consideration",
+        "Inconclusive":       "Needs Careful Consideration",
+    }.get(kp_verdict, "Conditionally Compatible")
+
+    # Order for comparison (low → high)
+    VERDICT_RANK = {
+        "Needs Careful Consideration": 0,
+        "Conditionally Compatible":    1,
+        "Compatible":                  2,
+        "Highly Compatible":           3,
+    }
+
+    overall = kp_base
+
+    # Promise-tier cap — strict rule
+    p1_tier = kp["chart1_promise"]["promise_tier"]
+    p2_tier = kp["chart2_promise"]["promise_tier"]
+    p1_denial = kp["chart1_promise"]["has_denial"]
+    p2_denial = kp["chart2_promise"]["has_denial"]
+
+    if PROMISE_NONE in (p1_tier, p2_tier):
         overall = "Needs Careful Consideration"
+    elif (p1_denial and p1_tier != PROMISE_FULL) or (p2_denial and p2_tier != PROMISE_FULL):
+        # Denial + non-full promise on either side → cap at Conditional
+        if VERDICT_RANK[overall] > VERDICT_RANK["Conditionally Compatible"]:
+            overall = "Conditionally Compatible"
+
+    # Separation-risk downgrade
+    sr1_level = sep_risk1["risk_level"]
+    sr2_level = sep_risk2["risk_level"]
+    if "High" in (sr1_level, sr2_level):
+        # High separation risk on either side downgrades one tier
+        if VERDICT_RANK[overall] > 0:
+            overall_rank = max(0, VERDICT_RANK[overall] - 1)
+            overall = next(k for k, v in VERDICT_RANK.items() if v == overall_rank)
+    elif sr1_level == "Moderate" and sr2_level == "Moderate":
+        # Moderate on BOTH sides downgrades one tier
+        if VERDICT_RANK[overall] > 0:
+            overall_rank = max(0, VERDICT_RANK[overall] - 1)
+            overall = next(k for k, v in VERDICT_RANK.items() if v == overall_rank)
+
+    # Ashtakoota confirm/contradict — secondary only.
+    # If KP says Compatible+ but Ashtakoota ≤ 14 (very low) and critical
+    # doshas present, downgrade one tier.
+    if (VERDICT_RANK[overall] >= VERDICT_RANK["Compatible"]
+            and ashtakoota["total_score"] <= 14
+            and len(ashtakoota.get("critical_doshas", [])) >= 2):
+        overall_rank = max(0, VERDICT_RANK[overall] - 1)
+        overall = next(k for k, v in VERDICT_RANK.items() if v == overall_rank)
+
+    # If KP says Conditional but Ashtakoota and canonical strongly support,
+    # we do NOT upgrade — KP-strict mode means KP verdict is authoritative.
+
+    # Nadi dosha — only flag as serious-concern if also same nakshatra.
+    # (Cancellation exception per classical rules — see audit §C6.)
+    nadi_serious = ("Nadi" in ashtakoota.get("critical_doshas", []))
+    if nadi_serious:
+        # Same nakshatra cancellation
+        if chart1["moon_nakshatra"] == chart2["moon_nakshatra"]:
+            # Same nakshatra: keep dosha but flag the cancellation note
+            ashtakoota["nadi_cancellation_note"] = (
+                "Same nakshatra ({}) — classical exception applies; "
+                "severity reduced.".format(chart1["moon_nakshatra"])
+            )
+        # Same rashi different nakshatra cancellation
+        elif chart1["moon_sign"] == chart2["moon_sign"]:
+            ashtakoota["nadi_cancellation_note"] = (
+                "Same Moon sign ({}) different nakshatras — classical "
+                "exception applies; severity reduced.".format(chart1["moon_sign"])
+            )
 
     return {
         "person1": {"name": person1["name"], "gender": gender1,

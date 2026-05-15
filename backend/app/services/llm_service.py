@@ -3489,22 +3489,79 @@ def format_chart_for_llm(chart_data: dict, mode: str = "astrologer") -> str:
 # ================================================================
 
 def format_match_for_llm(compat_result: dict) -> str:
-    """Format full compatibility data (both charts side-by-side) for LLM analysis."""
+    """
+    Format full compatibility data (both charts side-by-side) for LLM analysis.
+
+    PR A1.4 additions:
+      - Tiered promise (Full/Partial/Weak/None) cited verbatim
+      - Canonical cross-match block (kpastrologylearning.com Rule 5)
+      - 5-signal love-vs-arranged classification per chart
+      - 7-slot Ruling Planets with slot labels (Day Lord, Asc Sub Lord,
+        Moon Sub Lord visible)
+      - Retrograde-star flag on H7 CSL
+      - Verdict reasoning string from engine
+    """
     lines = []
     p1 = compat_result["person1"]
     p2 = compat_result["person2"]
     kp = compat_result["kp_analysis"]
 
-    lines.append(f"=== MARRIAGE COMPATIBILITY WORKSHEET ===")
+    lines.append(f"=== MARRIAGE COMPATIBILITY WORKSHEET (PR A1.4 strict KP) ===")
     lines.append(f"Person 1: {p1['name']} | Moon: {p1['moon_sign']} ({p1['moon_nakshatra']}) | Lagna: {p1['lagna']}")
     lines.append(f"Person 2: {p2['name']} | Moon: {p2['moon_sign']} ({p2['moon_nakshatra']}) | Lagna: {p2['lagna']}")
     lines.append(f"Overall Verdict: {compat_result['overall_verdict']}")
+    lines.append(f"KP Verdict: {kp['kp_verdict']} — {kp.get('kp_verdict_reasoning','')}")
 
-    # KP Promise
-    lines.append(f"\n--- H7 CSL PROMISE ---")
+    # KP Promise — TIERED (PR A1.4)
+    lines.append(f"\n--- H7 CSL PROMISE (TIERED) ---")
     for label, pr in [("Person 1", kp["chart1_promise"]), ("Person 2", kp["chart2_promise"])]:
-        lines.append(f"{label}: H7 CSL = {pr['sub_lord']} → signifies {pr['signified_houses']} → {pr['verdict']}")
-        lines.append(f"  Marriage type: {pr['marriage_type']} | Spouse: {pr.get('spouse_nature', '')} | {pr.get('caution', '')}")
+        lines.append(f"{label}: H7 CSL = {pr['sub_lord']} → signifies {pr['signified_houses']}")
+        lines.append(f"  Promise tier: {pr['promise_tier']} "
+                     f"(hits {pr.get('promise_houses_hit', [])} of {{2,7,11}}) "
+                     f"| Denial houses hit: {pr.get('denial_houses_hit', [])} "
+                     f"| Verdict: {pr['verdict']}")
+        if pr.get("csl_in_retrograde_star"):
+            lines.append(f"  ⚠ H7 CSL is in RETROGRADE STAR — delay/non-fructification signal (KP Reader I §247)")
+        lines.append(f"  Style hint: {pr['marriage_type']} | Spouse: {pr.get('spouse_nature', '')} | Caution: {pr.get('caution', '')}")
+
+    # Canonical KSK Reader IV cross-match (PR A1.4)
+    cc = kp.get("canonical_cross_match", {})
+    if cc:
+        lines.append(f"\n--- CANONICAL CROSS-MATCH (kpastrologylearning Rule 5) ---")
+        lines.append(f"Person 1's H2/H7/H11 CSLs signifying {{2,7,11}}: {cc['a_own_promise_count']}/3")
+        for c in cc.get("a_csl_h2_7_11", []):
+            mark = "✓" if c["signifies_target"] else "✗"
+            lines.append(f"  {mark} H{c['cusp']} CSL={c['csl']} sigs={c['sigs']}")
+        lines.append(f"Person 2's H2/H7/H11 CSLs signifying {{2,7,11}}: {cc['b_own_promise_count']}/3")
+        for c in cc.get("b_csl_h2_7_11", []):
+            mark = "✓" if c["signifies_target"] else "✗"
+            lines.append(f"  {mark} H{c['cusp']} CSL={c['csl']} sigs={c['sigs']}")
+        lines.append(f"Person 2's RPs signifying Person 1's marriage houses: "
+                     f"{[r['planet'] for r in cc.get('b_rps_signifying_a_marriage', [])]}")
+        lines.append(f"Person 1's RPs signifying Person 2's marriage houses: "
+                     f"{[r['planet'] for r in cc.get('a_rps_signifying_b_marriage', [])]}")
+        lines.append(f"A-side canonical match: {cc['a_side_canonical_match']} | "
+                     f"B-side: {cc['b_side_canonical_match']} | "
+                     f"Both sides: {cc['both_sides_canonical_match']}")
+
+    # 5-signal type classification (PR A1.4)
+    for label, key in [("Person 1", "type_classification_chart1"),
+                       ("Person 2", "type_classification_chart2")]:
+        tc = kp.get(key, {})
+        if tc:
+            lines.append(f"\n--- 5-SIGNAL TYPE CLASSIFICATION — {label} ---")
+            lines.append(f"Category: {tc['category']}")
+            lines.append(f"Reasoning: {tc['reasoning']}")
+            lines.append(f"  Signal 1 (H5 in H7 chain): {tc['signal_1_h5_in_chain']}")
+            lines.append(f"  Signal 2 (5L={tc['signal_2_fifth_lord']} in H{tc['signal_2_fifth_lord_house']}): "
+                         f"love-path-negated={tc['signal_2_love_path_negated']}, "
+                         f"love-path-strong={tc['signal_2_love_path_strong']}")
+            lines.append(f"  Signal 3 (H4 in chain: {tc['signal_3_h4_in_chain']}, "
+                         f"H9 in chain: {tc['signal_3_h9_in_chain']}, "
+                         f"mother active: {tc['signal_3_mother_active']}, "
+                         f"father active: {tc['signal_3_father_active']})")
+            lines.append(f"  Signal 4 (Moon in H{tc['signal_4_moon_house']} — {tc['signal_4_moon_mode']})")
+            lines.append(f"  Signal 5 (5L-7L relation: {tc['signal_5_relation']}, strength: {tc['signal_5_strength']})")
 
     # Supporting Cusps
     lines.append(f"\n--- SUPPORTING CUSPS (H2, H11) ---")
@@ -3528,11 +3585,20 @@ def format_match_for_llm(compat_result: dict) -> str:
     for label, ve in [("Person 1", kp["venus_chart1"]), ("Person 2", kp["venus_chart2"])]:
         lines.append(f"{label}: Venus in H{ve['house']} {ve['sign']} | Strength: {ve['strength']} | Sigs: {ve['significations']}")
 
-    # Ruling Planets + Resonance
-    lines.append(f"\n--- RULING PLANETS & CROSS-RESONANCE ---")
-    lines.append(f"Person 1 RPs: {kp['ruling_planets_chart1']}")
-    lines.append(f"Person 2 RPs: {kp['ruling_planets_chart2']}")
-    lines.append(f"Resonance 1→2: {kp['resonance_1_to_2']} | 2→1: {kp['resonance_2_to_1']} | Total: {kp['total_resonance_count']}")
+    # 7-slot Ruling Planets (PR A1.4)
+    lines.append(f"\n--- 7-SLOT RULING PLANETS (NATAL) ---")
+    for label, slot_key, strongest_key in [
+        ("Person 1", "rp_slots_chart1", "rp_strongest_chart1"),
+        ("Person 2", "rp_slots_chart2", "rp_strongest_chart2"),
+    ]:
+        slots = kp.get(slot_key, [])
+        strongest = kp.get(strongest_key, [])
+        slot_str = " | ".join(f"{s['slot']}={s['planet']}" for s in slots if s.get('planet'))
+        lines.append(f"{label}: {slot_str}")
+        if strongest:
+            lines.append(f"  Strongest (≥2 slots): {strongest}")
+    lines.append(f"Cross-resonance (loose): 1→2 {kp['resonance_1_to_2']} | 2→1 {kp['resonance_2_to_1']} | Total {kp['total_resonance_count']}")
+    lines.append(f"  ⚠ Loose resonance is informational ONLY in PR A1.4. Verdict uses canonical cross-match block above.")
 
     # Current DBA
     lines.append(f"\n--- CURRENT DASHA-BHUKTI-ANTARDASHA ---")
@@ -3623,25 +3689,91 @@ Give practical, actionable analysis that a KP astrologer would find valuable."""
     })
 
     today = datetime.now().strftime("%B %d, %Y")
-    system = f"""You are an expert KP (Krishnamurti Paddhati) marriage compatibility analyst with 20+ years experience.
-You have BOTH charts' complete KP data. Analyze marriage compatibility with deep KP reasoning.
+    system = f"""You are an expert KP (Krishnamurti Paddhati) marriage compatibility analyst with 20+ years experience, trusted as a second opinion by senior astrologers.
+You have BOTH charts' complete KP data computed by a strict-KP engine (PR A1.4). Analyze marriage compatibility with deep KP reasoning.
 
 TODAY'S DATE: {today}
 
-KEY RULES:
-1. Use ONLY the data provided — never invent or guess planet positions
-2. Reference specific CSLs, house numbers, planets from BOTH charts
-3. Compare both charts' promise, Venus, RPs, DBA, D9, separation risk
-4. For timing: use actual DBA data, check if current periods favor marriage
-5. Be balanced — mention both favorable and unfavorable factors
-6. Structure: Start with the key finding, then supporting evidence"""
+KEY RULES — read carefully and apply strictly:
+
+1. Use ONLY the data provided — never invent or guess planet positions, sub-lords, or significations.
+2. Reference specific CSLs, house numbers, planets from BOTH charts. Cite verbatim from the worksheet.
+3. Compare both charts' promise tier, supporting cusps, separation risk, D9, type classification.
+
+4. PROMISE TIER IS AUTHORITATIVE (KSK strict).
+   - "Full" = H7 CSL signifies all three of {{2, 7, 11}} → marriage promised.
+   - "Partial" = signifies 2 of 3 → conditional.
+   - "Weak" = signifies 1 of 3 → conditional-weak.
+   - "None" = none of {{2,7,11}} → not promised in this chart.
+   You MAY NOT call a marriage "promised" or "guaranteed" if the engine reports tier ≠ Full
+   on either chart, regardless of other positive signals. Cite the tier verbatim from the worksheet.
+
+5. NO VENUS OVERRIDE. KSK is explicit (marriage.txt §4): Venus is CONTEXT, not OVERRIDE.
+   Do NOT claim "strong Venus rescues the denial" or "Venus karaka promises marriage even though H7 CSL is weak."
+   Venus tells you about marital quality (smooth vs frictional), not about whether marriage happens.
+
+6. H12 IS A DENIAL HOUSE (marriage.txt §1). If H7 CSL signifies H12, mark as separation-prone
+   even if {{2,7,11}} are also hit. Cite the denial flag verbatim.
+
+7. RETROGRADE-STAR FLAG. If the worksheet says "H7 CSL is in RETROGRADE STAR," explicitly state
+   this as a delay/non-fructification signal (KP Reader I §247) — do not skip it.
+
+8. CANONICAL CROSS-MATCH IS THE PRIMARY COMPATIBILITY GATE (kpastrologylearning.com Rule 5).
+   For both partners to marry each other:
+     (a) each person's H2/H7/H11 CSLs must signify {{2,7,11}}, AND
+     (b) the OTHER person's Ruling Planets must signify {{2,7,11}} in this person's chart.
+   The worksheet has a "CANONICAL CROSS-MATCH" block with explicit ✓/✗ marks. Quote those marks.
+   Do NOT use the generic "cross-resonance" intersection number as your compatibility evidence —
+   that is loose and noise-prone; the engine flags it as informational only.
+
+9. TYPE CLASSIFICATION — use the 5-signal framework, not your prior assumption.
+   The worksheet has a "5-SIGNAL TYPE CLASSIFICATION" block per chart with a "Category" line:
+     - Pure Love Marriage
+     - Pure Arranged Marriage
+     - Love-cum-Arranged
+     - Love-affair-then-Arranged  (often misclassified — Signal 2 override is critical)
+     - Family-Mediated with Native Acceptance
+   Quote the category verbatim. Cite which signal voted for it.
+   Note: the older "marriage_type" field is a one-line heuristic — IGNORE it when discussing type.
+
+10. ASHTAKOOTA IS SECONDARY. KSK rejected Ashtakoota as a primary criterion. Use it as a cross-check:
+    if KP says Conditional and Ashtakoota agrees (low score + critical doshas), that's reinforcing.
+    If KP says Conditional but Ashtakoota is high (e.g., 28/36), explain that KP overrides Ashtakoota
+    per KSK's explicit position — high Ashtakoota does NOT lift a weak KP promise.
+
+11. SEPARATION RISK MUST BE STATED EXPLICITLY when "High" or "Moderate." Quote the specific factors
+    from the worksheet (Saturn aspect, Mars aspect, H7 CSL touching 6/8/12, etc.).
+
+12. MANGLIK MUTUAL CANCELLATION IS SEVERITY-REDUCTION, NOT NULLIFICATION (AstroSight, Nidhi Trivedi
+    confirmed). When both are Manglik, say "energies balance, severity reduced" — do NOT say
+    "Mangal dosha completely cancelled."
+
+13. STRUCTURE YOUR RESPONSE:
+    (a) HEADLINE — KP verdict + one-line "why" from worksheet's kp_verdict_reasoning
+    (b) PROMISE PER CHART — tier, signified houses, denial flag, retrograde-star flag
+    (c) CANONICAL CROSS-MATCH — ✓/✗ pattern, what it means
+    (d) TYPE OF MARRIAGE — 5-signal category + reasoning
+    (e) SEPARATION RISK — level + factors
+    (f) ASHTAKOOTA CROSS-CHECK — agreement/disagreement with KP
+    (g) TIMING — current MD/AD favorability per chart, when next favorable window opens
+    (h) HONEST CLOSER — one sentence on what a senior astrologer would say in person
+
+14. BE A SECOND OPINION TO A SENIOR ASTROLOGER. The user might cross-check this with their dad
+    or a 20-year practitioner. Your analysis must hold up to that scrutiny — no hand-waving,
+    no "all is well," every claim grounded in the worksheet."""
 
     message = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=6000,
         temperature=0,
-        system=system,
-        messages=messages
+        system=[
+            {
+                "type": "text",
+                "text": system,
+                "cache_control": {"type": "ephemeral", "ttl": "1h"},
+            },
+        ],
+        messages=messages,
     )
     log_anthropic_call(
         endpoint="llm.get_match_prediction",
