@@ -6803,6 +6803,50 @@ export default function Home() {
                                            : "#f87171",
                                       letterSpacing: "0.04em",
                                     }}>{it.p.promise_tier?.toUpperCase() || "—"}</span>
+                                    {/* PR A1.7 — KSK Reader V 5-tier verdict + A/B/C/D level */}
+                                    {it.p.five_tier_verdict && (
+                                      <span style={{
+                                        fontSize: 10,
+                                        fontWeight: 700,
+                                        padding: "2px 8px",
+                                        borderRadius: 999,
+                                        background: it.p.five_tier_verdict === "STRONGLY PROMISED" ? "rgba(74,222,128,0.20)"
+                                                  : it.p.five_tier_verdict === "PROMISED" ? "rgba(74,222,128,0.10)"
+                                                  : it.p.five_tier_verdict === "CONDITIONAL" ? "rgba(251,191,36,0.15)"
+                                                  : it.p.five_tier_verdict === "WEAKLY PROMISED" ? "rgba(251,191,36,0.10)"
+                                                  : "rgba(248,113,113,0.15)",
+                                        color: it.p.five_tier_verdict === "STRONGLY PROMISED" ? "#4ade80"
+                                             : it.p.five_tier_verdict === "PROMISED" ? "#4ade80"
+                                             : it.p.five_tier_verdict === "CONDITIONAL" ? "#fbbf24"
+                                             : it.p.five_tier_verdict === "WEAKLY PROMISED" ? "#fbbf24"
+                                             : "#f87171",
+                                        letterSpacing: "0.04em",
+                                      }} title={t("KSK Reader V 5-tier verdict — uses A/B/C/D significator strength",
+                                                  "KSK Reader V 5-అంచెల తీర్పు")}>
+                                        {it.p.five_tier_verdict}
+                                      </span>
+                                    )}
+                                    {it.p.strongest_marriage_level && (
+                                      <span style={{
+                                        fontSize: 10,
+                                        fontWeight: 700,
+                                        padding: "2px 6px",
+                                        borderRadius: 4,
+                                        background: it.p.strongest_marriage_level === "A" ? "rgba(74,222,128,0.20)"
+                                                  : it.p.strongest_marriage_level === "B" ? "rgba(74,222,128,0.12)"
+                                                  : it.p.strongest_marriage_level === "C" ? "rgba(251,191,36,0.12)"
+                                                  : "rgba(251,191,36,0.08)",
+                                        color: it.p.strongest_marriage_level === "A" ? "#4ade80"
+                                             : it.p.strongest_marriage_level === "B" ? "#4ade80"
+                                             : "#fbbf24",
+                                        border: "0.5px solid currentColor",
+                                      }} title={t(
+                                        "KSK significator strength: A=star of occupant (100%), B=occupant (75%), C=star of owner (50%), D=owner (25%)",
+                                        "KSK సూచక బలం: A=నివాస నక్షత్రం (100%), B=నివాస (75%), C=అధిపతి నక్షత్రం (50%), D=అధిపతి (25%)"
+                                      )}>
+                                        {it.p.strongest_marriage_level}-level
+                                      </span>
+                                    )}
                                     <span style={{ fontSize: 12, color: "var(--text)" }}>
                                       H7 CSL <strong>{it.p.sub_lord}</strong> → H{(it.p.signified_houses || []).join(", H") || "—"}
                                     </span>

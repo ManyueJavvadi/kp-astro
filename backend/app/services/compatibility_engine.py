@@ -386,6 +386,65 @@ def _get_planet_house(planet_lon: float, cusp_lons: list) -> int:
     return 1
 
 
+def _planet_significations_tiered(planet_name: str, planets: dict, cusp_lons: list) -> dict:
+    """
+    PR A1.7 — KSK Reader V A/B/C/D significator strength tiering.
+
+    The Analysis tab system prompt RULE 5 reads:
+      A (~100%) = Planets in STAR of OCCUPANT of the house — STRONGEST
+      B (~75%)  = OCCUPANTS of the house themselves
+      C (~50%)  = Planets in STAR of OWNER (sign lord) of the house
+      D (~25%)  = OWNER of the house cusp itself — WEAKEST main level
+
+    Returns a dict mapping house number → strongest level present.
+    Used by the new tiered _h7_sublord_promise (5-tier verdict scale).
+
+    The pre-A1.7 _planet_significations returns flat sets — necessary
+    for backwards compatibility but insufficient for nuanced verdict.
+    """
+    if planet_name not in planets:
+        return {}
+
+    plon = planets[planet_name]["longitude"]
+    pl_star_lord = get_nakshatra_and_starlord(plon).get("star_lord", "")
+    pl_house = _get_planet_house(plon, cusp_lons)
+
+    # For each house h ∈ 1..12, determine the strongest level at which
+    # `planet_name` signifies it.
+    result: dict[int, str] = {}
+
+    for h in range(1, 13):
+        # A-level: planet_name is in star of an OCCUPANT of house h
+        # i.e., there's some planet X occupying house h, and
+        # planet_name's star lord is X.
+        occupants_of_h = [
+            p for p in planets
+            if _get_planet_house(planets[p]["longitude"], cusp_lons) == h
+        ]
+        if pl_star_lord and pl_star_lord in occupants_of_h:
+            result[h] = "A"
+            continue
+
+        # B-level: planet_name is itself an occupant of house h
+        if pl_house == h:
+            result[h] = "B"
+            continue
+
+        # C-level: planet_name is in star of OWNER of house h
+        owner_of_h = SIGN_LORDS.get(get_sign(cusp_lons[h - 1] % 360), "")
+        if pl_star_lord and pl_star_lord == owner_of_h:
+            result[h] = "C"
+            continue
+
+        # D-level: planet_name is the OWNER of house h
+        if owner_of_h == planet_name:
+            result[h] = "D"
+            continue
+        # Otherwise: no signification of house h.
+
+    return result
+
+
 def _planet_significations(planet_name: str, planets: dict, cusp_lons: list) -> set:
     """
     KP UNION-method 4-step significator collection for ONE planet.
@@ -475,6 +534,55 @@ def _h7_sublord_promise(chart: dict) -> dict:
     else:
         promise_tier = PROMISE_NONE
 
+    # PR A1.7 — A/B/C/D significator strength on the marriage houses.
+    # Per Analysis-tab RULE 5: "one A-level outweighs three D-levels".
+    # This gives the AI + frontend the same depth as Analysis tab.
+    tiered = _planet_significations_tiered(h7_sl, chart["planets"], chart["cusp_lons"])
+    h7_csl_levels_on_marriage: dict[int, str] = {
+        h: tiered[h] for h in promise_intersection if h in tiered
+    }
+    h7_csl_levels_on_denial: dict[int, str] = {
+        h: tiered[h] for h in denial_intersection if h in tiered
+    }
+    # Strongest level reached on marriage triplet
+    LEVEL_RANK = {"A": 4, "B": 3, "C": 2, "D": 1}
+    strongest_marriage_level = ""
+    if h7_csl_levels_on_marriage:
+        strongest_marriage_level = max(
+            h7_csl_levels_on_marriage.values(),
+            key=lambda L: LEVEL_RANK.get(L, 0),
+        )
+    strongest_denial_level = ""
+    if h7_csl_levels_on_denial:
+        strongest_denial_level = max(
+            h7_csl_levels_on_denial.values(),
+            key=lambda L: LEVEL_RANK.get(L, 0),
+        )
+
+    # 5-tier verdict (matches Analysis RULE 5):
+    #   STRONGLY PROMISED — A/B level marriage hit + denial ≤ D level (or absent)
+    #   PROMISED         — A/B level marriage hit, but denial also A/B
+    #                      OR ≥ 2 marriage houses at any level
+    #   CONDITIONAL      — Marriage + denial both substantial (bhukti precision)
+    #   WEAKLY PROMISED  — Only C/D level marriage hit, denial may be stronger
+    #   DENIED           — No marriage signification at any level
+    if not promise_intersection:
+        five_tier = "DENIED"
+    elif strongest_marriage_level in ("A", "B") and (
+        not strongest_denial_level or strongest_denial_level == "D"
+    ):
+        five_tier = "STRONGLY PROMISED"
+    elif strongest_marriage_level in ("A", "B") and strongest_denial_level in ("A", "B"):
+        five_tier = "CONDITIONAL"
+    elif strongest_marriage_level in ("A", "B"):
+        five_tier = "PROMISED"
+    elif len(promise_intersection) >= 2:
+        five_tier = "PROMISED"
+    elif strongest_marriage_level in ("C", "D") and strongest_denial_level in ("A", "B"):
+        five_tier = "CONDITIONAL"
+    else:
+        five_tier = "WEAKLY PROMISED"
+
     has_promise = promise_tier == PROMISE_FULL
     has_denial  = bool(denial_intersection)
 
@@ -556,6 +664,12 @@ def _h7_sublord_promise(chart: dict) -> dict:
         "has_promise": has_promise,        # back-compat — only True for FULL
         "has_denial": has_denial,
         "verdict": verdict,
+        # PR A1.7 — KSK Reader V A/B/C/D significator strength + 5-tier verdict
+        "five_tier_verdict": five_tier,
+        "strongest_marriage_level": strongest_marriage_level,
+        "strongest_denial_level": strongest_denial_level,
+        "marriage_house_levels": {f"H{h}": L for h, L in h7_csl_levels_on_marriage.items()},
+        "denial_house_levels":   {f"H{h}": L for h, L in h7_csl_levels_on_denial.items()},
         "csl_in_retrograde_star": h7_csl_in_retro_star,
         "h7_sign_lord": h7_sign_lord,
         "h7_sign_lord_house": h7_lord_house,

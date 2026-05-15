@@ -3516,10 +3516,17 @@ def format_match_for_llm(compat_result: dict) -> str:
     lines.append(f"\n--- H7 CSL PROMISE (TIERED) ---")
     for label, pr in [("Person 1", kp["chart1_promise"]), ("Person 2", kp["chart2_promise"])]:
         lines.append(f"{label}: H7 CSL = {pr['sub_lord']} → signifies {pr['signified_houses']}")
-        lines.append(f"  Promise tier: {pr['promise_tier']} "
+        lines.append(f"  Promise tier (count): {pr['promise_tier']} "
                      f"(hits {pr.get('promise_houses_hit', [])} of {{2,7,11}}) "
                      f"| Denial houses hit: {pr.get('denial_houses_hit', [])} "
                      f"| Verdict: {pr['verdict']}")
+        # PR A1.7 — KSK Reader V A/B/C/D significator strength + 5-tier verdict
+        if pr.get("five_tier_verdict"):
+            lines.append(f"  5-tier verdict (KSK Reader V): {pr['five_tier_verdict']}")
+            lines.append(f"  Strongest marriage-house level: {pr.get('strongest_marriage_level') or '—'} "
+                         f"({pr.get('marriage_house_levels', {})}) | "
+                         f"Strongest denial level: {pr.get('strongest_denial_level') or '—'} "
+                         f"({pr.get('denial_house_levels', {})})")
         if pr.get("csl_in_retrograde_star"):
             lines.append(f"  ⚠ H7 CSL is in RETROGRADE STAR — delay/non-fructification signal (KP Reader I §247)")
         lines.append(f"  Style hint: {pr['marriage_type']} | Spouse: {pr.get('spouse_nature', '')} | Caution: {pr.get('caution', '')}")
@@ -3740,9 +3747,132 @@ def format_match_for_llm(compat_result: dict) -> str:
 
 
 def get_match_prediction(compat_result: dict, question: str, history: list = [], language: str = "telugu_english") -> str:
-    """AI analysis for marriage match — uses full compatibility data."""
-    knowledge = load_knowledge("marriage")
+    """
+    AI analysis for marriage match.
+
+    PR A1.7 — DEPTH UPGRADE.
+    Pre-A1.7 used a custom 22-rule system prompt + only the marriage topic KB.
+    That was operating at ~30% of Analysis-tab depth.
+
+    A1.7 routes Match through the SAME deep KP system prompt as the
+    Analysis tab (get_system_prompt — 21K tokens, ~40 rules) plus the
+    SAME universal KP knowledge base (~40K tokens), with the marriage
+    topic KB as additional context AND the dual-chart match worksheet
+    as the chart-data block.
+
+    This gives Match AI access to:
+      - 5-tier verdict scale (Strongly Promised → Denied)
+      - A/B/C/D significator strength (KSK Reader V)
+      - Joint Period Principle (Pattern T1, 4-layer agreement)
+      - KSK strict bhukti rule (enumerate which bhuktis fire vs block)
+      - Pattern Library (5-8-12 formula, multi-cusp confirmation)
+      - All ~40 rules that drive Analysis-tab depth
+
+    The Match-specific match-summary worksheet appears at the END of
+    chart data and the prompt is augmented with a brief MATCH-MODE
+    addendum describing how to apply the universal rules to two charts.
+    """
+    universal_kb  = load_universal_kb(mode="astrologer")
+    marriage_kb   = load_topic_kb("marriage")
     match_summary = format_match_for_llm(compat_result)
+
+    # Build dual-chart "chart data" — both persons side-by-side, plus the
+    # match worksheet which carries the canonical cross-match, 5-signal
+    # type, Vargottama, Quality outlook, Upcoming windows, etc.
+    p1 = compat_result.get("person1", {})
+    p2 = compat_result.get("person2", {})
+    dual_chart_data = (
+        f"PERSON 1: {p1.get('name','')}\n"
+        f"  Moon: {p1.get('moon_sign','')} ({p1.get('moon_nakshatra','')}) "
+        f"| Lagna: {p1.get('lagna','')}\n\n"
+        f"PERSON 2: {p2.get('name','')}\n"
+        f"  Moon: {p2.get('moon_sign','')} ({p2.get('moon_nakshatra','')}) "
+        f"| Lagna: {p2.get('lagna','')}\n\n"
+        f"{match_summary}"
+    )
+
+    # MATCH-MODE addendum — bridges the single-chart system prompt to
+    # the dual-chart situation. References the same 5-tier scale,
+    # A/B/C/D strengths, Joint Period, etc., but tells the AI how to
+    # apply them across two charts.
+    match_addendum = """
+================================================================
+MATCH MODE ADDENDUM (PR A1.7)
+================================================================
+
+You have the SAME deep KP knowledge as Analysis mode. The system
+prompt's 5-tier verdict scale (Strongly Promised / Promised /
+Conditional / Weakly Promised / Denied), A/B/C/D significator
+strength (KSK Reader V), Joint Period Principle (Pattern T1),
+KSK strict bhukti rule — ALL apply here. Use them.
+
+CRUCIAL ADAPTATIONS FOR TWO-CHART MATCH:
+
+M1. APPLY 5-TIER VERDICT INDEPENDENTLY TO EACH CHART, then synthesize.
+    The match worksheet exposes "five_tier_verdict" per chart and the
+    "marriage_house_levels" dict showing which marriage houses are hit
+    at A/B/C/D level. Cite both — one A-level on H7 in Person 1 plus
+    one A-level on H11 in Person 2 is a Strongly Promised pair even if
+    a denial house is also touched at D-level on either side.
+
+M2. CANONICAL CROSS-MATCH IS THE PRIMARY COMPATIBILITY GATE
+    (kpastrologylearning.com Rule 5). The worksheet's
+    "CANONICAL CROSS-MATCH" block shows ✓/✗ for each side. This is
+    the MARRIAGE-TOGETHER rule, distinct from each chart's
+    own promise verdict. Quote the ✓/✗ pattern explicitly.
+
+M3. JOINT PERIOD PRINCIPLE FOR MATCH — extend Pattern T1 to two charts.
+    Marriage fructifies in a joint period where:
+      (a) Person 1's current AD lord signifies P1's {2,7,11} AND
+      (b) Person 2's current AD lord signifies P2's {2,7,11} AND
+      (c) The shared/overlap-window block confirms calendar alignment AND
+      (d) Each chart's RP at the moment of marriage includes the AD lord
+    4-of-4 = peak window. 3-of-4 = strong window. 2-of-4 = possible
+    but bhukti-precision needed. The UPCOMING MARRIAGE WINDOWS block
+    has pre-computed the calendar overlaps.
+
+M4. NATAL PROMISE vs CURRENT-PERIOD ACTIVATION (Analysis RULE 7 + RULE 27).
+    The promise_tier and five_tier_verdict in the worksheet are NATAL
+    STRUCTURAL readings — "does this chart promise marriage in this
+    lifetime at all?" — they are NOT time-aware. For timing questions
+    USE the UPCOMING MARRIAGE WINDOWS block + each chart's current
+    Dasha-Bhukti favorability. Marriage can be NATALLY "Conditional"
+    yet fire in a specific year when the joint period aligns.
+
+M5. NO VENUS OVERRIDE (universal RULE 5 + marriage.txt §4):
+    Venus is context (quality of marriage), NOT promise override.
+    Strong Venus + weak H7 CSL = "attracts partners but no legal marriage."
+    Apply same KSK strict reading.
+
+M6. WILL IT LAST? — use the MARRIAGE QUALITY OUTLOOK block
+    (8th-from-7th = H8 analysis, 7th lord placement, malefic
+    affliction to H7). This is a DIFFERENT question than "will it
+    happen" and requires DIFFERENT data points. Do NOT conflate.
+
+M7. CHILDREN — use the CHILDREN PROSPECTS block. H5 CSL on {2,5,11},
+    Jupiter house, Mahendra Koota.
+
+M8. IN-LAWS HEALTH — only mention if the IN-LAWS HEALTH CONCERNS block
+    is flagged. State factually, never fatalistically. "Marriage causes
+    parent death" is folk overstatement, NOT KP.
+
+M9. DO NOT use simple Ashtakoota score alone for the verdict. KSK
+    rejected Ashtakoota as primary criterion (universal RULE 5 +
+    marriage.txt §1). Use it only as a secondary cross-check.
+
+M10. ANSWER STRUCTURE (when full topic question, mirror Analysis 7-section):
+    a) Headline KP verdict (one line)
+    b) Promise tier per chart (5-tier verdict + strongest A/B/C/D level)
+    c) Canonical cross-match (✓/✗ pattern)
+    d) Type of marriage (5-signal category from worksheet)
+    e) Will-it-last outlook + children prospects
+    f) Timing — upcoming windows with calendar dates
+    g) Risks — separation, no-desire, in-laws-health if flagged
+    h) Honest closing — what a senior astrologer would say
+
+You are a second opinion to a 20+ year astrologer. Cite the worksheet
+verbatim — every claim must trace to a worksheet field.
+"""
 
     messages = []
     for prev in history[-4:]:
@@ -3755,25 +3885,23 @@ def get_match_prediction(compat_result: dict, question: str, history: list = [],
 
     messages.append({
         "role": "user",
-        "content": f"""KP KNOWLEDGE BASE:
-{knowledge}
+        "content": f"""MODE: MATCH (deep KP marriage compatibility)
+QUESTION TYPE: full_topic
 
----
-
-MARRIAGE MATCH DATA (BOTH CHARTS):
-{match_summary}
-
----
-
-QUESTION: {question}
+CURRENT QUESTION: {question}
 {lang_instruction}
 
-Analyze this marriage compatibility question using the complete data for BOTH charts above.
-Be specific — reference actual CSL names, house significations, D9 placements, DBA periods from the data.
-Give practical, actionable analysis that a KP astrologer would find valuable."""
+Apply the FULL Analysis-mode depth (5-tier verdict, A/B/C/D significator
+strength, Joint Period Principle, KSK strict bhukti rule) using the
+MATCH MODE ADDENDUM rules above to integrate across two charts.
+Cite the worksheet verbatim — promise tiers, A/B/C/D levels, canonical
+match marks, 5-signal categories, upcoming windows with dates."""
     })
 
     today = datetime.now().strftime("%B %d, %Y")
+    # PR A1.7 — Match-specific brief retained ONLY as a thin orientation layer
+    # on top of the full Analysis-mode system prompt. The deep rules live in
+    # get_system_prompt() and the match_addendum above.
     system = f"""You are an expert KP (Krishnamurti Paddhati) marriage compatibility analyst with 20+ years experience, trusted as a second opinion by senior astrologers.
 You have BOTH charts' complete KP data computed by a strict-KP engine (PR A1.4). Analyze marriage compatibility with deep KP reasoning.
 
@@ -3896,17 +4024,62 @@ KEY RULES — read carefully and apply strictly:
     or a 20-year practitioner. Your analysis must hold up to that scrutiny — no hand-waving,
     no "all is well," every claim grounded in the worksheet."""
 
+    # PR A1.7 — LAYERED SYSTEM BLOCKS (mirrors get_prediction_stream):
+    #
+    #   1. Analysis-mode get_system_prompt() — 21K tokens, ~40 rules,
+    #      same depth Analysis tab uses (5-tier verdict, A/B/C/D
+    #      significators, Joint Period Principle, KSK strict bhukti,
+    #      Pattern Library, etc.). 1h cache.
+    #   2. KP universal knowledge base (astrologer mode) — ~40K tokens.
+    #      1h cache.
+    #   3. Marriage topic KB — full marriage.txt + matching rules.
+    #      1h cache.
+    #   4. MATCH MODE addendum — bridges single-chart rules to dual-chart
+    #      (Match-specific adaptation guide). 1h cache.
+    #   5. Match-specific brief — the older 22-rule prompt as a
+    #      formatting/structure layer on top of #1. 1h cache.
+    #   6. Dual-chart data + match worksheet — changes per call, UNCACHED.
+    #
+    # First call ≈ 1.0× previous cost (full cache writes). Follow-ups on the
+    # same match ≈ 0.25× cost (only block 6 is cache-miss).
+    system_blocks = [
+        {
+            "type": "text",
+            "text": get_system_prompt(),
+            "cache_control": {"type": "ephemeral", "ttl": "1h"},
+        },
+        {
+            "type": "text",
+            "text": f"---\n\nKP UNIVERSAL KNOWLEDGE BASE:\n{universal_kb}",
+            "cache_control": {"type": "ephemeral", "ttl": "1h"},
+        },
+        {
+            "type": "text",
+            "text": f"---\n\nKP TOPIC-SPECIFIC KNOWLEDGE (MARRIAGE):\n{marriage_kb}",
+            "cache_control": {"type": "ephemeral", "ttl": "1h"},
+        },
+        {
+            "type": "text",
+            "text": match_addendum,
+            "cache_control": {"type": "ephemeral", "ttl": "1h"},
+        },
+        {
+            "type": "text",
+            "text": f"---\n\nMATCH-MODE FORMATTING BRIEF:\n{system}",
+            "cache_control": {"type": "ephemeral", "ttl": "1h"},
+        },
+        # Block 6 — dual-chart data + worksheet, UNCACHED (changes per call)
+        {
+            "type": "text",
+            "text": f"---\n\nDUAL-CHART DATA (BOTH PARTNERS + MATCH WORKSHEET):\n{dual_chart_data}",
+        },
+    ]
+
     message = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=6000,
+        max_tokens=8000,           # higher cap — deeper analysis
         temperature=0,
-        system=[
-            {
-                "type": "text",
-                "text": system,
-                "cache_control": {"type": "ephemeral", "ttl": "1h"},
-            },
-        ],
+        system=system_blocks,
         messages=messages,
     )
     log_anthropic_call(
