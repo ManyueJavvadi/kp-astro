@@ -137,11 +137,49 @@ PLANET_FRIENDS = {
     "Saturn":  {"friends": {"Mercury","Venus"}, "neutral": {"Jupiter"}, "enemies": {"Sun","Moon","Mars","Rahu","Ketu"}},
 }
 
+# PR A1.5 — completed Vasya map. Pre-A1.5 only had 7 of 12 signs which
+# meant Aries/Taurus/Gemini/Libra/Sagittarius silently scored 0. Per
+# classical Vasya rules (controller → controlled signs):
 VASYA_MAP = {
-    "Leo": ["Aries"], "Cancer": ["Scorpio","Sagittarius"],
-    "Aquarius": ["Aries"], "Virgo": ["Pisces","Gemini"],
-    "Scorpio": ["Cancer"], "Capricorn": ["Aries"], "Pisces": ["Capricorn"],
+    "Aries":       ["Leo", "Scorpio"],
+    "Taurus":      ["Cancer", "Libra"],
+    "Gemini":      ["Virgo"],
+    "Cancer":      ["Scorpio", "Sagittarius"],
+    "Leo":         ["Aries"],
+    "Virgo":       ["Pisces", "Gemini"],
+    "Libra":       ["Capricorn", "Virgo"],
+    "Scorpio":     ["Cancer"],
+    "Sagittarius": ["Pisces"],
+    "Capricorn":   ["Aries"],
+    "Aquarius":    ["Aries"],
+    "Pisces":      ["Capricorn"],
 }
+
+# PR A1.5 — Rajju Koota body-region map (South Indian Dashakoota).
+# Same region = 0 (severe longevity concern); different region = 5
+# (good bond strength). Sources: astrojyoti.com, panchangbodh.com,
+# salagram.net synastry — unanimous.
+RAJJU_MAP = {
+    # Paada (foot) — bottom region
+    "Mula": "Paada", "Moola": "Paada", "Revati": "Paada",
+    "Mrigashira": "Paada", "Chitra": "Paada", "Dhanishtha": "Paada",
+    # Kati (waist)
+    "Ashwini": "Kati", "Ashlesha": "Kati", "Magha": "Kati",
+    "Jyeshtha": "Kati", "Shatabhisha": "Kati",
+    # Naabhi (navel)
+    "Bharani": "Naabhi", "Pushya": "Naabhi", "Purva Phalguni": "Naabhi",
+    "Anuradha": "Naabhi", "Purva Ashadha": "Naabhi", "Purva Bhadrapada": "Naabhi",
+    # Kantha (throat)
+    "Krittika": "Kantha", "Punarvasu": "Kantha", "Uttara Phalguni": "Kantha",
+    "Vishakha": "Kantha", "Uttara Ashadha": "Kantha", "Uttara Bhadrapada": "Kantha",
+    # Shiro (head) — top region
+    "Rohini": "Shiro", "Ardra": "Shiro", "Hasta": "Shiro",
+    "Swati": "Shiro", "Shravana": "Shiro",
+}
+
+# PR A1.5 — Mahendra Koota: bride's nakshatra at one of these positions
+# from groom's = auspicious (good progeny + happiness).
+MAHENDRA_AUSPICIOUS_OFFSETS = {4, 7, 10, 13, 16, 19, 22, 25}
 
 # PR A1.4 — KSK Reader IV strict reading + marriage.txt:12.
 # H12 = isolation / separation / foreign separation / loss. Earlier
@@ -1526,6 +1564,220 @@ def _calc_nadi(chart_boy: dict, chart_girl: dict) -> dict:
             "boy_nadi": bn, "girl_nadi": gn, "has_dosha": has_dosha, "note": note}
 
 
+def _calc_mahendra(chart_boy: dict, chart_girl: dict) -> dict:
+    """
+    Mahendra Koota — South Indian Dashakoota.
+    Auspicious if bride's nakshatra is at {4,7,10,13,16,19,22,25} from
+    groom's nakshatra (1-indexed, inclusive of both endpoints).
+    Score: 2 if auspicious, else 0.
+    """
+    naks = NAKSHATRA_ORDER
+    boy_nak = chart_boy["moon_nakshatra"]
+    girl_nak = chart_girl["moon_nakshatra"]
+    if boy_nak not in naks or girl_nak not in naks:
+        return {"kuta": "Mahendra", "max": 2, "score": 0,
+                "boy_nakshatra": boy_nak, "girl_nakshatra": girl_nak,
+                "offset": None, "note": "Nakshatra lookup failed"}
+    b_idx = naks.index(boy_nak)
+    g_idx = naks.index(girl_nak)
+    offset = ((g_idx - b_idx) % 27) + 1
+    auspicious = offset in MAHENDRA_AUSPICIOUS_OFFSETS
+    return {
+        "kuta": "Mahendra", "max": 2,
+        "score": 2 if auspicious else 0,
+        "boy_nakshatra": boy_nak, "girl_nakshatra": girl_nak,
+        "offset": offset,
+        "auspicious": auspicious,
+        "note": (f"Girl is {offset}th from Boy — auspicious for progeny/happiness"
+                 if auspicious else
+                 f"Girl is {offset}th from Boy — not in {{4,7,10,13,16,19,22,25}}"),
+    }
+
+
+def _calc_stree_deergha(chart_boy: dict, chart_girl: dict) -> dict:
+    """
+    Stree Deergha Koota — South Indian Dashakoota.
+    Counting forward from girl's nakshatra, if boy's nakshatra is more
+    than 13 positions away → auspicious (wife's longevity + prosperity).
+    Score: 2 if > 13, else 0.
+    """
+    naks = NAKSHATRA_ORDER
+    boy_nak = chart_boy["moon_nakshatra"]
+    girl_nak = chart_girl["moon_nakshatra"]
+    if boy_nak not in naks or girl_nak not in naks:
+        return {"kuta": "Stree Deergha", "max": 2, "score": 0,
+                "boy_nakshatra": boy_nak, "girl_nakshatra": girl_nak,
+                "offset": None, "note": "Nakshatra lookup failed"}
+    b_idx = naks.index(boy_nak)
+    g_idx = naks.index(girl_nak)
+    offset = ((b_idx - g_idx) % 27) + 1   # count from girl to boy inclusive
+    auspicious = offset > 13
+    return {
+        "kuta": "Stree Deergha", "max": 2,
+        "score": 2 if auspicious else 0,
+        "boy_nakshatra": boy_nak, "girl_nakshatra": girl_nak,
+        "offset": offset,
+        "auspicious": auspicious,
+        "note": (f"Boy is {offset}th from Girl (>13) — wife's longevity + prosperity blessed"
+                 if auspicious else
+                 f"Boy is only {offset}th from Girl (≤13) — Stree Deergha not formed"),
+    }
+
+
+def _calc_rajju(chart_boy: dict, chart_girl: dict) -> dict:
+    """
+    Rajju Koota — South Indian Dashakoota.
+    Same body-region group = 0 (severe longevity concern); different = 5.
+    Five groups: Paada/Kati/Naabhi/Kantha/Shiro.
+    """
+    boy_nak = chart_boy["moon_nakshatra"]
+    girl_nak = chart_girl["moon_nakshatra"]
+    boy_rajju  = RAJJU_MAP.get(boy_nak, "")
+    girl_rajju = RAJJU_MAP.get(girl_nak, "")
+    if not boy_rajju or not girl_rajju:
+        return {"kuta": "Rajju", "max": 5, "score": 5,
+                "boy_rajju": boy_rajju, "girl_rajju": girl_rajju,
+                "has_dosha": False, "note": "Rajju lookup failed — assumed neutral"}
+    same_region = boy_rajju == girl_rajju
+    return {
+        "kuta": "Rajju", "max": 5,
+        "score": 0 if same_region else 5,
+        "boy_rajju": boy_rajju, "girl_rajju": girl_rajju,
+        "has_dosha": same_region,
+        "note": (f"Both in {boy_rajju} Rajju — same body region = longevity concern"
+                 if same_region else
+                 f"{boy_rajju} & {girl_rajju} — different regions, good bond strength"),
+    }
+
+
+def _extended_koots(chart_boy: dict, chart_girl: dict) -> dict:
+    """
+    PR A1.5 — South Indian Dashakoota extensions.
+    Returns the 3 additional koots that real KP/Telugu/Tamil practitioners
+    glance at beyond the 8 Ashtakoota: Mahendra, Stree Deergha, Rajju.
+    """
+    mahendra = _calc_mahendra(chart_boy, chart_girl)
+    stree    = _calc_stree_deergha(chart_boy, chart_girl)
+    rajju    = _calc_rajju(chart_boy, chart_girl)
+    koots = [mahendra, stree, rajju]
+    total = sum(k["score"] for k in koots)
+    max_total = sum(k["max"] for k in koots)
+    has_dosha = any(k.get("has_dosha") for k in koots)
+    return {
+        "koots": koots,
+        "mahendra": mahendra,
+        "stree_deergha": stree,
+        "rajju": rajju,
+        "total_score": total,
+        "max_score": max_total,
+        "has_rajju_dosha": rajju.get("has_dosha", False),
+        "verdict": (
+            "Excellent (longevity blessed)" if total >= 8
+            else "Good"                       if total >= 6
+            else "Average"                    if total >= 4
+            else "Concerning (longevity warning)"
+        ),
+    }
+
+
+def _vargottama_check(chart: dict) -> dict:
+    """
+    PR A1.5 — Vargottama flag for marriage karakas.
+
+    A planet is Vargottama if it occupies the SAME SIGN in both the
+    Rasi (D1) and Navamsa (D9). Per vedicknowledge.in + vaya.so:
+      - Vargottama Venus → loving, harmonious, devoted-spouse marriage
+      - Vargottama 7th Lord → marriage partner exactly as natally indicated
+      - Both → highest-quality marriage promise
+
+    Pre-A1.5 computed D9 signs but didn't flag Vargottama. This is
+    high-value low-cost.
+    """
+    planets = chart["planets"]
+    if "Venus" not in planets:
+        return {"venus_vargottama": False, "seventh_lord_vargottama": False}
+
+    venus_lon = planets["Venus"]["longitude"]
+    venus_d1_sign = get_sign(venus_lon % 360)
+    venus_d9_sign = _d9_sign(venus_lon)
+    venus_varg = (venus_d1_sign == venus_d9_sign)
+
+    h7_lon = chart["cusp_lons"][6] % 360
+    h7_sign_lord = SIGN_LORDS.get(get_sign(h7_lon), "")
+    seventh_varg = False
+    seventh_d1 = ""
+    seventh_d9 = ""
+    if h7_sign_lord and h7_sign_lord in planets:
+        seventh_lon = planets[h7_sign_lord]["longitude"]
+        seventh_d1 = get_sign(seventh_lon % 360)
+        seventh_d9 = _d9_sign(seventh_lon)
+        seventh_varg = (seventh_d1 == seventh_d9)
+
+    return {
+        "venus_vargottama": venus_varg,
+        "venus_d1_sign": venus_d1_sign,
+        "venus_d9_sign": venus_d9_sign,
+        "seventh_lord": h7_sign_lord,
+        "seventh_lord_vargottama": seventh_varg,
+        "seventh_lord_d1_sign": seventh_d1,
+        "seventh_lord_d9_sign": seventh_d9,
+        "both_vargottama": venus_varg and seventh_varg,
+        "note": (
+            "Both Venus AND 7th Lord Vargottama — highest-quality marriage signal" if venus_varg and seventh_varg
+            else "Venus Vargottama — loving, devoted-spouse marriage signal"        if venus_varg
+            else "7th Lord Vargottama — marriage partner exactly as natally indicated" if seventh_varg
+            else "No Vargottama on marriage karakas"
+        ),
+    }
+
+
+def _no_desire_for_marriage(chart: dict) -> dict:
+    """
+    PR A1.5 — KP "Daridra-style" no-desire-for-marriage check.
+
+    Per kpastrology.astrosage.com / KP Reader IV:
+      - Ketu and Venus both signifying houses in {1, 4, 6, 10, 12}
+        → native may lack desire for marriage
+      - Venus and Saturn combined (conjunction within 12° OR mutual aspect)
+        → ascetic tendency, marriage indifference
+
+    These are CAUTIONARY flags, not denials. They explain WHY a chart
+    with weak H7 CSL may not even pursue marriage.
+    """
+    planets = chart["planets"]
+    cusp_lons = chart["cusp_lons"]
+    indifference_set = {1, 4, 6, 10, 12}
+
+    ketu_venus_indifferent = False
+    if "Ketu" in planets and "Venus" in planets:
+        ketu_sigs  = _planet_significations("Ketu", planets, cusp_lons)
+        venus_sigs = _planet_significations("Venus", planets, cusp_lons)
+        if (ketu_sigs & indifference_set) and (venus_sigs & indifference_set):
+            ketu_venus_indifferent = True
+
+    venus_saturn_combined = False
+    if "Venus" in planets and "Saturn" in planets:
+        v_lon = planets["Venus"]["longitude"] % 360
+        s_lon = planets["Saturn"]["longitude"] % 360
+        sep = abs((v_lon - s_lon + 180) % 360 - 180)
+        if sep <= 12:
+            venus_saturn_combined = True
+
+    flagged = ketu_venus_indifferent or venus_saturn_combined
+    notes = []
+    if ketu_venus_indifferent:
+        notes.append("Ketu + Venus jointly signify {1,4,6,10,12} — ascetic / indifference signal")
+    if venus_saturn_combined:
+        notes.append("Venus & Saturn within 12° — marriage indifference tendency")
+
+    return {
+        "flagged": flagged,
+        "ketu_venus_indifferent": ketu_venus_indifferent,
+        "venus_saturn_combined": venus_saturn_combined,
+        "notes": notes,
+    }
+
+
 def _ashtakoota(chart_boy: dict, chart_girl: dict) -> dict:
     kutas = [
         _calc_varna(chart_boy, chart_girl),
@@ -1649,6 +1901,13 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
     dosha_p1 = _check_kuja_dosha(chart1)
     dosha_p2 = _check_kuja_dosha(chart2)
 
+    # PR A1.5 — South Indian Dashakoota extensions + Vargottama + no-desire
+    extended_koots = _extended_koots(chart_boy, chart_girl)
+    vargottama_p1 = _vargottama_check(chart1)
+    vargottama_p2 = _vargottama_check(chart2)
+    no_desire_p1 = _no_desire_for_marriage(chart1)
+    no_desire_p2 = _no_desire_for_marriage(chart2)
+
     # New: D9 Navamsa for both charts
     d9_chart1 = _compute_d9(chart1)
     d9_chart2 = _compute_d9(chart2)
@@ -1758,6 +2017,23 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
         overall_rank = max(0, VERDICT_RANK[overall] - 1)
         overall = next(k for k, v in VERDICT_RANK.items() if v == overall_rank)
 
+    # PR A1.5 — Rajju dosha (same body region) is a serious longevity
+    # concern. If present, downgrade one tier and never allow "Highly
+    # Compatible" verdict.
+    if extended_koots.get("has_rajju_dosha"):
+        if VERDICT_RANK[overall] >= VERDICT_RANK["Compatible"]:
+            overall_rank = max(0, VERDICT_RANK[overall] - 1)
+            overall = next(k for k, v in VERDICT_RANK.items() if v == overall_rank)
+        # Never let Highly Compatible stand with Rajju dosha
+        if overall == "Highly Compatible":
+            overall = "Compatible"
+
+    # PR A1.5 — No-desire flag on EITHER chart adds a soft caution layer.
+    # If BOTH charts have no-desire flag, cap at Conditionally Compatible.
+    if no_desire_p1.get("flagged") and no_desire_p2.get("flagged"):
+        if VERDICT_RANK[overall] > VERDICT_RANK["Conditionally Compatible"]:
+            overall = "Conditionally Compatible"
+
     # If KP says Conditional but Ashtakoota and canonical strongly support,
     # we do NOT upgrade — KP-strict mode means KP verdict is authoritative.
 
@@ -1793,7 +2069,13 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
             "person2": {"name": person2["name"], **dosha_p2},
             "mutual_cancellation": kuja_both,
         },
-        # New fields
+        # PR A1.5 — Dashakoota extensions + Vargottama + no-desire flags
+        "extended_koots": extended_koots,
+        "vargottama_chart1": vargottama_p1,
+        "vargottama_chart2": vargottama_p2,
+        "no_desire_chart1": no_desire_p1,
+        "no_desire_chart2": no_desire_p2,
+        # D9
         "d9_chart1": d9_chart1,
         "d9_chart2": d9_chart2,
         "significators_detailed_chart1": sigs_detailed1,

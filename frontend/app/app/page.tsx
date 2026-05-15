@@ -6277,6 +6277,101 @@ export default function Home() {
                           </div>
                         </div>
 
+                        {/* PR A1.4 — Canonical Cross-Match (kpastrologylearning Rule 5) */}
+                        {kp?.canonical_cross_match && (
+                          <div className="match-section">
+                            <div className="match-section-title">
+                              <Target size={12} strokeWidth={1.8} />
+                              {t("Canonical cross-match (KSK Rule 5)", "క్యానానికల్ క్రాస్-మ్యాచ్ (KSK నియమం 5)")}
+                            </div>
+                            <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 10 }}>
+                              {t("Each chart's H2/H7/H11 CSLs signifying {2,7,11}, plus partner's Ruling Planets signifying {2,7,11} in this chart.",
+                                 "ప్రతి చార్ట్‌యొక్క H2/H7/H11 CSLs {2,7,11} సూచిస్తాయి, మరియు భాగస్వామి RP లు ఈ చార్ట్‌లో {2,7,11} సూచిస్తాయి.")}
+                            </div>
+                            <div className="match-section-grid">
+                              {[
+                                { csls: kp.canonical_cross_match.a_csl_h2_7_11, count: kp.canonical_cross_match.a_own_promise_count, partnerRps: kp.canonical_cross_match.b_rps_signifying_a_marriage, sideOk: kp.canonical_cross_match.a_side_canonical_match, name: r.person1?.name, partner: r.person2?.name },
+                                { csls: kp.canonical_cross_match.b_csl_h2_7_11, count: kp.canonical_cross_match.b_own_promise_count, partnerRps: kp.canonical_cross_match.a_rps_signifying_b_marriage, sideOk: kp.canonical_cross_match.b_side_canonical_match, name: r.person2?.name, partner: r.person1?.name },
+                              ].map((it, i) => (
+                                <div key={i} className="match-tile" style={{ borderColor: it.sideOk ? "rgba(74,222,128,0.3)" : "rgba(248,113,113,0.25)" }}>
+                                  <div className="match-tile-name">
+                                    {it.name}
+                                    <span style={{ marginLeft: 8, fontSize: 10, color: it.sideOk ? "#4ade80" : "#f87171", fontWeight: 700, letterSpacing: "0.04em" }}>
+                                      {it.sideOk ? `✓ ${t("CANONICAL MATCH", "క్యానానికల్ మ్యాచ్")}` : `✗ ${t("NOT MET", "తీరలేదు")}`}
+                                    </span>
+                                  </div>
+                                  <div style={{ marginTop: 6, fontSize: 11, color: "var(--muted)" }}>
+                                    {t("Own H2/H7/H11 CSLs hitting {2,7,11}", "స్వంత H2/H7/H11 CSLs {2,7,11}కు తాకుతున్నాయి")}: <strong style={{ color: it.count >= 2 ? "#4ade80" : "var(--muted)" }}>{it.count}/3</strong>
+                                  </div>
+                                  <div style={{ marginTop: 4, fontSize: 11 }}>
+                                    {(it.csls || []).map((c: any, j: number) => (
+                                      <div key={j} style={{ display: "flex", justifyContent: "space-between", padding: "2px 0" }}>
+                                        <span style={{ color: "var(--muted)" }}>H{c.cusp} CSL <strong style={{ color: "var(--text)" }}>{c.csl}</strong></span>
+                                        <span style={{ color: c.signifies_target ? "#4ade80" : "var(--muted)", fontWeight: 600 }}>{c.signifies_target ? "✓" : "✗"}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  <div style={{ marginTop: 6, fontSize: 11, color: "var(--muted)" }}>
+                                    {it.partner}'s {t("RPs hitting", "RP లు తాకుతున్నాయి")} {it.name}'s {t("marriage houses", "వివాహ భావాలు")}:
+                                  </div>
+                                  <div style={{ marginTop: 2, fontSize: 11, color: it.partnerRps?.length >= 2 ? "#4ade80" : "var(--muted)" }}>
+                                    {(it.partnerRps || []).length > 0
+                                      ? (it.partnerRps || []).map((p: any) => `${p.planet} (H${(p.sigs || []).join(",H")})`).join(", ")
+                                      : t("None", "ఏదీ లేదు")}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            {kp.canonical_cross_match.both_sides_canonical_match && (
+                              <div style={{ marginTop: 10, padding: "6px 10px", background: "rgba(74,222,128,0.08)", border: "0.5px solid rgba(74,222,128,0.25)", borderRadius: 8, fontSize: 11, color: "#4ade80", textAlign: "center" as const }}>
+                                ✓ {t("BOTH SIDES canonical match — strongest possible KP cross-match", "రెండు వైపులా క్యానానికల్ మ్యాచ్ — బలమైన KP క్రాస్-మ్యాచ్")}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* PR A1.4 — 5-signal Type Classification per chart */}
+                        {(kp?.type_classification_chart1 || kp?.type_classification_chart2) && (
+                          <div className="match-section">
+                            <div className="match-section-title">
+                              <HandHeart size={12} strokeWidth={1.8} />
+                              {t("Marriage type · 5-signal classification", "వివాహ రకం · 5-సంకేత వర్గీకరణ")}
+                            </div>
+                            <div className="match-section-grid">
+                              {[
+                                { tc: kp.type_classification_chart1, name: r.person1?.name },
+                                { tc: kp.type_classification_chart2, name: r.person2?.name },
+                              ].map((it, i) => it.tc && (
+                                <div key={i} className="match-tile">
+                                  <div className="match-tile-name">{it.name}</div>
+                                  <div style={{ marginTop: 4, fontSize: 12, color: "var(--accent)", fontWeight: 600 }}>
+                                    {it.tc.category}
+                                  </div>
+                                  <div style={{ marginTop: 4, fontSize: 11, color: "var(--muted)", lineHeight: 1.4 }}>
+                                    {it.tc.reasoning}
+                                  </div>
+                                  <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "auto 1fr", gap: "3px 8px", fontSize: 10.5 }}>
+                                    <span style={{ color: "var(--muted)" }}>S1 H5 in chain</span>
+                                    <span style={{ color: it.tc.signal_1_h5_in_chain ? "#4ade80" : "var(--muted)" }}>{it.tc.signal_1_h5_in_chain ? "✓" : "○"}</span>
+                                    <span style={{ color: "var(--muted)" }}>S2 5L={it.tc.signal_2_fifth_lord} in H{it.tc.signal_2_fifth_lord_house}</span>
+                                    <span style={{ color: it.tc.signal_2_love_path_negated ? "#f87171" : it.tc.signal_2_love_path_strong ? "#4ade80" : "var(--muted)" }}>
+                                      {it.tc.signal_2_love_path_negated ? "negate" : it.tc.signal_2_love_path_strong ? "strong" : "mid"}
+                                    </span>
+                                    <span style={{ color: "var(--muted)" }}>S3 H4/H9 in chain</span>
+                                    <span style={{ color: (it.tc.signal_3_h4_in_chain && it.tc.signal_3_h9_in_chain) ? "#4ade80" : (it.tc.signal_3_h4_in_chain || it.tc.signal_3_h9_in_chain) ? "var(--accent)" : "var(--muted)" }}>
+                                      {it.tc.signal_3_h4_in_chain ? "H4 " : ""}{it.tc.signal_3_h9_in_chain ? "H9" : ""}{(!it.tc.signal_3_h4_in_chain && !it.tc.signal_3_h9_in_chain) ? "○" : ""}
+                                    </span>
+                                    <span style={{ color: "var(--muted)" }}>S4 Moon H{it.tc.signal_4_moon_house}</span>
+                                    <span style={{ color: "var(--text)" }}>{it.tc.signal_4_moon_mode}</span>
+                                    <span style={{ color: "var(--muted)" }}>S5 5L-7L</span>
+                                    <span style={{ color: it.tc.signal_5_strength === "strong" ? "#4ade80" : it.tc.signal_5_strength === "mild" ? "var(--accent)" : "var(--muted)" }}>{it.tc.signal_5_relation}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
                         {/* ═══ SUPPORTING CUSPS — H2 & H11 ═══ */}
                         <div className="match-section">
                           <div className="match-section-title">
@@ -6436,6 +6531,31 @@ export default function Home() {
                         {matchSubTab === "risks" && (
                         <div className="match-subtab-pane">
 
+                        {/* PR A1.5 — No-desire-for-marriage flags (Ketu+Venus / Venus+Saturn) */}
+                        {(r.no_desire_chart1?.flagged || r.no_desire_chart2?.flagged) && (
+                          <div className="match-section" style={{ background: "rgba(251,191,36,0.04)", border: "1px solid rgba(251,191,36,0.18)", padding: "12px 14px" }}>
+                            <div className="match-section-title">
+                              <TriangleAlert size={12} strokeWidth={1.8} />
+                              {t("Marriage indifference signal", "వివాహం పట్ల అనాసక్తి సంకేతం")}
+                            </div>
+                            {[
+                              { nd: r.no_desire_chart1, name: r.person1?.name },
+                              { nd: r.no_desire_chart2, name: r.person2?.name },
+                            ].map((it, i) => it.nd?.flagged && (
+                              <div key={i} style={{ marginBottom: 6 }}>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: "#fbbf24" }}>{it.name}</div>
+                                {(it.nd.notes || []).map((n: string, j: number) => (
+                                  <div key={j} style={{ fontSize: 11, color: "var(--text)", marginLeft: 8, marginTop: 2 }}>· {n}</div>
+                                ))}
+                              </div>
+                            ))}
+                            <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 4 }}>
+                              {t("Cautionary, not denial — explains why a weak H7 CSL may not even seek marriage.",
+                                 "హెచ్చరిక మాత్రమే, నిరాకరణ కాదు — బలహీన H7 CSL వివాహాన్ని ఎందుకు అన్వేషించదో వివరిస్తుంది.")}
+                            </div>
+                          </div>
+                        )}
+
                         {/* ═══ KUJA DOSHA + MOON ═══ */}
                         <div className="match-section-grid">
                           <div className="match-section" style={{ padding: "12px 14px" }}>
@@ -6556,6 +6676,127 @@ export default function Home() {
                         {/* ══════ OVERALL pane (Ashtakoota score anchor) ══════ */}
                         {matchSubTab === "overall" && (
                         <div className="match-subtab-pane">
+
+                        {/* PR A1.5 — Why this verdict (KP-strict reasoning) */}
+                        {kp?.kp_verdict_reasoning && (
+                          <div className="match-section" style={{ background: "rgba(201,169,110,0.04)", border: "1px solid rgba(201,169,110,0.15)" }}>
+                            <div className="match-section-title">
+                              <Sparkles size={12} strokeWidth={1.8} />
+                              {t("Why this verdict", "ఈ తీర్పుకు కారణం")}
+                            </div>
+                            <div style={{ fontSize: 12.5, lineHeight: 1.6, color: "var(--text)" }}>
+                              {kp.kp_verdict_reasoning}
+                            </div>
+                            {/* Promise tier per person */}
+                            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" as const, marginTop: 12 }}>
+                              {[
+                                { p: kp?.chart1_promise, name: r.person1?.name },
+                                { p: kp?.chart2_promise, name: r.person2?.name },
+                              ].map((it, i) => it.p && (
+                                <div key={i} style={{ flex: "1 1 240px", padding: "10px 12px", background: "var(--surface)", border: "0.5px solid var(--border)", borderRadius: 8 }}>
+                                  <div style={{ fontSize: 10, color: "var(--muted)", textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 4 }}>{it.name}</div>
+                                  <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" as const }}>
+                                    <span style={{
+                                      fontSize: 10,
+                                      fontWeight: 700,
+                                      padding: "2px 8px",
+                                      borderRadius: 999,
+                                      background: it.p.promise_tier === "Full" ? "rgba(74,222,128,0.15)"
+                                                : it.p.promise_tier === "Partial" ? "rgba(251,191,36,0.15)"
+                                                : it.p.promise_tier === "Weak" ? "rgba(251,191,36,0.10)"
+                                                : "rgba(248,113,113,0.15)",
+                                      color: it.p.promise_tier === "Full" ? "#4ade80"
+                                           : it.p.promise_tier === "Partial" ? "#fbbf24"
+                                           : it.p.promise_tier === "Weak" ? "#fbbf24"
+                                           : "#f87171",
+                                      letterSpacing: "0.04em",
+                                    }}>{it.p.promise_tier?.toUpperCase() || "—"}</span>
+                                    <span style={{ fontSize: 12, color: "var(--text)" }}>
+                                      H7 CSL <strong>{it.p.sub_lord}</strong> → H{(it.p.signified_houses || []).join(", H") || "—"}
+                                    </span>
+                                  </div>
+                                  {it.p.has_denial && (
+                                    <div style={{ fontSize: 10, color: "#f87171", marginTop: 4 }}>
+                                      ⚠ {t("Denial houses hit", "నిరాకరణ భావాలు")}: H{(it.p.denial_houses_hit || []).join(", H")}
+                                    </div>
+                                  )}
+                                  {it.p.csl_in_retrograde_star && (
+                                    <div style={{ fontSize: 10, color: "#fbbf24", marginTop: 4 }}>
+                                      ⚠ {t("H7 CSL in retrograde star — delay/non-fructification", "H7 CSL వక్ర నక్షత్రంలో — ఆలస్యం")}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* PR A1.5 — Vargottama chips (high-quality marriage signal) */}
+                        {(r.vargottama_chart1?.venus_vargottama || r.vargottama_chart1?.seventh_lord_vargottama
+                          || r.vargottama_chart2?.venus_vargottama || r.vargottama_chart2?.seventh_lord_vargottama) && (
+                          <div className="match-section" style={{ padding: "12px 14px" }}>
+                            <div className="match-section-title">
+                              <Sparkles size={12} strokeWidth={1.8} />
+                              {t("Vargottama (D1 = D9)", "వర్గోత్తమ (D1 = D9)")}
+                            </div>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const }}>
+                              {[
+                                { v: r.vargottama_chart1, name: r.person1?.name },
+                                { v: r.vargottama_chart2, name: r.person2?.name },
+                              ].map((it, i) => it.v && (it.v.venus_vargottama || it.v.seventh_lord_vargottama) && (
+                                <div key={i} style={{ flex: "1 1 240px", padding: "8px 12px", background: "rgba(74,222,128,0.06)", border: "0.5px solid rgba(74,222,128,0.25)", borderRadius: 8 }}>
+                                  <div style={{ fontSize: 10, color: "var(--muted)", textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 3 }}>{it.name}</div>
+                                  {it.v.venus_vargottama && (
+                                    <div style={{ fontSize: 12, color: "#4ade80" }}>
+                                      ✓ {t("Venus Vargottama", "శుక్ర వర్గోత్తమ")} ({it.v.venus_d1_sign})
+                                    </div>
+                                  )}
+                                  {it.v.seventh_lord_vargottama && (
+                                    <div style={{ fontSize: 12, color: "#4ade80" }}>
+                                      ✓ {t(`7th Lord ${it.v.seventh_lord} Vargottama`, `7-అధిపతి ${it.v.seventh_lord} వర్గోత్తమ`)} ({it.v.seventh_lord_d1_sign})
+                                    </div>
+                                  )}
+                                  <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 3 }}>{it.v.note}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* PR A1.5 — Extended Dashakoota (Mahendra / Stree Deergha / Rajju) */}
+                        {r.extended_koots && (
+                          <div className="match-section">
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                              <div className="match-section-title" style={{ marginBottom: 0 }}>
+                                <Target size={12} strokeWidth={1.8} />
+                                {t("Extended Koots · Longevity & Progeny", "విస్తరించిన కూటాలు · దీర్ఘాయుష్షు & సంతానం")}
+                              </div>
+                              <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 18, lineHeight: 1, color: r.extended_koots.total_score >= 6 ? "#4ade80" : r.extended_koots.total_score >= 4 ? "var(--accent)" : "#f87171" }}>
+                                {r.extended_koots.total_score}<span style={{ fontSize: 12, color: "var(--muted)" }}>/{r.extended_koots.max_score}</span>
+                              </div>
+                            </div>
+                            <div style={{ display: "flex", flexDirection: "column" as const, gap: 6 }}>
+                              {(r.extended_koots.koots || []).map((k: any, i: number) => {
+                                const pct = k.max > 0 ? (k.score / k.max) * 100 : 0;
+                                const barColor = k.score === 0 ? "#f87171" : k.score >= k.max * 0.6 ? "#4ade80" : "var(--accent)";
+                                return (
+                                  <div key={i} title={k.note || ""} className={`match-ashta-row${k.score === 0 ? " is-zero" : ""}`}>
+                                    <div className="match-ashta-label">{k.kuta}</div>
+                                    <div className="match-ashta-bar-wrap">
+                                      <div className="match-ashta-bar-fill" style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${barColor}80 0%, ${barColor} 100%)`, boxShadow: k.score >= k.max * 0.6 ? `0 0 8px ${barColor}50` : "none" }} />
+                                    </div>
+                                    <div className="match-ashta-score" style={{ color: barColor }}>{k.score}/{k.max}</div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            {r.extended_koots.has_rajju_dosha && (
+                              <div style={{ marginTop: 10, padding: "6px 10px", background: "rgba(248,113,113,0.08)", border: "0.5px solid rgba(248,113,113,0.25)", borderRadius: 8, fontSize: 11, color: "#f87171" }}>
+                                ⚠ {t("Rajju Dosha — same body region. Classical longevity concern.", "రజ్జు దోషం — ఒకే శరీర భాగం. దీర్ఘాయుష్షు సంబంధ ఆందోళన.")}
+                              </div>
+                            )}
+                          </div>
+                        )}
 
                         {/* ═══ ASHTAKOOTA — 36 Gun ═══ */}
                         <div className="match-section">

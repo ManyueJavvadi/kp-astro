@@ -3626,6 +3626,35 @@ def format_match_for_llm(compat_result: dict) -> str:
         lines.append(f"{label}: D9 Lagna={d9.get('d9_lagna_sign','')} | Venus D9={d9.get('venus_d9_sign','')} | Moon D9={d9.get('moon_d9_sign','')}")
         lines.append(f"  7th Lord={d9.get('d9_7th_lord','')} in D9 {d9.get('d9_7th_lord_sign','')} | D9 7th sign={d9.get('d9_7th_sign','')}")
 
+    # PR A1.5 — Vargottama flags per chart
+    lines.append(f"\n--- VARGOTTAMA FLAGS (D1 = D9 sign) ---")
+    for label, key in [("Person 1", "vargottama_chart1"), ("Person 2", "vargottama_chart2")]:
+        v = compat_result.get(key, {})
+        marks = []
+        if v.get("venus_vargottama"):
+            marks.append(f"✓ Venus Vargottama ({v.get('venus_d1_sign')})")
+        if v.get("seventh_lord_vargottama"):
+            marks.append(f"✓ 7th Lord {v.get('seventh_lord')} Vargottama ({v.get('seventh_lord_d1_sign')})")
+        if not marks:
+            marks.append("○ No Vargottama on marriage karakas")
+        lines.append(f"{label}: {' | '.join(marks)}  ({v.get('note','')})")
+
+    # PR A1.5 — Extended Dashakoota (Mahendra / Stree Deergha / Rajju)
+    ek = compat_result.get("extended_koots", {})
+    if ek:
+        lines.append(f"\n--- EXTENDED DASHAKOOTA (Mahendra / Stree Deergha / Rajju) ---")
+        lines.append(f"Total: {ek.get('total_score', 0)}/{ek.get('max_score', 9)} — {ek.get('verdict','')}")
+        for k in ek.get("koots", []):
+            lines.append(f"  {k['kuta']}: {k['score']}/{k['max']} — {k.get('note','')}")
+        if ek.get("has_rajju_dosha"):
+            lines.append(f"  ⚠ RAJJU DOSHA — same body region → longevity concern (verdict capped)")
+
+    # PR A1.5 — No-desire-for-marriage flags per chart
+    for label, key in [("Person 1", "no_desire_chart1"), ("Person 2", "no_desire_chart2")]:
+        nd = compat_result.get(key, {})
+        if nd.get("flagged"):
+            lines.append(f"\n⚠ NO-DESIRE-FOR-MARRIAGE FLAG — {label}: {' | '.join(nd.get('notes', []))}")
+
     # Kuja Dosha
     lines.append(f"\n--- KUJA DOSHA ---")
     kuja = compat_result["kuja_dosha"]
@@ -3758,7 +3787,25 @@ KEY RULES — read carefully and apply strictly:
     (g) TIMING — current MD/AD favorability per chart, when next favorable window opens
     (h) HONEST CLOSER — one sentence on what a senior astrologer would say in person
 
-14. BE A SECOND OPINION TO A SENIOR ASTROLOGER. The user might cross-check this with their dad
+14. VARGOTTAMA FLAGS (PR A1.5). If the worksheet shows "✓ Venus Vargottama" or "✓ 7th Lord
+    Vargottama" on either chart, ALWAYS mention this as a quality booster. Venus Vargottama =
+    loving, devoted-spouse signal. 7th Lord Vargottama = partner exactly as natally indicated.
+    Both = highest-quality marriage promise. Do NOT skip this — it is a strong positive that
+    a senior astrologer would always highlight.
+
+15. EXTENDED DASHAKOOTA (Mahendra / Stree Deergha / Rajju — PR A1.5). South Indian / Tamil
+    practitioners check these beyond the 8 Ashtakoota:
+      - Mahendra (2 pts max) — progeny + happiness
+      - Stree Deergha (2 pts max) — wife's longevity
+      - Rajju (5 pts max) — bond longevity (same body-region = severe concern)
+    When the worksheet shows "⚠ RAJJU DOSHA," explicitly flag it as a longevity warning.
+    Do NOT treat this as cosmetic.
+
+16. NO-DESIRE-FOR-MARRIAGE FLAGS (PR A1.5). If either chart shows the no-desire flag
+    (Ketu+Venus jointly in {1,4,6,10,12} OR Venus+Saturn combined within 12°), mention it
+    explicitly — this explains WHY a chart with weak H7 CSL may not even pursue marriage.
+
+17. BE A SECOND OPINION TO A SENIOR ASTROLOGER. The user might cross-check this with their dad
     or a 20-year practitioner. Your analysis must hold up to that scrutiny — no hand-waving,
     no "all is well," every claim grounded in the worksheet."""
 
