@@ -6628,6 +6628,91 @@ export default function Home() {
                           </div>
                         )}
 
+                        {/* PR A1.6 — Upcoming marriage windows (next 60 months) */}
+                        {r.upcoming_windows && (
+                          <>
+                          {/* Shared / overlap windows — strongest signal */}
+                          {(r.upcoming_windows.overlap_windows?.length > 0) && (
+                            <div className="match-section">
+                              <div className="match-section-title">
+                                <Hourglass size={12} strokeWidth={1.8} />
+                                {t("Shared windows · Both partners favorable", "ఉమ్మడి కిటికీలు · ఇద్దరికీ అనుకూలం")}
+                              </div>
+                              <div style={{ fontSize: 10.5, color: "var(--muted)", marginBottom: 8 }}>
+                                {t("Calendar months where BOTH partners are running an AD that signifies marriage houses {2,7,11}. These are the strongest wedding-date candidates.",
+                                   "ఇద్దరు భాగస్వాములు {2,7,11}ని సూచించే ADలో ఉన్న సమయ కాలాలు. వివాహ తేదీ అత్యంత బలమైన అభ్యర్థులు.")}
+                              </div>
+                              <div style={{ display: "flex", flexDirection: "column" as const, gap: 6 }}>
+                                {(r.upcoming_windows.overlap_windows || []).map((w: any, i: number) => (
+                                  <div key={i} style={{ padding: "8px 12px", background: "rgba(74,222,128,0.06)", border: "0.5px solid rgba(74,222,128,0.25)", borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" as const, gap: 8 }}>
+                                    <div>
+                                      <div style={{ fontSize: 12, fontWeight: 600, color: "#4ade80" }}>
+                                        {w.start} → {w.end}
+                                        <span style={{ fontSize: 10, color: "var(--muted)", marginLeft: 8 }}>({w.duration_days}d)</span>
+                                      </div>
+                                      <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
+                                        {r.person1?.name} AD: <strong style={{ color: "var(--text)" }}>{w.person1_ad}</strong> · {r.person2?.name} AD: <strong style={{ color: "var(--text)" }}>{w.person2_ad}</strong>
+                                      </div>
+                                    </div>
+                                    <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 16, color: "#4ade80" }}>{w.combined_score}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {(r.upcoming_windows.overlap_windows?.length === 0) && (
+                            <div className="match-section" style={{ background: "rgba(251,191,36,0.04)", border: "1px solid rgba(251,191,36,0.18)" }}>
+                              <div className="match-section-title">
+                                <Hourglass size={12} strokeWidth={1.8} />
+                                {t("Shared windows", "ఉమ్మడి కిటికీలు")}
+                              </div>
+                              <div style={{ fontSize: 11.5, color: "var(--text)" }}>
+                                {t("No overlapping favorable AD windows found in next 60 months. Marriage timing may stretch beyond this horizon, or one chart serves as the gate (favorable period in only one partner).",
+                                   "రాబోయే 60 నెలల్లో ఉమ్మడి అనుకూల AD కిటికీలు కనిపించలేదు. వివాహ సమయం ఈ హోరిజోన్‌ను దాటవచ్చు.")}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Per-person top windows */}
+                          <div className="match-section">
+                            <div className="match-section-title">
+                              <Hourglass size={12} strokeWidth={1.8} />
+                              {t("Per-person top marriage windows", "ప్రతి వ్యక్తి టాప్ వివాహ కిటికీలు")}
+                            </div>
+                            <div className="match-section-grid">
+                              {[
+                                { ws: r.upcoming_windows.person1_windows, name: r.person1?.name },
+                                { ws: r.upcoming_windows.person2_windows, name: r.person2?.name },
+                              ].map((it, i) => (
+                                <div key={i} className="match-tile">
+                                  <div className="match-tile-name">{it.name}</div>
+                                  {(it.ws || []).length === 0 ? (
+                                    <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 6 }}>
+                                      {t("No favorable AD windows found in horizon.", "హోరిజోన్‌లో అనుకూల AD కిటికీలు కనిపించలేదు.")}
+                                    </div>
+                                  ) : (it.ws || []).slice(0, 4).map((w: any, j: number) => (
+                                    <div key={j} style={{ marginTop: 4, padding: "4px 0", borderTop: j > 0 ? "0.5px dashed var(--border)" : "none" }}>
+                                      <div style={{ fontSize: 11, color: "var(--text)" }}>
+                                        <strong>{w.start}</strong> → {w.end}
+                                      </div>
+                                      <div style={{ fontSize: 10.5, color: "var(--muted)" }}>
+                                        AD <strong style={{ color: "var(--text)" }}>{w.ad_lord}</strong> sigs H{(w.promise_hits || []).join(", H")}
+                                        <span style={{ marginLeft: 6, color: w.score >= 2 ? "#4ade80" : "var(--accent)" }}>score {w.score}</span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ))}
+                            </div>
+                            <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 8, fontStyle: "italic", lineHeight: 1.5 }}>
+                              {t("AD = Antardasha. Score = (count of {2,7,11} signified) − 0.5 × (count of {6,8,12} signified). Higher = stronger window.",
+                                 "AD = అంతర్దశ. స్కోర్ = {2,7,11} సూచనల సంఖ్య − 0.5 × {6,8,12} సూచనల సంఖ్య.")}
+                            </div>
+                          </div>
+                          </>
+                        )}
+
                         </div>
                         )}
 
@@ -6686,6 +6771,13 @@ export default function Home() {
                             </div>
                             <div style={{ fontSize: 12.5, lineHeight: 1.6, color: "var(--text)" }}>
                               {kp.kp_verdict_reasoning}
+                            </div>
+                            {/* PR A1.6 — natal-vs-timing disambiguation note */}
+                            <div style={{ fontSize: 10.5, color: "var(--muted)", marginTop: 8, fontStyle: "italic", lineHeight: 1.5 }}>
+                              {t(
+                                "Note: this verdict is the NATAL structural reading (does the chart promise marriage at all in this lifetime?). Timing-specific predictions live in the Timing tab and the AI analysis — both are based on current dasha + Ruling Planets.",
+                                "గమనిక: ఇది జనన చార్ట్ నిర్మాణ తీర్పు. ప్రస్తుత సమయపు తీర్పులకు Timing ట్యాబ్ + AI విశ్లేషణ చూడండి."
+                              )}
                             </div>
                             {/* Promise tier per person */}
                             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" as const, marginTop: 12 }}>
@@ -6795,6 +6887,107 @@ export default function Home() {
                                 ⚠ {t("Rajju Dosha — same body region. Classical longevity concern.", "రజ్జు దోషం — ఒకే శరీర భాగం. దీర్ఘాయుష్షు సంబంధ ఆందోళన.")}
                               </div>
                             )}
+                          </div>
+                        )}
+
+                        {/* PR A1.6 — If marriage happens, will it last + be happy? */}
+                        {(r.quality_outlook_chart1 || r.quality_outlook_chart2) && (
+                          <div className="match-section">
+                            <div className="match-section-title">
+                              <HandHeart size={12} strokeWidth={1.8} />
+                              {t("If it happens · Will it last & be happy?", "జరిగితే · దీర్ఘకాలికమా & ఆనందమా?")}
+                            </div>
+                            <div style={{ fontSize: 10.5, color: "var(--muted)", marginBottom: 10 }}>
+                              {t("Outlook for marital longevity + harmony assuming marriage occurs. H8 (sustenance), 7th lord placement, malefics on H7.",
+                                 "వివాహం జరిగితే దీర్ఘకాలికత + సామరస్యం. H8 (నిర్వహణ), 7వ అధిపతి, H7పై మాలెఫిక్‌లు.")}
+                            </div>
+                            <div className="match-section-grid">
+                              {[
+                                { q: r.quality_outlook_chart1, name: r.person1?.name },
+                                { q: r.quality_outlook_chart2, name: r.person2?.name },
+                              ].map((it, i) => it.q && (
+                                <div key={i} className="match-tile">
+                                  <div className="match-tile-name">{it.name}</div>
+                                  <div style={{ marginTop: 4, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                                    <div style={{ fontSize: 13, fontWeight: 600, color: it.q.score >= 6 ? "#4ade80" : it.q.score >= 4 ? "var(--accent)" : "#f87171" }}>
+                                      {it.q.outlook}
+                                    </div>
+                                    <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 16, color: it.q.score >= 6 ? "#4ade80" : it.q.score >= 4 ? "var(--accent)" : "#f87171" }}>
+                                      {it.q.score}<span style={{ fontSize: 11, color: "var(--muted)" }}>/10</span>
+                                    </div>
+                                  </div>
+                                  <div style={{ marginTop: 6, fontSize: 11, color: "var(--muted)" }}>
+                                    H8 CSL <strong style={{ color: "var(--text)" }}>{it.q.h8_csl}</strong> sigs H{(it.q.h8_signified_houses || []).join(", H") || "—"}
+                                  </div>
+                                  <div style={{ fontSize: 11, color: "var(--muted)" }}>
+                                    7th Lord <strong style={{ color: "var(--text)" }}>{it.q.h7_lord}</strong> in H{it.q.h7_lord_house}
+                                    {it.q.h7_lord_in_dussthana && <span style={{ color: "#f87171" }}> (dussthana)</span>}
+                                  </div>
+                                  {(it.q.positives || []).map((p: string, j: number) => (
+                                    <div key={`+${j}`} style={{ fontSize: 10.5, color: "#4ade80", marginTop: 3 }}>+ {p}</div>
+                                  ))}
+                                  {(it.q.negatives || []).map((n: string, j: number) => (
+                                    <div key={`-${j}`} style={{ fontSize: 10.5, color: "#f87171", marginTop: 3 }}>− {n}</div>
+                                  ))}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* PR A1.6 — Children prospects (joint) */}
+                        {r.children_match && (
+                          <div className="match-section">
+                            <div className="match-section-title">
+                              <Sparkles size={12} strokeWidth={1.8} />
+                              {t("Children prospects", "సంతాన అవకాశాలు")}
+                            </div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: r.children_match.joint_verdict?.startsWith("Strong") ? "#4ade80"
+                                : r.children_match.joint_verdict?.startsWith("Good") ? "var(--accent)"
+                                : r.children_match.joint_verdict?.startsWith("Concerning") ? "#f87171" : "var(--accent)", marginBottom: 10 }}>
+                              {r.children_match.joint_verdict}
+                            </div>
+                            <div className="match-section-grid">
+                              {[
+                                { c: r.children_match.chart1, name: r.person1?.name },
+                                { c: r.children_match.chart2, name: r.person2?.name },
+                              ].map((it, i) => it.c && (
+                                <div key={i} className="match-tile">
+                                  <div className="match-tile-name">{it.name}</div>
+                                  <div style={{ marginTop: 4, fontSize: 12, color: it.c.verdict === "Promised" ? "#4ade80" : it.c.verdict === "Likely" ? "var(--accent)" : it.c.verdict?.startsWith("Difficult") ? "#f87171" : "var(--muted)" }}>
+                                    H5 CSL <strong>{it.c.h5_csl}</strong> → {it.c.verdict}
+                                  </div>
+                                  <div style={{ marginTop: 4, fontSize: 11, color: "var(--muted)" }}>
+                                    Signifies: H{(it.c.h5_signified_houses || []).join(", H") || "—"}
+                                  </div>
+                                  <div style={{ fontSize: 11, color: "var(--muted)" }}>
+                                    5L <strong style={{ color: "var(--text)" }}>{it.c.fifth_lord}</strong> in H{it.c.fifth_lord_house} | Jupiter H{it.c.jupiter_house}
+                                    {it.c.jupiter_in_dussthana && <span style={{ color: "#f87171" }}> (dussthana)</span>}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* PR A1.6 — In-laws health flag */}
+                        {(r.in_laws_chart1?.flagged || r.in_laws_chart2?.flagged) && (
+                          <div className="match-section" style={{ background: "rgba(251,191,36,0.04)", border: "1px solid rgba(251,191,36,0.18)" }}>
+                            <div className="match-section-title">
+                              <TriangleAlert size={12} strokeWidth={1.8} />
+                              {t("Parental / in-laws health signals", "తల్లిదండ్రులు / అత్త-మామల ఆరోగ్య సంకేతాలు")}
+                            </div>
+                            {[r.in_laws_chart1, r.in_laws_chart2].map((il: any, i: number) => il?.flagged && (
+                              <div key={i} style={{ marginBottom: 6 }}>
+                                {(il.concerns || []).map((c: string, j: number) => (
+                                  <div key={j} style={{ fontSize: 11.5, color: "var(--text)", marginTop: 2 }}>· {c}</div>
+                                ))}
+                              </div>
+                            ))}
+                            <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 4, fontStyle: "italic" }}>
+                              {t("Stress signal, NOT a prediction of harm. Classical caution — folk overstatements (\"marriage causes parent death\") are not KP.",
+                                 "ఒత్తిడి సంకేతం మాత్రమే, హాని ప్రమాదం కాదు. క్లాసికల్ హెచ్చరిక మాత్రమే.")}
+                            </div>
                           </div>
                         )}
 

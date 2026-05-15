@@ -483,20 +483,29 @@ def _h7_sublord_promise(chart: dict) -> dict:
     # PARTIAL or WEAK with denial   → "Denied" (denial wins)
     # PARTIAL with no denial        → "Conditional"
     # WEAK with no denial           → "Conditional - weak"
+    # PR A1.6 — softened verdict labels.
+    # Previous wording ("Denied") was too harsh for PARTIAL+denial cases —
+    # the chart still promises marriage in 2 of 3 houses, just with friction.
+    # Real KP reading: "marriage happens but with caveats, requires favorable
+    # timing." Only true Denied = NONE tier + only denial houses signified.
+    #
+    # IMPORTANT: this is the NATAL STRUCTURAL verdict (lifetime promise).
+    # It is NOT time-aware. Current-period activation is computed separately
+    # via dasha + RP analysis.
     if promise_tier == PROMISE_FULL and not has_denial:
         verdict = "Promised"
     elif promise_tier == PROMISE_FULL and has_denial:
-        verdict = "Promised with caution"
+        verdict = "Promised with caveats"
     elif promise_tier == PROMISE_PARTIAL and not has_denial:
         verdict = "Conditional"
     elif promise_tier == PROMISE_PARTIAL and has_denial:
-        verdict = "Denied"
+        verdict = "Conditional — caveats"   # was "Denied" — softened
     elif promise_tier == PROMISE_WEAK and not has_denial:
-        verdict = "Conditional - weak"
+        verdict = "Conditional — weak"
     elif promise_tier == PROMISE_WEAK and has_denial:
-        verdict = "Denied"
+        verdict = "Conditional — weak + caveats"   # was "Denied" — softened
     elif has_denial:
-        verdict = "Denied"
+        verdict = "Denied (structural)"
     else:
         verdict = "Inconclusive"
 
@@ -941,7 +950,7 @@ def _five_signal_classification(chart: dict) -> dict:
     s3_strong_arranged = s3_h4_in_chain and s3_h9_in_chain
     s3_one_parent     = s3_h4_in_chain ^ s3_h9_in_chain
 
-    # Signal 4: Moon house position
+    # Signal 4: Moon house position (PR A1.6 expanded — H6 wasn't mapped)
     moon_house = _get_planet_house(chart["moon_lon"], cusp_lons)
     if moon_house in {2, 4}:
         s4_moon_mode = "family-driven"
@@ -953,6 +962,10 @@ def _five_signal_classification(chart: dict) -> dict:
         s4_moon_mode = "hidden/secretive"
     elif moon_house in {1, 10}:
         s4_moon_mode = "self/career-driven"
+    elif moon_house == 6:
+        s4_moon_mode = "workplace/service-driven"
+    elif moon_house == 3:
+        s4_moon_mode = "neighbourhood/sibling-mediated"
     else:
         s4_moon_mode = "neutral"
 
@@ -1029,9 +1042,25 @@ def _five_signal_classification(chart: dict) -> dict:
             "Parental network present (H{} in chain), love tendency absent — "
             "family arranges and native approves.".format(4 if s3_h4_in_chain else 9)
         )
+    elif s4_moon_mode == "family-driven" and not s1_h5_in_chain:
+        # PR A1.6 — fallback: Moon in H2/H4 = strong family-driven signal even
+        # when H4/H9 don't appear in the H7 CSL chain. This handles cases like
+        # Manyue (Moon in H2) where the structural family-driven mode is
+        # clear but the strict S3 chain check missed it.
+        category = "Family-Mediated (Moon-driven)"
+        reasoning = (
+            f"Moon in H{moon_house} indicates family-driven marriage decision "
+            f"(Signal 4 strong). H5 not in H7 CSL chain — no love-tendency. "
+            f"Family arranges; native approves."
+        )
     elif not s1_h5_in_chain and not s3_h4_in_chain and not s3_h9_in_chain:
-        category = "Inconclusive"
-        reasoning = "No strong signals from H5, H4, or H9 in H7 CSL chain."
+        category = "Inconclusive — needs context"
+        reasoning = (
+            "No strong signals from H5, H4, or H9 in H7 CSL chain. "
+            f"Moon in H{moon_house} ({s4_moon_mode}) is the only weak hint. "
+            f"5L={fifth_lord} in H{fifth_lord_house}. "
+            f"Pattern is ambiguous — consult astrologer for finer reading."
+        )
     else:
         category = "Mixed signals — Love-cum-Arranged most likely"
         reasoning = (
@@ -1301,13 +1330,26 @@ def _kp_compatibility(chart1: dict, chart2: dict) -> dict:
         verdict_reasoning = "Only one chart promises, only one side canonical match. Marriage possible but unbalanced."
     elif p1_denial or p2_denial:
         verdict = "Caution"
-        verdict_reasoning = "Denial signal active in {} chart{}; insufficient promise to override.".format(
-            "either" if (p1_denial and p2_denial) else ("Person 1's" if p1_denial else "Person 2's"),
-            "s" if (p1_denial and p2_denial) else ""
+        # PR A1.6 — softer, more astrologer-friendly wording
+        which = ("both charts" if (p1_denial and p2_denial)
+                 else ("Person 1's chart" if p1_denial else "Person 2's chart"))
+        verdict_reasoning = (
+            f"H7 CSL in {which} hits one or more denial houses (1/6/10/12) "
+            f"alongside only partial or weak promise on {{2,7,11}}. "
+            f"Marriage is structurally CONDITIONAL — it can happen, but only "
+            f"in a favorable dasha period where the Ruling Planets activate "
+            f"the marriage chain. Without that timing trigger, the chart "
+            f"tilts toward delay or unsatisfying outcome. Cross-check with "
+            f"the Timing tab for upcoming favorable windows."
         )
     else:
         verdict = "Inconclusive"
-        verdict_reasoning = "Neither chart shows clean promise; canonical cross-match weak. More data needed."
+        verdict_reasoning = (
+            "Neither chart shows clean H7 CSL promise on {2,7,11} AND the "
+            "canonical cross-match is weak. The chart signals are mixed — "
+            "an astrologer should examine the H7 CSL chain personally and "
+            "look at upcoming AD periods that might activate hidden links."
+        )
 
     # Augment promise with the cross-resonance fact (NOT to flip verdict —
     # only to enrich the LLM worksheet).
@@ -1562,6 +1604,331 @@ def _calc_nadi(chart_boy: dict, chart_girl: dict) -> dict:
         note = f"{bn} + {gn} nadi — excellent compatibility"
     return {"kuta": "Nadi", "max": 8, "score": score,
             "boy_nadi": bn, "girl_nadi": gn, "has_dosha": has_dosha, "note": note}
+
+
+def _marriage_quality_outlook(chart: dict) -> dict:
+    """
+    PR A1.6 — "If marriage happens, will it last and be happy?"
+
+    Per astrosanhita.com + KSK Reader IV Chapter on Marital Bliss:
+      - 2nd from H7 (= H8) governs sustenance/longevity of marriage
+      - 7th lord placement: in {6,8,12} = distance/separation, in
+        {1,2,7,11} = stable
+      - Saturn/Mars/Rahu/Ketu severely afflicting H7 = friction
+      - D9 H7 sign and 7th lord D9 placement cross-check
+      - Venus dignity (we have via _venus_analysis) = quality of intimacy
+
+    Returns a structured "outlook" dict the AI + frontend can render.
+    """
+    planets = chart["planets"]
+    cusp_lons = chart["cusp_lons"]
+
+    # H8 = 2nd from H7 — sustenance of marriage
+    h8_csl = get_sub_lord(cusp_lons[7] % 360)
+    h8_sigs = _planet_significations(h8_csl, planets, cusp_lons)
+    h8_supports = bool(h8_sigs & {2, 7, 11})   # H8 chain hitting marriage triplet = good
+    h8_corrupts = bool(h8_sigs & {6, 12})       # H8 chain hitting separation = bad
+    h8_occupants = [p for p in planets
+                    if _get_planet_house(planets[p]["longitude"], cusp_lons) == 8]
+    h8_has_malefic = any(p in ("Saturn", "Mars", "Rahu", "Ketu") for p in h8_occupants)
+
+    # 7th lord placement
+    h7_lon = cusp_lons[6] % 360
+    h7_lord = SIGN_LORDS.get(get_sign(h7_lon), "")
+    h7_lord_house = 0
+    h7_lord_in_dussthana = False
+    h7_lord_in_kendra_trine = False
+    if h7_lord and h7_lord in planets:
+        h7_lord_house = _get_planet_house(planets[h7_lord]["longitude"], cusp_lons)
+        h7_lord_in_dussthana = h7_lord_house in {6, 8, 12}
+        h7_lord_in_kendra_trine = h7_lord_house in {1, 4, 5, 7, 9, 10}
+
+    # Malefic affliction to H7 — occupants + 7th aspect
+    h7_occupants = [p for p in planets
+                    if _get_planet_house(planets[p]["longitude"], cusp_lons) == 7]
+    h7_malefic_occupants = [p for p in h7_occupants
+                            if p in ("Saturn", "Mars", "Rahu", "Ketu")]
+    h7_benefic_occupants = [p for p in h7_occupants
+                            if p in ("Jupiter", "Venus", "Mercury", "Moon")]
+
+    # Score (0-10 scale) — positive factors + negative factors
+    score = 5  # neutral baseline
+    pluses = []
+    minuses = []
+    if h8_supports:
+        score += 1
+        pluses.append(f"H8 CSL {h8_csl} signifies marriage houses — supports longevity")
+    if h7_lord_in_kendra_trine:
+        score += 1.5
+        pluses.append(f"7th lord {h7_lord} in H{h7_lord_house} (kendra/trine) — stable partnership")
+    if h7_benefic_occupants and not h7_malefic_occupants:
+        score += 1.5
+        pluses.append(f"H7 occupied by benefic {', '.join(h7_benefic_occupants)} — harmony")
+
+    if h8_corrupts:
+        score -= 1.5
+        minuses.append(f"H8 CSL {h8_csl} signifies H6/H12 — separation prone")
+    if h8_has_malefic:
+        score -= 1
+        minuses.append(f"Malefic in H8 ({', '.join([p for p in h8_occupants if p in ('Saturn','Mars','Rahu','Ketu')])}) — sustenance friction")
+    if h7_lord_in_dussthana:
+        score -= 2
+        minuses.append(f"7th lord {h7_lord} in H{h7_lord_house} (dusthana) — distance/separation risk")
+    if h7_malefic_occupants:
+        score -= 1.5
+        minuses.append(f"Malefic{'s' if len(h7_malefic_occupants)>1 else ''} {', '.join(h7_malefic_occupants)} in H7 — friction/quarrels")
+
+    score = max(0, min(10, score))
+    if score >= 8:
+        outlook = "Excellent — long, harmonious bond"
+    elif score >= 6:
+        outlook = "Good — steady marriage with normal challenges"
+    elif score >= 4:
+        outlook = "Mixed — workable with effort, watch friction points"
+    elif score >= 2:
+        outlook = "Concerning — significant friction or distance likely"
+    else:
+        outlook = "Severe — sustained happiness at risk"
+
+    return {
+        "score": round(score, 1),
+        "outlook": outlook,
+        "h8_csl": h8_csl,
+        "h8_signified_houses": sorted(h8_sigs),
+        "h8_supports": h8_supports,
+        "h7_lord": h7_lord,
+        "h7_lord_house": h7_lord_house,
+        "h7_lord_in_dussthana": h7_lord_in_dussthana,
+        "h7_malefic_occupants": h7_malefic_occupants,
+        "h7_benefic_occupants": h7_benefic_occupants,
+        "positives": pluses,
+        "negatives": minuses,
+    }
+
+
+def _children_prospects(chart: dict) -> dict:
+    """
+    PR A1.6 — Children prospects from H5 chain.
+
+    For an astrologer to give an opinion on kids prospects:
+      - H5 CSL signifying {2, 5, 11} → kids promised
+      - H5 CSL signifying {1, 4, 10} → kids delayed/denied
+      - 5th lord placement, Jupiter strength
+    """
+    planets = chart["planets"]
+    cusp_lons = chart["cusp_lons"]
+    h5_csl = get_sub_lord(cusp_lons[4] % 360)
+    h5_sigs = _planet_significations(h5_csl, planets, cusp_lons)
+    promise = h5_sigs & {2, 5, 11}
+    denial  = h5_sigs & {1, 4, 10, 6, 12}
+
+    fifth_lord = SIGN_LORDS.get(get_sign(cusp_lons[4] % 360), "")
+    fifth_lord_house = (_get_planet_house(planets[fifth_lord]["longitude"], cusp_lons)
+                        if fifth_lord in planets else 0)
+    fifth_lord_strong = fifth_lord_house in {1, 4, 5, 7, 9, 10, 11}
+
+    # Jupiter (karaka of children) house + strength
+    jupiter_house = 0
+    jupiter_in_dussthana = False
+    if "Jupiter" in planets:
+        jupiter_house = _get_planet_house(planets["Jupiter"]["longitude"], cusp_lons)
+        jupiter_in_dussthana = jupiter_house in {6, 8, 12}
+
+    if len(promise) >= 2 and not denial:
+        verdict = "Promised"
+    elif len(promise) >= 1 and not jupiter_in_dussthana:
+        verdict = "Likely"
+    elif denial and not promise:
+        verdict = "Difficult / delayed"
+    elif jupiter_in_dussthana and not promise:
+        verdict = "Difficult — Jupiter afflicted"
+    else:
+        verdict = "Conditional"
+
+    return {
+        "h5_csl": h5_csl,
+        "h5_signified_houses": sorted(h5_sigs),
+        "promise_hits": sorted(promise),
+        "denial_hits": sorted(denial),
+        "fifth_lord": fifth_lord,
+        "fifth_lord_house": fifth_lord_house,
+        "fifth_lord_strong": fifth_lord_strong,
+        "jupiter_house": jupiter_house,
+        "jupiter_in_dussthana": jupiter_in_dussthana,
+        "verdict": verdict,
+    }
+
+
+def _children_match(chart1: dict, chart2: dict, mahendra_score: int) -> dict:
+    """
+    PR A1.6 — Cross-chart children prospects.
+    Both H5 CSLs need to agree; Mahendra Koota strengthens; Jupiter
+    karaka must be sane in both.
+    """
+    c1 = _children_prospects(chart1)
+    c2 = _children_prospects(chart2)
+    PRO = {"Promised", "Likely"}
+    if c1["verdict"] in PRO and c2["verdict"] in PRO and mahendra_score >= 2:
+        joint = "Strong — kids well-promised in both charts"
+    elif c1["verdict"] in PRO and c2["verdict"] in PRO:
+        joint = "Good — both charts support, Mahendra weak"
+    elif (c1["verdict"] in PRO) ^ (c2["verdict"] in PRO):
+        joint = "Mixed — only one chart promises, other is conditional"
+    elif "Difficult" in c1["verdict"] or "Difficult" in c2["verdict"]:
+        joint = "Concerning — at least one chart shows obstacles"
+    else:
+        joint = "Conditional — Jupiter dasha or remedy support advised"
+    return {
+        "chart1": c1,
+        "chart2": c2,
+        "joint_verdict": joint,
+    }
+
+
+def _in_laws_concerns(chart: dict, label: str) -> dict:
+    """
+    PR A1.6 — In-laws / parental health concerns.
+
+    Real-but-marginal classical rule: severe malefic affliction to H4
+    (mother) or H9 (father) of either chart can signal stress to parents
+    in the post-marriage years. NOT a "marriage causes death" rule —
+    that's folk overstatement. Flag only when affliction stacks:
+      - Saturn/Mars/Rahu/Ketu IN H4 or H9
+      - AND H4 / H9 CSL signifying {6, 8, 12}
+    """
+    planets = chart["planets"]
+    cusp_lons = chart["cusp_lons"]
+    concerns = []
+
+    for parent_label, house in (("Mother (H4)", 4), ("Father (H9)", 9)):
+        # Affliction by malefic occupation
+        occupants = [p for p in planets
+                     if _get_planet_house(planets[p]["longitude"], cusp_lons) == house]
+        malefic_in = [p for p in occupants if p in ("Saturn", "Mars", "Rahu", "Ketu")]
+        # CSL signifying obstacle houses
+        csl = get_sub_lord(cusp_lons[house - 1] % 360)
+        csl_sigs = _planet_significations(csl, planets, cusp_lons)
+        csl_bad  = bool(csl_sigs & {6, 8, 12})
+        if malefic_in and csl_bad:
+            concerns.append(
+                f"{label}'s {parent_label} cusp: malefic ({', '.join(malefic_in)}) in house + "
+                f"CSL {csl} signifies {sorted(csl_sigs & {6,8,12})} — stress signal"
+            )
+
+    return {
+        "concerns": concerns,
+        "flagged": len(concerns) > 0,
+    }
+
+
+def _upcoming_marriage_windows(person: dict, chart: dict, months_ahead: int = 60) -> dict:
+    """
+    PR A1.6 — Scan the next `months_ahead` months of AD/PAD ladder and
+    flag periods where the AD lord signifies {2, 7, 11}.
+
+    Returns: list of {start, end, ad_lord, pad_lord, signified, score}
+    sorted by score descending.
+    """
+    try:
+        moon_lon = chart["moon_lon"]
+        dashas = calculate_dashas(person["date"], person["time"], moon_lon,
+                                  person.get("timezone_offset", 5.5))
+        windows: list[dict] = []
+        cutoff = _dt.now()
+        horizon = cutoff.replace(year=cutoff.year + (months_ahead // 12))
+
+        # Iterate ADs across the next few MDs that fall within horizon
+        for md in dashas:
+            md_start = _dt.strptime(md["start"][:10], "%Y-%m-%d") if "start" in md else None
+            md_end   = _dt.strptime(md["end"][:10],   "%Y-%m-%d") if "end" in md else None
+            if md_end is None or md_end < cutoff:
+                continue
+            if md_start and md_start > horizon:
+                break
+            ads = calculate_antardashas(md)
+            for ad in ads:
+                ad_start = _dt.strptime(ad["start"][:10], "%Y-%m-%d") if "start" in ad else None
+                ad_end   = _dt.strptime(ad["end"][:10],   "%Y-%m-%d") if "end" in ad else None
+                if ad_end is None or ad_end < cutoff:
+                    continue
+                if ad_start and ad_start > horizon:
+                    break
+                ad_lord = ad.get("antardasha_lord", "")
+                if not ad_lord:
+                    continue
+                ad_sigs = _planet_significations(ad_lord, chart["planets"], chart["cusp_lons"])
+                hits = ad_sigs & {2, 7, 11}
+                neg_hits = ad_sigs & {6, 8, 12}
+                score = len(hits) - 0.5 * len(neg_hits)
+                if score <= 0:
+                    continue
+                windows.append({
+                    "start":     ad.get("start", "")[:10],
+                    "end":       ad.get("end", "")[:10],
+                    "md_lord":   md.get("lord", ""),
+                    "ad_lord":   ad_lord,
+                    "signified": sorted(ad_sigs),
+                    "promise_hits": sorted(hits),
+                    "denial_hits": sorted(neg_hits),
+                    "score": round(score, 1),
+                })
+        # Sort by score desc, then by start date asc
+        windows.sort(key=lambda w: (-w["score"], w["start"]))
+        return {
+            "windows": windows[:8],   # top 8 windows
+            "total_found": len(windows),
+            "horizon_months": months_ahead,
+        }
+    except Exception as e:
+        return {"windows": [], "total_found": 0, "error": str(e)}
+
+
+def _shared_marriage_windows(person1: dict, person2: dict,
+                             chart1: dict, chart2: dict,
+                             months_ahead: int = 60) -> dict:
+    """
+    PR A1.6 — Find calendar months where BOTH partners have a favorable
+    AD active. The intersection windows are the strongest wedding dates.
+    """
+    w1 = _upcoming_marriage_windows(person1, chart1, months_ahead)
+    w2 = _upcoming_marriage_windows(person2, chart2, months_ahead)
+
+    def _to_dt(s):
+        try: return _dt.strptime(s[:10], "%Y-%m-%d")
+        except: return None
+
+    overlaps = []
+    for a in w1["windows"]:
+        as_ = _to_dt(a["start"]); ae = _to_dt(a["end"])
+        if not as_ or not ae: continue
+        for b in w2["windows"]:
+            bs = _to_dt(b["start"]); be = _to_dt(b["end"])
+            if not bs or not be: continue
+            # Overlap interval
+            ov_s = max(as_, bs)
+            ov_e = min(ae, be)
+            if ov_s >= ov_e:
+                continue
+            duration_days = (ov_e - ov_s).days
+            if duration_days < 7:    # ignore micro-overlaps
+                continue
+            overlaps.append({
+                "start": ov_s.strftime("%Y-%m-%d"),
+                "end":   ov_e.strftime("%Y-%m-%d"),
+                "duration_days": duration_days,
+                "person1_ad": a["ad_lord"],
+                "person2_ad": b["ad_lord"],
+                "person1_score": a["score"],
+                "person2_score": b["score"],
+                "combined_score": round(a["score"] + b["score"], 1),
+            })
+    overlaps.sort(key=lambda o: (-o["combined_score"], o["start"]))
+    return {
+        "person1_windows": w1["windows"],
+        "person2_windows": w2["windows"],
+        "overlap_windows": overlaps[:6],
+        "horizon_months": months_ahead,
+    }
 
 
 def _calc_mahendra(chart_boy: dict, chart_girl: dict) -> dict:
@@ -1908,6 +2275,17 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
     no_desire_p1 = _no_desire_for_marriage(chart1)
     no_desire_p2 = _no_desire_for_marriage(chart2)
 
+    # PR A1.6 — Will-it-last, Children prospects, In-laws concerns,
+    # and Upcoming marriage-favorable windows (next 60 months).
+    quality_p1 = _marriage_quality_outlook(chart1)
+    quality_p2 = _marriage_quality_outlook(chart2)
+    mahendra_score = extended_koots.get("mahendra", {}).get("score", 0)
+    children_match = _children_match(chart1, chart2, mahendra_score)
+    inlaws_p1 = _in_laws_concerns(chart1, person1["name"])
+    inlaws_p2 = _in_laws_concerns(chart2, person2["name"])
+    upcoming_windows = _shared_marriage_windows(person1, person2, chart1, chart2,
+                                                months_ahead=60)
+
     # New: D9 Navamsa for both charts
     d9_chart1 = _compute_d9(chart1)
     d9_chart2 = _compute_d9(chart2)
@@ -2075,6 +2453,13 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
         "vargottama_chart2": vargottama_p2,
         "no_desire_chart1": no_desire_p1,
         "no_desire_chart2": no_desire_p2,
+        # PR A1.6 — Outcome quality + Upcoming windows
+        "quality_outlook_chart1": quality_p1,
+        "quality_outlook_chart2": quality_p2,
+        "children_match": children_match,
+        "in_laws_chart1": inlaws_p1,
+        "in_laws_chart2": inlaws_p2,
+        "upcoming_windows": upcoming_windows,
         # D9
         "d9_chart1": d9_chart1,
         "d9_chart2": d9_chart2,
