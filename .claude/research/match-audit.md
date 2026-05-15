@@ -794,6 +794,100 @@ The conjunction is "AND," not "OR." Signifying only one of {2,7,11} is *not* ful
 
 **Action confirmed:** tier the promise as Full (all of 2,7,11) / Partial (2 of 3) / Weak (1 of 3) / None (zero or only denial houses).
 
+---
+
+## 12. PR A1.5 — Depth additions (shipped 2026-05-15)
+
+After PR A1.4 fixed the verdict-distorting bugs, user tested live and got
+honest verdicts (Manyue×Sreeja → "Needs Careful Consideration", Ashtakoota
+11.5/36, Nadi+Gana doshas — KP correctly read Caution).
+
+PR A1.5 adds astrologer-grade depth to bring the engine to "20-year
+second-opinion" level. All additions externally corroborated.
+
+### Engine additions
+
+A1. **Vasya map completion** — pre-A1.5 had 7 of 12 signs; missing
+    Aries/Taurus/Gemini/Libra/Sagittarius silently scored 0. Filled per
+    classical Vasya rules.
+
+A2. **Mahendra Koota** (South Indian Dashakoota) — bride's nakshatra at
+    {4,7,10,13,16,19,22,25} from groom's = 2 pts (progeny + happiness).
+
+A3. **Stree Deergha** — counting forward from girl to boy, if > 13 =
+    2 pts (wife's longevity + prosperity).
+
+A4. **Rajju Koota** — 5 body-region groups (Paada/Kati/Naabhi/Kantha/Shiro);
+    same region = 0 (longevity concern), different = 5. Surfaced as
+    `extended_koots` block. Rajju dosha caps overall verdict by one tier.
+
+A5. **Vargottama check** — Venus and 7th Lord D1=D9 sign flag. Per
+    vedicknowledge.in + vaya.so: Vargottama Venus = loving devoted-spouse;
+    Vargottama 7th Lord = partner exactly as natally indicated. High-value
+    low-cost addition.
+
+A6. **No-desire-for-marriage** (KP "Daridra-style") — Ketu+Venus jointly
+    signifying {1,4,6,10,12} OR Venus+Saturn within 12°. Cautionary flag,
+    explains why a chart with weak H7 CSL may not even pursue marriage.
+    Source: kpastrology.astrosage.com / KP Reader IV.
+
+A7. **Verdict-combiner updates**:
+    - Rajju dosha downgrades by one tier; never allows "Highly Compatible"
+    - Both-charts no-desire flag caps at "Conditionally Compatible"
+
+### LLM additions
+
+A8. Worksheet: Vargottama flags per chart, Extended Dashakoota block,
+    no-desire flags per chart.
+
+A9. System prompt rules 14–16:
+    - Always mention Vargottama as quality booster
+    - Always flag Rajju dosha as longevity warning
+    - Mention no-desire flag as explanatory context
+
+### Frontend additions
+
+A10. **Overall tab** — three new sections before Ashtakoota:
+    - "Why this verdict" card (kp_verdict_reasoning + promise tier badges
+      per person + denial flag + retrograde-star flag)
+    - Vargottama chips (Venus + 7th Lord D1=D9)
+    - Extended Koots progress bars (Mahendra / Stree Deergha / Rajju)
+      with Rajju Dosha warning
+
+A11. **KP tab** — two new sections after the Promise card:
+    - **Canonical Cross-Match grid** (kpastrologylearning Rule 5) —
+      each side shows H2/H7/H11 CSLs with ✓/✗ + partner's RPs signifying
+      this person's marriage houses + "BOTH SIDES" green banner if
+      both-sides canonical match
+    - **5-Signal Type Classification** card per chart — category +
+      reasoning + S1-S5 signal grid with colour-coded outcomes
+
+A12. **Risks tab** — Marriage Indifference Signal card surfacing the
+    no-desire flag with notes per chart.
+
+### What's still deferred (PR A1.6 or later)
+
+- **Real time-window dasha overlap scan** (scan both partners' next
+  60 months of AD ladder, find marriage-favorable months where both
+  fire simultaneously). Currently `_dasha_overlap_check` only does RP
+  intersection.
+- **Jupiter / Saturn 24-month transit windows** — when does Jupiter hit
+  H2/H7/H11 of each chart, when does Saturn hit H7.
+- **Spouse-profile cross-comparison** — each chart's predicted spouse
+  profile (per H7_SUBLORD_TRAITS) vs actual partner's chart traits.
+- **Longevity-band match** — compute Ayushya band per chart and flag
+  band mismatch (premature-widowhood prevention).
+- **H5 cross-comparison for children** — both H5 CSLs cross-checked
+  for child-prospect harmony.
+- **D7 (Saptamsha) chart** — many practitioners cross-verify with
+  Saptamsha; we use D9 only.
+- **Pytest goldens** — 5-6 hand-curated chart pairs with expert-set
+  verdicts. The user's 4 test charts (Manyue×Ramya/Vineetha/Sreeja) are
+  the natural first fixtures.
+- **Frontend "Why this verdict" expandable for the *individual* gates
+  that voted** — current implementation shows the kp_verdict_reasoning
+  but not gate-by-gate breakdown.
+
 ### Citations
 
 Sources consulted on 2026-05-15 IST:
