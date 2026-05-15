@@ -3655,6 +3655,62 @@ def format_match_for_llm(compat_result: dict) -> str:
         if nd.get("flagged"):
             lines.append(f"\n⚠ NO-DESIRE-FOR-MARRIAGE FLAG — {label}: {' | '.join(nd.get('notes', []))}")
 
+    # PR A1.6 — Marriage quality outlook per chart ("if it happens, will it last?")
+    lines.append(f"\n--- MARRIAGE QUALITY OUTLOOK (Will it last? Be happy?) ---")
+    for label, key in [("Person 1", "quality_outlook_chart1"), ("Person 2", "quality_outlook_chart2")]:
+        q = compat_result.get(key, {})
+        if not q: continue
+        lines.append(f"{label}: Outlook = {q.get('outlook','')} (score {q.get('score','')}/10)")
+        lines.append(f"  H8 CSL={q.get('h8_csl','')} sigs={q.get('h8_signified_houses',[])} | "
+                     f"7th lord={q.get('h7_lord','')} in H{q.get('h7_lord_house','')}")
+        for plus in q.get("positives", []):
+            lines.append(f"  + {plus}")
+        for minus in q.get("negatives", []):
+            lines.append(f"  − {minus}")
+
+    # PR A1.6 — Children prospects cross-comparison
+    cm = compat_result.get("children_match", {})
+    if cm:
+        lines.append(f"\n--- CHILDREN PROSPECTS (cross-chart) ---")
+        lines.append(f"Joint verdict: {cm.get('joint_verdict','')}")
+        for label, key in [("Person 1", "chart1"), ("Person 2", "chart2")]:
+            c = cm.get(key, {})
+            lines.append(f"{label}: H5 CSL={c.get('h5_csl','')} sigs={c.get('h5_signified_houses',[])} "
+                         f"→ {c.get('verdict','')}")
+            lines.append(f"  5L={c.get('fifth_lord','')} in H{c.get('fifth_lord_house','')} | "
+                         f"Jupiter in H{c.get('jupiter_house','')}"
+                         f"{' (dussthana!)' if c.get('jupiter_in_dussthana') else ''}")
+
+    # PR A1.6 — In-laws / parental health concerns
+    for label, key in [("Person 1", "in_laws_chart1"), ("Person 2", "in_laws_chart2")]:
+        il = compat_result.get(key, {})
+        if il.get("flagged"):
+            lines.append(f"\n⚠ IN-LAWS HEALTH CONCERNS — {label}:")
+            for c in il.get("concerns", []):
+                lines.append(f"  · {c}")
+
+    # PR A1.6 — Upcoming marriage-favorable windows (next 60 months)
+    uw = compat_result.get("upcoming_windows", {})
+    if uw:
+        overlaps = uw.get("overlap_windows", [])
+        lines.append(f"\n--- UPCOMING MARRIAGE WINDOWS (next {uw.get('horizon_months', 60)} months) ---")
+        if overlaps:
+            lines.append(f"SHARED windows (BOTH partners favorable simultaneously):")
+            for w in overlaps[:5]:
+                lines.append(f"  · {w['start']} → {w['end']} ({w['duration_days']}d) | "
+                             f"P1 AD={w['person1_ad']} P2 AD={w['person2_ad']} | "
+                             f"combined score={w['combined_score']}")
+        else:
+            lines.append("No overlapping windows found in horizon. Suggests marriage timing may stretch beyond 60mo, or one chart is the gate.")
+        # Per-person top windows
+        for label, key in [("Person 1", "person1_windows"), ("Person 2", "person2_windows")]:
+            ws = uw.get(key, [])
+            if ws:
+                lines.append(f"{label} top windows:")
+                for w in ws[:4]:
+                    lines.append(f"  · {w['start']} → {w['end']} | "
+                                 f"AD={w['ad_lord']} sigs={w['promise_hits']} score={w['score']}")
+
     # Kuja Dosha
     lines.append(f"\n--- KUJA DOSHA ---")
     kuja = compat_result["kuja_dosha"]
@@ -3805,7 +3861,38 @@ KEY RULES — read carefully and apply strictly:
     (Ketu+Venus jointly in {1,4,6,10,12} OR Venus+Saturn combined within 12°), mention it
     explicitly — this explains WHY a chart with weak H7 CSL may not even pursue marriage.
 
-17. BE A SECOND OPINION TO A SENIOR ASTROLOGER. The user might cross-check this with their dad
+17. NATAL PROMISE vs TIMING PROMISE (PR A1.6 — critical disambiguation).
+    The H7 CSL promise verdict in the worksheet is the NATAL STRUCTURAL verdict
+    ("does this chart promise marriage in this lifetime at all?"). It is NOT
+    time-aware. The "Conditional — caveats" label means marriage CAN happen
+    but only in a favorable dasha period with RP confirmation. Do NOT confuse
+    this with "marriage denied forever." When user asks about timing, USE the
+    UPCOMING MARRIAGE WINDOWS block, not the natal promise tier.
+
+18. WILL IT LAST? (PR A1.6) — when user asks about marriage longevity, sustained
+    happiness, or "if it happens will it be good," use the MARRIAGE QUALITY
+    OUTLOOK block. Cite the outlook word + score + the specific positives and
+    negatives. Do NOT use the headline natal-promise verdict to answer "will
+    it last" — that's a different question.
+
+19. CHILDREN PROSPECTS (PR A1.6) — when user asks about kids, use the CHILDREN
+    PROSPECTS block. Cite the joint verdict + each chart's H5 CSL + Jupiter
+    placement + Mahendra Koota score. Do NOT default to "yes, kids promised"
+    without grounded evidence.
+
+20. IN-LAWS HEALTH (PR A1.6) — if the IN-LAWS HEALTH CONCERNS block shows
+    flagged signals, mention them FACTUALLY, NOT FATALISTICALLY. State:
+    "The chart shows malefic affliction to H4 (mother) / H9 (father) with
+    CSL signifying obstacle houses — a stress signal worth noting, NOT a
+    prediction of harm." Do NOT say things like "marriage will cause parent
+    death" — that is folk overstatement, not KP.
+
+21. UPCOMING WINDOWS (PR A1.6) — the UPCOMING MARRIAGE WINDOWS block has
+    pre-scanned the next 60 months for ADs where the lord signifies {2,7,11}.
+    OVERLAP windows (both partners favorable simultaneously) are the strongest
+    wedding-date candidates. Cite these by date when user asks "when?"
+
+22. BE A SECOND OPINION TO A SENIOR ASTROLOGER. The user might cross-check this with their dad
     or a 20-year practitioner. Your analysis must hold up to that scrutiny — no hand-waving,
     no "all is well," every claim grounded in the worksheet."""
 
