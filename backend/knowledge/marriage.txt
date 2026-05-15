@@ -455,6 +455,84 @@ LOVE MARRIAGE WITH OBSTACLES (PR A1.8 — new explicit category):
             Common in inter-caste, inter-religion, family-disapproved
             romances that ultimately reach the wedding.
 
+═══════════════════════════════════════════════════════════════════════
+PR A1.11 — S2-DRIVEN LOVE BRANCHES (canonical KP fidelity correction)
+═══════════════════════════════════════════════════════════════════════
+
+The pre-A1.11 decision tree required BOTH S1 (H5 in H7 CSL chain) AND
+S2_love_path_strong (5CSL hits {2,7,11} cleanly) for any love classification.
+This was stricter than canonical KP, which states:
+
+  "If the 5th cuspal sub lord signifies houses 7 and 11, materialization
+   of love affair into marriage is definite."
+  (redastrologer.com, kpastrologylearning.com, KP Reader IV)
+
+The canonical rule says the 5CSL signal alone is sufficient evidence
+for love marriage. Adding H5-in-chain as a REQUIRED filter produced
+false negatives — couples in real love marriages whose chart shows
+the love signal through 5CSL but not through H5-in-H7-chain were
+mis-classified as arranged.
+
+NEW BRANCHES (PR A1.11):
+
+PURE LOVE MARRIAGE (5CSL-driven):
+  Signal 1: H5 absent in H7 CSL chain
+  Signal 2: 5CSL chain hits {2,7,11} cleanly, NOT {5,8,12}
+  Signal 5: 5L-7L connected (strong)
+  Verdict: Love marriage, but the love signal flows through 5CSL gate
+           rather than H7 CSL chain. Often manifests as romance born
+           from career/social-network introduction rather than primary
+           H5-romance. Partner found independently or via peer network.
+
+LOVE-CUM-ARRANGED (5CSL-driven):
+  Signal 1: H5 absent in H7 CSL chain
+  Signal 2: 5CSL chain hits {2,7,11} cleanly, NOT {5,8,12}
+  Signal 3: H4 OR H9 in H7 CSL chain (one-parent network)
+  Verdict: Love-flavored marriage that enters through family/peer
+           introduction. Common pattern: introduced by friends or
+           family, mutual liking develops, family blesses the match.
+           Both partners chose each other AND family involved positively.
+           Different from "Pure Arranged" (no love signal) and from
+           "Love-cum-Arranged (H5-driven)" (which has direct H5
+           romance signature).
+
+LOVE-NATURED MARRIAGE (5CSL-driven, weaker):
+  Signal 1: H5 absent
+  Signal 2: 5CSL clean love signal
+  Signal 3: No parent in chain
+  Signal 5: No strong 5L-7L
+  Verdict: Love-flavored marriage signal exists but the path is
+           ambiguous. Could be late romance, work-place connection,
+           or self-initiated match without formal family arrangement.
+
+LOVE-FLAVORED MARRIAGE WITH FRICTION:
+  Signal 1: H5 absent
+  Signal 2: 5CSL has BOTH anchor and {5,8,12} contamination
+  Verdict: Love signal structurally obstructed. Marriage flows through
+           complications (distance, caste/community, hidden phase) and
+           may need family negotiation to materialize.
+
+═══════════════════════════════════════════════════════════════════════
+GATING RULE FOR ARRANGED BRANCHES (PR A1.11):
+═══════════════════════════════════════════════════════════════════════
+
+A chart CANNOT be classified as arranged when 5CSL is shouting love.
+Specifically:
+  - "Pure Arranged Marriage" branches require S2_love_path_strong = False
+  - "Family-Mediated with Native Acceptance" requires the same
+  - "Family-Mediated (Moon-driven)" requires the same
+
+If 5CSL chain hits {2,7,11} cleanly, the chart has the canonical KP
+love signal. Even when other signals lean family-driven, the verdict
+must acknowledge the love-flavor via the S2-driven branch.
+
+This prevents the live regression seen in the boy/girl test on
+2026-05-15 — where both partners were in a love relationship moving
+toward family acceptance, boy's chart correctly classified as
+"Love with Obstacles," but girl's chart wrongly classified as
+"Pure Arranged" because S1 was missing even though her S2 may have
+been firing the canonical love signal.
+
 PURE ARRANGED MARRIAGE:
   Signal 1: H5 absent OR only weakly in chain
   Signal 2: 5L afflicted (in 6/8/12) — love path closed

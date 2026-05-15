@@ -1168,14 +1168,25 @@ def _five_signal_classification(chart: dict) -> dict:
                     rahu_ketu_in_chain = True
                     break
 
-    # Apply decision tree (marriage.txt Section 12 — PR A1.8 corrected)
-    # KEY FIX: the "love path negated" override is now CONDITIONAL on 5CSL
-    # chain lacking 2-7-11 anchor. When BOTH 5-8-12 AND 2-7-11 are present
-    # in 5CSL chain, the love marriage can STILL materialize — through
-    # obstacles like caste difference, family objection, or hidden phase.
+    # PR A1.11 — Decision tree refined for canonical-KP fidelity.
+    #
+    # Pre-A1.11 the framework required BOTH S1 (H5 in H7 CSL chain) AND
+    # S2 (5CSL clean) for any "love" classification. That was stricter
+    # than canonical KP, which states:
+    #   "If the 5th cuspal sub lord signifies houses 7 and 11,
+    #    materialization of love affair into marriage is definite."
+    # (redastrologer.com, kpastrologylearning.com, KP Reader IV — 5CSL
+    #  signal alone is sufficient for love marriage).
+    #
+    # PR A1.11 adds explicit S2-driven branches: when S2_love_path_strong
+    # is True, the chart has the canonical KP love signal even without
+    # H5 in the H7 CSL chain. We classify accordingly.
+    #
+    # We also gate arranged branches on NOT s2_love_path_strong — we
+    # cannot classify as arranged when the 5CSL is shouting love.
+
+    # ─── BRANCH GROUP A: Strong S1 (H5 in H7 CSL chain) ────────────
     if s1_h5_in_chain and s2_love_with_obstacles:
-        # PR A1.8 NEW CATEGORY — the case our pre-A1.8 engine wrongly
-        # classified as "family-mediated arranged"
         category = "Love Marriage with Obstacles"
         reasoning = (
             f"H5 appears in H7 CSL chain (Signal 1: love-tendency exists). "
@@ -1208,34 +1219,84 @@ def _five_signal_classification(chart: dict) -> dict:
             f"to {{2,7,11}}) AND one-parent network involved "
             f"(H{4 if s3_h4_in_chain else 9} in chain)."
         )
-    elif s3_strong_arranged and not s1_h5_in_chain:
+    # ─── BRANCH GROUP B: PR A1.11 — S2-driven love (canonical KP) ──
+    # The canonical KP rule "5CSL signifies 7+11 → love marriage materializes"
+    # fires even WITHOUT H5 in H7 CSL chain. These branches catch the case
+    # where the love signal flows through 5CSL alone — often manifests as
+    # "introduction-via-friends-then-romance-then-marriage" or
+    # "career-network meeting that turns into love."
+    elif s2_love_path_strong and s5_strength == "strong" and not s1_h5_in_chain:
+        category = "Pure Love Marriage (5CSL-driven)"
+        reasoning = (
+            f"5CSL chain hits {{2,7,11}} cleanly without 5-8-12 affliction "
+            f"(canonical KP love-marriage signal) + strong 5L-7L connection "
+            f"({s5_relation}). H5 is not in H7 CSL chain — the love-tendency "
+            f"manifests through the 5CSL gate directly rather than through "
+            f"the H7 CSL chain. Often: meets partner through career, friend "
+            f"network, or H11/H3 social circle rather than pure romantic pursuit."
+        )
+    elif s2_love_path_strong and (s3_h4_in_chain or s3_h9_in_chain) and not s1_h5_in_chain:
+        category = "Love-cum-Arranged (5CSL-driven)"
+        reasoning = (
+            f"5CSL chain hits {{2,7,11}} cleanly (canonical KP love signal) + "
+            f"H{4 if s3_h4_in_chain else 9} in H7 CSL chain (one-parent "
+            f"network active). H5 is not in H7 CSL chain, so the love-tendency "
+            f"is not direct H5-romance but rather a love-flavored marriage "
+            f"that enters through family/peer introduction. Typical pattern: "
+            f"introduced by friends/family, mutual liking develops, family "
+            f"blesses the match. Both partners chose each other AND family "
+            f"is involved positively."
+        )
+    elif s2_love_path_strong and not s1_h5_in_chain:
+        category = "Love-natured Marriage (5CSL-driven)"
+        reasoning = (
+            f"5CSL chain hits {{2,7,11}} cleanly (canonical KP love signal) "
+            f"but neither H5 in chain (S1) nor strong 5L-7L (S5) nor parental "
+            f"mediation (S3) are firing. The love-flavor exists structurally "
+            f"but the path is unclear — could be late romance, work-place "
+            f"connection, or self-initiated match without formal arrangement."
+        )
+    elif s2_love_with_obstacles and not s1_h5_in_chain:
+        category = "Love-flavored Marriage with Friction"
+        reasoning = (
+            f"5CSL chain has BOTH the marriage anchor {{2,7,11}} AND the "
+            f"contamination {{5,8,12}} — love signal present but structurally "
+            f"obstructed. H5 not in H7 CSL chain, so this is not primary "
+            f"H5-romance. The marriage likely flows through complications "
+            f"(distance, caste/community, hidden phase, secret introduction) "
+            f"and may need family negotiation to materialize."
+        )
+    # ─── BRANCH GROUP C: PR A1.11 — Arranged branches.
+    # All arranged classifications now require NOT s2_love_path_strong.
+    # If 5CSL is shouting love (canonical KP signal), we cannot classify
+    # as arranged regardless of what other signals say.
+    elif s3_strong_arranged and not s1_h5_in_chain and not s2_love_path_strong:
         category = "Pure Arranged Marriage"
         reasoning = (
             "Both H4 and H9 in H7 CSL chain (Signal 3 strong arranged) + "
-            "no H5 in chain (Signal 1 absent)."
+            "no H5 in chain (Signal 1 absent) + 5CSL not signaling clean "
+            "love path."
         )
     elif s3_strong_arranged and s2_love_path_negated:
         category = "Pure Arranged Marriage"
         reasoning = (
-            "Parental mediation strong (H4+H9 in chain) + 5L in H{} "
-            "(love path negated).".format(fifth_lord_house)
+            "Parental mediation strong (H4+H9 in chain) + 5CSL chain hits "
+            "{{5,8,12}} without {{2,7,11}} anchor — love path closed; "
+            "family arrangement is the structural path."
         )
-    elif (s3_h4_in_chain or s3_h9_in_chain) and not s1_h5_in_chain:
+    elif (s3_h4_in_chain or s3_h9_in_chain) and not s1_h5_in_chain and not s2_love_path_strong:
         category = "Family-Mediated with Native Acceptance"
         reasoning = (
-            "Parental network present (H{} in chain), love tendency absent — "
-            "family arranges and native approves.".format(4 if s3_h4_in_chain else 9)
+            "Parental network present (H{} in chain), love-tendency signals "
+            "absent (H5 not in chain, 5CSL not clean-anchored to {{2,7,11}}) "
+            "— family arranges and native approves.".format(4 if s3_h4_in_chain else 9)
         )
-    elif s4_moon_mode == "family-driven" and not s1_h5_in_chain:
-        # PR A1.6 — fallback: Moon in H2/H4 = strong family-driven signal even
-        # when H4/H9 don't appear in the H7 CSL chain. This handles cases like
-        # Manyue (Moon in H2) where the structural family-driven mode is
-        # clear but the strict S3 chain check missed it.
+    elif s4_moon_mode == "family-driven" and not s1_h5_in_chain and not s2_love_path_strong:
         category = "Family-Mediated (Moon-driven)"
         reasoning = (
             f"Moon in H{moon_house} indicates family-driven marriage decision "
-            f"(Signal 4 strong). H5 not in H7 CSL chain — no love-tendency. "
-            f"Family arranges; native approves."
+            f"(Signal 4 strong). Neither H5 in H7 CSL chain nor 5CSL clean "
+            f"love-signal firing. Family arranges; native approves."
         )
     elif not s1_h5_in_chain and not s3_h4_in_chain and not s3_h9_in_chain:
         category = "Inconclusive — needs context"
