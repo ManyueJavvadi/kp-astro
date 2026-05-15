@@ -359,21 +359,43 @@ SIGNAL 1: H5 PRESENCE in H7 CSL chain (love-tendency indicator)
   If H5 in any layer = there is a structural LOVE-TENDENCY.
   If H5 absent = no love-tendency; arranged path more likely.
 
-SIGNAL 2: 5L PLACEMENT QUALITY (THE CRITICAL OVERRIDE — most often missed)
-  Where does the 5th house lord (5L) sit? This OVERRIDES Signal 1.
-    5L in H5/H7/H11 own = strong LOVE marriage indicator (love affair fruits)
-    5L in H1/H2/H4/H9   = mild LOVE-tendency (depends on chain)
-    5L in H6            = LOVE AFFAIRS FAIL TO CULMINATE (separation house)
-                          Romance phase happens but does not lead to marriage.
-                          Family arrangement path takes over.
-    5L in H8            = HIDDEN/SCANDAL-PRONE love affairs that do not culminate
-    5L in H12           = LOVE AFFAIR ENDS IN LOSS (12th = expenditure/loss)
-    5L in H10           = Romance subordinated to career — neither pure love nor arranged
-    5L in H3            = Communication-based romance, often sibling/peer-mediated
+SIGNAL 2: 5th CUSP SUB LORD (5CSL) CHAIN — THE CONDITIONAL OVERRIDE
+          (PR A1.8 CORRECTION — was previously documented as "5L placement"
+          which is WRONG. Canonical KP checks the 5CSL CHAIN signification
+          per the UNION method, not the placement of the 5th sign lord.)
 
-  CRITICAL RULE: If 5L is in H6/H8/H12, then EVEN IF Signal 1 (H5 in H7 CSL chain)
-  is positive, the love-marriage path is structurally NEGATED. Do NOT predict
-  love marriage just because H5 appears in CSL chain. Check 5L placement first.
+  Canonical sources: redastrologer.com (5th cusp sub lord rules),
+  kpastrologylearning.com Rule for Marriage chapter, KP Reader IV §5th-cusp.
+
+  Compute the 5CSL chain via the 4-step UNION method (occupation +
+  ownership + star lord chain + sub lord chain). Then check:
+
+    5CSL chain hits {2, 7, 11} AND NOT {5, 8, 12}     → clean love-to-marriage path
+    5CSL chain hits {2, 7, 11} AND ALSO {5, 8, 12}    → LOVE WITH OBSTACLES — love
+                                                        marriage faces difficulties
+                                                        (caste, family objection,
+                                                        secrecy, hidden phase) BUT
+                                                        can STILL materialize because
+                                                        the marriage anchor is present
+    5CSL chain hits {5, 8, 12} AND NOT {2, 7, 11}    → love-affair-fails-to-culminate
+                                                        (the only case where Signal 2
+                                                        overrides Signal 1)
+    5CSL chain hits {6} alone (no 7/11)               → break/separation in love phase
+
+  CRITICAL CORRECTION: The override is CONDITIONAL, not absolute. A chart
+  where 5CSL chain has BOTH the affliction (5/8/12) AND the marriage
+  anchor (2/7/11) shows a LOVE MARRIAGE WITH OBSTACLES — typical for
+  inter-caste, inter-religion, or family-disapproved romance that
+  ultimately reaches the wedding day.
+
+  This is a separate signal from the older "5L placement" rule. The older
+  rule (5L planet sits in H6/8/12) is a SECONDARY VEDIC context, not the
+  KP-canonical love-vs-arranged classifier. We retain it ONLY as context.
+
+  Auxiliary 5L PLACEMENT context (do NOT use as override):
+    5L in H5/H7/H11   — supports romance generally
+    5L in H6/H8/H12   — Vedic friction signal; does NOT auto-negate love
+                        path unless the 5CSL chain also lacks 2-7-11 anchor
 
 SIGNAL 3: H4 + H9 PARENTAL-MEDIATION CHECK (arranged-marriage indicator)
   Check whether H4 (mother / parental home) AND H9 (father / dharma) appear
@@ -411,12 +433,27 @@ APPLYING THE FIVE-SIGNAL DECISION TREE:
 
 PURE LOVE MARRIAGE:
   Signal 1: H5 in chain (preferably SUB or SELF layer)
-  Signal 2: 5L in H5/H7/H11 own (well-placed)
+  Signal 2: 5CSL chain hits {2,7,11} cleanly, NOT {5,8,12}
   Signal 3: H4/H9 minimal in chain
   Signal 4: Moon in H5/H7 (romance-driven)
   Signal 5: 5L = 7L OR strong 5L-7L relationship
   Verdict: Native finds own partner. Romance leads to marriage. Family
             role is acceptance/blessing, not finding the match.
+
+LOVE MARRIAGE WITH OBSTACLES (PR A1.8 — new explicit category):
+  Signal 1: H5 in chain
+  Signal 2: 5CSL chain hits BOTH {2,7,11} AND {5,8,12}
+  Signal 3: H4/H9 may or may not be in chain
+  Signal 4: Any
+  Signal 5: Any
+  Optional: Rahu / Ketu in H7 CSL chain (unconventional partner signal)
+  Verdict: Love marriage that faces real obstacles — different caste,
+            religion, region, social class; family resistance; or a
+            phase of secrecy. The marriage anchor (2,7,11 in 5CSL chain)
+            ensures it CAN materialize. Treat this as a distinct
+            category from both "pure love" and "love-affair-then-arranged."
+            Common in inter-caste, inter-religion, family-disapproved
+            romances that ultimately reach the wedding.
 
 PURE ARRANGED MARRIAGE:
   Signal 1: H5 absent OR only weakly in chain
