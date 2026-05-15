@@ -1045,13 +1045,47 @@ def _five_signal_classification(chart: dict) -> dict:
     # Signal 1: H5 in H7 chain?
     s1_h5_in_chain = 5 in h7_chain_houses
 
-    # Signal 2: 5L placement quality
+    # Signal 2 (PR A1.8 CORRECTED — was a real bug):
+    #
+    # Canonical KP rule per redastrologer.com + kpastrologylearning.com +
+    # KP Reader IV (5th cusp sub-lord chapter):
+    #   "If the 5CSL signifies {5,8,12} WITHOUT connecting to {2,7,11},
+    #    the relationship is destined to remain a hidden affair that
+    #    ends in heartbreak.
+    #    HOWEVER, if the 5CSL connects to houses 7 and 11, even a hidden
+    #    affair could potentially materialize into marriage."
+    #
+    # Pre-A1.8 BUG: we checked 5L (sign lord of 5th cusp) PLACEMENT
+    # instead of 5CSL (5th cusp sub lord) CHAIN signification — and made
+    # the override ABSOLUTE instead of CONDITIONAL. This produced false
+    # "family-mediated arranged" classifications for charts that genuinely
+    # show love marriage with obstacles (e.g., partner from different
+    # caste, family resistance that eventually softens).
+    #
+    # The CORRECT logic checks:
+    #   5CSL CHAIN signification via _planet_significations (UNION method)
+    #   - {2,7,11} present AND {5,8,12} absent  →  clean love-to-marriage
+    #   - {5,8,12} present AND {2,7,11} absent  →  love fails to culminate
+    #   - BOTH present                          →  love marriage with
+    #                                              obstacles (caste,
+    #                                              secrecy, family objection)
+    #                                              — can STILL materialize
+    #   - 6 alone (no 7/11)                     →  separation/breakup
     h5_lon = cusp_lons[4] % 360
+    h5_csl = get_sub_lord(h5_lon)
+    h5_csl_chain = (_planet_significations(h5_csl, planets, cusp_lons)
+                    if h5_csl else set())
+    s2_chain_has_5812    = bool(h5_csl_chain & {5, 8, 12})
+    s2_chain_has_marriage = bool(h5_csl_chain & {2, 7, 11})
+    s2_chain_has_6_alone = (6 in h5_csl_chain) and not s2_chain_has_marriage
+    # Auxiliary: 5L planet placement — kept as CONTEXT, not as override
     fifth_lord = SIGN_LORDS.get(get_sign(h5_lon), "")
     fifth_lord_house = (_get_planet_house(planets[fifth_lord]["longitude"], cusp_lons)
                         if fifth_lord in planets else 0)
-    s2_love_path_negated = fifth_lord_house in {6, 8, 12}
-    s2_love_path_strong = fifth_lord_house in {5, 7, 11}
+    # Final s2 verdicts (CONDITIONAL — not absolute):
+    s2_love_path_negated = (s2_chain_has_5812 and not s2_chain_has_marriage) or s2_chain_has_6_alone
+    s2_love_path_strong  = s2_chain_has_marriage and not s2_chain_has_5812
+    s2_love_with_obstacles = s2_chain_has_5812 and s2_chain_has_marriage
 
     # Signal 3: H4 + H9 in H7 chain?
     s3_h4_in_chain = 4 in h7_chain_houses
@@ -1116,27 +1150,63 @@ def _five_signal_classification(chart: dict) -> dict:
         s5_relation = "lords missing"
         s5_strength = "none"
 
-    # Apply decision tree (marriage.txt Section 12)
-    # The CRITICAL override: if Signal 2 negates love (5L in 6/8/12),
-    # then even if Signal 1 is positive, the love-marriage path is closed.
-    if s2_love_path_negated and s1_h5_in_chain:
+    # PR A1.8 — Rahu/Ketu in H7 CSL chain → unconventional/inter-caste signal.
+    # Per multiple KP sources (astroindia.com, redastrologer.com): Rahu in chain
+    # (especially H3 or H7 axis) indicates inter-caste, foreign, or
+    # different-background partner; native often finds partner through own
+    # social/communication channels rather than family arrangement.
+    rahu_ketu_in_chain = False
+    if h7_csl in ("Rahu", "Ketu"):
+        rahu_ketu_in_chain = True
+    else:
+        # Check if Rahu/Ketu's house is in the chain (i.e., chain hits
+        # the Rahu/Ketu occupied house)
+        for shadow in ("Rahu", "Ketu"):
+            if shadow in planets:
+                h = _get_planet_house(planets[shadow]["longitude"], cusp_lons)
+                if h in h7_chain_houses:
+                    rahu_ketu_in_chain = True
+                    break
+
+    # Apply decision tree (marriage.txt Section 12 — PR A1.8 corrected)
+    # KEY FIX: the "love path negated" override is now CONDITIONAL on 5CSL
+    # chain lacking 2-7-11 anchor. When BOTH 5-8-12 AND 2-7-11 are present
+    # in 5CSL chain, the love marriage can STILL materialize — through
+    # obstacles like caste difference, family objection, or hidden phase.
+    if s1_h5_in_chain and s2_love_with_obstacles:
+        # PR A1.8 NEW CATEGORY — the case our pre-A1.8 engine wrongly
+        # classified as "family-mediated arranged"
+        category = "Love Marriage with Obstacles"
+        reasoning = (
+            f"H5 appears in H7 CSL chain (Signal 1: love-tendency exists). "
+            f"5CSL chain hits BOTH {{5,8,12}} (secrecy/scandal/loss) AND "
+            f"{{2,7,11}} (marriage anchor). Per canonical KP: love-affair "
+            f"faces obstacles (different caste/community, family resistance, "
+            f"or hidden phase) BUT can still culminate in marriage because "
+            f"the 5CSL chain has the marriage anchor."
+            + (f" Rahu/Ketu in H7 chain reinforces unconventional/inter-caste partner." if rahu_ketu_in_chain else "")
+        )
+    elif s2_love_path_negated and s1_h5_in_chain:
         category = "Love-affair-then-Arranged"
         reasoning = (
-            "H5 appears in H7 CSL chain (Signal 1: love-tendency exists) "
-            "BUT 5L in H{} negates the love-marriage path (Signal 2 override). "
-            "Family arrangement takes over.".format(fifth_lord_house)
+            f"H5 appears in H7 CSL chain (Signal 1: love-tendency exists) "
+            f"BUT 5CSL chain hits {{5,8,12}} WITHOUT {{2,7,11}} anchor "
+            f"(Signal 2: love path closed per canonical KP rule). "
+            f"Family arrangement takes over."
         )
     elif s1_h5_in_chain and s2_love_path_strong and s5_strength == "strong":
         category = "Pure Love Marriage"
         reasoning = (
-            "H5 in H7 CSL chain (Signal 1) + 5L in H{} well-placed (Signal 2) + "
-            "{} (Signal 5).".format(fifth_lord_house, s5_relation)
+            f"H5 in H7 CSL chain (Signal 1) + 5CSL chain hits {{2,7,11}} "
+            f"without 5-8-12 affliction (Signal 2 strong) + {s5_relation} "
+            f"(Signal 5)."
         )
     elif s1_h5_in_chain and s2_love_path_strong and s3_one_parent:
         category = "Love-cum-Arranged"
         reasoning = (
-            "Love tendency present (H5 in chain, 5L well-placed) AND "
-            "one-parent network involved (H{} in chain).".format(4 if s3_h4_in_chain else 9)
+            f"Love tendency present (H5 in chain, 5CSL chain well-anchored "
+            f"to {{2,7,11}}) AND one-parent network involved "
+            f"(H{4 if s3_h4_in_chain else 9} in chain)."
         )
     elif s3_strong_arranged and not s1_h5_in_chain:
         category = "Pure Arranged Marriage"
@@ -1187,8 +1257,15 @@ def _five_signal_classification(chart: dict) -> dict:
         "category": category,
         "reasoning": reasoning,
         "signal_1_h5_in_chain": s1_h5_in_chain,
-        "signal_2_fifth_lord_house": fifth_lord_house,
-        "signal_2_fifth_lord": fifth_lord,
+        # PR A1.8 — Signal 2 reports the canonical 5CSL CHAIN data, not 5L placement.
+        # Old 5L placement fields retained as context.
+        "signal_2_fifth_csl": h5_csl,
+        "signal_2_h5_csl_chain_houses": sorted(h5_csl_chain),
+        "signal_2_chain_has_5_8_12": s2_chain_has_5812,
+        "signal_2_chain_has_marriage_anchor": s2_chain_has_marriage,
+        "signal_2_love_with_obstacles": s2_love_with_obstacles,
+        "signal_2_fifth_lord_house": fifth_lord_house,    # context only
+        "signal_2_fifth_lord": fifth_lord,                 # context only
         "signal_2_love_path_negated": s2_love_path_negated,
         "signal_2_love_path_strong": s2_love_path_strong,
         "signal_3_h4_in_chain": s3_h4_in_chain,
@@ -1200,6 +1277,8 @@ def _five_signal_classification(chart: dict) -> dict:
         "signal_5_relation": s5_relation,
         "signal_5_strength": s5_strength,
         "seventh_lord": seventh_lord,
+        # PR A1.8 — Rahu/Ketu unconventional-partner signal
+        "rahu_ketu_in_h7_chain": rahu_ketu_in_chain,
     }
 
 

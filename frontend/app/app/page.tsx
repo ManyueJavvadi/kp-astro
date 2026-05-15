@@ -6353,9 +6353,20 @@ export default function Home() {
                                   <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "auto 1fr", gap: "3px 8px", fontSize: 10.5 }}>
                                     <span style={{ color: "var(--muted)" }}>S1 H5 in chain</span>
                                     <span style={{ color: it.tc.signal_1_h5_in_chain ? "#4ade80" : "var(--muted)" }}>{it.tc.signal_1_h5_in_chain ? "✓" : "○"}</span>
-                                    <span style={{ color: "var(--muted)" }}>S2 5L={it.tc.signal_2_fifth_lord} in H{it.tc.signal_2_fifth_lord_house}</span>
-                                    <span style={{ color: it.tc.signal_2_love_path_negated ? "#f87171" : it.tc.signal_2_love_path_strong ? "#4ade80" : "var(--muted)" }}>
-                                      {it.tc.signal_2_love_path_negated ? "negate" : it.tc.signal_2_love_path_strong ? "strong" : "mid"}
+                                    <span style={{ color: "var(--muted)" }}>S2 5CSL={it.tc.signal_2_fifth_csl}</span>
+                                    <span style={{
+                                      color: it.tc.signal_2_love_path_negated ? "#f87171"
+                                           : it.tc.signal_2_love_with_obstacles ? "#fbbf24"
+                                           : it.tc.signal_2_love_path_strong ? "#4ade80"
+                                           : "var(--muted)"
+                                    }} title={t(
+                                      `5CSL chain hits ${(it.tc.signal_2_h5_csl_chain_houses || []).map((h: number) => 'H' + h).join(', ')}. 5-8-12: ${it.tc.signal_2_chain_has_5_8_12 ? 'YES' : 'no'}. 2-7-11 anchor: ${it.tc.signal_2_chain_has_marriage_anchor ? 'YES' : 'no'}.`,
+                                      "5CSL చైన్ సూచనలు"
+                                    )}>
+                                      {it.tc.signal_2_love_path_negated ? "negate"
+                                       : it.tc.signal_2_love_with_obstacles ? "obstacles"
+                                       : it.tc.signal_2_love_path_strong ? "strong"
+                                       : "mid"}
                                     </span>
                                     <span style={{ color: "var(--muted)" }}>S3 H4/H9 in chain</span>
                                     <span style={{ color: (it.tc.signal_3_h4_in_chain && it.tc.signal_3_h9_in_chain) ? "#4ade80" : (it.tc.signal_3_h4_in_chain || it.tc.signal_3_h9_in_chain) ? "var(--accent)" : "var(--muted)" }}>
@@ -6366,6 +6377,13 @@ export default function Home() {
                                     <span style={{ color: "var(--muted)" }}>S5 5L-7L</span>
                                     <span style={{ color: it.tc.signal_5_strength === "strong" ? "#4ade80" : it.tc.signal_5_strength === "mild" ? "var(--accent)" : "var(--muted)" }}>{it.tc.signal_5_relation}</span>
                                   </div>
+                                  {/* PR A1.8 — Rahu/Ketu in H7 CSL chain → unconventional/inter-caste partner */}
+                                  {it.tc.rahu_ketu_in_h7_chain && (
+                                    <div style={{ marginTop: 8, padding: "4px 8px", background: "rgba(167,139,250,0.10)", border: "0.5px solid rgba(167,139,250,0.3)", borderRadius: 6, fontSize: 10.5, color: "#a78bfa" }}>
+                                      ⚡ {t("Rahu/Ketu in H7 chain — unconventional partner signal (inter-caste, foreign, different background)",
+                                            "Rahu/Ketu H7 చైన్‌లో — అసాధారణ భాగస్వామి సంకేతం")}
+                                    </div>
+                                  )}
                                 </div>
                               ))}
                             </div>
