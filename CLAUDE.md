@@ -10,6 +10,72 @@ queue, business model, Option A stance) and `.claude/DAILY_LOG.md`
 
 ---
 
+## 🔒 LOCKED v2 PLAN — read BEFORE planning any UX/architecture work
+
+As of **2026-05-20**, the v2 roadmap is locked. The canonical doc is:
+
+**`.claude/research/world-first-vision.md`** — read it fully before
+proposing UX/architecture changes.
+
+Headline architecture:
+- **Astrologer mode**: 5 workspaces (Active Consult / My Practice / Quick Tools /
+  Knowledge & Notes / Community)
+- **Consumer mode**: 3 workspaces (Today / Ask / My Life)
+- **Default landing per client**: Chart Briefing (7-zone home state) →
+  astrologer clicks suggested chip OR types inquiry → Inquiry View loads
+  composed cards
+- **Inquiry-driven canvas** replaces 8-tab navigation. Tabs become "Classic
+  View" toggle for users who prefer the old model.
+- **Phased rollout**: A (Foundation) → B (Inquiry Bar MVP) → C (Workspaces) →
+  D (Killer features) → E (Community + payments)
+
+The earlier `.claude/research/v2-roadmap.md` is **SUPERSEDED** — do not use
+it as reference. The world-first-vision.md doc replaces it.
+
+---
+
+## 🔒 AI ANALYSIS QUALITY PRESERVATION PROTOCOL — sacred regions
+
+Per user direction on 2026-05-20: **the AI Analysis system is sacred.**
+PRs A1.4 → A1.11 represent weeks of careful tuning. Regressions are
+NOT acceptable.
+
+**DO NOT modify without explicit user approval + regression suite pass:**
+- `backend/app/services/llm_service.py` — `get_system_prompt()`, prompt blocks,
+  `format_chart_for_llm`, `format_match_for_llm`, multi-model routing
+- `backend/app/services/compatibility_engine.py` — `_five_signal_classification`,
+  `_h7_sublord_promise`, `_planet_significations_tiered`, `_canonical_cross_match`
+- `backend/knowledge/*` — all 29 KB files (esp. marriage.txt, general.txt,
+  house_combinations_canonical.md, pattern_library.md, kp_csl_theory.txt,
+  timing_confirmation.txt)
+- `backend/app/services/chart_engine.py` — planet/cusp/sub-lord/dasha core
+
+**Audit doc**: `.claude/research/analysis-deep-audit.md` (PR A1.9) — every
+RULE 5/11/12/33 reading from this doc is canonical-locked.
+
+**Mandatory before any AI-touching merge** (once pytest harness ships in
+Phase A PR F1):
+1. Golden chart fixtures (Manyue, Ramya, Vineetha, Sreeja) regression pass
+2. Per-topic verdict snapshot compare (no surprise flips)
+3. Output structure check (required sections present)
+4. No internal label leakage (no "RULE N", "PR A1.X", "Pattern T1" in output)
+
+**Hard rule**: any PR that breaks AI quality must be REVERTED, not patched
+forward.
+
+**For v2 work (Phases A-D)**:
+- Phase A: zero AI impact (pure refactor + auth + monitoring)
+- Phase B (Inquiry Bar): new Haiku call for inquiry detection — ADDITIVE,
+  does not modify Analysis prompts
+- Phase C (Workspaces): routing/layout only — does not touch AI engines
+- Phase D: Prediction Ledger, AI Apprenticeship, Chart Briefing AI — these
+  ADD new AI calls but must NOT modify existing Analysis prompts. Each
+  needs its own isolated system prompt.
+
+**The Analysis tab is the product. Everything else is scaffolding.**
+
+---
+
 ## Repo layout (stable v1 track on `develop`)
 
 - **Backend**: `backend/app/` — FastAPI + KP engines. `services/` contains
