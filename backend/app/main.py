@@ -258,18 +258,140 @@ def health_check():
     return {"status": "KP Astro API is running"}
 
 
+# PR F2 (Phase A foundation) — process start time for uptime tracking
+import time as _time
+_PROCESS_START_TIME = _time.time()
+
+
 @app.get("/health")
 def health():
-    """Operational health endpoint — checks env + dep readiness.
+    """Deep health check (PR F2 — Phase A foundation).
 
-    Doesn't expose secret values. `anthropic_key_set` is a boolean flag,
-    not the key itself.
-    """
-    return {
-        "status": "ok",
-        "anthropic_key_set": bool(os.getenv("ANTHROPIC_API_KEY")),
+    Exercises the critical paths so UptimeRobot can distinguish
+    "process running" from "backend actually functional." Designed to
+    be safe to call every 5 minutes without cost or load impact.
+
+    Checks:
+      ephemeris      — swisseph can compute a planet position
+      chart_compute  — chart_engine can build a real chart
+      anthropic_key  — env var is set (does NOT call the API)
+      version        — git commit info
+
+    Status code:
+      200 — fully ok or degraded (non-critical issue)
+      503 — DOWN (a critical check failed; UptimeRobot alerts)
+
+    Body:
+      {
+        "status": "ok" | "degraded" | "down",
+        "checks": { check_name: {"status": "ok"|"fail", "detail": "..."} },
         "version": "0.1.0",
+        "commit": "<git sha>",
+        "uptime_seconds": <int>,
+        "timestamp": "<iso8601>"
+      }
+    """
+    from datetime import datetime as _dt
+    from fastapi import Response
+    import json as _json
+
+    checks: dict = {}
+
+    # Check 1 — ephemeris: can swisseph compute a sidereal position?
+    # If ephemeris files are missing or swisseph is broken, this errors out.
+    # CRITICAL — without this, no chart can be generated.
+    try:
+        import swisseph as _swe
+        _swe.set_sid_mode(_swe.SIDM_KRISHNAMURTI_VP291)
+        # Use a fixed test JD (2000-01-01 12:00 UT) so the result is
+        # deterministic + comparable across deploys.
+        _test_jd = 2451545.0
+        _sun_pos, _ = _swe.calc_ut(_test_jd, _swe.SUN, _swe.FLG_SIDEREAL)
+        _sun_lon = round(_sun_pos[0], 2)
+        checks["ephemeris"] = {
+            "status": "ok",
+            "detail": f"Sun sidereal lon at J2000 = {_sun_lon}°",
+        }
+    except Exception as e:
+        checks["ephemeris"] = {
+            "status": "fail",
+            "detail": f"swisseph failure: {type(e).__name__}: {str(e)[:120]}",
+        }
+
+    # Check 2 — chart_compute: end-to-end chart generation works?
+    # Tests the full chart_engine path with a fixed input.
+    # CRITICAL — if this fails, /chart/generate is broken.
+    try:
+        from app.services.chart_engine import generate_chart as _gen
+        _test_chart = _gen(
+            date="2000-09-09",
+            time="12:31",
+            latitude=16.2378,
+            longitude=80.6464,
+            timezone_offset=5.5,
+        )
+        _cusp_count = len(_test_chart.get("cusps", []))
+        _planet_count = len(_test_chart.get("planets", {}))
+        if _cusp_count == 12 and _planet_count >= 9:
+            checks["chart_compute"] = {
+                "status": "ok",
+                "detail": f"{_cusp_count} cusps + {_planet_count} planets generated",
+            }
+        else:
+            checks["chart_compute"] = {
+                "status": "fail",
+                "detail": f"unexpected output: {_cusp_count} cusps, {_planet_count} planets",
+            }
+    except Exception as e:
+        checks["chart_compute"] = {
+            "status": "fail",
+            "detail": f"chart_engine failure: {type(e).__name__}: {str(e)[:120]}",
+        }
+
+    # Check 3 — anthropic_key: env var is set?
+    # NON-CRITICAL — chart still works without AI. We do NOT make a live
+    # API call (would cost money on every health check + add latency).
+    _anthropic_set = bool(os.getenv("ANTHROPIC_API_KEY"))
+    checks["anthropic_key"] = {
+        "status": "ok" if _anthropic_set else "fail",
+        "detail": "key configured" if _anthropic_set else "ANTHROPIC_API_KEY not set",
     }
+
+    # Decide overall status + HTTP code.
+    # CRITICAL checks: ephemeris, chart_compute. Non-critical: anthropic_key.
+    critical_failed = any(
+        checks[c]["status"] == "fail" for c in ("ephemeris", "chart_compute")
+    )
+    non_critical_failed = checks["anthropic_key"]["status"] == "fail"
+
+    if critical_failed:
+        overall_status = "down"
+        http_code = 503
+    elif non_critical_failed:
+        overall_status = "degraded"
+        http_code = 200
+    else:
+        overall_status = "ok"
+        http_code = 200
+
+    body = {
+        "status": overall_status,
+        "checks": checks,
+        "version": "0.1.0",
+        "commit": (
+            os.getenv("RAILWAY_GIT_COMMIT_SHA")
+            or os.getenv("RAILWAY_GIT_COMMIT_MESSAGE")
+            or "unknown"
+        )[:12],  # short sha
+        "uptime_seconds": int(_time.time() - _PROCESS_START_TIME),
+        "timestamp": _dt.utcnow().isoformat() + "Z",
+    }
+
+    return Response(
+        content=_json.dumps(body),
+        media_type="application/json",
+        status_code=http_code,
+    )
 
 
 # ════════════════════════════════════════════════════════════════
