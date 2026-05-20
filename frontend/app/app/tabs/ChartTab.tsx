@@ -25,7 +25,15 @@ import { useState } from "react";
 import { LayoutGrid, Target } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
 import { PageHero } from "@/components/ui/PageHero";
-import SouthIndianChart from "../components/SouthIndianChart";
+// PR R1-hotfix — was importing the legacy ./components/SouthIndianChart
+// (the old 56-line south-only renderer). The pre-R1 page.tsx used a
+// `const SouthIndianChart = RasiChart` ALIAS so the modern RasiChart
+// (with South/North/East style toggle) was actually rendered. The R1
+// extraction missed the alias and pulled in the wrong file, regressing
+// the chart UI to the old style-toggle-less version. Fixed by importing
+// RasiChart directly under the legacy name.
+import RasiChart from "../components/RasiChart";
+const SouthIndianChart = RasiChart; // backwards-compat alias (same as pre-R1 page.tsx)
 import HousePanel from "../components/HousePanel";
 import PlanetList from "../components/workspace/PlanetList";
 import { SectionEyebrow } from "../components/SectionEyebrow";
