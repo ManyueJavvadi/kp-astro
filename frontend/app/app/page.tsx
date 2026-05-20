@@ -699,18 +699,59 @@ export default function Home() {
       // flow. See the useEffect below that shows it on first Analysis
       // tab entry instead.
     } catch (err: any) {
-      // PR A1.3-fix-25 — was alert(); now inline + toast. Differentiates
-      // common backend statuses so the user gets a useful message.
+      // PR A1.3-fix-25 + PR F2 — differentiates common backend statuses.
+      // PR F2: when network/CORS error fires (most common case when Railway
+      // is down or sleeping), proactively check /health to distinguish
+      // "backend down" from "user's connection problem." This prevents
+      // the misleading "check your connection" message during outages.
       const status = err?.response?.status;
-      const msg = status === 429
-        ? "Too many requests — please wait a moment."
-        : status === 422
-        ? "The chart data couldn't be processed. Please double-check your inputs."
-        : status === 413
-        ? "Your input is too large. Please shorten any free-text fields."
-        : status >= 500
-        ? "Our chart server is having trouble. Please try again in a moment."
-        : "Could not generate chart. Please check your connection.";
+      const isNetworkOrCors = !err?.response && (
+        err?.code === "ERR_NETWORK"
+        || err?.message?.includes("Network Error")
+        || err?.message?.includes("CORS")
+        || err?.message?.includes("Failed to fetch")
+      );
+
+      let msg: string;
+      if (status === 429) {
+        msg = "Too many requests — please wait a moment.";
+      } else if (status === 422) {
+        msg = "The chart data couldn't be processed. Please double-check your inputs.";
+      } else if (status === 413) {
+        msg = "Your input is too large. Please shorten any free-text fields.";
+      } else if (status === 503) {
+        msg = "Backend service is temporarily unavailable. We're working on it — please try again in a few minutes.";
+      } else if (status >= 500) {
+        msg = "Our chart server is having trouble. Please try again in a moment.";
+      } else if (isNetworkOrCors) {
+        // PR F2 — proactive backend-health probe before blaming the user's network.
+        // Don't await this (it's optional polish) — fire and forget, then
+        // update the error message if we get a definitive "backend down" answer.
+        msg = "Connecting to chart service... please wait a moment and retry.";
+        const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
+        if (API_BASE) {
+          fetch(`${API_BASE}/health`, { method: "GET" })
+            .then(r => r.json().catch(() => null))
+            .then(h => {
+              if (!h || h.status === "down") {
+                failSetup(
+                  "Our chart service is temporarily down (not your connection). " +
+                  "We monitor this and it usually recovers within minutes. " +
+                  "Try again shortly."
+                );
+              }
+            })
+            .catch(() => {
+              // /health itself failed — backend is definitively down
+              failSetup(
+                "Our chart service is temporarily unreachable. " +
+                "This is on our side, not your connection. Please try again in a few minutes."
+              );
+            });
+        }
+      } else {
+        msg = "Could not generate chart. Please try again — if this persists, the service may be temporarily unavailable.";
+      }
       failSetup(msg);
     }
     finally { setChartLoading(false); }
