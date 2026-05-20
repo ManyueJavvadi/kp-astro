@@ -65,6 +65,10 @@ import PersonHeroBanner from "./components/workspace/PersonHeroBanner";
 import DashaStrip from "./components/workspace/DashaStrip";
 import type { PlaceSuggestion, BirthDetails, Message, ChartSession } from "./types";
 import type { WorkspaceData } from "./types/workspace";
+// PR R1 (Phase A foundation refactor) — extracted tab components live in tabs/
+// and shared primitives in components/. ChartTab is the proof-of-pattern.
+import { ChartTab } from "./tabs/ChartTab";
+import { SectionEyebrow } from "./components/SectionEyebrow";
 
 // PR A1.3-fix-24 — env-derived. NEXT_PUBLIC_API_URL overrides for staging
 // or local dev; production fallback unchanged. Set in .env.local for dev.
@@ -210,7 +214,7 @@ export default function Home() {
   const [horaryLoading, setHoraryLoading] = useState(false);
   // New UI state vars
   const [housesSubTab, setHousesSubTab] = useState<"overview"|"cusps"|"sigs"|"ruling"|"panchang">("overview");
-  const [chartView, setChartView] = useState<"chart"|"planets">("chart");
+  // chartView state moved into tabs/ChartTab.tsx in PR R1 (tab-local).
   const [showTransitInDasha, setShowTransitInDasha] = useState(false);
   const [transitSubTab, setTransitSubTab] = useState<"overview" | "planets" | "kp">("overview");
   // Phase 13 / PR 31 — quickInsights state REMOVED.
@@ -2511,111 +2515,17 @@ export default function Home() {
             <div style={{ flex: 1, overflow: "auto", padding: "1.25rem" }}>
 
               {/* CHART — two-column: chart left, PlanetList right */}
-              {activeTab === "chart" && (
-                <div className="tab-content">
-                  {/* Phase 15.2 — Track A serif PageHero with MaskReveal
-                      gold-sweep on the title. Replaces inline dasha-hero. */}
-                  <PageHero
-                    eyebrow={t("KP rasi · Krishnamurti Paddhati", "KP రాశి · కృష్ణమూర్తి పద్ధతి")}
-                    title={t("Your KP rasi chart", "మీ KP రాశి చార్ట్")}
-                    subcopy={t(
-                      "Planets, signs, houses, and sub lords — the full KP picture in one view. Tap any house to expand its details.",
-                      "గ్రహాలు, రాశులు, భావాలు, సబ్ లార్డ్‌లు — KP పూర్తి దృశ్యం ఒక్క చోట. వివరాల కోసం ఏ భావాన్నైనా నొక్కండి."
-                    )}
-                  />
-                  {/* Chart / Planets view toggle */}
-                  <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-                    {[
-                      { v: "chart",   l: "Chart",   Icon: LayoutGrid },
-                      { v: "planets", l: "Planets", Icon: Target },
-                    ].map(opt => {
-                      const active = chartView === opt.v;
-                      const OptIcon = opt.Icon;
-                      return (
-                        <button
-                          key={opt.v}
-                          onClick={() => setChartView(opt.v as "chart"|"planets")}
-                          style={{
-                            display: "inline-flex", alignItems: "center", gap: 6,
-                            padding: "6px 14px", borderRadius: 999,
-                            border: active ? "1px solid rgba(201,169,110,0.45)" : "1px solid rgba(255,255,255,0.08)",
-                            background: active ? "rgba(201,169,110,0.1)" : "transparent",
-                            color: active ? "#c9a96e" : "var(--muted)",
-                            fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit",
-                            transition: "color 120ms, border-color 120ms, background 120ms",
-                          }}
-                          onMouseEnter={e => { if (active) return; e.currentTarget.style.color = "#c9a96e"; e.currentTarget.style.borderColor = "rgba(201,169,110,0.3)"; }}
-                          onMouseLeave={e => { if (active) return; e.currentTarget.style.color = "var(--muted)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }}
-                        >
-                          <OptIcon size={13} strokeWidth={1.8} />
-                          {opt.l}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <div style={{ display: "flex", gap: "1.5rem", alignItems: "start", flexWrap: "wrap" }}>
-                    {/* LEFT — Chart */}
-                    {(chartView === "chart" || chartView === "planets") && (
-                      <div style={{ flexShrink: 0 }}>
-                        {chartView === "chart" && (
-                          <>
-                            {/* PR fix-21 — title is rendered inside RasiChart now (dynamic per active style) */}
-                            <SouthIndianChart
-                              planets={workspaceData.planets}
-                              cusps={workspaceData.cusps}
-                              onHouseClick={h => setSelectedHouse(prev => prev === h ? null : h)}
-                              selectedHouse={selectedHouse}
-                            />
-                            <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 8, textAlign: "center", letterSpacing: "0.02em" }}>Tap a house for details · <span style={{ color: "#c9a96e" }}>↑</span> = Lagna</div>
-                          </>
-                        )}
-                      </div>
-                    )}
-
-                    {/* RIGHT — PlanetList (star lord → sub lord) */}
-                    {chartView === "chart" && !selectedHouse && (
-                      <div style={{ flex: 1, minWidth: 260 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                          <SectionEyebrow te="గ్రహ స్థానాలు" en="Planet Positions · KP" noMarginBottom />
-                          <span style={{
-                            display: "inline-flex", alignItems: "center", gap: 4,
-                            fontSize: 10, padding: "3px 10px", borderRadius: 999,
-                            background: "rgba(201,169,110,0.08)", color: "#c9a96e",
-                            border: "0.5px solid rgba(201,169,110,0.3)",
-                            fontWeight: 500,
-                          }}>Star → Sub Lord</span>
-                        </div>
-                        <div style={{ background: "var(--card)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 14, overflow: "hidden" }}>
-                          <PlanetList planets={workspaceData.planets} />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* House panel overlay */}
-                    {selectedHouse && (
-                      <HousePanel
-                        house={selectedHouse}
-                        cusps={workspaceData.cusps}
-                        significators={workspaceData.significators}
-                        planets={workspaceData.planets}
-                        rulingPlanets={workspaceData.ruling_planets?.all_en || []}
-                        antardashas={workspaceData.antardashas || []}
-                        onClose={() => setSelectedHouse(null)}
-                      />
-                    )}
-
-                    {/* Mobile: planets-only view (full table) */}
-                    {chartView === "planets" && (
-                      <div style={{ flex: 1, minWidth: 260 }}>
-                        <SectionEyebrow te="గ్రహ స్థాన పట్టిక" en="Planet Positions · KP" />
-                        <div style={{ background: "var(--card)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 14, overflow: "hidden" }}>
-                          <PlanetList planets={workspaceData.planets} />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
+              {/* PR R1 (Phase A foundation refactor) — chart tab extracted to
+                  tabs/ChartTab.tsx as proof-of-pattern. Same behavior, ~108
+                  lines of JSX moved out of page.tsx. chartView state moved
+                  into the component (tab-local); selectedHouse stays here
+                  because HousesTab (next extraction) also reads it. */}
+              {activeTab === "chart" && workspaceData && (
+                <ChartTab
+                  workspaceData={workspaceData as WorkspaceData}
+                  selectedHouse={selectedHouse}
+                  setSelectedHouse={setSelectedHouse}
+                />
               )}
 
               {/* HOUSES — consolidated tab with sub-tabs */}
@@ -8551,53 +8461,8 @@ export default function Home() {
  * section so astrologers scanning the page always see the primary
  * Telugu label first with English as secondary support.
  */
-function SectionEyebrow({
-  te,
-  en,
-  noMarginBottom,
-}: {
-  te: string;
-  en?: string;
-  noMarginBottom?: boolean;
-}) {
-  // Hook call is safe inside a component; this reads the shared language.
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const { lang } = useLanguage();
-  // EN mode: English primary (drop Telugu entirely).
-  // TE mode: Telugu primary (drop English subtitle).
-  // TE+EN: Telugu primary + English subtitle (default).
-  const primary = lang === "en" ? (en ?? te) : te;
-  const showSubtitle = lang === "te_en" && en;
-  return (
-    <div style={{ marginBottom: noMarginBottom ? 0 : 10 }}>
-      <div
-        style={{
-          fontSize: 11,
-          color: "#c9a96e",
-          letterSpacing: "0.08em",
-          fontWeight: 600,
-          lineHeight: 1.3,
-        }}
-      >
-        {primary}
-      </div>
-      {showSubtitle && (
-        <div
-          style={{
-            fontSize: 9,
-            color: "var(--muted)",
-            letterSpacing: "0.12em",
-            textTransform: "uppercase" as const,
-            fontWeight: 500,
-            marginTop: 2,
-          }}
-        >
-          {en}
-        </div>
-      )}
-    </div>
-  );
-}
+// SectionEyebrow moved to ./components/SectionEyebrow.tsx in PR R1
+// (Phase A foundation refactor). Imported at top of file.
 
 /**
  * Small form-field label used in the onboarding card. Icon + uppercase text.
