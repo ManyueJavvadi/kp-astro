@@ -436,3 +436,63 @@ following the recipe.**
 
 *Doc author: Claude. Date: 2026-05-20. Status: living handoff. Update
 as PRs ship.*
+
+---
+
+## 10. Phase A — COMPLETE (2026-05-20)
+
+All 9 PRs shipped on branch `claude/eager-elbakyan`:
+
+| PR | Tab | Lines moved | Key learning |
+|---|---|---|---|
+| F2 | (backend /health) | — | UptimeRobot wiring ready |
+| R1 | ChartTab + SectionEyebrow | ~175 | **Alias trap**: aliased component imports (`RasiChart as SouthIndianChart`) must be re-established inside extracted file |
+| R2 | HousesTab (5 sub-tabs) | ~389 | Multi-sub-tab pattern: pass `housesSubTab` + setter as props |
+| R3 | DashaTab | ~572 | Bundle related state into `transitState` prop object to keep arg count sane |
+| R4 | AnalysisTab | ~365 | Sacred-adjacent: ALL chat state stays in parent, child just consumes props |
+| R5 | HoraryTab | ~842 | Many lucide icons + alias `HomeIcon = Home` |
+| R6 | MatchTab | ~1,476 | Biggest: ~30 props. `snapshotCurrentSession` + `sessionToApiPerson` as props. `@ts-nocheck` for loose JSX |
+| R7 | MuhurthaTab | ~1,231 | Handler can live INSIDE extracted file (`handleMuhurthaAiAsk`) — no parent plumbing needed |
+| R8 | PanchangTab | ~957 | Same — `handleDayClick` local to file. Final tab. |
+
+**Final scorecard:**
+- `page.tsx`: 8,589 → 2,832 lines (-67% / -5,757 lines)
+- `frontend/app/app/tabs/`: 8 tab files, ~5,800 lines of clean modular JSX
+- Sacred regions untouched: `llm_service.py`, `compatibility_engine.py`,
+  `chart_engine.py`, `backend/knowledge/*`
+- TSC: 0 errors at each commit; build clean throughout
+
+**Refactor pattern proven across all tab sizes** (175 LOC → 1,476 LOC).
+The recipe in §2 + the alias-trap audit in §3 is the canonical playbook
+for any future monolith-splitting work.
+
+### Lessons added during R5-R8 sprint
+
+1. **Python extraction can mis-place `return (`** — sometimes wraps helper
+   `const` declarations inside the JSX return. After extraction, scan for
+   `return (` followed by `const X = ...` and move the return below the
+   helpers. Hit on R8 PanchangTab.
+
+2. **Wide prop bundles are fine** — MatchTab ~30 props, PanchangTab ~25.
+   Don't prematurely normalize into context/store; that's a Phase B+
+   concern once we know which state is actually shared vs tab-local.
+
+3. **`@ts-nocheck` is the right escape hatch** for tabs with many
+   implicit-any inline lambdas. We are NOT trying to type-tighten in
+   Phase A — only to physically separate files.
+
+4. **Handler functions defined inside the original JSX block** (e.g.
+   `handleDayClick`, `handleMuhurthaAiAsk`) should move with the JSX into
+   the extracted file. Only handlers SHARED across tabs need parent
+   ownership.
+
+5. **Run TSC immediately after import injection**, not at the end. Surfaces
+   missing imports / type errors one-by-one and prevents cascading confusion.
+
+### Next phase
+
+**Phase B begins now**: Inquiry Bar MVP per `world-first-vision.md` §13
+killer features. With page.tsx down to 2,832 lines, adding new top-level UI
+(like the Inquiry Bar above the tab content) is a clean local edit.
+
+*Phase A officially closed: 2026-05-20.*
