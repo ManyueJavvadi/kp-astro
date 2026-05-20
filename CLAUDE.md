@@ -17,6 +17,23 @@ As of **2026-05-20**, the v2 roadmap is locked. The canonical doc is:
 **`.claude/research/world-first-vision.md`** — read it fully before
 proposing UX/architecture changes.
 
+**Phase A foundation is IN PROGRESS.** Tactical state-of-play (current
+PR queue, refactor recipe, alias-trap lesson) is in:
+
+**`.claude/research/phase-a-handoff.md`** — read FIRST if continuing
+Phase A refactor work. Includes step-by-step refactor recipe and R4
+specifics for AnalysisTab.
+
+Phase A scoreboard (as of 2026-05-20):
+  - F2 (deep /health + frontend down-detection) ✅
+  - R1 (ChartTab extracted) ✅ + R1-hotfix (alias trap caught) ✅
+  - R2 (HousesTab extracted) ✅
+  - R3 (DashaTab extracted) ✅
+  - R4 (AnalysisTab — sacred-adjacent) — NEXT
+  - R5 HoraryTab, R6 MatchTab, R7 MuhurthaTab, R8 PanchangTab — queued
+  - page.tsx: 8,589 → 7,572 lines (-11.8% so far)
+  - Target: page.tsx ≤ 3,500 lines after R4-R8
+
 Headline architecture:
 - **Astrologer mode**: 5 workspaces (Active Consult / My Practice / Quick Tools /
   Knowledge & Notes / Community)
