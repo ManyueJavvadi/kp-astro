@@ -60,6 +60,16 @@ from app.services.chart_engine import (
     get_ruling_planets, get_all_house_significators,
     get_planet_house_positions,
 )
+# PR A1.12 + A1.17 — CSL 4-step chain + Pattern D2 detector wired into pipeline
+# so Analysis tab (/analyze + /analyze-stream) gets the full chain text + the
+# topic-specific D2 warning. Previously csl_chains was only computed in
+# /workspace + /quick-insights (the latter is hard-disabled), meaning Analysis
+# was missing the structured 4-step data entirely.
+from app.services.csl_chains import (
+    compute_csl_chains, format_csl_chains_for_llm,
+    detect_pattern_d2, format_pattern_d2_for_llm,
+    compute_joint_period_significations, format_joint_period_for_llm,
+)
 
 _log = logging.getLogger("chart_pipeline")
 
@@ -300,6 +310,99 @@ def build_full_chart_data(
         _log.warning("Tara/Chandra Bala compute failed: %s", e)
         tara_data = {}
 
+    # ── 10a. Relief calendar — upcoming favourable PADs in next 33 months ──
+    # (PR A1.22)
+    # When a user is in a heavy current dasha period (Saturn AD/PAD, hostile
+    # transits, depressive content in question), surface upcoming "lighter
+    # window" PADs so the AI can ground hope in math instead of platitudes.
+    # Heuristic: Mercury / Venus / Jupiter / Moon are the "lighter" planet
+    # lords. Mars / Saturn / Rahu / Ketu / Sun are "heavier" or "mixed".
+    # The lighter lords' PADs within the current Antardasha are the relief windows.
+    relief_calendar = []
+    try:
+        from datetime import datetime as _dt
+        _today = _dt.now()
+        _LIGHTER_LORDS = {"Mercury", "Venus", "Jupiter", "Moon"}
+        # Combine current AD's PADs + first 2 upcoming ADs' PADs
+        pads_to_scan = []
+        if pratyantardashas:
+            pads_to_scan.extend(pratyantardashas)
+        # Cap at 18 months ahead so we don't list far-future irrelevant windows
+        for pad in pads_to_scan[:24]:  # up to 24 PADs across current + next ADs
+            pad_lord = pad.get("pratyantardasha_lord") or pad.get("lord", "")
+            if pad_lord not in _LIGHTER_LORDS:
+                continue
+            try:
+                # Engine uses fields "start" and "end" (not "_date" suffix)
+                pad_end = _dt.strptime(pad.get("end", ""), "%Y-%m-%d")
+                if pad_end < _today:
+                    continue  # already past
+                pad_start = _dt.strptime(pad.get("start", ""), "%Y-%m-%d")
+                days_to_start = max(0, (pad_start - _today).days)
+                if days_to_start > 1000:  # skip beyond ~33 months
+                    continue
+                relief_calendar.append({
+                    "lord": pad_lord,
+                    "start": pad.get("start"),
+                    "end": pad.get("end"),
+                    "days_to_start": days_to_start,
+                    "kind": "PAD",
+                })
+            except Exception:
+                continue
+    except Exception as e:
+        _log.warning("Relief calendar build failed: %s", e)
+
+    # ── 10b. CSL 4-step chain + Pattern D2 detection (PR A1.12 + A1.17) ──
+    # Compute structured 4-step CSL chain for every house and detect Pattern D2
+    # (offer-then-withdrawn) for the user's specific topic. Both surface into
+    # the LLM prompt — chain_text gives Claude the exact 4-step union per cusp,
+    # d2_text adds a structural warning when present.
+    csl_chains_data: dict = {}
+    csl_chains_text = ""
+    pattern_d2_text = ""
+    try:
+        # chart["cusps"] keys are "House_1".."House_12"; values have cusp_longitude + sub_lord
+        cusps_list = [
+            {
+                "house_num": int(str(h).replace("House_", "")),
+                "cusp_longitude": c.get("cusp_longitude", 0),
+                "sub_lord_en": c.get("sub_lord", ""),
+            }
+            for h, c in chart["cusps"].items()
+        ]
+        planets_list = [
+            {"planet_en": pname, "longitude": p.get("longitude", 0)}
+            for pname, p in chart["planets"].items()
+        ]
+        csl_chains_data = compute_csl_chains(cusps_list, planets_list)
+        csl_chains_text = format_csl_chains_for_llm(csl_chains_data)
+        # Pattern D2 detection runs against the topic Claude is answering for.
+        # Topic strings: "marriage", "career", "job_employment", "wealth",
+        # "children", "education", "property", "foreign", "litigation", "health".
+        d2 = detect_pattern_d2(csl_chains_data, topic)
+        pattern_d2_text = format_pattern_d2_for_llm(d2)
+    except Exception as e:
+        _log.warning("CSL chains + Pattern D2 compute failed: %s", e)
+
+    # ── 10c. Joint Period signification helper (PR A1.18) ───────────
+    # Pre-compute the MD+AD+PAD+Sookshma lord signification union per Pattern T1.
+    # Saves AI from manually walking each lord's CSL chain during every reading.
+    # Note: current_md uses field "lord"; ad/pad/sookshma use full-name fields.
+    joint_period_text = ""
+    try:
+        md_lord = current_md.get("lord") if current_md else None
+        ad_lord = current_ad.get("antardasha_lord") if current_ad else None
+        pad_lord = current_pad.get("pratyantardasha_lord") if current_pad else None
+        sk_lord = current_sookshma.get("sookshma_lord") if current_sookshma else None
+        if md_lord and ad_lord and pad_lord:
+            jp = compute_joint_period_significations(
+                csl_chains_data, md_lord, ad_lord, pad_lord, sk_lord
+            )
+            joint_period_text = format_joint_period_for_llm(jp)
+    except Exception as e:
+        _log.warning("Joint period compute failed: %s", e)
+
     # ── 11. Assemble chart_data dict ────────────────────────────────
     chart_data: dict[str, Any] = {
         "name": name,
@@ -333,6 +436,14 @@ def build_full_chart_data(
         "decision_support": decision_data,
         "dasha_conflicts": conflict_flags,
         "tara_chakra": tara_data,  # PR A1.3-fix-20
+        # PR A1.12 + A1.17 — CSL 4-step chain + Pattern D2 detection
+        "csl_chains": csl_chains_data,
+        "csl_chains_text": csl_chains_text,
+        "pattern_d2_text": pattern_d2_text,
+        # PR A1.18 — Joint Period signification union
+        "joint_period_text": joint_period_text,
+        # PR A1.22 — relief calendar (upcoming lighter PADs in next ~33 months)
+        "relief_calendar": relief_calendar,
         # Raw chart for the response payload (kept separately so the
         # routers can return it to the frontend without re-running the
         # compute).
