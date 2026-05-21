@@ -4432,14 +4432,19 @@ KEY RULES — read carefully and apply strictly:
     #      1h cache.
     #   3. Marriage topic KB — full marriage.txt + matching rules.
     #      1h cache.
-    #   4. MATCH MODE addendum — bridges single-chart rules to dual-chart
-    #      (Match-specific adaptation guide). 1h cache.
-    #   5. Match-specific brief — the older 22-rule prompt as a
-    #      formatting/structure layer on top of #1. 1h cache.
-    #   6. Dual-chart data + match worksheet — changes per call, UNCACHED.
+    #   4. MATCH MODE addendum + match-specific formatting brief,
+    #      merged into a single cached block. 1h cache.
+    #   5. Dual-chart data + match worksheet — changes per call, UNCACHED.
+    #
+    # PR M1.10 hotfix — Anthropic limits cache_control blocks to 4 per
+    # request. M1.9 added match_addendum as its own cached block which
+    # pushed the total to 5 → HTTP 400 "A maximum of 4 blocks with
+    # cache_control may be provided. Found 5." Merged blocks 4 and 5 into
+    # a single cached block; both are static per request so they cache
+    # cleanly together.
     #
     # First call ≈ 1.0× previous cost (full cache writes). Follow-ups on the
-    # same match ≈ 0.25× cost (only block 6 is cache-miss).
+    # same match ≈ 0.25× cost (only block 5 is cache-miss).
     system_blocks = [
         {
             "type": "text",
@@ -4458,15 +4463,13 @@ KEY RULES — read carefully and apply strictly:
         },
         {
             "type": "text",
-            "text": match_addendum,
+            "text": (
+                f"{match_addendum}\n\n"
+                f"---\n\nMATCH-MODE FORMATTING BRIEF:\n{system}"
+            ),
             "cache_control": {"type": "ephemeral", "ttl": "1h"},
         },
-        {
-            "type": "text",
-            "text": f"---\n\nMATCH-MODE FORMATTING BRIEF:\n{system}",
-            "cache_control": {"type": "ephemeral", "ttl": "1h"},
-        },
-        # Block 6 — dual-chart data + worksheet, UNCACHED (changes per call)
+        # Block 5 — dual-chart data + worksheet, UNCACHED (changes per call)
         {
             "type": "text",
             "text": f"---\n\nDUAL-CHART DATA (BOTH PARTNERS + MATCH WORKSHEET):\n{dual_chart_data}",
