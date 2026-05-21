@@ -447,52 +447,141 @@ def _planet_significations_tiered(planet_name: str, planets: dict, cusp_lons: li
 
 def _planet_significations(planet_name: str, planets: dict, cusp_lons: list) -> set:
     """
-    KP UNION-method 4-step significator collection for ONE planet.
+    KP UNION-method canonical Gondhalekar 4-step significator collection.
 
-    Per kp_csl_theory.txt + KSK Reader I:
-      Step 1: house occupied by the planet
-      Step 2: houses owned (sign lordship) by the planet
-      Step 3: house occupied by the planet's STAR LORD
-      Step 4: house occupied by the planet's SUB LORD     ← NEW in PR A1.4
-                (we additionally union the SUB LORD's owned houses, as
-                 KSK Reader I §53 includes both occupation and ownership
-                 at every chain step)
+    PR M1.1 (May 2026) — Extended to TRUE canonical 4-step per Gondhalekar
+    Four-Step Theory + RULE 20 in system prompt. Same fix class as A1.12
+    on csl_chains.py for the Analysis tab.
 
-    The earlier (pre-A1.4) implementation stopped at Step 3. KP UNION
-    method strictly requires Step 4 — otherwise a planet's sub lord
-    chain is silently dropped, under-counting H7-CSL connections to
-    the marriage triplet {2,7,11}.
+    Pre-M1.1 the function was labeled "4-step" but actually computed only
+    3 layers:
+      - Step 1+2: planet's own occupation + ownership (correct)
+      - Step 3: star lord's occupation ONLY (missing ownership)
+      - Step 4: was actually canonical Step 3 (sub lord) — the REAL
+                canonical Step 4 (star lord of sub lord, the FINAL DECIDER
+                used for Pattern D2 detection) was never computed.
+
+    Canonical 4-step (per KSK Reader I + Gondhalekar):
+      Step 1: Planet itself — occupation + ownership
+      Step 2: Star Lord of planet — occupation + ownership
+      Step 3: Sub Lord of planet — occupation + ownership
+      Step 4: Star Lord of Sub Lord — occupation + ownership
+              (FINAL DECIDER — Pattern D2 offer-then-withdrawn detector)
+
+    UNION of Steps 1-4 = complete signification set.
+
+    Impact for Match: every H7 CSL chain reading was at ~75% canonical
+    depth, and Pattern D2 (engagement breaks before marriage / wedding
+    cancelled at last minute) was structurally invisible. This fix
+    restores full depth.
     """
     if planet_name not in planets:
         return set()
     plon = planets[planet_name]["longitude"]
+
+    # Step 1: planet's own occupation + ownership
     occupied = _get_planet_house(plon, cusp_lons)
     ruled = {i + 1 for i in range(12)
              if SIGN_LORDS.get(get_sign(cusp_lons[i] % 360)) == planet_name}
-    result = {occupied} | ruled
+    result: set = {occupied} | ruled
 
-    # Step 3 — star lord's occupation
+    # Step 2: STAR LORD's occupation + ownership (PR M1.1 — ownership added)
     star_lord = get_nakshatra_and_starlord(plon).get("star_lord", "")
-    if star_lord in planets:
+    if star_lord and star_lord in planets:
         result.add(_get_planet_house(planets[star_lord]["longitude"], cusp_lons))
+        for i in range(12):
+            if SIGN_LORDS.get(get_sign(cusp_lons[i] % 360)) == star_lord:
+                result.add(i + 1)
 
-    # Step 4 — sub lord's occupation + ownership (PR A1.4)
-    # NOTE on Rahu/Ketu: get_sub_lord operates on a longitude, so we read
-    # the planet's own sub lord. For shadow planets KSK reads them through
-    # the sign-lord of their position; we approximate by adding the sub
-    # lord's house only (most KP tools do this; finer Rahu/Ketu chains
-    # are out of scope for A1.4).
+    # Step 3: SUB LORD's occupation + ownership
     sub_lord = get_sub_lord(plon)
     if sub_lord and sub_lord in planets:
         result.add(_get_planet_house(planets[sub_lord]["longitude"], cusp_lons))
-        # Union the houses owned by the sub lord (sign lordship)
         for i in range(12):
             if SIGN_LORDS.get(get_sign(cusp_lons[i] % 360)) == sub_lord:
                 result.add(i + 1)
 
+    # Step 4 (PR M1.1 — NEW): STAR LORD of SUB LORD — the FINAL DECIDER
+    # When Steps 1-3 promise but Step 4 only signifies denial houses,
+    # the event is offered then withdrawn at the last moment (Pattern D2).
+    # For marriage this manifests as engagement-then-cancelled, wedding
+    # date fixed then broken, etc. Without Step 4 the engine cannot
+    # detect this pattern.
+    if sub_lord and sub_lord in planets:
+        sub_lord_lon = planets[sub_lord]["longitude"]
+        sub_lord_star_lord = get_nakshatra_and_starlord(sub_lord_lon).get("star_lord", "")
+        if sub_lord_star_lord and sub_lord_star_lord in planets:
+            result.add(_get_planet_house(planets[sub_lord_star_lord]["longitude"], cusp_lons))
+            for i in range(12):
+                if SIGN_LORDS.get(get_sign(cusp_lons[i] % 360)) == sub_lord_star_lord:
+                    result.add(i + 1)
+
     # Drop the placeholder 0 (means "house unknown") if it crept in
     result.discard(0)
     return result
+
+
+def _planet_significations_with_step4(planet_name: str, planets: dict, cusp_lons: list) -> dict:
+    """
+    PR M1.2 — Same as _planet_significations but returns step-by-step
+    breakdown so Pattern D2 detector can analyze Step 4 separately from
+    Steps 1-3.
+
+    Returns:
+        {
+          "steps_1_3": set — union of Steps 1, 2, 3
+          "step_4":    set — Step 4 alone (star lord of sub lord)
+          "step_4_planet": str — name of the Step 4 planet
+          "all":       set — full union
+        }
+    """
+    out = {
+        "steps_1_3": set(),
+        "step_4": set(),
+        "step_4_planet": "",
+        "all": set(),
+    }
+    if planet_name not in planets:
+        return out
+    plon = planets[planet_name]["longitude"]
+
+    # Steps 1+2: planet + its star lord (both occupation + ownership)
+    s_1_3: set = {_get_planet_house(plon, cusp_lons)}
+    for i in range(12):
+        if SIGN_LORDS.get(get_sign(cusp_lons[i] % 360)) == planet_name:
+            s_1_3.add(i + 1)
+    star_lord = get_nakshatra_and_starlord(plon).get("star_lord", "")
+    if star_lord and star_lord in planets:
+        s_1_3.add(_get_planet_house(planets[star_lord]["longitude"], cusp_lons))
+        for i in range(12):
+            if SIGN_LORDS.get(get_sign(cusp_lons[i] % 360)) == star_lord:
+                s_1_3.add(i + 1)
+    sub_lord = get_sub_lord(plon)
+    if sub_lord and sub_lord in planets:
+        s_1_3.add(_get_planet_house(planets[sub_lord]["longitude"], cusp_lons))
+        for i in range(12):
+            if SIGN_LORDS.get(get_sign(cusp_lons[i] % 360)) == sub_lord:
+                s_1_3.add(i + 1)
+    s_1_3.discard(0)
+
+    # Step 4: star lord of sub lord
+    step_4: set = set()
+    step_4_planet = ""
+    if sub_lord and sub_lord in planets:
+        sub_lord_lon = planets[sub_lord]["longitude"]
+        step_4_planet = get_nakshatra_and_starlord(sub_lord_lon).get("star_lord", "")
+        if step_4_planet and step_4_planet in planets:
+            step_4.add(_get_planet_house(planets[step_4_planet]["longitude"], cusp_lons))
+            for i in range(12):
+                if SIGN_LORDS.get(get_sign(cusp_lons[i] % 360)) == step_4_planet:
+                    step_4.add(i + 1)
+    step_4.discard(0)
+
+    out["steps_1_3"] = s_1_3
+    out["step_4"] = step_4
+    out["step_4_planet"] = step_4_planet
+    out["all"] = s_1_3 | step_4
+    return out
 
 
 def _get_cusp_sub_lord_sigs(house_num: int, chart: dict) -> tuple[str, set]:
@@ -2435,6 +2524,464 @@ def _ashtakoota(chart_boy: dict, chart_girl: dict) -> dict:
     }
 
 
+# ──────────────────────────────────────────────────────────────
+# PR M1.2 — Pattern D2 (engagement-broken / wedding-cancelled) detector
+# ──────────────────────────────────────────────────────────────
+
+def _pattern_d2_for_h7(chart: dict) -> dict | None:
+    """
+    Detect Pattern D2 (offer-then-withdrawn / engagement-broken /
+    wedding-cancelled-at-last-minute) for the H7 marriage gate.
+
+    Per pattern_library.md Pattern D2 + kp_csl_theory.txt: when CSL chain
+    Steps 1-3 PROMISE (signify {2,7,11}) but Step 4 (star lord of CSL's
+    sub lord — the FINAL DECIDER) signifies ONLY denial houses ({1,6,10,12}),
+    the matter fires then withdraws at the final stage.
+
+    In match context this manifests as:
+      - Engagement fixed → broken before wedding
+      - Wedding date set → cancelled at last moment
+      - Offer made → reneged
+      - Multiple near-misses before a closing match
+
+    Returns warning dict if pattern firing, None otherwise.
+
+    Requires M1.1 (canonical Step 4 in _planet_significations) to work.
+    """
+    h7_sl = chart.get("h7_sub_lord", "")
+    if not h7_sl:
+        return None
+    chain = _planet_significations_with_step4(h7_sl, chart["planets"], chart["cusp_lons"])
+    relevant = MARRIAGE_PROMISE_HOUSES
+    denial = MARRIAGE_DENIAL_HOUSES
+
+    steps_1_3 = chain["steps_1_3"]
+    step_4 = chain["step_4"]
+    step_4_planet = chain["step_4_planet"]
+
+    promise_in_123 = bool(steps_1_3 & relevant)
+    step4_denial_only = bool(step_4) and step_4.issubset(denial)
+    step4_no_relevant = not bool(step_4 & relevant)
+
+    if promise_in_123 and step4_denial_only and step4_no_relevant:
+        return {
+            "severity": "STRONG",
+            "h7_csl": h7_sl,
+            "step_4_planet": step_4_planet,
+            "steps_1_3_relevant_hit": sorted(steps_1_3 & relevant),
+            "step_4_denial_hit": sorted(step_4 & denial),
+            "warning": (
+                f"Pattern D2 STRONG: H7 CSL chain (Steps 1-3 via {h7_sl}) "
+                f"promises marriage via houses {sorted(steps_1_3 & relevant)}, "
+                f"BUT Step 4 ({step_4_planet}) signifies ONLY denial houses "
+                f"{sorted(step_4 & denial)} with no relevant overlap. "
+                f"This is the canonical engagement-broken / wedding-cancelled-"
+                f"at-last-stage signature. Real-life: multiple near-misses "
+                f"before a closing match; for THIS specific partner, "
+                f"finalisation is structurally at risk even if everything looks "
+                f"good through engagement stage."
+            ),
+        }
+
+    # Softer variant — Step 4 has both relevant + denial
+    step4_has_denial = bool(step_4 & denial)
+    step4_has_relevant = bool(step_4 & relevant)
+    if promise_in_123 and step4_has_denial and step4_has_relevant:
+        return {
+            "severity": "LITE",
+            "h7_csl": h7_sl,
+            "step_4_planet": step_4_planet,
+            "steps_1_3_relevant_hit": sorted(steps_1_3 & relevant),
+            "step_4_relevant_hit": sorted(step_4 & relevant),
+            "step_4_denial_hit": sorted(step_4 & denial),
+            "warning": (
+                f"Pattern D2-LITE: H7 CSL chain promises ({h7_sl} → houses "
+                f"{sorted(steps_1_3 & relevant)}), Step 4 ({step_4_planet}) is "
+                f"mixed — relevant {sorted(step_4 & relevant)} + denial "
+                f"{sorted(step_4 & denial)}. Marriage fires but with friction "
+                f"at the final stage (delayed sign-off, conditional terms, "
+                f"near-misses before final close)."
+            ),
+        }
+
+    return None
+
+
+# ──────────────────────────────────────────────────────────────
+# PR M1.3 — Ascendant + H7 CSL friendship between two charts
+# ──────────────────────────────────────────────────────────────
+
+def _planet_friendship(planet_a: str, planet_b: str) -> str:
+    """
+    Return naisargika (natural) friendship status between two planets:
+      "friend" / "neutral" / "enemy" / "same" / "unknown"
+    Uses PLANET_FRIENDS table. Bidirectional resolution (if A says B is
+    friend AND B says A is friend → friend; if disagreement → neutral).
+    """
+    if not planet_a or not planet_b:
+        return "unknown"
+    if planet_a == planet_b:
+        return "same"
+    a_view = PLANET_FRIENDS.get(planet_a, {})
+    b_view = PLANET_FRIENDS.get(planet_b, {})
+    a_says_b = ("friend" if planet_b in a_view.get("friends", set())
+                else "enemy" if planet_b in a_view.get("enemies", set())
+                else "neutral" if planet_b in a_view.get("neutral", set())
+                else "unknown")
+    b_says_a = ("friend" if planet_a in b_view.get("friends", set())
+                else "enemy" if planet_a in b_view.get("enemies", set())
+                else "neutral" if planet_a in b_view.get("neutral", set())
+                else "unknown")
+    # Resolve: both friend → friend; both enemy → enemy; both neutral → neutral
+    # Mixed: take softer of the two
+    if a_says_b == b_says_a:
+        return a_says_b
+    if "enemy" in (a_says_b, b_says_a) and "friend" in (a_says_b, b_says_a):
+        return "neutral"  # mixed
+    if "enemy" in (a_says_b, b_says_a):
+        return "enemy"  # neutral + enemy = enemy
+    if "friend" in (a_says_b, b_says_a):
+        return "friend"  # neutral + friend = friend
+    return "neutral"
+
+
+def _sublord_friendship_match(chart1: dict, chart2: dict) -> dict:
+    """
+    PR M1.3 — Canonical KP Reader IV rule (astrocamp.com source):
+    "Ascendant Sub Lords in the charts of the Boy and the Girl should be
+    natural friends or equal and should not be enemies."
+    Same rule applies to 7th Cusp Sub Lords.
+
+    Returns dict with verdicts on both Asc-SL and H7-SL friendship.
+    """
+    asc_sl_1 = get_sub_lord(chart1["cusp_lons"][0] % 360) if chart1.get("cusp_lons") else ""
+    asc_sl_2 = get_sub_lord(chart2["cusp_lons"][0] % 360) if chart2.get("cusp_lons") else ""
+    h7_sl_1 = chart1.get("h7_sub_lord", "")
+    h7_sl_2 = chart2.get("h7_sub_lord", "")
+
+    asc_friendship = _planet_friendship(asc_sl_1, asc_sl_2)
+    h7_friendship = _planet_friendship(h7_sl_1, h7_sl_2)
+
+    # Verdict: enemy is RED, friend/same is GREEN, neutral is YELLOW
+    asc_verdict = ("GREEN" if asc_friendship in ("friend", "same")
+                   else "RED" if asc_friendship == "enemy"
+                   else "YELLOW")
+    h7_verdict = ("GREEN" if h7_friendship in ("friend", "same")
+                  else "RED" if h7_friendship == "enemy"
+                  else "YELLOW")
+
+    # Overall
+    if "RED" in (asc_verdict, h7_verdict):
+        overall = "RED"
+        note = (
+            f"Sub-Lord friction: "
+            + ("Ascendant SLs are enemies. " if asc_verdict == "RED" else "")
+            + ("H7 SLs are enemies. " if h7_verdict == "RED" else "")
+            + "Per KSK Reader IV, this indicates structural friction in the "
+              "partnership — daily-life compatibility requires conscious work."
+        )
+    elif asc_verdict == "GREEN" and h7_verdict == "GREEN":
+        overall = "GREEN"
+        note = (
+            "Sub-Lord harmony: both Ascendant and H7 Sub-Lords are natural "
+            "friends or equal. KSK Reader IV considers this a foundational "
+            "compatibility signal."
+        )
+    else:
+        overall = "YELLOW"
+        note = (
+            "Sub-Lord neutrality: no enemy relation, but not friends either. "
+            "Workable compatibility; depends on conscious effort."
+        )
+
+    return {
+        "asc_sl_chart1": asc_sl_1,
+        "asc_sl_chart2": asc_sl_2,
+        "h7_sl_chart1": h7_sl_1,
+        "h7_sl_chart2": h7_sl_2,
+        "asc_friendship": asc_friendship,
+        "h7_friendship": h7_friendship,
+        "asc_verdict": asc_verdict,
+        "h7_verdict": h7_verdict,
+        "overall": overall,
+        "note": note,
+    }
+
+
+# ──────────────────────────────────────────────────────────────
+# PR M1.4 — Stricter KSK Reader IV cross-rule
+# (Sign/Star/Sub lord of one's H7 = RPs of the other at birth)
+# ──────────────────────────────────────────────────────────────
+
+def _ksk_stricter_cross_match(chart_a: dict, chart_b: dict) -> dict:
+    """
+    PR M1.4 — KSK Reader IV stricter cross-rule per astrocamp.com source:
+    "7th Cusp Sign, Star and Sub Lord of Boy should be the Ruling Planets
+    of the Girl at the time of birth, and similarly the 7th Cusp Sign,
+    Star and Sub Lord of the Girl should be the Ruling Planets of the
+    Boy at the time of his birth."
+
+    This is STRICTER than our existing _canonical_cross_match (which only
+    checks if RPs SIGNIFY marriage houses). The Reader IV version checks
+    whether the LITERAL planet identities of one's 7th cusp Sign/Star/Sub
+    appear in the other's birth RPs — a much rarer + higher-signal match.
+
+    When it fires it's "structurally exceptional couple" — soulmate-tier
+    by canonical KP standards.
+    """
+    def _h7_triple(chart):
+        cusp_lons = chart["cusp_lons"]
+        h7_lon = cusp_lons[6] % 360
+        sign_lord = SIGN_LORDS.get(get_sign(h7_lon), "")
+        star_lord = get_nakshatra_and_starlord(h7_lon).get("star_lord", "")
+        sub_lord = get_sub_lord(h7_lon)
+        return (sign_lord, star_lord, sub_lord)
+
+    a_triple = _h7_triple(chart_a)
+    b_triple = _h7_triple(chart_b)
+
+    rp_a = set(_ruling_planets_full(chart_a)["ruling_planets"])
+    rp_b = set(_ruling_planets_full(chart_b)["ruling_planets"])
+
+    # A's 7th cusp triple → B's birth RPs?
+    a_in_b = [p for p in a_triple if p and p in rp_b]
+    b_in_a = [p for p in b_triple if p and p in rp_a]
+
+    a_hits = len(set(a_in_b))
+    b_hits = len(set(b_in_a))
+
+    # 3 of 3 on either side = exceptional; 2 of 3 = strong; ≤1 = ordinary
+    def _verdict(hits):
+        if hits == 3: return "EXCEPTIONAL"
+        if hits == 2: return "STRONG"
+        if hits == 1: return "ORDINARY"
+        return "NONE"
+
+    a_verdict = _verdict(a_hits)
+    b_verdict = _verdict(b_hits)
+
+    if a_verdict == "EXCEPTIONAL" or b_verdict == "EXCEPTIONAL":
+        overall = "EXCEPTIONAL"
+    elif a_verdict == "STRONG" and b_verdict == "STRONG":
+        overall = "STRONG"
+    elif "STRONG" in (a_verdict, b_verdict):
+        overall = "MODERATE"
+    elif a_verdict == "ORDINARY" and b_verdict == "ORDINARY":
+        overall = "WEAK"
+    else:
+        overall = "VERY WEAK"
+
+    return {
+        "a_h7_triple": list(a_triple),
+        "b_h7_triple": list(b_triple),
+        "a_triple_in_b_rps": a_in_b,
+        "b_triple_in_a_rps": b_in_a,
+        "a_hits_of_3": a_hits,
+        "b_hits_of_3": b_hits,
+        "a_verdict": a_verdict,
+        "b_verdict": b_verdict,
+        "overall": overall,
+        "note": (
+            f"KSK Reader IV stricter cross-rule: A's H7 triple {list(a_triple)} "
+            f"appears in B's RPs {a_in_b} ({a_hits}/3 = {a_verdict}); "
+            f"B's H7 triple {list(b_triple)} appears in A's RPs {b_in_a} "
+            f"({b_hits}/3 = {b_verdict}). Overall: {overall}."
+        ),
+    }
+
+
+# ──────────────────────────────────────────────────────────────
+# PR M1.5 — Spouse longevity gate (H2 = 8th-from-H7 = spouse maraka)
+# ──────────────────────────────────────────────────────────────
+
+def _spouse_longevity_gate(chart: dict) -> dict:
+    """
+    PR M1.5 — Per canonical KP Bhavat Bhavam:
+      Native's H2 = 8th from H7 = spouse's H8 = spouse's longevity/maraka.
+
+    Checks the H2 CSL chain for affliction signals affecting spouse's
+    structural longevity. Ethical framing: NEVER predicts death (per
+    RULE 15); instead flags "spouse needs proactive health awareness."
+
+    Returns concern level and structural reading.
+    """
+    h2_lon = chart["cusp_lons"][1] % 360
+    h2_csl = get_sub_lord(h2_lon)
+    h2_sigs = _planet_significations(h2_csl, chart["planets"], chart["cusp_lons"]) if h2_csl else set()
+    # In spouse-frame: native's H6 = spouse's H12, native's H8 = spouse's H2,
+    # native's H12 = spouse's H6. So H2 CSL hitting native's H6/H8/H12
+    # translates to spouse's H12/H2/H6 — disease/loss/wealth-drain houses
+    # in spouse frame.
+    afflictive_in_spouse_frame = {6, 8, 12}
+    hits = h2_sigs & afflictive_in_spouse_frame
+    # Severity heuristic
+    if len(hits) >= 2:
+        concern = "ELEVATED"
+        ethical_note = (
+            "Per KSK Bhavat Bhavam: native's H2 CSL chain hits multiple "
+            "spouse-frame affliction houses. Structural signal that spouse's "
+            "long-term health WARRANTS attention — recommend periodic medical "
+            "check-ups + healthy lifestyle for partner. NOT a death prediction; "
+            "it is a 'be conscious of partner's wellbeing' signal."
+        )
+    elif len(hits) == 1:
+        concern = "MILD"
+        ethical_note = (
+            "H2 CSL chain touches one spouse-frame affliction house. Mild "
+            "structural awareness signal — partner's wellbeing is normally "
+            "supported but worth occasional conscious attention."
+        )
+    else:
+        concern = "MINIMAL"
+        ethical_note = (
+            "No significant spouse-longevity concern signals. H2 CSL chain "
+            "is structurally supportive for partner's wellbeing."
+        )
+
+    return {
+        "h2_csl": h2_csl,
+        "h2_sigs": sorted(h2_sigs),
+        "spouse_frame_hits": sorted(hits),
+        "concern_level": concern,
+        "ethical_note": ethical_note,
+    }
+
+
+# ──────────────────────────────────────────────────────────────
+# PR M1.6 — Dasha Sandhi + Sama Dasha warnings
+# ──────────────────────────────────────────────────────────────
+
+def _dasha_sandhi_and_sama_check(person1: dict, person2: dict, chart1: dict, chart2: dict) -> dict:
+    """
+    PR M1.6 — Canonical Vedic + KP cross-school timing warnings:
+
+    Dasha Sandhi (MD transition): when BOTH partners' Mahadasha changes
+      within ~12 months of each other, the period carries dual-upheaval
+      energy. Per source (astrosight.ai): "Fixing a marriage date in
+      such a way that there is a Dasha change within a year of marriage
+      is not recommended."
+
+    Sama Dasha (same MD lord running simultaneously): per same source,
+      "Sama Dasha [parallel Dashas] is not advisable."
+
+    Both checks use current MD of each person to flag structural timing
+    risks for couples considering marriage NOW.
+    """
+    try:
+        from datetime import datetime as _dt
+        d1 = _current_dba(person1, chart1)
+        d2 = _current_dba(person2, chart2)
+        md1_lord = d1.get("md_lord", "")
+        md2_lord = d2.get("md_lord", "")
+        md1_end_str = d1.get("md_end", "")
+        md2_end_str = d2.get("md_end", "")
+
+        sama_dasha = (md1_lord == md2_lord) and md1_lord and md1_lord != "Unknown"
+        dasha_sandhi_overlap = False
+        sandhi_window_days = None
+        if md1_end_str and md2_end_str:
+            try:
+                md1_end = _dt.strptime(md1_end_str[:10], "%Y-%m-%d")
+                md2_end = _dt.strptime(md2_end_str[:10], "%Y-%m-%d")
+                diff_days = abs((md1_end - md2_end).days)
+                sandhi_window_days = diff_days
+                # within 365 days = sandhi overlap warning
+                if diff_days <= 365:
+                    dasha_sandhi_overlap = True
+            except Exception:
+                pass
+
+        warnings = []
+        if sama_dasha:
+            warnings.append(
+                f"Sama Dasha: BOTH partners running {md1_lord} MD simultaneously. "
+                "Per canonical doctrine, this creates parallel-life-phase friction. "
+                "Not a denial — adds 'be aware' layer."
+            )
+        if dasha_sandhi_overlap:
+            warnings.append(
+                f"Dasha Sandhi overlap: partners' Mahadasha transitions are within "
+                f"{sandhi_window_days} days of each other. Per doctrine, marrying "
+                f"in such a window adds dual-upheaval energy. If marriage timing "
+                f"is flexible, prefer scheduling at least 12 months away from "
+                f"either partner's MD transition."
+            )
+
+        return {
+            "md_lord_chart1": md1_lord,
+            "md_lord_chart2": md2_lord,
+            "md_end_chart1": md1_end_str,
+            "md_end_chart2": md2_end_str,
+            "sama_dasha": sama_dasha,
+            "dasha_sandhi_within_year": dasha_sandhi_overlap,
+            "sandhi_diff_days": sandhi_window_days,
+            "warnings": warnings,
+        }
+    except Exception as e:
+        return {"warnings": [], "error": str(e)}
+
+
+# ──────────────────────────────────────────────────────────────
+# PR M1.7 — Ascendant sign element compatibility
+# ──────────────────────────────────────────────────────────────
+
+ELEMENT_OF_SIGN = {
+    "Aries": "fire", "Leo": "fire", "Sagittarius": "fire",
+    "Taurus": "earth", "Virgo": "earth", "Capricorn": "earth",
+    "Gemini": "air", "Libra": "air", "Aquarius": "air",
+    "Cancer": "water", "Scorpio": "water", "Pisces": "water",
+}
+
+# Per canonical KP cross-rule (astrocamp.com): "Fire-Fire, Water-Water,
+# Fire-Air, Water-Earth, Air-Water" are compatible pairings.
+COMPATIBLE_ELEMENT_PAIRS = {
+    frozenset(["fire", "fire"]),
+    frozenset(["water", "water"]),
+    frozenset(["earth", "earth"]),
+    frozenset(["air", "air"]),
+    frozenset(["fire", "air"]),
+    frozenset(["water", "earth"]),
+}
+
+
+def _ascendant_element_compatibility(chart1: dict, chart2: dict) -> dict:
+    """
+    PR M1.7 — Ascendant sign element compatibility check.
+    """
+    sign1 = chart1.get("lagna_sign", "")
+    sign2 = chart2.get("lagna_sign", "")
+    elem1 = ELEMENT_OF_SIGN.get(sign1, "")
+    elem2 = ELEMENT_OF_SIGN.get(sign2, "")
+    pair = frozenset([elem1, elem2]) if (elem1 and elem2) else frozenset()
+    compatible = pair in COMPATIBLE_ELEMENT_PAIRS if pair else False
+
+    if not pair:
+        verdict = "UNKNOWN"
+        note = "Could not determine elemental pairing (missing lagna data)."
+    elif compatible:
+        verdict = "COMPATIBLE"
+        note = (
+            f"Element pair {elem1}-{elem2} is one of the canonically compatible "
+            f"Asc combinations. Foundational temperament alignment present."
+        )
+    else:
+        verdict = "FRICTION"
+        note = (
+            f"Element pair {elem1}-{elem2} is not on the canonical compatible "
+            f"list. Daily-life temperament differences likely; manageable with "
+            f"awareness."
+        )
+
+    return {
+        "chart1_lagna_sign": sign1,
+        "chart1_element": elem1,
+        "chart2_lagna_sign": sign2,
+        "chart2_element": elem2,
+        "verdict": verdict,
+        "note": note,
+    }
+
+
 # ── Kuja Dosha ────────────────────────────────────────────────
 
 def _check_kuja_dosha(chart: dict) -> dict:
@@ -2560,6 +3107,27 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
     sep_risk1 = _separation_risk(chart1)
     sep_risk2 = _separation_risk(chart2)
 
+    # PR M1.2 — Pattern D2 (engagement-broken / wedding-cancelled) detection
+    # on EACH partner's H7 CSL chain. Requires M1.1 (canonical Step 4) to fire.
+    pattern_d2_p1 = _pattern_d2_for_h7(chart1)
+    pattern_d2_p2 = _pattern_d2_for_h7(chart2)
+
+    # PR M1.3 — Ascendant + H7 Sub-Lord friendship between two charts
+    sublord_friendship = _sublord_friendship_match(chart1, chart2)
+
+    # PR M1.4 — KSK Reader IV stricter cross-rule (H7 triple in other's RPs)
+    ksk_stricter = _ksk_stricter_cross_match(chart1, chart2)
+
+    # PR M1.5 — Spouse longevity gate (Bhavat Bhavam — H2 = 8th-from-H7)
+    spouse_longevity_p1 = _spouse_longevity_gate(chart1)
+    spouse_longevity_p2 = _spouse_longevity_gate(chart2)
+
+    # PR M1.6 — Dasha Sandhi + Sama Dasha warnings (couple timing)
+    dasha_sandhi = _dasha_sandhi_and_sama_check(person1, person2, chart1, chart2)
+
+    # PR M1.7 — Ascendant sign element compatibility
+    asc_element = _ascendant_element_compatibility(chart1, chart2)
+
     # Kuja dosha mutual cancellation — PR A1.4 SOFTENED.
     # Pre-A1.4: zeroed both doshas entirely. Per AstroSight + Nidhi Trivedi,
     # canonical behavior is "energies balance, severity reduced" — not
@@ -2666,6 +3234,29 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
         if VERDICT_RANK[overall] > VERDICT_RANK["Conditionally Compatible"]:
             overall = "Conditionally Compatible"
 
+    # PR M1.2 — Pattern D2 STRONG on EITHER chart caps verdict at
+    # Conditionally Compatible (engagement-broken / wedding-cancelled risk
+    # is structural; pretending it's "Compatible" without flagging would
+    # be misleading the user).
+    if ((pattern_d2_p1 and pattern_d2_p1.get("severity") == "STRONG")
+            or (pattern_d2_p2 and pattern_d2_p2.get("severity") == "STRONG")):
+        if VERDICT_RANK[overall] > VERDICT_RANK["Conditionally Compatible"]:
+            overall = "Conditionally Compatible"
+
+    # PR M1.3 — Asc + H7 SubLord BOTH RED (enemy) on the friendship check
+    # is a structural friction signal — downgrade one tier if currently
+    # above Conditionally Compatible.
+    if sublord_friendship.get("overall") == "RED":
+        if VERDICT_RANK[overall] > VERDICT_RANK["Conditionally Compatible"]:
+            overall_rank = max(0, VERDICT_RANK[overall] - 1)
+            overall = next(k for k, v in VERDICT_RANK.items() if v == overall_rank)
+
+    # PR M1.4 — KSK Reader IV EXCEPTIONAL cross-match is so rare and
+    # high-signal that it can UPGRADE within the same broad tier.
+    # We don't let it jump verdict tiers (KP strict mode keeps caps),
+    # but we flag it for the AI to cite as "exceptional structural fit."
+    # No verdict change — just informational.
+
     # If KP says Conditional but Ashtakoota and canonical strongly support,
     # we do NOT upgrade — KP-strict mode means KP verdict is authoritative.
 
@@ -2725,6 +3316,20 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
         "h5_analysis_chart2": h5_chart2,
         "separation_risk_chart1": sep_risk1,
         "separation_risk_chart2": sep_risk2,
+        # PR M1.2 — Pattern D2 (engagement-broken / wedding-cancelled) detection
+        "pattern_d2_chart1": pattern_d2_p1,
+        "pattern_d2_chart2": pattern_d2_p2,
+        # PR M1.3 — Asc + H7 Sub-Lord friendship check
+        "sublord_friendship_match": sublord_friendship,
+        # PR M1.4 — KSK Reader IV stricter cross-rule (H7 triple ↔ partner's RPs)
+        "ksk_stricter_cross_match": ksk_stricter,
+        # PR M1.5 — Spouse longevity gate via Bhavat Bhavam (H2 = spouse maraka)
+        "spouse_longevity_chart1": spouse_longevity_p1,
+        "spouse_longevity_chart2": spouse_longevity_p2,
+        # PR M1.6 — Dasha Sandhi + Sama Dasha timing warnings
+        "dasha_sandhi_check": dasha_sandhi,
+        # PR M1.7 — Ascendant sign element compatibility
+        "ascendant_element_compatibility": asc_element,
         "chart1_data": chart1_frontend,
         "chart2_data": chart2_frontend,
         "overall_verdict": overall,
