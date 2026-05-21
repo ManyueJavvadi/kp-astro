@@ -3998,6 +3998,91 @@ def format_match_for_llm(compat_result: dict) -> str:
     t = compat_result.get("timing_analysis", {})
     lines.append(f"Verdict: {t.get('timing_verdict','')} | {t.get('timing_note','')}")
 
+    # PR M1.2 — Pattern D2 (engagement-broken / wedding-cancelled) detection
+    pd2_1 = compat_result.get("pattern_d2_chart1")
+    pd2_2 = compat_result.get("pattern_d2_chart2")
+    if pd2_1 or pd2_2:
+        lines.append(f"\n--- ⚠ PATTERN D2 (ENGAGEMENT-BROKEN / WEDDING-CANCELLED) DETECTION ---")
+        if pd2_1:
+            lines.append(f"Person 1 ({p1['name']}): {pd2_1.get('warning', '')}")
+        if pd2_2:
+            lines.append(f"Person 2 ({p2['name']}): {pd2_2.get('warning', '')}")
+        lines.append(
+            "Implication: when Pattern D2 fires on either H7, this couple's "
+            "structural risk is 'fires through engagement but fails to close "
+            "at the final stage' — multiple near-misses expected before a "
+            "match actually completes. Frame as structural pattern, NOT as "
+            "verdict on this specific partner."
+        )
+
+    # PR M1.3 — Asc + H7 Sub-Lord friendship
+    slf = compat_result.get("sublord_friendship_match", {})
+    if slf:
+        lines.append(f"\n--- SUB-LORD FRIENDSHIP (KSK Reader IV) ---")
+        lines.append(f"Ascendant SLs: {slf.get('asc_sl_chart1')} vs {slf.get('asc_sl_chart2')} "
+                     f"= {slf.get('asc_friendship')} ({slf.get('asc_verdict')})")
+        lines.append(f"H7 SLs: {slf.get('h7_sl_chart1')} vs {slf.get('h7_sl_chart2')} "
+                     f"= {slf.get('h7_friendship')} ({slf.get('h7_verdict')})")
+        lines.append(f"Overall: {slf.get('overall')} — {slf.get('note', '')}")
+
+    # PR M1.4 — KSK Reader IV stricter cross-rule
+    ksk_x = compat_result.get("ksk_stricter_cross_match", {})
+    if ksk_x:
+        lines.append(f"\n--- KSK READER IV STRICTER CROSS-RULE (H7 triple ↔ partner's RPs) ---")
+        lines.append(f"Person 1's H7 (Sign/Star/Sub): {ksk_x.get('a_h7_triple', [])}")
+        lines.append(f"  Appearing in Person 2's RPs: {ksk_x.get('a_triple_in_b_rps', [])} "
+                     f"({ksk_x.get('a_hits_of_3')}/3 = {ksk_x.get('a_verdict')})")
+        lines.append(f"Person 2's H7 (Sign/Star/Sub): {ksk_x.get('b_h7_triple', [])}")
+        lines.append(f"  Appearing in Person 1's RPs: {ksk_x.get('b_triple_in_a_rps', [])} "
+                     f"({ksk_x.get('b_hits_of_3')}/3 = {ksk_x.get('b_verdict')})")
+        lines.append(f"Overall stricter-rule verdict: {ksk_x.get('overall')}")
+        if ksk_x.get("overall") == "EXCEPTIONAL":
+            lines.append(
+                "⭐ EXCEPTIONAL fit: 3-of-3 H7 triple appears in partner's RPs. "
+                "Canonical KP Reader IV calls this a structurally rare match. "
+                "Cite explicitly in output if present."
+            )
+
+    # PR M1.5 — Spouse longevity gate (Bhavat Bhavam — H2 = 8th-from-H7)
+    sl1 = compat_result.get("spouse_longevity_chart1", {})
+    sl2 = compat_result.get("spouse_longevity_chart2", {})
+    if sl1 or sl2:
+        lines.append(f"\n--- SPOUSE LONGEVITY GATE (BHAVAT BHAVAM: H2 = 8th-from-H7) ---")
+        if sl1:
+            lines.append(f"From {p1['name']}'s chart re partner's longevity: "
+                         f"H2 CSL = {sl1.get('h2_csl')} signifies {sl1.get('h2_sigs', [])} "
+                         f"| Spouse-frame affliction hits: {sl1.get('spouse_frame_hits', [])} "
+                         f"| Concern: {sl1.get('concern_level')}")
+            lines.append(f"  {sl1.get('ethical_note', '')}")
+        if sl2:
+            lines.append(f"From {p2['name']}'s chart re partner's longevity: "
+                         f"H2 CSL = {sl2.get('h2_csl')} signifies {sl2.get('h2_sigs', [])} "
+                         f"| Spouse-frame affliction hits: {sl2.get('spouse_frame_hits', [])} "
+                         f"| Concern: {sl2.get('concern_level')}")
+            lines.append(f"  {sl2.get('ethical_note', '')}")
+
+    # PR M1.6 — Dasha Sandhi + Sama Dasha
+    ds = compat_result.get("dasha_sandhi_check", {})
+    if ds and (ds.get("warnings") or ds.get("sama_dasha") or ds.get("dasha_sandhi_within_year")):
+        lines.append(f"\n--- DASHA SANDHI + SAMA DASHA TIMING CHECK ---")
+        lines.append(f"P1 current MD: {ds.get('md_lord_chart1')} (ends {ds.get('md_end_chart1')})")
+        lines.append(f"P2 current MD: {ds.get('md_lord_chart2')} (ends {ds.get('md_end_chart2')})")
+        if ds.get("sama_dasha"):
+            lines.append(f"⚠ Sama Dasha active (same MD lord both partners)")
+        if ds.get("dasha_sandhi_within_year"):
+            lines.append(f"⚠ Dasha Sandhi overlap: MD transitions within "
+                         f"{ds.get('sandhi_diff_days')} days of each other")
+        for w in ds.get("warnings", []):
+            lines.append(f"  — {w}")
+
+    # PR M1.7 — Ascendant sign element compatibility
+    elem = compat_result.get("ascendant_element_compatibility", {})
+    if elem:
+        lines.append(f"\n--- ASCENDANT ELEMENT COMPATIBILITY ---")
+        lines.append(f"{p1['name']} Lagna: {elem.get('chart1_lagna_sign')} ({elem.get('chart1_element')}) | "
+                     f"{p2['name']} Lagna: {elem.get('chart2_lagna_sign')} ({elem.get('chart2_element')})")
+        lines.append(f"Verdict: {elem.get('verdict')} — {elem.get('note', '')}")
+
     lines.append(f"\nKP Verdict: {kp['kp_verdict']} | Overall: {compat_result['overall_verdict']}")
 
     return "\n".join(lines)
@@ -4126,6 +4211,62 @@ M10. ANSWER STRUCTURE (when full topic question, mirror Analysis 7-section):
     f) Timing — upcoming windows with calendar dates
     g) Risks — separation, no-desire, in-laws-health if flagged
     h) Honest closing — what a senior astrologer would say
+
+M11. PATTERN D2 STRUCTURAL WARNING (PR M1.2):
+    If the worksheet's PATTERN D2 DETECTION block fires on either chart,
+    INCLUDE the warning verbatim in your output. This is the
+    "engagement-broken / wedding-cancelled-at-last-stage" structural
+    signature. Frame it carefully:
+      - This is a STRUCTURAL pattern of the chart, NOT a verdict on this
+        specific partner
+      - Real-life expectation: 2-4 near-misses possible before a match
+        actually closes — not personal failure, just chart shape
+      - Distinguish from outright DENIAL: D2 means events fire but don't
+        complete; DENIAL means events don't fire at all
+
+M12. CAPABILITY vs MANIFESTATION GAP FOR COUPLES (extends RULE 44 to match):
+    A natally-promised couple in a non-firing dasha window will feel
+    "we're incompatible." Distinguish structural compatibility (chart
+    promise + cross-match) from current activation (dasha alignment +
+    RP confirmation). Cite the UPCOMING MARRIAGE WINDOWS block for
+    when activation becomes structurally possible. Use language:
+      "Your charts STRUCTURALLY support marriage — the question is
+      WHEN the activation aligns. Per the worksheet, this is the
+      [SPECIFIC YEAR] window..."
+
+M13. FALSIFIABLE TIMING (extends RULE 46 to match):
+    For any timing prediction (when will marriage fire / will this
+    relationship convert to marriage / etc.), INCLUDE:
+      (a) Specific calendar date or range from worksheet
+      (b) Explicit falsification: "If by [DATE] this hasn't happened,
+          the prediction is wrong and we audit"
+      (c) NO vague "soon / in the coming year / around 2027ish"
+    Calendar mathematics doesn't move. Be falsifiable.
+
+M14. SUB-LORD FRIENDSHIP (PR M1.3) — When the SUB-LORD FRIENDSHIP block
+    shows RED (Asc or H7 SLs are enemies), cite it as a structural
+    friction signal — daily-life temperament differences. NOT a deal-
+    breaker if other compatibility signals are strong, but always
+    flag for the couple's awareness.
+
+M15. STRICTER CROSS-RULE (PR M1.4) — When the KSK READER IV STRICTER
+    CROSS-RULE block shows EXCEPTIONAL (3-of-3 H7 triple in partner's
+    RPs), this is structurally rare. Cite as "soulmate-tier structural
+    fit per canonical KP Reader IV." Don't over-claim — say what the
+    rule means + that other gates must still align for actual marriage.
+
+M16. SPOUSE LONGEVITY (PR M1.5) — When SPOUSE LONGEVITY GATE block
+    shows ELEVATED concern, cite the ethical note verbatim. NEVER
+    predict death (RULE 15). Frame as: "structural signal that partner's
+    long-term health warrants proactive attention — recommend periodic
+    medical check-ups + healthy lifestyle for them."
+
+M17. DASHA SANDHI / SAMA DASHA (PR M1.6) — When DASHA SANDHI block fires
+    with warnings, cite them as TIMING risks (not denial). If couple is
+    asking "when to marry," recommend windows away from sandhi overlap.
+
+M18. ELEMENT COMPATIBILITY (PR M1.7) — Cite when relevant; not a major
+    signal but useful for temperament context.
 
 You are a second opinion to a 20+ year astrologer. Cite the worksheet
 verbatim — every claim must trace to a worksheet field.
