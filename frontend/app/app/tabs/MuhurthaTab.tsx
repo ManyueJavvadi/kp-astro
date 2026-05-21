@@ -24,6 +24,7 @@ import {
   CheckCircle, TriangleAlert, ChevronDown, X, Globe, MapPin,
   HandHeart, Heart, Briefcase, Home as HomeIcon, Wallet, GraduationCap,
   Users, User, Plane, Scale, BookOpen, HeartPulse,
+  Stethoscope, Car, Lock,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";

@@ -22,6 +22,8 @@ import axios from "axios";
 import {
   Sparkles, Calendar, Clock, MapPin, RefreshCw, Loader2, ChevronDown,
   ChevronLeft, ChevronRight, X, Globe, Sun, Moon, Star,
+  Ban, CircleDashed, Crown, HandHeart, Hourglass, MoonStar,
+  Sunrise, Sunset, TriangleAlert,
 } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
 import { PageHero } from "@/components/ui/PageHero";
