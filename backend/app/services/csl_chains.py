@@ -239,3 +239,237 @@ def format_csl_chains_for_llm(csl_chains: dict) -> str:
         if h in csl_chains:
             lines.append(csl_chains[h]["chain_text"])
     return "\n".join(lines)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# PR A1.17 — Pattern D2 (offer-then-withdrawn) detector
+#
+# Per pattern_library.md Pattern D2: when CSL Steps 1-3 promise (signify
+# relevant houses for the topic) but Step 4 (star lord of CSL's sub lord)
+# signifies ONLY denial houses, the event fires then withdraws at the
+# last moment. Classic "interview cleared but offer rescinded" or
+# "engagement broken before marriage" pattern.
+#
+# Now that A1.12 computes Step 4, we can detect this exactly per topic.
+# ──────────────────────────────────────────────────────────────────────
+
+# Topic-to-houses mapping (relevant / denial sets per house_combinations_canonical.md)
+TOPIC_HOUSE_MAP = {
+    "marriage":         {"relevant": {2, 7, 11},    "denial": {1, 6, 10, 12}, "primary_cusp": 7},
+    "career":           {"relevant": {2, 6, 10, 11}, "denial": {5, 8, 9, 12}, "primary_cusp": 10},
+    "career_business":  {"relevant": {2, 7, 10, 11}, "denial": {5, 8, 12},    "primary_cusp": 10},
+    "job_employment":   {"relevant": {2, 6, 10, 11}, "denial": {5, 8, 9, 12}, "primary_cusp": 10},
+    "wealth":           {"relevant": {2, 6, 11},    "denial": {5, 8, 12},    "primary_cusp": 2},
+    "children":         {"relevant": {2, 5, 11},    "denial": {1, 4, 7, 10}, "primary_cusp": 5},
+    "education":        {"relevant": {4, 9, 11},    "denial": {3, 8, 10},    "primary_cusp": 4},
+    "education_higher": {"relevant": {4, 9, 11},    "denial": {3, 8, 10},    "primary_cusp": 9},
+    "property":         {"relevant": {4, 11, 12},   "denial": {3, 5, 6, 8},  "primary_cusp": 4},
+    "foreign":          {"relevant": {3, 9, 12},    "denial": {2, 4, 11},    "primary_cusp": 12},
+    "litigation":       {"relevant": {6, 11},       "denial": {7, 8, 12},    "primary_cusp": 6},
+    "health":           {"relevant": {1, 5, 11},    "denial": {6, 8, 12},    "primary_cusp": 1},
+}
+
+
+def detect_pattern_d2(csl_chains: dict, topic: str) -> dict | None:
+    """
+    Detect Pattern D2 (offer-then-withdrawn) for a given topic.
+
+    Returns a dict with detection details if Pattern D2 risk is present,
+    or None if no risk. Used by Analysis prompt to add structural warning
+    ("be prepared for last-minute withdrawal in this topic area").
+
+    Detection logic:
+      1. Look up the topic's primary cusp + relevant + denial house sets.
+      2. Get the CSL chain for that primary cusp.
+      3. Check whether Steps 1-3 (CSL + star lord + sub lord) collectively
+         signify any relevant house = "promise present"
+      4. Check whether Step 4 (star lord of sub lord) signifies ONLY
+         denial houses (no relevant overlap) = "final decider blocks"
+      5. If both → Pattern D2 fires. Otherwise None.
+    """
+    topic_info = TOPIC_HOUSE_MAP.get(topic.lower())
+    if not topic_info:
+        return None
+
+    primary_cusp = topic_info["primary_cusp"]
+    relevant = topic_info["relevant"]
+    denial = topic_info["denial"]
+
+    chain = csl_chains.get(primary_cusp)
+    if not chain:
+        return None
+
+    # Steps 1-3 union (CSL self + star lord + sub lord)
+    steps_1_to_3 = set()
+    if chain.get("csl_house"):
+        steps_1_to_3.add(chain["csl_house"])
+    steps_1_to_3.update(chain.get("csl_rules", []))
+    if chain.get("csl_star_lord_house"):
+        steps_1_to_3.add(chain["csl_star_lord_house"])
+    steps_1_to_3.update(chain.get("csl_star_lord_rules", []))
+    if chain.get("csl_sub_lord_house"):
+        steps_1_to_3.add(chain["csl_sub_lord_house"])
+    steps_1_to_3.update(chain.get("csl_sub_lord_rules", []))
+
+    # Step 4 alone
+    step_4 = set()
+    if chain.get("csl_sub_lord_star_lord_house"):
+        step_4.add(chain["csl_sub_lord_star_lord_house"])
+    step_4.update(chain.get("csl_sub_lord_star_lord_rules", []))
+
+    # Pattern D2 conditions
+    promise_in_123 = bool(steps_1_to_3 & relevant)
+    step4_denial_only = bool(step_4) and step_4.issubset(denial)
+    step4_no_relevant = not bool(step_4 & relevant)
+
+    if promise_in_123 and step4_denial_only and step4_no_relevant:
+        return {
+            "topic": topic,
+            "primary_cusp": primary_cusp,
+            "csl": chain.get("csl"),
+            "step4_planet": chain.get("csl_sub_lord_star_lord"),
+            "steps_1_3_relevant_hit": sorted(steps_1_to_3 & relevant),
+            "step4_denial_hit": sorted(step_4 & denial),
+            "warning": (
+                f"Pattern D2 (offer-then-withdrawn) detected for {topic}: "
+                f"H{primary_cusp} CSL chain promises (Steps 1-3 hit relevant houses "
+                f"{sorted(steps_1_to_3 & relevant)}) but Step 4 ({chain.get('csl_sub_lord_star_lord')}) "
+                f"signifies ONLY denial houses {sorted(step_4 & denial)} with no relevant overlap. "
+                f"Events in this area may fire then withdraw at the final stage. "
+                f"In real life: interviews clear but offers rescind, engagements break, "
+                f"contracts issue then cancel. STRUCTURAL — not the native's fault."
+            ),
+        }
+
+    # Softer version: Step 4 has SOME denial but also has at least one relevant.
+    # Not Pattern D2 (offer holds) but worth flagging as "friction at final stage"
+    step4_has_denial = bool(step_4 & denial)
+    if promise_in_123 and step4_has_denial and (step_4 & relevant):
+        return {
+            "topic": topic,
+            "primary_cusp": primary_cusp,
+            "csl": chain.get("csl"),
+            "step4_planet": chain.get("csl_sub_lord_star_lord"),
+            "steps_1_3_relevant_hit": sorted(steps_1_to_3 & relevant),
+            "step4_mixed": {
+                "relevant": sorted(step_4 & relevant),
+                "denial": sorted(step_4 & denial),
+            },
+            "warning": (
+                f"Pattern D2-LITE for {topic}: H{primary_cusp} CSL Step 4 ({chain.get('csl_sub_lord_star_lord')}) "
+                f"signifies mixed houses — relevant {sorted(step_4 & relevant)} + "
+                f"denial {sorted(step_4 & denial)}. Events fire but with friction at the "
+                f"final stage (delayed sign-offs, conditional offers, near-misses before final close)."
+            ),
+        }
+
+    return None
+
+
+def format_pattern_d2_for_llm(d2_detection: dict | None) -> str:
+    """Format a Pattern D2 detection result for the LLM prompt. Empty string if no risk."""
+    if not d2_detection:
+        return ""
+    return f"\n⚠ PATTERN D2 STRUCTURAL WARNING (engine-detected):\n{d2_detection['warning']}\n"
+
+
+# ──────────────────────────────────────────────────────────────────────
+# PR A1.18 — Joint Period signification union helper
+#
+# Per Pattern T1 (Joint Period Principle) in pattern_library.md, events
+# fire ONLY at joint periods where MD + AD + PAD + Sookshma lords ALL
+# signify the relevant houses for the topic. The AI was previously
+# computing this union manually during readings, which is mechanical
+# and error-prone. This helper does it once and surfaces the result.
+# ──────────────────────────────────────────────────────────────────────
+
+def compute_joint_period_significations(
+    csl_chains: dict,
+    md_lord: str,
+    ad_lord: str,
+    pad_lord: str,
+    sookshma_lord: str | None = None,
+) -> dict:
+    """
+    For each layer in the joint period stack, return the union of houses
+    that lord signifies based on its CSL appearances across all 12 cusps.
+
+    Returns:
+        {
+            "md_signifies": [list of house numbers],
+            "ad_signifies": [list],
+            "pad_signifies": [list],
+            "sookshma_signifies": [list] | None,
+            "all_layers_overlap": [houses ALL layers signify together — strongest firing zone],
+            "any_layer_overlap": [houses ANY layer signifies — broad period theme],
+        }
+
+    "all_layers_overlap" is the strongest possible firing zone — when MD,
+    AD, PAD (and Sookshma) lords ALL signify the same house simultaneously
+    that house is structurally activated for the joint period.
+    """
+    def _planet_sigs(planet_name: str) -> set:
+        """Find all houses where this planet appears in CSL chains."""
+        sigs = set()
+        for h, chain in csl_chains.items():
+            # Planet's own house and ownership across cusps
+            if chain.get("csl") == planet_name:
+                if chain.get("csl_house"):
+                    sigs.add(chain["csl_house"])
+                sigs.update(chain.get("csl_rules", []))
+            if chain.get("csl_star_lord") == planet_name:
+                if chain.get("csl_star_lord_house"):
+                    sigs.add(chain["csl_star_lord_house"])
+                sigs.update(chain.get("csl_star_lord_rules", []))
+            if chain.get("csl_sub_lord") == planet_name:
+                if chain.get("csl_sub_lord_house"):
+                    sigs.add(chain["csl_sub_lord_house"])
+                sigs.update(chain.get("csl_sub_lord_rules", []))
+            if chain.get("csl_sub_lord_star_lord") == planet_name:
+                if chain.get("csl_sub_lord_star_lord_house"):
+                    sigs.add(chain["csl_sub_lord_star_lord_house"])
+                sigs.update(chain.get("csl_sub_lord_star_lord_rules", []))
+        return sigs
+
+    md_sigs = _planet_sigs(md_lord) if md_lord else set()
+    ad_sigs = _planet_sigs(ad_lord) if ad_lord else set()
+    pad_sigs = _planet_sigs(pad_lord) if pad_lord else set()
+    sk_sigs = _planet_sigs(sookshma_lord) if sookshma_lord else None
+
+    all_layers = md_sigs & ad_sigs & pad_sigs
+    if sk_sigs is not None:
+        all_layers = all_layers & sk_sigs
+
+    any_layer = md_sigs | ad_sigs | pad_sigs
+    if sk_sigs is not None:
+        any_layer = any_layer | sk_sigs
+
+    return {
+        "md_lord": md_lord,
+        "ad_lord": ad_lord,
+        "pad_lord": pad_lord,
+        "sookshma_lord": sookshma_lord,
+        "md_signifies": sorted(md_sigs),
+        "ad_signifies": sorted(ad_sigs),
+        "pad_signifies": sorted(pad_sigs),
+        "sookshma_signifies": sorted(sk_sigs) if sk_sigs is not None else None,
+        "all_layers_overlap": sorted(all_layers),
+        "any_layer_overlap": sorted(any_layer),
+    }
+
+
+def format_joint_period_for_llm(jp: dict) -> str:
+    """Format joint period signification analysis for the LLM prompt."""
+    if not jp:
+        return ""
+    lines = [
+        "JOINT PERIOD SIGNIFICATION ANALYSIS (Pattern T1) — pre-computed:",
+        f"  MD {jp['md_lord']} signifies houses: {jp['md_signifies']}",
+        f"  AD {jp['ad_lord']} signifies houses: {jp['ad_signifies']}",
+        f"  PAD {jp['pad_lord']} signifies houses: {jp['pad_signifies']}",
+    ]
+    if jp.get("sookshma_lord"):
+        lines.append(f"  Sookshma {jp['sookshma_lord']} signifies houses: {jp['sookshma_signifies']}")
+    lines.append(f"  ★ ALL LAYERS OVERLAP (strongest firing zone): {jp['all_layers_overlap']}")
+    lines.append(f"  ANY LAYER OVERLAP (broad period theme): {jp['any_layer_overlap']}")
+    return "\n".join(lines)

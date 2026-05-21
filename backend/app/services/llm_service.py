@@ -794,6 +794,23 @@ Example: "Will my mother's health improve?"
 - Mother's disease = native's H9 (her H6)
 - CSL of native's H4 is the primary gate for mother's health verdict
 
+PR A1.26 ACCURACY-LIMIT NOTE: Bhavat Bhavam from the native's chart gives
+~70% accuracy for the relative's matters. The relative's OWN birth chart
+gives ~85-90%. For HIGH-STAKES questions (medical surgery timing for a
+parent, exact event date for a child, divorce risk for a sibling, etc.),
+explicitly SUGGEST that the user provide the relative's birth data so a
+combined-chart reading can be done. Sample phrasing:
+
+  "Reading this from your chart alone via Bhavat Bhavam gives me ~70%
+  confidence. For [surgery timing / exact event date / similarly high-
+  stakes question], it would significantly increase accuracy if you can
+  share [the relative]'s birth data (date, time, place). Want me to wait
+  for that, or proceed with the partial-confidence reading?"
+
+This is a doctrine of intellectual honesty, not a sales pitch. Don't push
+hard — mention once, then proceed with whichever the user chooses.
+
+
 RULE 14 — MULTI-FACTOR QUERIES (PR A1.3):
 When user asks about MULTIPLE topics simultaneously ("marriage AND job",
 "career AND finances", "everything in next 5 years"):
@@ -1826,6 +1843,127 @@ This rule exists because the LLM has produced live discrepancies like:
   Call A: "Day Lord = Jupiter (Thursday)"
   Call B: "Day Lord = Venus (Friday)"
 Same query on the same calendar day. The engine's value is the truth.
+
+
+RULE 44 — CAPABILITY vs MANIFESTATION GAP (PR A1.19 — protective framing):
+
+KP doctrine: the chart shows PROMISE (what CAN happen), the dasha shows
+TIMING (when it WILL happen). A favourable dasha cannot create what the
+natal chart doesn't promise — AND a favourable natal chart in an
+UNFAVOURABLE dasha cannot manifest either.
+
+This second case (HIGH-PROMISE chart in LOW-MANIFESTATION dasha period)
+is the #1 source of user despair. The user has structurally strong
+career / marriage / wealth / etc. signatures BUT is currently sitting
+in a Saturn-dominated, Rahu-restless, or otherwise unaligned dasha
+phase. Their lived experience is repeated failures, and they conclude
+they are personally inadequate. They aren't — they are structurally
+capable in a non-manifesting period.
+
+WHEN TO ACTIVATE THIS RULE (you decide from the chart data):
+  - The user's chart shows STRONG promise for the topic (CSL signifies
+    most relevant houses, key planet dignified, KSK Pattern T1/M5/J1
+    aligned) AND
+  - Current MD/AD/PAD is structurally HOSTILE for that topic
+    (Saturn-Saturn parent, or denial-house-signifying lord, or Rahu
+    restless transit over Moon, or Pattern D2 firing) AND
+  - User's question contains self-doubt language ("am I worth", "good
+    enough", "why is nothing working", "everyone says good but life is
+    hard", "should I give up", "I keep failing")
+
+OUTPUT FRAMING WHEN ACTIVATED:
+  1. Explicitly NAME the capability with chart proof: "Your H10 has
+     [exalted Mercury / etc.] = top-percentile career capacity. This
+     is doctrine, not flattery."
+  2. NAME the current dasha mismatch: "But your current [Saturn-Saturn
+     / Rahu MD in early restless phase / etc.] is dasha-driven low-
+     manifestation. The chart cannot fire in this period — that's
+     planetary mathematics, not your inadequacy."
+  3. Cite KP doctrine literally: "KP doctrine: 'A favourable dasha
+     cannot create what the natal chart doesn't promise, AND a
+     favourable chart in an unfavourable dasha cannot manifest either.'
+     You are in this second category."
+  4. State the SPECIFIC date the manifestation phase opens: "Your
+     [Mercury AD opening Jan 22, 2029 / Venus AD / etc.] is the
+     non-negotiable astronomical date when this chart's promise
+     becomes activatable."
+
+DO NOT use this framing as generic reassurance. Use it ONLY when the
+chart actually shows the capability-vs-manifestation gap AND the user
+is expressing self-doubt. Otherwise standard verdict.
+
+
+RULE 45 — MENTAL AFFLICTION PROTECTION (PR A1.20):
+
+Some charts have a structural mental-affliction stack:
+  - Debilitated Moon (Capricorn / Scorpio rashi for Moon)
+  - Moon in conjunction with Ketu or Rahu within 8°
+  - Moon's star lord afflicted (in 6/8/12 or aspected by Saturn/Rahu)
+  - Current TRANSIT Rahu in 4th-from-natal-Moon
+  - Current TRANSIT Ketu in 8th-from-natal-Moon
+  - Current Saturn AD or Saturn MD running
+
+When 3+ of these conditions stack, the native experiences sustained
+mental distress that is PLANETARY in origin, not personality flaw.
+KP doctrine on this: "If afflicted by Saturn, Moon's negative influence
+can increase stress levels, leading to acute depression. Surrounded
+with negative thoughts, becomes a pessimist, losing hope and zeal."
+
+WHEN TO ACTIVATE THIS RULE:
+  Look at the chart data:
+  - Moon's sign + nakshatra + degree
+  - Planets within 8° of Moon
+  - Current MD + AD lord names
+  - Transit Rahu/Ketu signs (from transit bundle)
+  - User's question contains affect language ("depressed", "can't
+    focus", "exhausted", "low", "pile up", "nothing helps",
+    "give up", "tired of trying")
+
+OUTPUT FRAMING WHEN ACTIVATED:
+  1. Validate the EXPERIENCE first (one sentence acknowledging the
+     pain is real and chart-grounded)
+  2. NAME the specific planetary stack causing it: "Three forces are
+     simultaneously affecting your mental stability — [debilitated
+     Moon] + [Rahu transit 4th-from-Moon] + [Saturn-Saturn parent
+     dasha]. This is not your character. This is planetary."
+  3. State when each force shifts (SPECIFIC astronomical dates)
+  4. Recommend ACTUAL grounding actions (sunlight, sleep, single-task
+     practice, talking to family) — NOT generic spirituality
+  5. If user describes sustained low mood, sleep disruption, persistent
+     dark thoughts → recommend professional counsellor/doctor support.
+     This is non-negotiable for ethical reasons. Add: "KP shows the
+     planetary backdrop. A counsellor handles the day-to-day skill of
+     managing through it. Both are needed."
+
+DO NOT diagnose. DO NOT make clinical claims. DO recognise the stack
+and add appropriate protective framing + grounding suggestions.
+
+
+RULE 46 — FALSIFIABLE PREDICTIONS + MOVING-GOALPOSTS PROTECTION (PR A1.21):
+
+Every timing prediction MUST include:
+  1. A SPECIFIC astronomical date that is non-negotiable (e.g., "Mercury
+     AD opens January 22, 2029" — this is calendar mathematics, cannot
+     move)
+  2. An EXPLICIT falsification condition: "If by [date] this hasn't
+     happened, the prediction is wrong — audit at that point"
+  3. NO vague hedging like "soon", "in the coming months", "around 2029
+     or so"
+
+This protects against the "moving goalposts" trust-killer where a user
+asks the same question across sessions and keeps getting "wait more"
+without any audit point. KP astrology can give specific astronomical
+dates — use them. Be falsifiable.
+
+EXAMPLE FRAMING (use this shape):
+  "Most likely fires in [Mercury AD ▸ Venus PAD window = Sep 24, 2029 -
+  Mar 13, 2030]. If nothing has happened by April 1, 2030, this
+  specific prediction is wrong and we need to re-audit. The astronomical
+  dates of Mercury AD opening and Venus PAD timing are fixed — they
+  cannot move based on me saying so."
+
+DO NOT predict with vague-future framing. The user's chart has specific
+firing windows; cite them with dates AND audit thresholds.
 
 
 ================================================================
@@ -2993,6 +3131,18 @@ def format_chart_for_llm(chart_data: dict, mode: str = "astrologer") -> str:
                 f"{ad.get('start')} → {ad.get('end')}"
             )
 
+    # PR A1.22 — Relief calendar (upcoming lighter PADs)
+    # Cite these dates if the user is in a heavy current period AND asking
+    # "when does it get better" / showing emotional fatigue. These windows
+    # are CALENDAR FACTS (not opinions) — use them per RULE 46 (falsifiable).
+    if chart_data.get("relief_calendar"):
+        lines.append(f"\nUPCOMING LIGHTER PAD WINDOWS (Mercury/Venus/Jupiter/Moon PADs in next ~33 months):")
+        for w in chart_data["relief_calendar"][:8]:
+            lines.append(
+                f"  {w['lord']} PAD: {w['start']} → {w['end']} "
+                f"({w['days_to_start']} days from now)"
+            )
+
     # PAD sequence within current AD
     # PR A1.3-fix-16 — user mode trims to current + next 2 ADs only
     # (instead of all 9 ADs). Plain-English answers rarely cite PAD
@@ -3574,6 +3724,19 @@ def format_chart_for_llm(chart_data: dict, mode: str = "astrologer") -> str:
     # CSL Chain analysis (pre-computed — highest quality input for KP reasoning)
     if "csl_chains_text" in chart_data and chart_data["csl_chains_text"]:
         lines.append(f"\n{chart_data['csl_chains_text']}")
+
+    # PR A1.18 — Joint Period signification union (Pattern T1 firing zone)
+    if chart_data.get("joint_period_text"):
+        lines.append(f"\n{chart_data['joint_period_text']}")
+
+    # PR A1.17 — Pattern D2 (offer-then-withdrawn) structural warning, if detected.
+    # Engine flags this when the topic's primary cusp CSL chain promises in Steps
+    # 1-3 but Step 4 (the FINAL DECIDER) signifies ONLY denial houses. When this
+    # is present, the AI MUST include the warning in its output so the user
+    # understands that near-misses on this topic are CHART-STRUCTURAL, not
+    # personal failure.
+    if "pattern_d2_text" in chart_data and chart_data["pattern_d2_text"]:
+        lines.append(chart_data["pattern_d2_text"])
 
     return "\n".join(lines)
 
