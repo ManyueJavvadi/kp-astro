@@ -56,14 +56,29 @@ Step 2: Find what houses the CSL SIGNIFIES — A/B/C/D/E HIERARCHY (KSK Reader V
   - When CSL is A-level for relevant houses AND D-level for denial houses → STRONGLY PROMISED.
   - When CSL is D-level for relevant AND A-level for denial → WEAKLY PROMISED + obstacles.
 
-  CSL'S SIGNIFICATION CHAIN — 4 STEPS (UNION):
-  (a) Which house the CSL is SITTING IN (occupation)
-  (b) Which houses the CSL RULES as sign lord
-  (c) The CSL's own STAR LORD's occupied + ruled houses
-  (d) The CSL's own SUB LORD's occupied + ruled houses (deepest layer)
+  CSL'S SIGNIFICATION CHAIN — GONDHALEKAR FOUR-STEP THEORY (UNION):
+  (matches system-prompt RULE 20; PR A1.12 — engine now computes all 4 steps)
 
-  The UNION of houses from (a)-(d) is the "complete signification set" of the CSL.
+  Step 1: The CSL planet itself — house OCCUPIED + houses RULED as sign lord
+  Step 2: The CSL's STAR LORD — house occupied + houses ruled
+  Step 3: The CSL's SUB LORD — house occupied + houses ruled
+  Step 4: The STAR LORD of the CSL's SUB LORD — house occupied + houses ruled
+          (the "FINAL DECIDER" — Pattern D2 offer-then-withdrawn detector)
+
+  The UNION of houses from Steps 1-4 is the "complete signification set" of the CSL.
   Compare this set against the topic's RELEVANT and DENIAL houses to derive verdict.
+
+  STEP 4 IS CRITICAL: when Steps 1-3 promise (signify relevant houses) but Step 4
+  signifies ONLY denial houses, the event is offered then withdrawn at the last
+  moment (interview cleared but offer rescinded, engagement broken before marriage,
+  contract issued but cancelled, etc.) This is Pattern D2 in the pattern library.
+
+  Engine output (csl_chains.py) provides all 4 steps as separate fields:
+    csl_house, csl_rules                          — Step 1
+    csl_star_lord_house, csl_star_lord_rules      — Step 2
+    csl_sub_lord_house, csl_sub_lord_rules        — Step 3
+    csl_sub_lord_star_lord_house, csl_sub_lord_star_lord_rules  — Step 4
+    all_significations                            — UNION of all 4 steps
 
 Step 3: Check the union of all CSL significations vs topic houses
   If the UNION includes ALL the "yes" houses for the topic → PROMISED
@@ -71,7 +86,7 @@ Step 3: Check the union of all CSL significations vs topic houses
   If partial overlap → CONDITIONAL (timing dependent)
 
 ================================================================
-THE FULL CSL CHAIN — WORKED EXAMPLE
+THE FULL CSL CHAIN — WORKED EXAMPLE (4-STEP GONDHALEKAR)
 ================================================================
 
 Question: Will this person get married?
@@ -80,26 +95,36 @@ Denial houses: H1, H6, H10, H12
 
 H7 Cusp Sub-Lord = Venus
 
-Step 1: Venus's direct significations
+Step 1: Venus itself (occupation + ownership)
   Venus occupies H3 → signifies H3
   Venus rules Taurus cusp (H7) → signifies H7 ✓
   Venus rules Libra cusp (H12) → signifies H12
 
-Step 2: Venus's star lord chain
-  Venus is in nakshatra Bharani (lord = Venus itself)
-  → Star lord = Venus, same as CSL → no new houses added
-
-  If Venus were in Rohini (lord = Moon):
+Step 2: Venus's STAR LORD (occupation + ownership)
+  Venus is in nakshatra Rohini (star lord = Moon)
   Moon occupies H11 → adds H11 ✓
   Moon rules H4 (Cancer cusp) → adds H4
 
-Step 3: Venus's sub-lord chain
+Step 3: Venus's SUB LORD (occupation + ownership)
   Venus's sub-lord = Jupiter
-  Jupiter occupies H11 → adds H11 ✓
-  Jupiter rules H9, H12 → adds H9, H12
+  Jupiter occupies H9 → adds H9
+  Jupiter rules H12, H3 → adds H12, H3 (already in set)
 
-Final CSL significations: H3, H7, H12, H11, H9, H4
+Step 4: STAR LORD of Venus's SUB LORD (FINAL DECIDER) (occupation + ownership)
+  Jupiter (Venus's sub lord) is in nakshatra Pushya (star lord = Saturn)
+  Saturn occupies H6 → adds H6 ⚠ (DENIAL house!)
+  Saturn rules H10 (Capricorn cusp) → adds H10 ⚠ (DENIAL house!)
+
+Final CSL significations: H3, H4, H6, H7, H9, H10, H11, H12
 H7 ✓ and H11 ✓ from "yes" list → MARRIAGE PROMISED
+BUT — Step 4 signifies H6 + H10 (both denial houses) without touching any
+relevant house alone → Pattern D2 risk: marriage may be offered then withdrawn
+at the final stage. Read Star-Sub Harmony below.
+
+WITHOUT STEP 4 (pre-PR-A1.12 incomplete reading): Significations would have
+been just H3, H4, H7, H9, H11, H12 → looks like PROMISED with no warning.
+The Step-4 visibility of H6 + H10 is what flags the "offer-then-withdrawn"
+risk. This is why Step 4 is the FINAL DECIDER, not optional.
 
 ================================================================
 STAR–SUB HARMONY — THE LAYERED READING (KSK CORE INSIGHT)
