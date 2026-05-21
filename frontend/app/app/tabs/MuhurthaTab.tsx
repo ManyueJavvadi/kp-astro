@@ -22,7 +22,7 @@ import axios from "axios";
 import {
   Sparkles, Target, Plus, Loader2, RefreshCw, Calendar, Clock,
   CheckCircle, TriangleAlert, ChevronDown, X, Globe, MapPin,
-  HandHeart, Heart, Briefcase, Home, Wallet, GraduationCap,
+  HandHeart, Heart, Briefcase, Home as HomeIcon, Wallet, GraduationCap,
   Users, User, Plane, Scale, BookOpen, HeartPulse,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
