@@ -2591,7 +2591,11 @@ export default function Home() {
                   workspaceData={workspaceData}
                   apiUrl={API_URL}
                   liveLoc={liveLoc}
+                  birthDetails={birthDetails}
+                  timezoneOffset={timezoneOffset}
+                  savedSessions={savedSessions}
                   setSavedSessions={setSavedSessions}
+                  mEventLocSearching={mEventLocSearching}
                   mStep={mStep} setMStep={setMStep}
                   mEventType={mEventType} setMEventType={setMEventType}
                   mDateStart={mDateStart} setMDateStart={setMDateStart}

@@ -37,7 +37,11 @@ interface MuhurthaTabProps {
   workspaceData: any;
   apiUrl: string;
   liveLoc: any;
+  birthDetails: any;
+  timezoneOffset: any;
+  savedSessions: any;
   setSavedSessions: any;
+  mEventLocSearching: any;
   // Multi-step form state (mStep, mEventType, mDateStart/End, mEventLoc*)
   mStep: any; setMStep: any;
   mEventType: any; setMEventType: any;
@@ -70,7 +74,8 @@ interface MuhurthaTabProps {
 export function MuhurthaTab(props: MuhurthaTabProps) {
   const { t, lang } = useLanguage();
   const {
-    workspaceData, apiUrl, liveLoc, setSavedSessions,
+    workspaceData, apiUrl, liveLoc, birthDetails, timezoneOffset,
+    savedSessions, setSavedSessions, mEventLocSearching,
     mStep, setMStep, mEventType, setMEventType,
     mDateStart, setMDateStart, mDateEnd, setMDateEnd,
     mEventLoc, setMEventLoc, mEventLocMode, setMEventLocMode,
