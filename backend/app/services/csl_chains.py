@@ -5,18 +5,21 @@ In KP astrology, the sub-lord of each house cusp is the DECIDING FACTOR
 for that house's matters. This module pre-computes the full signification
 chain for every house's CSL so Claude can interpret instead of computing.
 
-Chain logic (4 levels):
-  L1: Planet directly in that house (strongest)
-  L2: Planet ruling the house sign (sign lord)
-  L3: Planets in the star of any L1/L2 planet
-  L4: Sub-lord of the cusp itself (deciding gate)
+PR A1.12 (May 2026): added Step 4 (star lord of CSL's sub lord) per
+Gondhalekar Four-Step Theory + RULE 20 system prompt. Previously the
+engine stopped at Step 3 (CSL's sub lord) while the prompt asked the AI
+to reason about Step 4 = "FINAL DECIDER" for offer-then-withdrawn
+detection (Pattern D2). The mismatch caused silent gaps in CSL reasoning.
 
-For the CSL chain:
-  CSL sits in house X → signifies X
-  CSL rules house Y (as sign lord) → signifies Y
-  CSL's star lord is planet Z → Z's house significations added
-  CSL's sub-lord is planet W → W's house significations added
-  UNION of all → final CSL signification set
+Canonical 4-step (Gondhalekar / KSK Reader V):
+  Step 1: CSL planet itself — house occupied + houses ruled
+  Step 2: CSL's STAR LORD — house occupied + houses ruled
+  Step 3: CSL's SUB LORD — house occupied + houses ruled
+  Step 4: STAR LORD of CSL's SUB LORD — house occupied + houses ruled
+          (the "final decider" — when Steps 1-3 promise but Step 4 only
+           signifies denial houses, the event is offered then withdrawn)
+
+UNION of Steps 1-4 → final CSL signification set.
 """
 
 from app.services.chart_engine import (
@@ -89,9 +92,14 @@ def compute_csl_chains(cusps: list, planets: list) -> dict:
             csl_star_lord: str — CSL's own star lord
             csl_star_lord_house: int — house CSL's star lord occupies
             csl_star_lord_rules: list[int] — houses CSL's star lord rules
-            csl_sub_lord: str — CSL's own sub-lord (one level deeper)
+            csl_sub_lord: str — CSL's own sub-lord (Step 3 — one level deeper)
             csl_sub_lord_house: int — house CSL's sub-lord occupies
-            all_significations: list[int] — union of all above
+            csl_sub_lord_star_lord: str — Step 4: star lord of CSL's sub-lord (FINAL DECIDER)
+            csl_sub_lord_star_lord_house: int — house Step-4 planet occupies
+            csl_sub_lord_star_lord_rules: list[int] — houses Step-4 planet rules
+            step4_signifies_denial_only: bool — True if Step 4 only signifies denial houses
+                                                (set later by topic-specific Pattern D2 check)
+            all_significations: list[int] — union of all 4 steps
             chain_text: str — human-readable chain description for LLM
     """
     cusp_sorted = sorted(cusps, key=lambda c: c.get("house_num", 0))
@@ -117,6 +125,10 @@ def compute_csl_chains(cusps: list, planets: list) -> dict:
                 "csl_star_lord_rules": [],
                 "csl_sub_lord": "",
                 "csl_sub_lord_house": 0,
+                "csl_sub_lord_rules": [],
+                "csl_sub_lord_star_lord": "",
+                "csl_sub_lord_star_lord_house": 0,
+                "csl_sub_lord_star_lord_rules": [],
                 "all_significations": [],
                 "chain_text": f"H{h}: CSL {csl_name} not found in planets",
             }
@@ -135,7 +147,7 @@ def compute_csl_chains(cusps: list, planets: list) -> dict:
             csl_star_lord_house = _get_planet_house(planet_lons[csl_star_lord], cusp_lons)
             csl_star_lord_rules = _houses_ruled_by(csl_star_lord, cusp_lons)
 
-        # One level deeper: CSL's own sub-lord
+        # Step 3: CSL's own sub-lord
         csl_sub_lord = get_sub_lord(csl_lon)
         csl_sub_lord_house = 0
         csl_sub_lord_rules = []
@@ -143,11 +155,32 @@ def compute_csl_chains(cusps: list, planets: list) -> dict:
             csl_sub_lord_house = _get_planet_house(planet_lons[csl_sub_lord], cusp_lons)
             csl_sub_lord_rules = _houses_ruled_by(csl_sub_lord, cusp_lons)
 
-        # Union of all significations
+        # Step 4 (PR A1.12 — was missing previously): star lord of CSL's sub lord.
+        # Per Gondhalekar Four-Step Theory + system prompt RULE 20, this is the
+        # "FINAL DECIDER" — when Steps 1-3 promise but Step 4 only signifies
+        # denial houses, the event is offered then withdrawn (Pattern D2).
+        csl_sub_lord_star_lord = ""
+        csl_sub_lord_star_lord_house = 0
+        csl_sub_lord_star_lord_rules = []
+        if csl_sub_lord and csl_sub_lord in planet_lons:
+            sub_lord_lon = planet_lons[csl_sub_lord]
+            sub_nak_info = get_nakshatra_and_starlord(sub_lord_lon)
+            csl_sub_lord_star_lord = sub_nak_info.get("star_lord", "")
+            if csl_sub_lord_star_lord and csl_sub_lord_star_lord in planet_lons:
+                csl_sub_lord_star_lord_house = _get_planet_house(
+                    planet_lons[csl_sub_lord_star_lord], cusp_lons
+                )
+                csl_sub_lord_star_lord_rules = _houses_ruled_by(
+                    csl_sub_lord_star_lord, cusp_lons
+                )
+
+        # Union of all 4 steps' significations
         all_signifs = sorted(set(
             [csl_house] + csl_rules +
             ([csl_star_lord_house] if csl_star_lord_house else []) + csl_star_lord_rules +
-            ([csl_sub_lord_house] if csl_sub_lord_house else []) + csl_sub_lord_rules
+            ([csl_sub_lord_house] if csl_sub_lord_house else []) + csl_sub_lord_rules +
+            ([csl_sub_lord_star_lord_house] if csl_sub_lord_star_lord_house else []) +
+            csl_sub_lord_star_lord_rules
         ))
 
         # Build human-readable chain text for LLM
@@ -164,12 +197,17 @@ def compute_csl_chains(cusps: list, planets: list) -> dict:
             lines.append(f"  {csl_star_lord} (star lord) occupies → H{csl_star_lord_house}")
         if csl_star_lord_rules:
             lines.append(f"  {csl_star_lord} rules → H{', H'.join(map(str, csl_star_lord_rules))}")
-        lines.append(f"  {csl_name} sub-lord = {csl_sub_lord}")
+        lines.append(f"  Step 3 — {csl_name}'s sub-lord = {csl_sub_lord}")
         if csl_sub_lord_house:
-            lines.append(f"  {csl_sub_lord} (sub-lord) occupies → H{csl_sub_lord_house}")
+            lines.append(f"    {csl_sub_lord} (sub-lord) occupies → H{csl_sub_lord_house}")
         if csl_sub_lord_rules:
-            lines.append(f"  {csl_sub_lord} rules → H{', H'.join(map(str, csl_sub_lord_rules))}")
-        lines.append(f"  ★ FINAL H{h} CSL SIGNIFICATIONS: {all_signifs}")
+            lines.append(f"    {csl_sub_lord} rules → H{', H'.join(map(str, csl_sub_lord_rules))}")
+        lines.append(f"  Step 4 — {csl_sub_lord}'s star lord = {csl_sub_lord_star_lord} (FINAL DECIDER)")
+        if csl_sub_lord_star_lord_house:
+            lines.append(f"    {csl_sub_lord_star_lord} (Step-4) occupies → H{csl_sub_lord_star_lord_house}")
+        if csl_sub_lord_star_lord_rules:
+            lines.append(f"    {csl_sub_lord_star_lord} rules → H{', H'.join(map(str, csl_sub_lord_star_lord_rules))}")
+        lines.append(f"  ★ FINAL H{h} CSL SIGNIFICATIONS (4-step union): {all_signifs}")
 
         result[h] = {
             "csl": csl_name,
@@ -182,6 +220,9 @@ def compute_csl_chains(cusps: list, planets: list) -> dict:
             "csl_sub_lord": csl_sub_lord,
             "csl_sub_lord_house": csl_sub_lord_house,
             "csl_sub_lord_rules": csl_sub_lord_rules,
+            "csl_sub_lord_star_lord": csl_sub_lord_star_lord,
+            "csl_sub_lord_star_lord_house": csl_sub_lord_star_lord_house,
+            "csl_sub_lord_star_lord_rules": csl_sub_lord_star_lord_rules,
             "all_significations": all_signifs,
             "chain_text": "\n".join(lines),
         }
