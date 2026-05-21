@@ -32,6 +32,7 @@ import { useLanguage } from "@/lib/i18n";
 import { PageHero } from "@/components/ui/PageHero";
 import { PlacePicker } from "@/components/ui/place-picker";
 import { PLANET_COLORS } from "../components/constants";
+import { recordAiCall } from "@/lib/aiAudit";
 
 interface MuhurthaTabProps {
   workspaceData: any;

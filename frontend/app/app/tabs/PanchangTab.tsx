@@ -28,6 +28,7 @@ import {
 import { useLanguage } from "@/lib/i18n";
 import { PageHero } from "@/components/ui/PageHero";
 import { PLANET_COLORS } from "../components/constants";
+import { stripSeconds } from "@/lib/format";
 
 interface PanchangTabProps {
   workspaceData: any;
