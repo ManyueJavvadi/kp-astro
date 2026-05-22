@@ -64,20 +64,24 @@ def _load_kb(name: str) -> str:
     return content
 
 TOPIC_TO_FILE = {
-    # ── Existing topic routings (unchanged) ────────────────────────
+    # ── Existing topic routings ────────────────────────────────────
     "marriage": "marriage.txt",
     "job": "job.txt",
     "career": "job.txt",
     "profession": "job.txt",          # alias to job.txt
     "foreign_travel": "foreign.txt",
     "foreign_settle": "foreign.txt",
-    "education": "other_topics.txt",
-    "children": "other_topics.txt",
-    "fertility": "other_topics.txt",  # alias maps to other_topics + children_detailed.md (deep load)
-    "property": "other_topics.txt",
-    "wealth": "other_topics.txt",
-    "finance": "other_topics.txt",
-    "litigation": "other_topics.txt",
+    # PR A2.0d — re-routed from other_topics.txt to dedicated files.
+    # Content was extracted verbatim into separate files for cache efficiency
+    # and to make per-topic depth additions cleaner (each topic now has its
+    # own KB file that can grow independently).
+    "education": "education.txt",     # was other_topics.txt §1 → education.txt
+    "children": "other_topics.txt",   # children content stays in children_detailed.md (deep dive)
+    "fertility": "other_topics.txt",  # → maps to other_topics + children_detailed.md (deep load)
+    "property": "property.txt",       # was other_topics.txt §3+§10 → property.txt
+    "wealth": "wealth.txt",           # was other_topics.txt §4+§9 → wealth.txt
+    "finance": "wealth.txt",          # alias to wealth
+    "litigation": "litigation.txt",   # was other_topics.txt §5 → litigation.txt (PR A2.3 will expand)
     "health": "health.txt",
     "divorce": "divorce.txt",
     # PR A1.3 — relative-related topic aliases. Primary file is general.txt
@@ -122,25 +126,26 @@ TOPIC_TO_FILE = {
     "employment":         "job.txt",
     "service":            "job.txt",
 
-    # ── Wealth cluster (→ other_topics.txt §4 wealth section) ──
-    "loan":               "other_topics.txt",
-    "debt":               "other_topics.txt",
-    "emi":                "other_topics.txt",
-    "salary":             "other_topics.txt",
-    "salary_growth":      "other_topics.txt",
-    "income":             "other_topics.txt",
-    "investment":         "other_topics.txt",
-    "bankruptcy":         "other_topics.txt",
-    "money":              "other_topics.txt",
+    # ── Wealth cluster (PR A2.0d → wealth.txt) ──
+    "loan":               "wealth.txt",
+    "debt":               "wealth.txt",
+    "emi":                "wealth.txt",
+    "salary":             "wealth.txt",
+    "salary_growth":      "wealth.txt",
+    "income":             "wealth.txt",
+    "investment":         "wealth.txt",
+    "bankruptcy":         "wealth.txt",
+    "money":              "wealth.txt",
 
-    # ── Money recovery cluster (→ other_topics.txt; dedicated KB in A2.2) ──
-    "money_recovery":     "other_topics.txt",
-    "lent_money":         "other_topics.txt",
-    "partner_cheated":    "other_topics.txt",
-    "theft":              "other_topics.txt",
-    "fraud":              "other_topics.txt",
-    "refund":             "other_topics.txt",
-    "embezzlement":       "other_topics.txt",
+    # ── Money recovery cluster (PR A2.0d → wealth.txt has the H6 recovery
+    # rule; PR A2.2 will create dedicated money_recovery.md) ──
+    "money_recovery":     "wealth.txt",
+    "lent_money":         "wealth.txt",
+    "partner_cheated":    "wealth.txt",
+    "theft":              "wealth.txt",
+    "fraud":              "wealth.txt",
+    "refund":             "wealth.txt",
+    "embezzlement":       "wealth.txt",
 
     # ── Marriage cluster ──
     "second_marriage":    "marriage.txt",
@@ -158,14 +163,14 @@ TOPIC_TO_FILE = {
     "settlement":         "foreign.txt",
     "foreign":            "foreign.txt",
 
-    # ── Litigation cluster (→ other_topics.txt; dedicated KB in A2.3) ──
-    "court_case":         "other_topics.txt",
-    "lawsuit":            "other_topics.txt",
-    "appeal":             "other_topics.txt",
-    "civil_case":         "other_topics.txt",
-    "criminal_case":      "other_topics.txt",
-    "land_dispute":       "other_topics.txt",
-    "litigation_loss":    "other_topics.txt",
+    # ── Litigation cluster (PR A2.0d → litigation.txt; A2.3 will expand) ──
+    "court_case":         "litigation.txt",
+    "lawsuit":            "litigation.txt",
+    "appeal":             "litigation.txt",
+    "civil_case":         "litigation.txt",
+    "criminal_case":      "litigation.txt",
+    "land_dispute":       "litigation.txt",
+    "litigation_loss":    "litigation.txt",
 
     # ── Health cluster ──
     "disease_risk":       "health.txt",
@@ -174,15 +179,15 @@ TOPIC_TO_FILE = {
     "accident_risk":      "health.txt",
     "recovery":           "health.txt",
 
-    # ── Property/vehicle ──
-    "vehicle":            "other_topics.txt",   # vehicle section in §6
-    "vehicle_purchase":   "other_topics.txt",
+    # ── Property/vehicle (PR A2.0d → dedicated files) ──
+    "vehicle":            "vehicle.md",
+    "vehicle_purchase":   "vehicle.md",
 
-    # ── Education ──
-    "study_abroad":       "other_topics.txt",
-    "phd":                "other_topics.txt",
-    "exam":               "other_topics.txt",
-    "education_higher":   "other_topics.txt",
+    # ── Education (PR A2.0d → education.txt) ──
+    "study_abroad":       "education.txt",
+    "phd":                "education.txt",
+    "exam":               "education.txt",
+    "education_higher":   "education.txt",
 }
 
 # PR A1.3 — Topic-specific deep-dive files (loaded ALONGSIDE the topic file).
@@ -236,6 +241,11 @@ ADVANCED_FILES = [
     # PR A2.0c — sensitivity tier framework (Tier 1/2/3 doctrine + per-topic
     # router + Tier 3 question-content escalators). Referenced by RULE 52.
     "sensitivity_tiers.md",
+    # PR A2.0d — cross-cutting universal rules extracted from other_topics.txt
+    # (sign-modality timing + karaka context-boost doctrine + specific-date
+    # question framework). These apply to ALL topics so they're loaded universally
+    # instead of duplicated inside every per-topic KB file.
+    "timing_and_karaka_overlay.md",
 ]
 
 # PR A1.3-fix-18 — User-mode lean KB.

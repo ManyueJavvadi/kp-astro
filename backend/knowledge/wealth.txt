@@ -1,0 +1,86 @@
+================================================================================
+KP ASTROLOGY — WEALTH / INCOME / FINANCE COMPLETE RULES
+Source: K.S. Krishnamurti KP Readers + Vaastuinternational.com Rules
+Extracted PR A2.0d from other_topics.txt §4 + §9 (verbatim, no doctrine change)
+================================================================================
+
+RELEVANT HOUSES (KSK STRICT — wealth is 2/6/11, NOT 2/6/10/11):
+PRIMARY: H2 (accumulated wealth) + H6 (gains via competitors / loans / service / debt collected) + H11 (gains/profits)
+NOTE: H10 is RELEVANT FOR PROFESSION, not for wealth. KSK separates them:
+  - 2/6/10 = job/service salary (career)
+  - 2/7/10 = business income (career)
+  - 2/6/11 = WEALTH ACCUMULATION (this section)
+DENIAL: H1 (12th from H2 — loss of wealth), H8 (debt), H12 (loss/expenditure)
+
+H2 CUSP FOR WEALTH (KSK Reader, verbatim):
+"H2 sub lord in star of planet in H6 and H11 → very good financial status."
+"In houses H2 and H10 → moderate affluence (career-driven, not accumulated wealth)."
+"In houses H1 and H3 → just satisfactory financial condition."
+
+The 2/6/11 trinity is the KSK-canonical wealth set:
+  - H2 = the wealth itself (savings, capital)
+  - H6 = the mechanism by which wealth flows in (debt collection,
+        service-based income, gains via overcoming competitors)
+  - H11 = realised gain (the wealth has actually arrived)
+The IMPROVING houses (1, 2, 3, 6, 10, 11) are a CONTEXTUAL overlay
+useful as tiebreaker — they are not the primary verdict.
+
+WEALTH ACCUMULATION vs INCOME:
+H2 = saved wealth (bank balance, assets)
+H11 = regular income, gains from various sources
+H10 = profession as source
+H6 = service/salary income
+
+FINANCIAL LOSS:
+H12 activated → expenditure
+H8 activated → debt or hidden financial issues
+H6 and H12 together → cheated by others
+
+GETTING MONEY OWED TO YOU:
+"H6 sub lord signifying H2, H6, H11 AND no connection to Saturn → entangled money returned."
+"Saturn connected to H6 sub lord → money recovery difficulty."
+
+SPECULATION/INVESTMENTS:
+"H5 sub lord signifying H2, H6, H5, H11 → gains in speculation."
+"H5 is the house of speculation/stock market/gambling."
+Playing cards/betting: H5 sub lord signifying H6 and H11 → wins.
+
+================================================================
+WEALTH TYPE CLASSIFICATION (was PR A1.3-fix-19 in other_topics.txt §9)
+================================================================
+
+Real questions need wealth-TYPE distinction:
+
+EARNED WEALTH (self-acquired through career):
+  H2 sub lord signifying H6 + H10 + H11 (service + career + gain)
+  Strong Mercury or Sun in chain (skill/authority)
+  H10 + H11 dasha alignment
+
+INHERITED WEALTH (from parents/family):
+  H4 (mother property) or H8 (legacy/transformation) + H2
+  H4 sub lord signifying H2 + H8 = mother-side inheritance
+  H9 sub lord signifying H2 + H8 = father-side inheritance
+  Saturn or Jupiter often involved (long-term family wealth)
+  Specific timing: parental dasha (Sun/Moon) + H8 activation
+
+WINDFALL / SPECULATION (lottery, stocks, gambling):
+  H5 (speculation) + H8 (sudden) + H11 (gain)
+  H5 sub lord signifying H2 + H6 + H11 = profitable speculation
+  Rahu involvement often = unexpected windfall
+  Jupiter + Mercury + H5 = stock market gains
+  CAVEAT: Speculation gains are dasha-specific; don't predict permanent wealth from this alone
+
+REAL ESTATE / PROPERTY-DERIVED WEALTH:
+  H4 + H11 + Mars combination
+  Property appreciation: H4 sub lord active in long-running dasha
+  Selling property for gain: H10 + H11 (10th = sale; 11th = gain)
+
+BUSINESS / SELF-EMPLOYMENT WEALTH:
+  H7 + H10 + H11 (partnerships + profession + gain)
+  Lord of H10 strong + H7 sub lord active
+
+LOAN / DEBT EXPOSURE:
+  H6 + H8 (debt + obstacle)
+  H6 sub lord signifying H2 (incoming loan) or H12 (outgoing repayment)
+  Saturn affliction = long-term debt
+  Mars affliction = aggressive collection / disputes

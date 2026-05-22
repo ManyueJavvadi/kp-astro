@@ -1,0 +1,70 @@
+================================================================================
+KP ASTROLOGY — PROPERTY / REAL ESTATE COMPLETE RULES
+Source: K.S. Krishnamurti KP Readers + Vaastuinternational.com Rules
+Extracted PR A2.0d from other_topics.txt §3 + §10 (verbatim, no doctrine change)
+================================================================================
+
+RELEVANT HOUSES:
+PRIMARY: H4 (immovable property, land, buildings, home)
+SUPPORTING: H11 (fulfillment of desire), H12 (investment/money spent)
+KARAKA: Mars (karaka for immovable property, land, buildings)
+
+H4 CUSP RULES FOR PROPERTY:
+"Construction of house: Houses 4, 11, and 12 — sub lord of H4 cusp."
+"If H4 sub lord signifies 4, 11, and 12 → one will construct a house."
+"Mars must also come into picture for immovable properties and buildings."
+"Saturn also relevant for construction aspects."
+"H11 = fulfillment of desire, H12 = investment of money."
+
+BUYING vs CONSTRUCTING:
+Buying property: H4 + H11 + H12 → property purchase
+Also H6 involved (6th is 12th from 7th = seller's loss = buyer's gain)
+H9 also considered (9th is 12th from 4th of 7th)
+
+SELLING PROPERTY:
+"To sell a house: sub lord of H10 signifies 3 and 10."
+"Houses 3, 5, and 10 judged for selling; 3 and 12 for giving possession."
+"H4 = buyer's property; H10 = buyer's acquisition (4th from 7th)."
+
+PROPERTY IN FOREIGN COUNTRY:
+Foreign property: H4 (property) + H12 (foreign land/investment) + H9 (abroad)
+H4 connected to H12 and H9 = property purchase in foreign country
+H11 must also be connected for the purchase to be fulfilling/successful
+
+TIMING FOR PROPERTY:
+Mars dasha/AD: Strong property acquisition period (Mars = immovable property karaka)
+Saturn AD: Slow but steady property building (construction focus)
+Venus AD: Comfortable property, vehicle acquisition
+Jupiter AD: Expansion of property holdings
+Rahu AD: Unconventional or foreign property
+
+================================================================
+PROPERTY TYPE (was PR A1.3-fix-19 in other_topics.txt §10)
+================================================================
+
+SELF-PURCHASED HOME:
+  H4 + H11 + H12 (effort + gain + investment)
+  H4 sub lord active + Mars favourable
+
+INHERITED PROPERTY:
+  H4 + H8 (legacy)
+  H8 sub lord signifying H4 + H2
+
+MULTIPLE PROPERTIES:
+  H4 in dual sign + multiple planet involvement
+  H4 sub lord in fixed sign with strong significators = stable multi-property
+
+PROPERTY ABROAD:
+  H4 + H9 + H12 connection (already covered in foreign.txt; cross-reference)
+
+TIMING FOR PROPERTY EVENTS:
+  Mars dasha = strongest acquisition trigger
+  Saturn dasha = construction / structured building
+  Venus dasha = comfort property (vehicles/luxury home)
+  Jupiter dasha = expansion / new property
+  Rahu dasha = unconventional / foreign property
+
+SALE OF PROPERTY:
+  H10 sub lord signifies H3 + H10 = sale activated
+  H10 + H11 = sale with gain
+  H10 + H12 = sale at loss
