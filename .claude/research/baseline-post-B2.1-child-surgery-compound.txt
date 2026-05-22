@@ -1,0 +1,179 @@
+Q: My 3-month-old child has been diagnosed with a congenital heart defect. Doctors say without surgery the child will not survive past one year. The surgery costs 40 lakhs with 60 percent success rate, but we have only 15 lakhs saved. Should we proceed?
+
+> **NOTE — Tier 3 reading. This is a KP structural analysis only — not a medical verdict, not a financial prescription, not a legal opinion. Final outcome depends on your medical team, your family's resolve, and factors KP does not measure. Please consult your pediatric cardiologist, a hospital social worker, and a family counsellor before making this decision. Both structural branches are read below.**
+
+---
+
+## CHILD ILLNESS ANALYSIS — Manyue (30M)
+**May 22, 2026** | Reading via parent's chart (Bhavat Bhavam ~70% confidence) | Houses: {5, 2, 11}
+
+---
+
+### 1. DIRECT VERDICT
+
+**CONDITIONAL — MIXED harmony. Engine confidence: 65/100.**
+
+The H5 CSL (Venus) signifies H2 (relevant) but also H1 and H7 (denial). The deciding sub layer is Venus itself — which carries the same mixed signal. This is not a clean promise nor a clean denial: the child's structural vitality thread is alive, but the path to recovery requires specific conditions to align. The current dasha (Sun MD + Saturn AD) has both lords signifying relevant houses, meaning the timing is structurally active — the question is not *whether* the chart supports intervention, but *which window* carries the highest structural support.
+
+**CONFLICTING SIGNALS:**
+- Signal pointing YES: H5 CSL Venus's SELF layer signifies H2 (relevant for child's vitality/family expansion). Jupiter — A-level significator of H2 — is in the Ruling Planets (Asc Star Lord). Jupiter aspects H5 directly from H9. Jupiter in own sign Sagittarius = strong native expression.
+- Signal pointing NO: H5 CSL Venus's STAR layer (Mars) signifies H1 and H8 — H1 is denial for children, H8 is surgical intervention/transformation. The sub layer (Venus again) carries H7 (denial). Step 4 final decider (Mars) signifies H1 and H8 — the "offer-then-withdrawn" risk is structurally present.
+- How they resolve: Per KSK strict, the sub layer is the deciding gate. Venus's sub layer touches H2 (relevant) AND H7 (denial) — this is a CONDITIONAL chart. The event (child's recovery/survival) fires in bhuktis where the H2 thread dominates, and faces obstruction in bhuktis where the H7/H1 thread dominates.
+
+---
+
+### 2. CUSPAL EVIDENCE
+
+**H5 CSL = Venus** (primary gate for child's vitality via parent's chart)
+
+Per chart data: Venus owns H2, H7.
+
+- **SELF layer** (Venus itself): occupies H2, owns H2 + H7 → signifies {2, 7}. H2 = RELEVANT. H7 = DENIAL.
+- **STAR layer** (Mars, Venus's star lord): occupies H1, owns H1 + H8 → signifies {1, 8}. H1 = DENIAL. H8 = surgical intervention (neutral modifier — not denial, but marks the surgical path).
+- **SUB layer** (Venus, Venus's sub lord — self-sub): same as SELF layer → {2, 7}. H2 = RELEVANT. H7 = DENIAL.
+- **Step 4 Final Decider** (Mars, star lord of Venus's sub lord): occupies H1, owns H1 + H8 → {1, 8}. H1 = DENIAL. H8 = surgical.
+- **Harmony verdict: MIXED** — relevant H2 is present in the self/sub layer, but denial H1 and H7 appear in both star and sub layers. The gate is partially open.
+
+**H5 SAV = 20/100** — this is the weakest SAV in the chart (average ~28). Structurally, H5 is the most challenged house. This is an independent confirmation that the child's vitality house carries structural stress.
+
+**H5 cusp sign = Leo (Fixed)** — fixed sign means once the matter is set in motion, it tends toward long duration. This cuts both ways: a recovery, once established, tends to hold; but an adverse pattern also tends to persist.
+
+**Supporting cusp cross-check:**
+- H2 CSL = Rahu → signifies {1, 2, 4, 6, 7, 8, 12}. H2 = RELEVANT. But H1, H4, H7 = DENIAL. H2 CSL is heavily mixed — the family-expansion/vitality-support gate is structurally burdened.
+- H11 CSL = Ketu → signifies {1, 3, 5, 6, 12}. H5 = RELEVANT. H1 = DENIAL. H11 CSL carries H5 (the child's body) — this is the recovery/fulfillment gate, and it does touch the relevant house.
+- **Multi-cusp tier: TIER 1** — primary H5 CSL signifies one relevant house (H2). Supporting cusps are mixed. This is KSK minimum promise — structurally present but not doubly confirmed.
+
+**INTERCEPTED SIGNS:** None flagged in this chart.
+
+**Stellium in H12 (Moon + Saturn + Ketu — tight cluster):** This is a high-signal structural feature. H12 = hospitalization, isolation, foreign expense, loss. A tight stellium here means the themes of H12 are powerfully concentrated in this chart. For a child-illness question, H12 stellium = significant hospitalization/medical-expense theme is structurally embedded. This is not a verdict — it is the chart's structural backdrop for why this situation has arisen.
+
+**Stellium in H1 (Sun + Mars + Mercury — loose cluster):** H1 = self/body/vitality. The native's own H1 is powerfully occupied. Via Bhavat Bhavam, H1 = child's H9 (dharma/fortune). A strong H1 in the parent's chart can indicate the child carries the parent's vitality thread — a favorable counter-signal.
+
+**Jupiter aspects H5 directly (from H9):** Jupiter in own sign Sagittarius, aspecting H5 — this is the single strongest favorable structural signal in this chart for the child. Jupiter is the karaka of children, in own sign, directly aspecting the child's house. Per KP doctrine, this is contextual quality — it does not override the CSL verdict, but it means the structural environment for the child is not without divine-grace support.
+
+**Ketu transiting H5 right now:** Transit Ketu is currently in Leo (H5). Ketu in H5 = separation/detachment theme active at the child's house. This is a structural caution signal for the current period — not a verdict, but a flag that the child's vitality house is under Ketu's separative influence right now.
+
+---
+
+### 3. FRUITFUL SIGNIFICATORS
+
+Today's RPs (per engine): Venus, Moon, Jupiter, Rahu, Mercury.
+
+Significators of relevant houses {5, 2, 11} that are also RP:
+- **Mercury** — C-level significator of H5 (in star of Sun who owns H5). Also Moon Star Lord RP. Mercury is combust (0.13° from Sun) — results are present but partially hidden/delayed.
+- **Jupiter** — A-level significator of H2 (in star of Venus who occupies H2). Also Asc Star Lord RP — the strongest RP slot. Jupiter in own sign. **This is the single most powerful fruitful significator for the child's matter today.**
+- **Venus** — B-level significator of H2 (occupies H2). Also Day Lord RP.
+
+Three fruitful significators — timing is structurally active at this query moment. Jupiter as Asc Star Lord RP + A-level H2 significator is the dominant signal: the child's family-vitality thread is alive and Jupiter is currently ruling.
+
+---
+
+### 4. TIMING WINDOWS — THE FIVE AXES
+
+**Axis 1: Child's structural vitality (via parent's H5)**
+
+Current period: Sun MD (2022–2028) + Saturn AD (Nov 2025 – Oct 2026).
+
+Per chart data: MD Sun signifies H1 and H5. H5 = RELEVANT. Sun is a self-strength planet (in own star). Sun owns H5 — this is the child's vitality house lord running as MD. This is structurally significant: the MD lord IS the owner of the child's house. The entire Sun MD (through Dec 2028) carries the child's vitality theme.
+
+Saturn AD signifies H10, H11, H12. H11 = RELEVANT (recovery/fulfillment). Saturn is also a self-strength planet. Saturn AD touches H11 — the fulfillment/recovery gate is open in this AD.
+
+**Joint period assessment (current):**
+- MD Sun: signifies H5 (relevant) ✓
+- AD Saturn: signifies H11 (relevant) ✓
+- PAD Moon (May 19 – Jun 17): signifies H4 and H12. H4 = DENIAL. H12 = hospitalization. This PAD is structurally the hospitalization/medical-care window — not the recovery window.
+- Sookshma Mars (May 21–23, right now): signifies H1 and H8. H1 = DENIAL. H8 = surgical. **The current sookshma is the surgical-intervention marker — Mars in H8 context = the knife/procedure is structurally active right now.**
+
+**Upcoming favorable PADs within Saturn AD:**
+- Jupiter PAD (Aug 28 – Oct 14, 2026): Jupiter is A-level H2 significator + Asc Star Lord RP. This is the strongest recovery/support window within the current AD. Jupiter aspects H5 natally. **This is the structural peak window for favorable intervention outcome within the current dasha.**
+- Sookshma Jupiter within Jupiter PAD (Aug 28 – Sep 3, 2026): Jupiter sookshma within Jupiter PAD = concentrated favorable signal. If surgery timing is elective, this window carries the highest structural support.
+
+**Axis 2: Surgical intervention support (via parent's H12 = child's H8)**
+
+H12 CSL = Mercury → signifies {1, 3, 4, 5, 6, 12}. H5 = RELEVANT. H12 = hospitalization. H1 = DENIAL.
+
+The surgical gate (H12 = child's H8) carries H5 (child's body) in its chain — this means the surgical intervention is structurally connected to the child's vitality. The H12 CSL does touch the relevant house. However, H1 (denial) is also present — the "offer-then-withdrawn" risk at Step 4 (Moon → H12, H4) adds a complication thread.
+
+H8 CSL = Mars → signifies {1, 2, 7, 8}. H2 = RELEVANT. H8 = surgical. Mars in own sign Aries = strong native expression. The surgical house's own CSL carries H2 (family vitality) — this is a favorable signal for surgical outcome.
+
+**Recovery gate (H3 = child's H11):** H3 CSL = Rahu → signifies {1, 2, 4, 6, 7, 8, 12}. H2 = RELEVANT. The recovery/fulfillment gate for the child (via parent's H3) does carry H2. However, Rahu's proxy chain (star lord Moon → H12, H4) adds the hospitalization thread. Recovery is structurally possible but comes through a prolonged medical/hospital path.
+
+**Axis 3: Parents' financial capacity (H2 + H11)**
+
+H2 SAV = 28 (average), H11 SAV = 37 (strong — highest in chart). The H11 (gains/income) house is structurally the strongest house in this chart. This is a significant favorable signal: the native's income/gains house is powerfully supported.
+
+The ₹25L gap (₹40L needed, ₹15L saved): H11 CSL = Ketu → signifies {1, 3, 5, 6, 12}. H5 = RELEVANT. The gains house CSL carries H5 (the child's house) — structurally, the financial mobilization for the child is connected to the child's own vitality thread. This is a favorable alignment: the money-raising effort and the child's survival are structurally linked.
+
+Mercury AD (Oct 2026 – Aug 2027): Mercury is a fruitful significator (RP + H5 significator). Mercury AD will activate the H3/H6 axis (communication, service, income from work). This is a structurally favorable period for income generation and financial mobilization.
+
+**Axis 4: Parents' mental resilience**
+
+H12 stellium (Moon + Saturn + Ketu, tight): Moon is vargottama (D1=Aries, D9=Aries) — the native's emotional core is concentrated and pure, but Moon is in gandanta (Pisces-Aries junction) — emotional anxiety and transformation themes are structurally embedded. Moon in H12 = emotional life is in the house of loss/isolation. Saturn in H12 = disciplined endurance through loss. Ketu in H12 = spiritual detachment as a coping mechanism.
+
+Current Sade Sati: RISING phase (Phase 1). This is the first 2.5 years of Sade Sati — foundation challenges, anxiety, work pressure. The native is structurally in a period of identity-level pressure. This is not a verdict — it is the backdrop explaining why this period feels so heavy.
+
+**The native's own H1 stellium (Sun + Mars + Mercury)** — Lagna lord Mars in own house, own sign Aries = strong self-reliant identity. The native has structural resilience. Mars in own sign = the capacity to act decisively under pressure is structurally present.
+
+**Axis 5: The decision itself**
+
+Decision Support Ledger score: 75.5/100 — STRONG GO (per engine). This score reflects the structural alignment of the chart with the topic being active and supported. It does not mean "proceed with surgery" — it means the chart's structural environment is aligned with the child-vitality matter being actively engaged.
+
+---
+
+### 5. PRATYANTARDASHA — SURGICAL TIMING GUIDANCE
+
+Within current Saturn AD, the PAD-level structural map:
+
+| PAD | Dates | Structural signal | Assessment |
+|---|---|---|---|
+| Moon PAD | May 19 – Jun 17 | H4 (denial) + H12 (hospital) | Current — hospitalization/diagnosis window |
+| Mars PAD | Jun 17 – Jul 7 | H1 (denial) + H8 (surgical) | Surgical-intervention marker; H1 denial present |
+| Rahu PAD | Jul 7 – Aug 28 | H4 (denial) dominant | Avoid for elective procedures |
+| **Jupiter PAD** | **Aug 28 – Oct 14** | **H2 (relevant) + H11 (relevant)** | **PEAK WINDOW — strongest structural support** |
+
+Within Jupiter PAD, the Jupiter sookshma (Aug 28 – Sep 3, 2026) is the day-precision peak. Jupiter is Asc Star Lord RP + A-level H2 significator + in own sign + directly aspecting H5. If surgery timing is at all negotiable, the Jupiter PAD (Aug 28 – Oct 14, 2026) — and specifically the Jupiter sookshma within it (Aug 28 – Sep 3) — carries the highest structural support for a favorable outcome.
+
+**Falsifiable timing statement:** If surgery is performed in the Jupiter PAD window (Aug 28 – Oct 14, 2026) and the structural signals do not manifest favorably, this specific prediction is wrong. Audit at that point. The astronomical dates of Jupiter PAD are fixed — they cannot move.
+
+---
+
+### 6. PRE-ANSWERED FOLLOW-UPS
+
+**"Does the chart show the child surviving long-term?"**
+The Sun MD runs through December 2028. Sun owns H5 (child's house) and is a self-strength planet. The entire MD carries the child's vitality theme. Venus AD (Dec 2027 – Dec 2028) is the final AD of Sun MD — Venus is the H5 CSL itself, and Venus is a KSK-timing trigger (sub-lord of H5 primary cusp). The Venus AD is structurally the most concentrated child-vitality window in the entire Sun MD. If the child survives through the Jupiter PAD window (Aug–Oct 2026), the structural environment through Venus AD (2027–2028) carries continued vitality support.
+
+**"How do we raise the ₹25L gap?"**
+H11 SAV = 37 (strongest house in chart). Mercury AD (Oct 2026 – Aug 2027) activates H3/H6 (communication, service, income). Rahu is in H11 by transit right now — Rahu in H11 = unconventional gains, crowdfunding, network-based fundraising. Structurally, the chart supports raising funds through community/network channels (Ketto, Milaap, ImpactGuru) and through the native's professional network. The H11 strength is the chart's most powerful asset for this specific challenge.
+
+**"Is there a Yogini cross-check concern?"**
+Yes — the engine flags a conflict: Vimsottari AD Ketu (2027) and Venus (2027–2028) both fire the KSK timing rule, but the concurrent Yogini lord (Rahu) is NOT a topic significator. This means the two timing systems disagree on those windows. The Jupiter PAD within Saturn AD (Aug–Oct 2026) does not carry this conflict — it is within the current Saturn AD where both systems are running Sankata (Rahu) Yogini, and Rahu is in H11 (relevant via H11 SAV strength). The Jupiter PAD window is the cleaner structural window.
+
+---
+
+### 7. WHAT THIS READING DOES NOT MEASURE
+
+- The specific surgeon's skill and the hospital's pediatric cardiac surgery track record
+- Medical advances between now and the procedure date
+- The child's own individual resilience and response to anesthesia/surgery
+- The family's love, prayer, and resolve — which KP perceives at a structural level but cannot quantify
+- The possibility that the doctors' 60% success estimate is itself wrong (individual outcomes diverge from population statistics)
+- Divine grace / the child's own karma, which KP senses but never resolves fully
+
+---
+
+### 8. THREE STRUCTURAL BRANCHES
+
+**Branch A — Proceed, favorable outcome:**
+Jupiter PAD (Aug 28 – Oct 14, 2026) carries H2 + H11 (both relevant). Jupiter is A-level H2 significator, Asc Star Lord RP, in own sign, directly aspecting H5. Sun MD carries H5 (child's house) through Dec 2028. Venus AD (Dec 2027 – Dec 2028) is the KSK-timing trigger for H5. If surgery is performed in the Jupiter PAD window and recovery proceeds, the structural environment through Venus AD supports continued vitality. The H11 SAV = 37 (strongest house) supports financial mobilization. This branch is structurally supported.
+
+**Branch B — Proceed, adverse outcome:**
+H5 CSL Venus's Step 4 final decider (Mars) signifies H1 (denial) and H8 (surgical transformation). The "offer-then-withdrawn" risk is structurally present. H5 SAV = 20 (weakest house in chart). Ketu transiting H5 right now = separative influence on child's vitality house. Moon PAD (current) signifies H12 (hospitalization) + H4 (denial). If surgery is performed in the current Moon PAD or Mars PAD (before Aug 28), the structural support is weaker. This branch is also structurally present — the chart does not give a clean promise.
+
+**Branch C — Defer or decline treatment:**
+This is the hardest branch to articulate, and it belongs entirely to the family. The chart shows H12 stellium (Moon + Saturn + Ketu) — a structural theme of acceptance, spiritual detachment, and endurance through loss. Ketu in H12 = liberation/moksha themes. Saturn in H12 = disciplined acceptance. Some families find peace in declining heroic intervention when the structural prognosis is uncertain; some find peace in pursuing every avenue. Both are valid paths. KP does not prescribe which path is right — it shows the structural backdrop. If the family chooses this branch, the chart's H12 stellium suggests the capacity for spiritual endurance is structurally present.
+
+---
+
+### 9. CLIENT SUMMARY (plain English)
+
+"The chart shows your child's vitality house is structurally active —
