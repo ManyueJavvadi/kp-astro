@@ -743,3 +743,123 @@ When user asks "what will my spouse be like?" produce a profile section:
   DO explain the chart shows the SHAPE of the partnership, not the specific
     person.
 
+
+================================================================================
+SECTION 14: IN-LAWS RELATIONSHIPS — BHAVAT BHAVAM FROM H7 (PR B3.2)
+================================================================================
+
+In-law relationships (especially in Indian contexts where joint family
+dynamics matter) deserve dedicated KP doctrine. Read via Bhavat Bhavam
+from H7 (the spouse).
+
+14.1 — BHAVAT BHAVAM MAPPING (in-laws via spouse's chart-from-yours)
+
+Since spouse = H7 of native, spouse's chart begins at native's H7.
+Spouse's other houses count forward from there.
+
+| Relative          | Spouse's house              | = Native's house |
+|---|---|---|
+| Spouse themselves | H1 (their own body)         | H7 |
+| Mother-in-law     | H4 (spouse's mother)        | H10 (4th from 7th) |
+| Father-in-law     | H9 (spouse's father)        | H3 (9th from 7th) |
+|                   | OR H10 (spouse's father's status) | H4 |
+| Brother-in-law    | H3 (spouse's brother)       | H9 (3rd from 7th) |
+| Sister-in-law     | H3 (spouse's sister)        | H9 |
+| In-laws' wealth   | H2 (spouse's family wealth) | H8 (2nd from 7th) |
+| In-laws' home     | H4 (spouse's home)          | H10 |
+
+Note: traditional Vedic uses H10 for mother-in-law (8th from H4 mother
+= 10th, "the woman who becomes mother through marriage") + H4 for
+father-in-law. KP doctrine accepts both lineages — KSK Reader notes
+both work in practice.
+
+14.2 — H10 / H4 CSL FOR IN-LAW RELATIONSHIPS
+
+For "how is my relationship with my mother-in-law":
+  - Native's H10 sub lord chain: does it signify H7+H11 (harmonious with
+    family) or H6+H8+H12 (friction/conflict)?
+  - Cross-check with native's H4 (own mother): if both H4 + H10 are
+    harmonious, family-of-origin pattern is healthy
+  - Venus favorable + H7 favorable = warm in-law bond
+  - Mars/Saturn afflicting H10 = mother-in-law conflict structurally
+    present
+
+For "how is my relationship with father-in-law":
+  - Native's H3 or H4 sub lord (depending on chosen lineage)
+  - Jupiter favorable = supportive father-in-law
+  - Sun afflicting = authority-conflict with father-in-law
+
+14.3 — SAAS-BAHU DYNAMICS (Indian cultural context)
+
+The classical mother-in-law / daughter-in-law tension in joint Indian
+families has specific KP signatures:
+
+  - Native's H4 (own mother) and H10 (mother-in-law) BOTH afflicted +
+    in conflict-houses → structural saas-bahu conflict
+  - Moon (mother karaka) afflicted = strained relationship with maternal
+    figures generally
+  - Recommend: Venus-favorable bhuktis for relationship-repair efforts;
+    Mercury-favorable for clear communication
+
+14.4 — LIVING WITH IN-LAWS (joint family decisions)
+
+For "should we live with my in-laws" questions:
+
+  Favorable structural support:
+  - H4 (home) + H7 (partner) + H11 (community) all favorable
+  - Native's H4 sub lord signifies H11 (gain from home / family expansion)
+  - Jupiter favorable = harmonious joint family
+
+  Adverse structural support:
+  - H4 sub lord signifying H6 (conflict) + H8 (sudden disruption)
+  - Mars + Saturn affliction on H4 = friction structural
+  - H10 (career / status) afflicted via joint-living dynamic
+
+  Decision-support framing:
+  - Present both branches (joint vs separate)
+  - Acknowledge cultural pressure / financial pressure
+  - Recommend: family counselor + clear boundary-setting + trial period
+    if uncertain
+
+14.5 — IN-LAW HEALTH (mother-in-law / father-in-law illness)
+
+When asking about in-law's HEALTH:
+  - Cross-link to `health.txt` + apply double Bhavat Bhavam:
+    Mother-in-law's H1 = native's H10
+    Mother-in-law's H6 (disease) = native's H3 (= 6th from native's H10)
+    Mother-in-law's H8 (longevity stress) = native's H5 (= 8th from H10)
+  - Confidence floor: ~70% via double Bhavat Bhavam; recommend
+    mother-in-law's own birth data for precision
+  - Apply RULE 15 absolute (NEVER predict death timing for in-laws)
+
+14.6 — IN-LAW WEALTH / INHERITANCE
+
+For questions about wealth flowing from in-laws (inheritance):
+  - Native's H8 sub lord (= spouse's family wealth via Bhavat Bhavam)
+  - Native's H8 + H2 + H11 favorable = wealth from in-laws structurally
+    indicated
+  - Saturn affliction = delayed or contested inheritance from in-laws
+  - DOWRY-related questions: frame carefully — dowry demands are
+    illegal in India (Dowry Prohibition Act 1961); the chart can show
+    in-law wealth flow without normalizing dowry demands
+
+14.7 — PROTECTIVE FRAMING FOR IN-LAW QUESTIONS
+
+  - Acknowledge cultural complexity (joint family vs nuclear)
+  - Don't shame either party (native or in-laws)
+  - Frame conflict as STRUCTURAL pattern, not character flaw
+  - Recommend: family counselor + clear communication + boundaries
+  - For health questions: cross-link to health.txt + RULE 15 absolute
+  - For severe conflict: recommend separation if structurally indicated
+    (don't force-fit "joint family must work")
+  - Spouse's emotional position is critical — recommend spouse-native
+    alignment first before approaching in-law dynamic
+
+14.8 — CROSS-LINKS
+
+  - `second_marriage.md` (PR B3.1) — second-marriage in-laws have
+    different dynamic (often more cordial, less expectation-laden)
+  - `parents_family.md` — own parents framework (cross-reference)
+  - `longevity.md` (PR B2.2) — in-law longevity questions (Tier 3)
+  - `divorce.txt` — in-law role in divorce contexts
+  - RULE 13 (Bhavat Bhavam mandatory for relative questions)
