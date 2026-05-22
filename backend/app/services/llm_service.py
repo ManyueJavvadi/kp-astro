@@ -242,12 +242,12 @@ TOPIC_TO_FILE = {
     "gambling_addiction":     "addiction.md",
 
     # ── BATCH 3 (PR B3.0a — relationships beyond immediate marriage) ──
-    # second_marriage / spouse_character / in_laws → marriage.txt + expansions
-    "second_marriage":        "marriage.txt",   # B3.1 will add dedicated section
-    "remarriage":             "marriage.txt",
-    "third_marriage":         "marriage.txt",
-    "widowhood_remarriage":   "marriage.txt",
-    "after_divorce":          "marriage.txt",
+    # second_marriage cluster → dedicated second_marriage.md (PR B3.1)
+    "second_marriage":        "second_marriage.md",
+    "remarriage":             "second_marriage.md",
+    "third_marriage":         "second_marriage.md",
+    "widowhood_remarriage":   "second_marriage.md",
+    "after_divorce":          "second_marriage.md",
     "spouse_character":       "marriage.txt",   # B3.2 expansion
     "spouse_profile":         "marriage.txt",
     "partner_character":      "marriage.txt",
