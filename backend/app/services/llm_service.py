@@ -224,22 +224,22 @@ TOPIC_TO_FILE = {
     "autism":                 "child_health.md",
     "heart_defect":           "child_health.md",
 
-    # ── Pregnancy cluster (PR B2.0a — to children file until B2.6) ──
-    "pregnancy_complications": "general.txt",  # → pregnancy.md after B2.6
-    "miscarriage":             "general.txt",
-    "abortion":                "general.txt",
-    "c_section":               "general.txt",
-    "high_risk_pregnancy":     "general.txt",
-    "delivery":                "general.txt",
+    # ── Pregnancy cluster (PR B2.6 — dedicated pregnancy.md) ──
+    "pregnancy_complications": "pregnancy.md",
+    "miscarriage":             "pregnancy.md",
+    "abortion":                "pregnancy.md",
+    "c_section":               "pregnancy.md",
+    "high_risk_pregnancy":     "pregnancy.md",
+    "delivery":                "pregnancy.md",
 
-    # ── Addiction cluster (PR B2.0a — to general until B2.5) ──
-    "addiction":              "general.txt",  # → addiction.md after B2.5
-    "alcohol":                "general.txt",
-    "alcoholism":             "general.txt",
-    "drugs":                  "general.txt",
-    "substance":              "general.txt",
-    "smoking":                "general.txt",
-    "gambling_addiction":     "general.txt",
+    # ── Addiction cluster (PR B2.5 — dedicated addiction.md) ──
+    "addiction":              "addiction.md",
+    "alcohol":                "addiction.md",
+    "alcoholism":             "addiction.md",
+    "drugs":                  "addiction.md",
+    "substance":              "addiction.md",
+    "smoking":                "addiction.md",
+    "gambling_addiction":     "addiction.md",
 
     # ── Property/vehicle (PR A2.0d → dedicated files) ──
     "vehicle":            "vehicle.md",
