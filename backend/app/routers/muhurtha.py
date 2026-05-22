@@ -4,6 +4,8 @@ from typing import Optional, List
 
 from app.services.muhurtha_engine import find_muhurtha_windows
 from app.services.llm_service import get_muhurtha_prediction
+from app.services.timezone_utils import resolve_birth_offset, resolve_timezone
+from datetime import datetime as _dt
 
 router = APIRouter()
 
@@ -47,18 +49,45 @@ class MuhurthaAnalyzeRequest(BaseModel):
 
 @router.post("/find")
 def find_muhurtha(request: MuhurthaRequest):
+    # PR A1.12 — resolve birth-date-correct offset for each participant
+    # AND for the event location. Frontend's offset numbers are fallback
+    # only — see timezone_utils.resolve_birth_offset for the bug story.
+    participants_resolved = []
+    for p in request.participants:
+        p_dump = p.model_dump()
+        _o, _ = resolve_birth_offset(
+            p_dump["latitude"], p_dump["longitude"],
+            p_dump["date"], p_dump["time"],
+            fallback_offset=p_dump.get("timezone_offset", 5.5),
+        )
+        p_dump["timezone_offset"] = _o
+        participants_resolved.append(p_dump)
+
+    # Event location offset — resolve at the START of the search range
+    # since muhurtha hunts typically span ≤30 days (within one DST window).
+    event_lat = request.event_lat if request.event_lat is not None else request.latitude
+    event_lon = request.event_lon if request.event_lon is not None else request.longitude
+    try:
+        _ev_dt = _dt.strptime(request.date_start, "%Y-%m-%d")
+        _ev_off, _ = resolve_timezone(event_lat, event_lon, _ev_dt)
+    except Exception:
+        _ev_off = request.event_tz if request.event_tz is not None else request.timezone_offset
+    # Querent (natal RP) location offset — resolved at today's date since
+    # RPs are evaluated at the present moment of the consultation.
+    _q_off, _ = resolve_timezone(request.latitude, request.longitude)
+
     return find_muhurtha_windows(
         date_start=request.date_start,
         date_end=request.date_end,
         event_type=request.event_type,
         lat=request.latitude,
         lon=request.longitude,
-        tz_offset=request.timezone_offset,
+        tz_offset=_q_off,
         nearby_days=request.nearby_days,
-        participants=[p.model_dump() for p in request.participants],
-        event_lat=request.event_lat,
-        event_lon=request.event_lon,
-        event_tz=request.event_tz,
+        participants=participants_resolved,
+        event_lat=event_lat,
+        event_lon=event_lon,
+        event_tz=_ev_off,
     )
 
 

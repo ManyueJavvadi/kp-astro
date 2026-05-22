@@ -3031,6 +3031,19 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
     """
     swe.set_sid_mode(swe.SIDM_KRISHNAMURTI_VP291)
 
+    # PR A1.12 — Override caller-supplied timezone_offset with the
+    # birth-date-correct value resolved from each person's lat/lon.
+    # See timezone_utils.resolve_birth_offset docstring for why the
+    # frontend's number cannot be trusted.
+    from app.services.timezone_utils import resolve_birth_offset
+    for _person in (person1, person2):
+        _resolved, _ = resolve_birth_offset(
+            _person["latitude"], _person["longitude"],
+            _person["date"], _person["time"],
+            fallback_offset=_person.get("timezone_offset", 5.5),
+        )
+        _person["timezone_offset"] = _resolved
+
     chart1 = _build_chart(person1)
     chart2 = _build_chart(person2)
 

@@ -1,7 +1,9 @@
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 from typing import Optional
+from datetime import datetime as _dt
 from app.services.transit_engine import analyze_transits
+from app.services.timezone_utils import resolve_timezone
 
 router = APIRouter()
 
@@ -23,10 +25,21 @@ class TransitRequest(BaseModel):
 
 @router.post("/analyze")
 def transit_analyze(request: TransitRequest):
+    # PR A1.12 — resolve transit-date-correct UTC offset for the
+    # astrologer's CURRENT location. The frontend's `timezone_offset`
+    # is a fallback only for ocean / unresolvable coordinates.
+    try:
+        if request.transit_date:
+            _td = _dt.strptime(request.transit_date, "%Y-%m-%d")
+        else:
+            _td = _dt.utcnow()
+        _tz, _ = resolve_timezone(request.latitude, request.longitude, _td)
+    except Exception:
+        _tz = request.timezone_offset
     return analyze_transits(
         natal=request.natal,
         transit_date=request.transit_date,
         lat=request.latitude,
         lon=request.longitude,
-        tz_offset=request.timezone_offset,
+        tz_offset=_tz,
     )

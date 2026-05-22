@@ -432,4 +432,91 @@ Opt-in restoration is one-line: delete the `raise HTTPException(410)` in the end
 - **Active tab pill** is gold-tinted background + 2px gold underline. Hover tints inactive tabs gold-faint.
 - **Analysis tab right-rail TOC** appears when `analysisMessages.length >= 2`. Each AI bubble carries `id="analysis-msg-{id}"` for smooth-scroll targets. Hidden below 1100px viewports via `.kp-hide-below-1100`.
 - **Phase 9 keyframes** (`kp-spin`, `kp-pa-btn`, constellation specks, `kp-reveal-*`) live in `frontend/app/globals.css` so components stay SSR-clean (no styled-jsx).
+
+---
+
+## 2026-05-22 (Friday) — PR A1.12 (chart-accuracy hotfix)
+
+### Bug report
+Dad cross-checked a US-birth chart (Fremont CA, 19/10/2000 21:05) and called it
+"all wrong" — lagna, every cusp, every planet position. User correctly spotted
+the place picker showing **"tz IST (UTC+5.5)"** for a California birthplace.
+
+### Root cause (two stacked bugs, the second latent)
+1. **Frontend silent IST fallback.** Place picker called bigdatacloud
+   reverse-geocode-client to resolve lat/lon → IANA tz. The API often
+   doesn't return a `timezone` field for non-Indian coordinates; the
+   client's two fallback paths both `.catch(() => {})` silently. React
+   state default (`timezoneOffset=5.5, label="IST"`) was never
+   overridden → backend got `timezone_offset: 5.5` → engine computed
+   the chart for **09:05 PM IST** (= 03:35 PM UTC) instead of
+   **09:05 PM PDT** (= 04:05 AM UTC next day). Twelve-and-a-half-hour
+   error. Lagna landed in Libra instead of Taurus.
+2. **Historical DST ignored.** Even when the lookup *did* work, the
+   frontend computed the offset using `new Date()` (current moment),
+   not the BIRTH date. For any region whose DST rules have changed
+   (US pre-2007, Indianapolis pre-2006, Russia pre-2011) this gives
+   a 1-hour error that would silently corrupt charts.
+
+### Fix — PR A1.12 (commit pending)
+- Backend is now source of truth for the UTC offset.
+- New `timezone_utils.resolve_birth_offset(lat, lon, date, time, fallback)`
+  helper: `timezonefinder` resolves lat/lon → IANA name (offline, pure
+  Python, no network); `zoneinfo` then computes the UTC offset AT the
+  birth date with full historical DST awareness.
+- Applied at every chart-generating entry point:
+  - `chart_pipeline.build_full_chart_data` (covers `/astrologer/analyze`
+    + `/astrologer/analyze-stream` + `/prediction/ask` + `/prediction/ask-stream`)
+  - `chart.py` `/generate`, `/analyze`
+  - `astrologer.py` `/workspace`
+  - `compatibility_engine.compute_compatibility` (covers `/compatibility/match` + `/compatibility/analyze`)
+  - `muhurtha.py` `/find` (participants + event location + querent location)
+  - `transit.py` `/analyze` (current location for transit moment)
+  - `horary.py` `/analyze` (query-time DST window)
+- Frontend `page.tsx`: stores IANA name in new `timezoneIana` state;
+  useEffect recomputes displayed offset+label using the BIRTH date
+  whenever date or IANA name changes. Both place-picker handlers
+  (onboarding + new-chart modal) updated.
+- Regression: 12 new tests in `backend/tests/test_timezone_resolution.py`
+  including the literal bug fixture (Fremont 19/10/2000 21:05 → PDT/-7
+  → lagna Taurus) plus US-historic-DST quirks, Nepal +5.75 sub-hour,
+  London BST, IST sanity, and a negative control that asserts the
+  broken IST chart STILL puts lagna in Libra (so anyone who defensive-
+  codes the engine to "always resolve" breaks this test and gets a
+  signpost to the right place).
+
+### Verification
+- 88/88 backend tests pass (76 prior + 12 new).
+- `npx tsc --noEmit` clean. `npx next build` clean.
+- Manual: `generate_chart(Fremont, 2000-10-19, 21:05)` BEFORE fix:
+  Lagna **Libra 16.90°** (matches user's screenshot). AFTER fix:
+  Lagna **Taurus 24.39°** (correct PDT chart).
+
+### Impact + caveat
+- **Every chart for a non-Indian birthplace was computed at the wrong
+  UTC instant.** Users outside India saw garbage output. Match analyses
+  for any cross-tz couple were also wrong on at least one side.
+- Existing saved chart sessions in users' localStorage still carry the
+  bad `timezone_offset: 5.5`. The backend now overrides this on every
+  request → re-opening a saved chart will quietly fix it. No migration
+  needed for `/api` callers; the override is transparent.
+- The Analysis tab is sacred but this was the *engine* being wrong, not
+  the AI quality — fix is accuracy, not interpretation. Re-running any
+  saved Analysis on the fixed chart will now point at different houses /
+  cusps / dashas.
+
+### Notes for future Claude
+- **Never trust frontend-supplied `timezone_offset` for chart compute.**
+  Always pass through `resolve_birth_offset(lat, lon, date, time, fallback)`.
+  The frontend number is fallback-only for the ~0.1% of cases where
+  timezonefinder can't resolve (deep ocean / Antarctica).
+- **DST-fall-back ambiguous hours** (clock reads e.g. 01:30 twice on the
+  switch day): zoneinfo defaults to the first (pre-DST) occurrence. KP
+  accuracy needs are typically minute-level; the <0.01% of users born
+  in the rolled-back hour can subtract one hour from their typed time
+  to disambiguate. Not worth complicating the API.
+- **Saved sessions don't carry the IANA name** — only `timezone_offset`.
+  When restoring a session the frontend display shows the persisted
+  offset until the user picks a place again. Backend still recomputes
+  correctly because it uses lat/lon, not the saved offset.
 - **Phase 11 message type** added optional `t: number` field for timestamp. Old messages without it skip the timestamp row gracefully.

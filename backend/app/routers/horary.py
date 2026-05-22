@@ -11,8 +11,10 @@ Breaking API changes from the previous router:
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 from typing import Optional
+from datetime import datetime as _dt
 
 from app.services.horary_engine import analyze_horary
+from app.services.timezone_utils import resolve_timezone
 
 router = APIRouter()
 
@@ -31,13 +33,29 @@ class HoraryRequest(BaseModel):
 
 @router.post("/analyze")
 def horary_analyze(request: HoraryRequest):
+    # PR A1.12 — resolve query-time-correct UTC offset for the astrologer's
+    # current location. Horary is cast at the moment of question, so the
+    # offset must match the query_date's DST window (e.g. an astrologer
+    # in Toronto in November is on EST, in July is on EDT — different
+    # offsets, same lat/lon).
+    try:
+        if request.query_date and request.query_time:
+            _q_dt = _dt.strptime(
+                f"{request.query_date} {request.query_time}",
+                "%Y-%m-%d %H:%M",
+            )
+            _tz, _ = resolve_timezone(request.latitude, request.longitude, _q_dt)
+        else:
+            _tz, _ = resolve_timezone(request.latitude, request.longitude)
+    except Exception:
+        _tz = request.timezone_offset
     return analyze_horary(
         number=request.number,
         question=request.question,
         topic=request.topic,
         latitude=request.latitude,
         longitude=request.longitude,
-        timezone_offset=request.timezone_offset,
+        timezone_offset=_tz,
         query_date=request.query_date,
         query_time=request.query_time,
     )
