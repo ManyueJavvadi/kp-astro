@@ -163,6 +163,75 @@ TOPIC_TO_FILE = {
     "settlement":         "foreign.txt",
     "foreign":            "foreign.txt",
 
+    # ── BATCH 4 (PR B4.0a — property / foreign / vehicle / pilgrimage / visa) ──
+    # Visa cluster
+    "visa":                  "foreign.txt",   # B4.2 will add visa §
+    "visa_application":      "foreign.txt",
+    "visa_approval":         "foreign.txt",
+    "visa_rejection":        "foreign.txt",
+    "visa_appeal":           "foreign.txt",
+    "work_visa":             "foreign.txt",
+    "h1b":                   "foreign.txt",
+    "student_visa":          "foreign.txt",
+    "f1_visa":                "foreign.txt",
+    "tourist_visa":          "foreign.txt",
+    "business_visa":         "foreign.txt",
+    "pr_visa":               "foreign.txt",
+    "green_card":            "foreign.txt",
+    "citizenship":           "foreign.txt",
+    "passport":              "foreign.txt",
+    "return_from_abroad":    "foreign.txt",
+    "deportation":           "foreign.txt",
+    "expat":                 "foreign.txt",
+    "foreign_job":           "foreign.txt",
+
+    # Pilgrimage cluster (PR B4.4 will create pilgrimage.md)
+    "pilgrimage":            "general.txt",   # → pilgrimage.md after B4.4
+    "religious_journey":     "general.txt",
+    "spiritual_journey":     "general.txt",
+    "char_dham":             "general.txt",
+    "amarnath":              "general.txt",
+    "vaishno_devi":          "general.txt",
+    "tirupati":              "general.txt",
+    "sabarimala":            "general.txt",
+    "hajj":                  "general.txt",
+    "umrah":                 "general.txt",
+    "vatican":               "general.txt",
+    "kailash":               "general.txt",
+    "tirth_yatra":           "general.txt",
+
+    # Property cluster (refined — already routed to property.txt)
+    "buying_property":       "property.txt",
+    "selling_property":      "property.txt",
+    "real_estate":           "property.txt",
+    "home_loan":             "property.txt",
+    "mortgage":              "property.txt",
+    "construction":          "property.txt",
+    "house_construction":    "property.txt",
+    "land_purchase":         "property.txt",
+    "flat_purchase":         "property.txt",
+    "apartment":             "property.txt",
+    "rental":                "property.txt",
+    "tenant":                "property.txt",
+    "landlord":              "property.txt",
+    "property_inheritance":  "property.txt",
+    "ancestral_property":    "property.txt",
+    "property_dispute":      "litigation.txt", # land_dispute alias → litigation
+    "foreign_property":      "property.txt",
+
+    # Vehicle cluster (refined — already routed to vehicle.md)
+    "car_purchase":          "vehicle.md",
+    "bike_purchase":         "vehicle.md",
+    "scooter":               "vehicle.md",
+    "motorbike":             "vehicle.md",
+    "two_wheeler":           "vehicle.md",
+    "four_wheeler":          "vehicle.md",
+    "commercial_vehicle":    "vehicle.md",
+    "vehicle_loan":          "vehicle.md",
+    "vehicle_insurance":     "vehicle.md",
+    "used_car":              "vehicle.md",
+    "new_car":               "vehicle.md",
+
     # ── Litigation cluster (PR A2.0d → litigation.txt; A2.3 will expand) ──
     "court_case":         "litigation.txt",
     "lawsuit":            "litigation.txt",
@@ -2797,6 +2866,14 @@ HEALTH (refined):
 - "general health" or "vitality" = health
 - "ICU" or "critical care" or "intensive care" = icu
 - "discharge from hospital" = discharge
+
+BATCH 4 PROPERTY / FOREIGN / VEHICLE / PILGRIMAGE / VISA (NEW B4.0a):
+- "visa" / "visa application" / "visa approval" / "visa rejected" / "work visa" / "H1B" / "student visa" / "F1 visa" / "tourist visa" / "business visa" = visa
+- "PR" / "green card" / "citizenship" / "permanent residency" / "settle abroad permanently" = foreign_settle
+- "pilgrimage" / "religious journey" / "spiritual journey" / "char dham" / "tirupati" / "amarnath" / "hajj" / "umrah" / "vatican" / "kailash" / "tirth yatra" = pilgrimage
+- "buy a house/flat/land" / "real estate" / "construction" / "home loan" / "mortgage" / "tenant" / "landlord" / "rental" = property
+- "ancestral property" / "property inheritance" = property
+- "car" / "bike" / "scooter" / "motorbike" / "vehicle purchase" / "vehicle loan" / "used car" / "new car" = vehicle_purchase
 
 BATCH 3 RELATIONSHIPS (NEW B3.0a):
 - "second marriage" / "remarriage" / "after divorce" / "after wife/husband died" = second_marriage
