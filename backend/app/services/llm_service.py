@@ -183,6 +183,52 @@ USER_MODE_ADVANCED_FILES = [
     "ksk_rejections.md",
 ]
 
+# PR M1.11 — Match-mode lean universal KB.
+# Astrologer mode (the Analysis tab) loads 12 ADVANCED_FILES (~51K tokens of
+# universal KB). For Match the marriage_kb is loaded separately as the
+# topic-specific block, so the universal block only needs the marriage-
+# adjacent foundation files. We drop ~5 files that target other topics
+# (combined-query handling, generic confidence methodology, gold-standard
+# career/health examples, transit interpretation, full event-combination
+# catalogue) since none of them carry weight in a 2-chart marriage analysis.
+#
+# Files KEPT for match mode (marriage backbone):
+#   - kp_csl_theory.txt              — CSL 4-step, the heart of H7 promise
+#   - timing_confirmation.txt        — timing windows for marriage activation
+#   - planet_natures.txt             — Venus / Mars / Saturn natures
+#   - bhavat_bhavam.md               — H2 = 8th-from-H7, spouse longevity (M1.5)
+#   - ksk_rejections.md              — Manglik cancellation, anti-Parashari
+#   - pattern_library.md             — Pattern D2 + named marriage patterns (M1.2)
+#   - kp_multi_cusp_confirmation.md  — H2/H7/H11 multi-cusp confirmation
+#   - kp_ruling_planets_deep.md      — RPs for KSK stricter cross-rule (M1.4)
+#   - remedies.md                    — KP marriage parihara
+#
+# Files DROPPED for match mode (~30K tokens removed):
+#   - multi_factor_queries.md        — combined career+health+marriage queries
+#   - gold_standard_examples.md      — career/health worked examples
+#   - confidence_methodology.md      — engine score derivation (orthogonal)
+#   - transit_rules.txt              — transit interpretation (not primary for marriage)
+#   - house_combinations_canonical.md — full event catalogue (job/surgery/court)
+#
+# Estimated cache_write saving on first call: ~30K tokens × $3.75/M = ~$0.11
+# First match call drops from ~$0.47 → ~$0.30 with this change alone.
+# Cached follow-up calls unchanged at ~$0.10 (cache_read already cheap).
+#
+# Analysis tab (`mode="astrologer"`) is UNTOUCHED — it still loads all 12
+# ADVANCED_FILES. The two modes have separate cache keys in _TOPIC_CACHE
+# (`_universal` vs `_universal_match`) so they don't collide.
+MATCH_MODE_ADVANCED_FILES = [
+    "kp_csl_theory.txt",
+    "timing_confirmation.txt",
+    "planet_natures.txt",
+    "bhavat_bhavam.md",
+    "ksk_rejections.md",
+    "pattern_library.md",
+    "kp_multi_cusp_confirmation.md",
+    "kp_ruling_planets_deep.md",
+    "remedies.md",
+]
+
 # PR A1.3-fix-13 — conditional KB files (loaded only when topic matches
 # the relevance set). Each ~2-3K tokens; saves cache-read cost per
 # question on topics that don't need them.
@@ -252,11 +298,29 @@ def load_universal_kb(mode: str = "astrologer") -> str:
         Lean KB sufficient for Haiku narration of pre-computed
         engine verdicts in plain English.
 
+    PR M1.11 — added match mode:
+      - mode="match":      general.txt + 9 MATCH_MODE_ADVANCED_FILES
+        (~21K tokens). Lean marriage-relevant subset of astrologer mode.
+        Used exclusively by get_match_prediction. Saves ~$0.11 per
+        first-call cache write vs. astrologer mode. The Analysis tab
+        (mode="astrologer") is UNTOUCHED.
+
     Each mode has its own cache key in _TOPIC_CACHE so they don't
     collide. Astrologer mode behavior is unchanged from fix-13.
     """
-    is_user_mode = (mode or "").lower() == "user"
-    cache_key = "_universal_user" if is_user_mode else "_universal"
+    mode_norm = (mode or "").lower()
+    is_user_mode = mode_norm == "user"
+    is_match_mode = mode_norm == "match"
+
+    if is_match_mode:
+        cache_key = "_universal_match"
+        files = MATCH_MODE_ADVANCED_FILES
+    elif is_user_mode:
+        cache_key = "_universal_user"
+        files = USER_MODE_ADVANCED_FILES
+    else:
+        cache_key = "_universal"
+        files = ADVANCED_FILES
 
     if cache_key in _TOPIC_CACHE:
         return _TOPIC_CACHE[cache_key]
@@ -267,7 +331,6 @@ def load_universal_kb(mode: str = "astrologer") -> str:
     if general_section:
         content.append(general_section)
 
-    files = USER_MODE_ADVANCED_FILES if is_user_mode else ADVANCED_FILES
     for adv_file in files:
         section_name = (
             adv_file.replace(".md", "").replace(".txt", "")
@@ -4114,7 +4177,10 @@ def get_match_prediction(compat_result: dict, question: str, history: list = [],
     chart data and the prompt is augmented with a brief MATCH-MODE
     addendum describing how to apply the universal rules to two charts.
     """
-    universal_kb  = load_universal_kb(mode="astrologer")
+    # PR M1.11 — Match-mode lean universal KB (~21K tokens vs ~51K for
+    # astrologer mode). Drops 5 files irrelevant to a 2-chart marriage
+    # analysis. Analysis tab is unaffected (still uses astrologer mode).
+    universal_kb  = load_universal_kb(mode="match")
     marriage_kb   = load_topic_kb("marriage")
     match_summary = format_match_for_llm(compat_result)
 
@@ -4476,9 +4542,12 @@ KEY RULES — read carefully and apply strictly:
         },
     ]
 
+    # PR M1.11 — capped at 5000 (was 8000). Real Match answers complete in
+    # 3.5K-4.5K tokens; 8K let the model ramble and cost an extra ~$0.05
+    # per call. 5K is comfortably above observed p99 with no quality loss.
     message = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=8000,           # higher cap — deeper analysis
+        max_tokens=5000,
         temperature=0,
         system=system_blocks,
         messages=messages,

@@ -211,6 +211,71 @@ def make_key(
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
+def make_match_key(
+    *,
+    person1: dict,
+    person2: dict,
+    question: str,
+    language: str,
+    history: list | None = None,
+) -> str:
+    """Build the cache key for /compatibility/analyze (2-chart AI).
+
+    PR M1.11 — Match tab's `analyze_compatibility` endpoint hits Anthropic
+    on every chip-click and every freeform follow-up. Same astrologer
+    clicking the same chip on the same couple within 24h burns ~$0.10-
+    $0.47 each time. This key lets us short-circuit identical requests.
+
+    Symmetric in (person1, person2): swapping which chart is "p1" vs
+    "p2" must NOT produce a different key, because compute_compatibility
+    treats them symmetrically and any answer cached for (A,B) is just
+    as valid for (B,A). We sort the two person-fingerprints before
+    hashing to enforce this.
+
+    Includes today's IST date so the cache rolls daily — same reason as
+    the single-chart cache (dasha "today" + age tick + RP-of-the-day
+    drift). Includes language (telugu_english vs english produces a
+    different rendering).
+
+    History up to the last 4 Q/A pairs is included so a follow-up in a
+    chat thread cache-keys distinctly from the same question asked fresh.
+    """
+    def _fp(p: dict) -> str:
+        # Person fingerprint — fields that uniquely identify a chart.
+        return "|".join([
+            (p.get("name") or "").strip().lower(),
+            (p.get("date") or "").strip(),
+            (p.get("time") or "").strip(),
+            f"{float(p.get('latitude') or 0):.4f}",
+            f"{float(p.get('longitude') or 0):.4f}",
+            f"{float(p.get('timezone_offset') or 5.5):.2f}",
+            (p.get("gender") or "").strip().lower(),
+        ])
+
+    p1_fp = _fp(person1 or {})
+    p2_fp = _fp(person2 or {})
+    # Symmetric pair — sort so (A,B) and (B,A) hash identically.
+    pair = "||".join(sorted([p1_fp, p2_fp]))
+
+    # Compact history fingerprint — only the most recent 4 turns matter
+    # for determinism, identical to how get_match_prediction itself
+    # slices history[-4:] before sending to Anthropic.
+    history = history or []
+    hist_repr = "|".join(
+        (h.get("question", "") + "::" + h.get("answer", ""))[:200]
+        for h in history[-4:]
+    )
+
+    raw = "|||".join([
+        pair,
+        _today_ist(),
+        (language or "").strip().lower(),
+        _normalize_question(question),
+        hashlib.sha256(hist_repr.encode("utf-8")).hexdigest()[:16],
+    ])
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
 def get(key: str) -> Optional[tuple[str, dict]]:
     return _cache.get(key)
 
