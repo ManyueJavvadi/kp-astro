@@ -1,0 +1,140 @@
+TOPIC: health
+QUESTION: I have been diagnosed with hypertension. Will I recover well with treatment?
+
+============================================================
+
+## HEALTH ANALYSIS — Manyue (Hypertension / Recovery)
+**May 21, 2026** | Houses: Recovery = {1, 5, 11} | Disease = {6, 8, 12}
+
+---
+
+### 1. DIRECT VERDICT
+
+**CONDITIONAL — recovery is structurally possible but the deciding gate (H1 CSL sub layer) points to denial, creating a TENSION pattern. Engine confidence: 61/100.**
+
+The chart promises vitality through the star layer but the sub layer (Rahu → H6) blocks clean recovery. Recovery fires in bhuktis of relevant-house significators; disease deepens in bhuktis of denial-house significators. Hypertension is consistent with the chart's Mars-in-H1 + H12 stellium (Moon-Saturn-Ketu) signature — structurally embedded, manageable with treatment, not acutely dangerous.
+
+---
+
+### 2. CUSPAL EVIDENCE
+
+**H1 CSL = Mercury** (primary gate for self/vitality)
+
+Per chart data: Mercury owns H3, H6.
+
+- **SELF layer** (Mercury itself): occupies H1, owns H3, H6 → signifies {1, 3, 6}. H1 = RELEVANT; H6 = DENIAL.
+- **STAR layer** (Sun, Mercury's star lord): occupies H1, owns H5 → signifies {1, 5}. Both RELEVANT. Star says: vitality and recovery are alive.
+- **SUB layer** (Rahu, Mercury's sub lord): occupies H6, owns no house → signifies {6} via occupation. H6 = DENIAL. Rahu's full proxy signification = {6, 12, 4, 1, 3} — H6 and H12 are denial; H1 is relevant.
+- **Step 4 — FINAL DECIDER** (Moon, Rahu's star lord): occupies H12, owns H4 → signifies {4, 12}. H12 = DENIAL.
+
+**4-step union: {1, 3, 4, 5, 6, 12}** — H1 and H5 are relevant; H6 and H12 are denial.
+
+**Star–Sub Harmony: TENSION** — Star layer strongly points to recovery (H1, H5); Sub layer (Rahu→H6, Moon→H12) points to disease/loss. The deciding gate leans denial.
+
+**CONFLICTING SIGNALS:**
+- Signal pointing YES: Star layer (Sun) signifies H1 + H5 — vitality and recovery are structurally present ✓
+- Signal pointing NO: Sub layer (Rahu in H6) + Step 4 (Moon in H12) — disease and hospitalization/loss thread is the deciding layer ✗
+- How they resolve: Per KSK strict, the sub layer is the deciding gate. Recovery is possible but requires the right bhukti to activate the H1/H5 thread over the H6/H12 thread. This is not denial — it is bhukti-level conditional.
+
+**Supporting cusps:**
+
+- **H5 CSL = Venus** → 4-step union: {1, 2, 7, 8}. H1 = RELEVANT; H8 = DENIAL. Venus signifies H1 (recovery) but also H8 (surgery/chronic). Partial support — recovery thread present but with chronic/intervention overtone.
+- **H11 CSL = Ketu** → 4-step union: {1, 3, 5, 6, 12}. H1 + H5 = RELEVANT; H6 + H12 = DENIAL. Mixed — same TENSION pattern as H1 CSL.
+
+**Multi-cusp tier: TIER 0** — Primary CSL signifies relevant houses but supporting CSLs carry denial threads. Confidence 35–50% for smooth recovery; event fires in specific bhuktis only.
+
+**Structural health signature:**
+- H1 stellium (Sun, Mars, Mercury) — concentrated vitality, but Mars in H1 in own sign (Aries) = blood pressure, inflammation, heat-driven conditions. Mars rules H1 and H8 — the body is strong but prone to acute vascular stress.
+- H12 stellium (Moon, Saturn, Ketu) — tight cluster. Moon (mind/fluids) + Saturn (chronic/restriction) + Ketu (hidden/karmic) in H12 = chronic background drain, sleep disruption, hidden anxiety. This is the hypertension substrate: Mars-driven acute pressure + Saturn-Moon chronic background.
+- Jupiter aspects H1 from H9 — benefic protection on the body. This is the single strongest recovery modifier in the chart. Jupiter in own sign (Sagittarius) aspecting H1 = constitutional resilience.
+- Saturn currently transiting H12 (Sade Sati Phase 1 — Rising) — this is the period when the H12 stellium is being activated by transit Saturn. The hypertension diagnosis timing is consistent with this transit.
+
+**Intercepted signs:** None flagged in this chart.
+
+---
+
+### 3. FRUITFUL SIGNIFICATORS
+
+Today's RPs (per engine): Venus, Mercury, Mars, Moon.
+
+Significators of recovery houses {1, 5, 11} that are also RP:
+- **Mercury** — A-level for H1 (in star of H1 occupant Sun), also Lagna Sign Lord + Moon Star Lord RP → **FRUITFUL, 2 RP slots**
+- **Venus** — A-level for H1 (in star of H1 occupant), also Day Lord RP → **FRUITFUL, 1 RP slot**
+- **Mars** — B-level for H1 (occupant), also Asc Star Lord RP → **FRUITFUL, 1 RP slot**
+
+Three fruitful significators for recovery — strong timing signal that recovery is a live theme at this query moment. The chart is not in a "disease-only" phase; recovery planets are currently ruling.
+
+Non-fruitful significators: Sun (A-level H1, H5 — not in RP today), Saturn (C/D-level H11 — not in RP).
+
+---
+
+### 4. TIMING WINDOWS
+
+**KSK strict bhukti rule applies** — same MD (Sun) can produce recovery in some ADs and disease-deepening in others.
+
+| AD Lord | Period | Houses Signified (4-step) | Recovery Touch? | Quality |
+|---------|--------|--------------------------|-----------------|---------|
+| Sun | 2022-12-27 → 2023-04-15 | {1, 5} | ✓ H1+H5 | STRONG (past) |
+| Moon | 2023-04-15 → 2023-10-15 | {4, 12} | ✗ H12 denial | WEAK (past) |
+| Mars | 2023-10-15 → 2024-02-19 | {1, 2, 7, 8} | ✓ H1 / H8 mixed | MODERATE (past) |
+| Rahu | 2024-02-19 → 2025-01-13 | {6, 12, 4, 1, 3} | ✗ H6+H12 dominant | AVOID (past) |
+| Jupiter | 2025-01-13 → 2025-11-01 | {2, 7, 9, 10, 11, 12} | ✓ H11 / H12 mixed | MODERATE (past) |
+| **Saturn** | **2025-11-01 → 2026-10-14** | **{10, 11, 12}** | **✓ H11 / H12 mixed** | **MIXED — current** |
+| **Mercury** | **2026-10-14 → 2027-08-21** | **{1, 3, 5, 6}** | **✓ H1+H5 / H6 mixed** | **BEST UPCOMING** |
+| Ketu | 2027-08-21 → 2027-12-26 | {1, 3, 5, 6, 12} | ✓ H1+H5 / H6+H12 | CONDITIONAL |
+| Venus | 2027-12-26 → 2028-12-26 | {1, 2, 7, 8} | ✓ H1 / H8 mixed | MODERATE |
+
+**PRIMARY WINDOW: Mercury AD (Oct 14, 2026 → Aug 21, 2027)**
+Mercury is the H1 CSL itself — when Mercury becomes the AD lord, it activates the primary health gate directly. Mercury signifies H1 + H5 (recovery) alongside H6 (disease awareness). Mercury holds 2 RP slots (Asc Sign Lord + Moon Star Lord) — highest RP-ripeness of any upcoming AD. Per KSK timing rule, Mercury is the sub-lord of H1 (primary cusp) AND signifies H5 (other relevant house) → KSK-timing-active = YES. This is the strongest recovery window.
+
+**SECONDARY WINDOW: Current Saturn AD (Nov 2025 → Oct 2026)**
+Saturn signifies H11 (gain/fulfillment) but also H12 (loss/expense). Recovery is partial — treatment compliance and lifestyle discipline (Saturn's domain) will determine outcome. Saturn holds 0 RP slots — timing is structurally present but not RP-confirmed at this moment.
+
+**UNFAVORABLE:** Rahu AD (past, 2024–2025) was the disease-deepening window — H6+H12 dominant. The hypertension likely began manifesting or worsening during that period. Moon AD (H12 dominant) was also a low-vitality window.
+
+**Transit overlay:** Saturn currently transiting H12 (through 2028) = chronic background pressure on the H12 stellium. This is Sade Sati Phase 1 (Rising) — foundation challenges, anxiety, work pressure. The hypertension is being driven partly by this transit activating the natal Moon-Saturn-Ketu cluster in H12. Jupiter transiting H3 currently (neutral for health). Jupiter moves to H4 from June 2026 — Jupiter through H4 = home/emotional stability boost, which will ease the anxiety component of hypertension.
+
+**Yogini cross-check:** Current Yogini = Sankata (lord Rahu, 2024–2032). Rahu is NOT a recovery significator — it signifies H6+H12 (disease/loss). ⚠️ CONFLICT: Vimsottari Mercury AD fires recovery, but Yogini lord Rahu is denial-pointing. This reduces confidence by 5–10 on the Mercury AD recovery window. Recovery will happen but may require sustained effort rather than a clean resolution.
+
+**Falsifiable audit point:** If by September 2027 (end of Mercury AD) blood pressure is not meaningfully controlled with treatment, this prediction is wrong and re-audit is needed.
+
+---
+
+### 5. PRATYANTARDASHA (within Mercury AD — Oct 2026 → Aug 2027)
+
+Within Mercury AD, the recovery-firing PADs:
+
+| PAD | Dates | Recovery Signal | Quality |
+|-----|-------|-----------------|---------|
+| Mercury PAD | Oct 14 → Nov 27, 2026 | H1+H5 (Sookshma Mercury: Oct 14–20, fire=3/10 MODERATE) | Best opening window |
+| Venus PAD | Dec 15, 2026 → Feb 5, 2027 | H1 relevant / H8 mixed | Moderate |
+| Moon PAD | Feb 20 → Mar 18, 2027 | H4+H12 — denial-leaning | Avoid for treatment decisions |
+| Jupiter PAD | May 22 → Jul 2, 2027 | H11 (gain) + H12 (loss) | Mixed |
+| Saturn PAD | Jul 2 → Aug 21, 2027 | H10+H11+H12 | H11 recovery thread present |
+
+**Sharpest recovery window:** Mercury PAD within Mercury AD (Oct 14 → Nov 27, 2026) — the Sookshma Mercury window (Oct 14–20, 2026) is the day-precision firing point. Mercury is fruitful (RP-confirmed), self-significator of H1, and the PAD lord = AD lord = CSL of H1. This is the strongest structural alignment for treatment response.
+
+**Venus PAD (Dec 15, 2026 → Feb 5, 2027)** is the secondary window — Venus is fruitful (Day Lord RP), signifies H1, and is the H5 CSL (recovery/rejuvenation gate). Good window for treatment adjustments.
+
+---
+
+### 6. PRE-ANSWERED FOLLOW-UPS
+
+**"Is this hypertension chronic or acute?"**
+Chronic. Saturn (chronic/restriction) is in H12 in own star (self-significator, pure results) — this is a long-duration pattern. The H12 stellium (Moon-Saturn-Ketu) creates a sustained background drain. Mars in H1 in own sign adds the acute vascular component (blood pressure spikes under stress). The combination = chronic baseline with acute episodes. Saturn's nakshatra nature is Sthira (fixed/stable) — this condition is stable and manageable, not rapidly escalating.
+
+**"Is there surgery risk?"**
+Moderate, not imminent. H8 CSL = Mars → 4-step union: {1, 2, 7, 8}. Mars signifies H1 (body) and H8 (surgery/transformation). Mars is in H1 in own sign — the 8th lord is in the 1st house, which in KP means the body is the site of transformation. However, H8 CSL does NOT strongly signify H6+H12 (the surgery-trigger combination). Mars + Venus (H8 CSL's star lord) = pleasure-oriented, romantic — not a surgical emergency signature. Surgery risk is present as a background possibility (Mars rules H8) but not the primary trajectory. Monitor if blood pressure becomes uncontrolled.
+
+**"What lifestyle changes does the chart suggest?"**
+Mars in H1 in Aries (own sign, Ugra nakshatra) = heat, aggression, inflammation. Remedies: reduce heat-generating foods (red meat, spicy), daily cardio (Mars needs physical outlet or it turns inward as pressure), anger management practice. Saturn-Moon-Ketu in H12 = sleep disruption, anxiety, hidden stress. Remedies: consistent sleep schedule (10pm–6am), meditation, reduce screen stimulation. Jupiter aspecting H1 from H9 = the body responds well to wisdom-based interventions (structured diet, Ayurvedic consultation). These are the chart's own prescriptions.
+
+---
+
+### 7. CLIENT SUMMARY
+
+"Your chart shows hypertension as a manageable chronic condition, not an acute crisis — the strong Mars in your first house gives you underlying vitality, and Jupiter's protective aspect on your body is a significant asset. The current period (through October 2026) is a mixed phase where treatment compliance matters most; the real recovery window opens in October 2026 when Mercury becomes active — that's when your body's natural healing response aligns with the planetary timing. The most important thing right now is consistent medical treatment combined with stress reduction and sleep discipline, as the anxiety and sleep disruption pattern in your chart is directly feeding the blood pressure."
+
+---
+
+**Calibration note:** Engine confidence 61/100 — conservative. The TENSION harmony and Yogini-Vimsottari conflict reduce certainty; the three fruitful significators and Jupiter's H1 aspect are the positive anchors. This is a structural reading, not a medical prognosis — please continue working with your physician for treatment decisions. KP shows the timing windows for best treatment response; the doctor determines the treatment itself.

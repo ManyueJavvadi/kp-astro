@@ -1,0 +1,158 @@
+## WEALTH / LITIGATION ANALYSIS — Manyue
+**May 21, 2026** | Houses: Wealth Recovery {2, 6, 11} | Litigation Win {1, 6, 11} | Theft/Loss {7, 2, 12}
+
+---
+
+### 1. DIRECT VERDICT
+
+**CONDITIONAL — recovery possible but not guaranteed; litigation is structurally supported but timing-dependent. Engine confidence: 61/100.**
+
+The H2 CSL (Rahu) carries a CONTRA harmony — the Star layer is mostly denial-pointing while the Sub layer (Venus) opens H2. The H6 CSL (Mercury) signifies H6 cleanly but also H12 (loss). The H11 CSL (Ketu) signifies H6 but also H1 and H12 — the "gain" gate is structurally weak. Per KSK strict bhukti rule, recovery fires in bhuktis where the relevant-house threads dominate, and is blocked where denial threads dominate.
+
+---
+
+### 2. CUSPAL EVIDENCE
+
+**SPECIFIC EVENT IDENTIFICATION:**
+This question spans two distinct events:
+- **Theft/fraud recovery**: H7 (the partner = "the other") + H2 (money taken) + H6 (dispute/litigation) + H11 (recovery/gain)
+- **Litigation win**: H6 (primary) + H1 (self prevailing) + H11 (gain through victory)
+
+---
+
+**H2 CSL = Rahu** (primary wealth gate)
+
+Per chart data: Rahu occupies H6, star lord = Moon (H12, owns H4), sub lord = Venus (H2, owns H2/H7).
+
+- **SELF layer** (Rahu itself): H6 + proxy chain → {1, 3, 4, 6, 12} — H6 is RELEVANT (dispute/recovery mechanism), H1 and H12 are DENIAL
+- **STAR layer** (Moon): occupies H12, owns H4 → {4, 12} — H12 is DENIAL, H4 neutral. Star layer is denial-pointing.
+- **SUB layer** (Venus): occupies H2, owns H2/H7 → {2, 7} — H2 is RELEVANT. Sub layer opens the wealth gate.
+- **Step 4 — Final Decider** (Venus's star lord = Mars): occupies H1, owns H1/H8 → {1, 8} — H1 is DENIAL, H8 is neutral. Step 4 is denial-pointing.
+- **Harmony: CONTRA** — Sub layer says YES (H2), Star + Step 4 say NO (H12, H1). Event fires with friction; the money is "there" structurally but recovery requires active effort.
+
+**H6 CSL = Mercury** (litigation/dispute gate)
+
+Per chart data: Mercury occupies H1, owns H3/H6, star lord = Sun (H1, owns H5), sub lord = Rahu (H6), Step 4 = Moon (H12, owns H4).
+
+- Final significations: {1, 3, 4, 5, 6, 12}
+- H6 is RELEVANT (litigation, dispute, overcoming enemy). H1 and H12 are DENIAL.
+- H6 is present but H12 (loss) is also present via Step 4 (Moon in H12). This is the key tension: the dispute mechanism is alive, but the final decider (Moon in H12) introduces a loss/expenditure thread.
+- **Harmony: TENSION** — H6 from the star layer, but Step 4 Moon in H12 weakens the "win" signal.
+
+**H11 CSL = Ketu** (gains/fulfillment gate)
+
+Per chart data: Ketu occupies H12, star lord = Mercury (H1, owns H3/H6), sub lord = Sun (H1, owns H5), Step 4 = Sun (H1, owns H5).
+
+- Final significations: {1, 3, 5, 6, 12}
+- H6 is RELEVANT (recovery through dispute). H1 and H12 are DENIAL.
+- **Critical**: H11 CSL does NOT signify H11 itself. The "gain" gate is structurally weak — Ketu in H12 with Step 4 pointing to H1/H5 means fulfillment/completion of the recovery is the hardest part.
+- **Harmony: TENSION** — H6 present but H1/H12 dominate.
+
+**MULTI-CUSP TIER ASSESSMENT:**
+- H2 CSL: CONTRA (partial relevant — H2 via sub, H6 via self)
+- H6 CSL: TENSION (H6 present, H12 in Step 4)
+- H11 CSL: TENSION (H6 present, H1/H12 dominate)
+- **TIER 0** — Primary signifies but supporting cusps carry friction. Confidence 35–50% for clean recovery.
+
+**CONFLICTING SIGNALS:**
+- Signal pointing YES: H2 CSL Rahu's SUB layer (Venus) directly signifies H2 — the money is structurally "reachable." Rahu occupies H6 (the dispute/litigation house) — the mechanism for recovery via legal action is present. Five fruitful significators (Mars, Jupiter, Venus, Ketu, Mercury) all in today's RPs.
+- Signal pointing NO: Step 4 of H2 CSL (Mars in H1, owns H1/H8) is denial-pointing. H11 CSL Ketu in H12 with Step 4 = Sun in H1 — the "completion/gain" gate is structurally the weakest link. Saturn transiting H12 (Sade Sati Phase 1 — rising) adds expenditure/loss pressure.
+- **How they resolve**: Per KSK strict, the SUB layer of H2 CSL (Venus → H2) is the deciding gate — it says the money IS reachable. But the Step 4 denier (Mars → H1/H8) means the recovery will be offered/initiated but may not complete cleanly without sustained effort. This is a "partial recovery with legal friction" pattern, not a clean win.
+
+**H7 CSL = Mercury** (the partner/adversary gate)
+
+Final significations: {1, 3, 4, 5, 6, 12}. H6 is present — the partner IS connected to dispute/litigation. H12 is present — the partner has a "loss/foreign/hidden" thread. This confirms the partner is reachable through legal channels (H6) but may be evasive or abroad (H12).
+
+**INTERCEPTED SIGNS:** None flagged in this chart.
+
+**STELLIUM NOTE:** H12 stellium (Moon, Saturn, Ketu — tight cluster) is highly significant. Three planets concentrated in H12 = strong loss/expenditure/hidden-matters theme. This is the structural backdrop for why the money "disappeared" — H12 themes are powerfully activated in this chart. Recovery requires actively fighting this H12 pull.
+
+---
+
+### 3. FRUITFUL SIGNIFICATORS
+
+Today's RPs (per engine): Venus, Mars, Jupiter, Moon, Mercury, Ketu
+
+| Planet | Wealth/Recovery Signification | RP Slot | Fruitful? |
+|--------|-------------------------------|---------|-----------|
+| Mars | A-level H2, C-level H2 | Asc Star Lord | ✓ STRONG |
+| Jupiter | A-level H2, C-level H2 | Asc Sub Lord | ✓ STRONG |
+| Venus | B-level H2 | Day Lord + Asc Sign Lord | ✓ STRONG |
+| Mercury | D-level H6 | Moon Star Lord | ✓ |
+| Ketu | C-level H6 | Moon Sub Lord | ✓ |
+| Moon | H12 occupant (denial) | Moon Sign Lord | ✗ (denial) |
+
+**Five fruitful significators** — strong timing readiness. Mars and Jupiter are A-level for H2 AND in RP. Venus is B-level for H2 AND the Day Lord + Asc Sign Lord (two RP slots — strongest single-planet signal today). This is a high-RP-density moment for the H2 (wealth) thread specifically.
+
+**Non-fruitful significators:** Saturn (C/D-level H10/H11 — relevant but not RP today).
+
+---
+
+### 4. TIMING WINDOWS
+
+**MD lord Sun** signifies {1, 5} — zero relevant house touch for wealth/recovery. Sun MD is a structural background that does NOT actively support wealth recovery. This is a partial MD denier for wealth — not a total veto (Sun doesn't only signify denial houses), but it means the MD era is not wealth-amplifying.
+
+**AD lord Saturn** signifies {10, 11, 12} — H11 is RELEVANT (gains). Saturn is the H10/H11 sub lord (KSK-timing-trigger confirmed). Yogini convergence: Vimsottari Saturn AD + Yogini Rahu BOTH signify topic → **CONVERGENCE** (peak window per engine). Saturn AD is the current active window.
+
+| AD Lord | Period | Houses Signified (4-step) | Touches Wealth? | Quality |
+|---------|--------|--------------------------|-----------------|---------|
+| Saturn (current) | 2025-11-01 → 2026-10-14 | {1, 5, 10, 11, 12} | H11 ✓ | MODERATE — H11 present, H12 denial drag |
+| Mercury | 2026-10-14 → 2027-08-21 | {1, 3, 4, 5, 6, 12} | H6 ✓ | MODERATE — H6 (litigation/service) active |
+| Ketu | 2027-08-21 → 2027-12-26 | {1, 3, 5, 6, 9, 12} | H6 ✓ | MODERATE — H6 active; Yogini convergence ✓ |
+| Venus | 2027-12-26 → 2028-12-26 | {1, 2, 4, 6, 7, 8, 12} | H2 ✓ H6 ✓ | **STRONG** — H2 + H6 both present; 2 RP slots |
+
+**PRIMARY WINDOW: Venus AD (Dec 27, 2027 → Dec 26, 2028)**
+Venus is B-level significator of H2, signifies H6 via its 4-step chain, holds 2 RP slots (Day Lord + Asc Sign Lord) — the strongest single AD for wealth recovery in this Sun MD. H2 + H6 both activated. This is the window where a settlement, court award, or recovered funds is most structurally supported.
+
+**SECONDARY WINDOW: Saturn AD (current, through Oct 14, 2026)**
+H11 is present. The Yogini convergence (Saturn AD + Yogini Rahu) is a peak signal. However, H12 is also in the chain — recovery efforts are active but expenditure/legal costs are simultaneously running. This is the "file the case and build the foundation" window, not the "receive the money" window.
+
+**TERTIARY: Mercury AD (Oct 14, 2026 → Aug 21, 2027)**
+H6 active — litigation proceedings, documentation, hearings. Mercury rules H6 directly (owns H6). This is the "court proceedings are live" window. Yogini Rahu continues (convergence maintained).
+
+**UNFAVORABLE:** No AD in this Sun MD is a total denier for wealth. However, Ketu AD (Aug–Dec 2027) is brief and H12-heavy — avoid expecting final resolution here.
+
+**Transit overlay:** Rahu currently in H11 (gain house) — neutral-to-positive for recovery. Saturn in H12 (Sade Sati Phase 1) = legal costs and expenditure are real. Jupiter moves to H4 (Jun 2026) then Rahu moves to H10 (Oct 2026) — the Oct 2026 Rahu-H10 transit coincides with Mercury AD opening, which is a career/status pivot that may also affect the legal proceedings.
+
+---
+
+### 5. PRATYANTARDASHA (within current Saturn AD)
+
+Current PAD: Moon (May 19 → Jun 17, 2026). Moon signifies H12 — this is an expenditure/loss PAD, not a recovery PAD. Do not expect money to arrive in this window.
+
+| PAD | Dates | Wealth Signification | Fire Score | Assessment |
+|-----|-------|---------------------|------------|------------|
+| Moon (current) | May 19 → Jun 17 | H12 (denial) | 2/10 WEAK | Legal costs, not recovery |
+| Mars | Jun 17 → Jul 7 | H1, H8 (denial) | 1/10 AVOID | Aggression/conflict, not resolution |
+| Rahu | Jul 7 → Aug 28 | H6, H12 | 0/10 AVOID | H12 penalty dominates |
+| Jupiter | Aug 28 → Oct 14 | H2 ✓ (H12 penalty) | 2/10 WEAK | Best PAD in Saturn AD — H2 present |
+
+**Best PAD within Saturn AD: Jupiter PAD (Aug 28 → Oct 14, 2026)**
+Jupiter is A-level significator of H2 AND in RP (Asc Sub Lord). Within Jupiter PAD, the Jupiter Sookshma (Aug 28 → Sep 3) is the day-precision window where H2 is most directly activated. This is the most likely window for a legal notice to be served, a settlement offer to emerge, or a court date to be set — not necessarily money received, but the formal legal process crystallizing.
+
+**Sookshma Mercury (Sep 10–17, 2026)** within Jupiter PAD: Mercury signifies H6 (litigation) and is RP (Moon Star Lord). This is a secondary day-precision window for legal documentation/proceedings.
+
+---
+
+### 6. PRE-ANSWERED FOLLOW-UPS
+
+**"Should I file the case now or wait?"**
+File now — Saturn AD is the "build the foundation" window and the H6 (litigation) mechanism is structurally active. The Jupiter PAD (Aug–Oct 2026) is the best window within Saturn AD for formal legal crystallization. Mercury AD (Oct 2026 onward) is when court proceedings become most active. Do NOT wait for Venus AD to file — by then you want to be in the resolution phase, not the filing phase. The H6 CSL (Mercury) signifies H6 directly, confirming the litigation path is structurally supported.
+
+**"Will I recover the full 50 lakhs or only partial?"**
+The H11 CSL (Ketu) is structurally weak — it signifies H6 but not H11 itself, and Step 4 points to H1/H5 (denial for gains). This is a partial recovery signal. The H2 CSL (Rahu) opens via Venus sub (H2 present) but Step 4 (Mars → H1/H8) is denial-pointing. Full recovery is structurally unlikely; partial recovery through settlement or court award is more probable. Venus AD (2028) is the strongest window for whatever amount is recoverable.
+
+**"Is the partner reachable or has he fled?"**
+H7 CSL (Mercury) signifies H12 (foreign/hidden) — the partner has a strong H12 thread, suggesting he may be abroad or in hiding. However, H6 is also in the H7 CSL chain — he IS reachable through legal/dispute channels. Rahu in H6 (the partner's house from H7 perspective = H12 from H7 = H6 from native) confirms the partner is connected to the dispute mechanism. A legal notice through proper channels (police complaint + civil suit) is more effective than direct contact.
+
+---
+
+### 7. CLIENT SUMMARY
+
+"The money is structurally reachable — your chart shows the dispute mechanism is active and the wealth house has a partial opening. File the case now; the current period through October 2026 is for building the legal foundation, and the period from October 2026 through mid-2027 is when court proceedings become most active. The strongest window for actual recovery or settlement is late 2027 through 2028. Expect legal costs and delays — this won't be quick — but the chart does not show a total loss. Partial recovery through legal action is the most likely outcome."
+
+---
+
+**Calibration note:** Engine confidence 61/100 — the CONTRA harmony on H2 CSL and the weak H11 gate are the structural friction points. The five fruitful significators and Yogini convergence in Saturn AD are the positive signals. A score of 61 means structurally possible with real obstacles — not a clean win, not a total loss.
+
+**Falsification threshold:** If no legal proceedings have been initiated and no settlement offer has emerged by October 14, 2026 (end of Saturn AD), re-audit the timing. The astronomical date of Mercury AD opening (Oct 14, 2026) is fixed.
