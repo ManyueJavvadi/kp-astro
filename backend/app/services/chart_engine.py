@@ -861,6 +861,67 @@ TOPIC_HOUSE_MAP_CANONICAL: dict = {
         "framing": "Self / personality / character",
         # H1 self primary, H5 intellect/creativity, H9 dharma
     },
+
+    # ── BATCH 3 (PR B3.0a — relationships beyond immediate marriage) ──
+    "second_marriage": {
+        "relevant": {2, 9, 11}, "denial": {6, 8, 12}, "primary_cusp": 2,
+        "framing": "Second marriage / remarriage / after divorce or widowhood",
+        # NEW PR B3.0a — Per K.S. Krishnamurti doctrine:
+        #   "Second marriage is seen from H2 (= 8th from H7 = after first
+        #    marriage ends) plus H9 (= 3rd from H7 = next partnership)
+        #    plus H11 (= fulfillment of new bond)"
+        # Per Prof. Krishnamurti: "if H7 sub-lord is Mercury or in dual sign
+        # or deposited in star of planet in dual sign, more than one marriage."
+        # Widowhood-remarriage: H8 affliction (loss of first spouse) + H9
+        # favorable (next partnership) + H11 (desire fulfilled) + Jupiter favorable
+    },
+    "spouse_character": {
+        "relevant": {7, 2, 11}, "denial": {1, 6, 10, 12}, "primary_cusp": 7,
+        "framing": "What kind of spouse / partner profile",
+        # NEW PR B3.0a — Same houses as marriage (H7 primary) but framing
+        # is about PARTNER CHARACTER not marriage timing. Partner-profile
+        # engine helper (compute_partner_profile in kp_advanced_compute.py)
+        # populates the data; this topic routes the question correctly.
+    },
+    "in_laws": {
+        "relevant": {2, 7, 11}, "denial": {1, 6, 10, 12}, "primary_cusp": 7,
+        "framing": "Relationships with spouse's family (in-laws)",
+        # NEW PR B3.0a — Read via H7 (spouse) Bhavat Bhavam:
+        #   In-laws (spouse's parents) = H10 (= 4th from H7) and H4 (= 10th from H7)
+        #   Mother-in-law = H10 (4th from spouse H7)
+        #   Father-in-law = H4 (10th from spouse H7 = 9th of spouse)
+        #   In-law family dynamics = H7 + H4 + H10 + H11 (family gain)
+    },
+    "siblings_relationship": {
+        "relevant": {3, 11}, "denial": {9, 12}, "primary_cusp": 3,
+        "framing": "Sibling relationships (rivalry, support, contact)",
+        # NEW PR B3.0a — H3 primary for siblings (KP); H11 for friendship
+        # bond with siblings. Distinct from siblings (general topic) which
+        # is for any sibling-related question.
+    },
+    "parents_relationship": {
+        "relevant": {4, 9, 11}, "denial": {3, 8, 12}, "primary_cusp": 4,
+        "framing": "Relationships with parents (mother + father + support)",
+        # NEW PR B3.0a — H4 (mother + emotional security) + H9 (father +
+        # dharma) + H11 (family fulfillment). Distinct from
+        # parent_longevity which routes to longevity.md.
+    },
+    "adoption": {
+        "relevant": {2, 5, 9, 11}, "denial": {1, 4, 7, 10}, "primary_cusp": 5,
+        "framing": "Adopting a child / blended family child relationships",
+        # NEW PR B3.0a — H5 (child / adopted child = same H5) + H9 (legal
+        # paperwork + dharmic act) + H11 (family fulfillment) + H2 (family
+        # expansion). Per KSK doctrine: H5 sub lord signifying H4+H8+H12
+        # connected to Jupiter/Saturn/Mercury/Mars/Moon = "denied biological
+        # children will adopt" — adoption fulfills the H5 promise.
+    },
+    "blended_family": {
+        "relevant": {2, 5, 11}, "denial": {6, 7, 12}, "primary_cusp": 5,
+        "framing": "Step-children / blended-family dynamics",
+        # NEW PR B3.0a — Modern context. Same H5 cluster (children) but
+        # H7 weak (previous-marriage residue) + H11 (new-family bond) +
+        # H2 (combined family wealth/structure).
+    },
 }
 
 # Topic name aliases — resolve to canonical topic name in TOPIC_HOUSE_MAP_CANONICAL
@@ -980,6 +1041,33 @@ TOPIC_ALIASES: dict = {
     "c_section":        "pregnancy_complications",
     "high_risk_pregnancy": "pregnancy_complications",
     "delivery":         "pregnancy_complications",
+
+    # ── BATCH 3 aliases (PR B3.0a — relationships) ──
+    "remarriage":              "second_marriage",
+    "third_marriage":          "second_marriage",
+    "widowhood_remarriage":    "second_marriage",
+    "after_divorce":           "second_marriage",
+    "spouse_profile":          "spouse_character",
+    "partner_character":       "spouse_character",
+    "what_kind_of_spouse":     "spouse_character",
+    "future_spouse":           "spouse_character",
+    "mother_in_law":           "in_laws",
+    "father_in_law":           "in_laws",
+    "sister_in_law":           "in_laws",
+    "brother_in_law":          "in_laws",
+    "sas_bahu":                "in_laws",       # Indian cultural context
+    "sibling_rivalry":         "siblings_relationship",
+    "brother_relationship":    "siblings_relationship",
+    "sister_relationship":     "siblings_relationship",
+    "parent_relationship":     "parents_relationship",
+    "mother_relationship":     "parents_relationship",
+    "father_relationship":     "parents_relationship",
+    "estranged_parent":        "parents_relationship",
+    "adopting":                "adoption",
+    "adopt_child":             "adoption",
+    "step_children":           "blended_family",
+    "step_parent":             "blended_family",
+    "step_family":             "blended_family",
 
     # ── Addiction cluster (PR B2.0a) ──
     "alcohol":          "addiction",

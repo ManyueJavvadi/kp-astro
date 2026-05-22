@@ -241,6 +241,41 @@ TOPIC_TO_FILE = {
     "smoking":                "addiction.md",
     "gambling_addiction":     "addiction.md",
 
+    # ── BATCH 3 (PR B3.0a — relationships beyond immediate marriage) ──
+    # second_marriage / spouse_character / in_laws → marriage.txt + expansions
+    "second_marriage":        "marriage.txt",   # B3.1 will add dedicated section
+    "remarriage":             "marriage.txt",
+    "third_marriage":         "marriage.txt",
+    "widowhood_remarriage":   "marriage.txt",
+    "after_divorce":          "marriage.txt",
+    "spouse_character":       "marriage.txt",   # B3.2 expansion
+    "spouse_profile":         "marriage.txt",
+    "partner_character":      "marriage.txt",
+    "what_kind_of_spouse":    "marriage.txt",
+    "future_spouse":          "marriage.txt",
+    "in_laws":                "marriage.txt",   # B3.2 expansion (Bhavat Bhavam from H7)
+    "mother_in_law":          "marriage.txt",
+    "father_in_law":          "marriage.txt",
+    "sister_in_law":          "marriage.txt",
+    "brother_in_law":         "marriage.txt",
+    "sas_bahu":               "marriage.txt",
+    # Siblings + parents → parents_family.md
+    "siblings_relationship":  "general.txt",    # B3.3 expansion will route to parents_family.md
+    "brother_relationship":   "general.txt",
+    "sister_relationship":    "general.txt",
+    "parents_relationship":   "general.txt",
+    "mother_relationship":    "general.txt",
+    "father_relationship":    "general.txt",
+    "estranged_parent":       "general.txt",
+    # Adoption + blended family → adoption.md (B3.4)
+    "adoption":               "general.txt",    # B3.4 will create adoption.md
+    "adopting":               "general.txt",
+    "adopt_child":            "general.txt",
+    "blended_family":         "general.txt",
+    "step_children":          "general.txt",
+    "step_parent":            "general.txt",
+    "step_family":            "general.txt",
+
     # ── Property/vehicle (PR A2.0d → dedicated files) ──
     "vehicle":            "vehicle.md",
     "vehicle_purchase":   "vehicle.md",
@@ -2753,6 +2788,15 @@ HEALTH (refined):
 - "general health" or "vitality" = health
 - "ICU" or "critical care" or "intensive care" = icu
 - "discharge from hospital" = discharge
+
+BATCH 3 RELATIONSHIPS (NEW B3.0a):
+- "second marriage" / "remarriage" / "after divorce" / "after wife/husband died" = second_marriage
+- "what kind of spouse" / "spouse profile" / "what will my partner be like" / "future spouse" = spouse_character
+- "in-laws" / "mother-in-law" / "father-in-law" / "saas bahu" / "spouse's family" = in_laws
+- "sibling relationship" / "rivalry with brother/sister" / "fight with sibling" = siblings_relationship
+- "relationship with mother/father/parents" / "estranged from parent" = parents_relationship
+- "adopt a child" / "adopting" / "adoption" = adoption
+- "step-children" / "blended family" / "step-parent" / "step-family" = blended_family
 
 BATCH 2 TIER 3 ABSOLUTE (NEW B2.0a — life-or-death framing):
 - "how long will I live" / "how long will [X] live" / "outlive" = longevity
