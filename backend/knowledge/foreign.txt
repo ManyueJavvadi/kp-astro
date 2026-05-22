@@ -277,3 +277,200 @@ If user pushes back (e.g., my immigration lawyer said the date is X):
    The chart structure does not strongly support that specific date.
    The structurally-strongest window is [X]. Process timing in real life
    can shift due to administrative factors not visible to the chart.
+
+
+═══════════════════════════════════════════════════════════════════════
+VISA-SPECIFIC DOCTRINE (PR B4.2)
+═══════════════════════════════════════════════════════════════════════
+
+Visa questions deserve dedicated framework. Different visa types
+emphasize different houses.
+
+VISA APPROVAL — THE CORE 4-HOUSE STACK:
+  H12 (foreign land / paperwork to enter)
+  H9 (long journey / dharmic-or-merit move)
+  H11 (fulfillment of desire — the visa approved)
+  H3 (courage to apply + short-journey paperwork phase)
+
+When H12 sub lord signifies H9 + H11 + H3 cleanly → visa approval
+structurally promised. Mercury favorable for paperwork; Jupiter
+favorable for adjudication.
+
+VISA REJECTION SIGNATURE:
+  H12 sub lord signifies H6 (obstacle) + H7 (other party = consulate
+    rejection)
+  H12 sub lord retrograde or aspected by Saturn-Mars in adverse window
+  H11 sub lord signifying H8 (sudden block) + H12 (lost) — "no joy
+    from this application"
+
+VISA-TYPE SPECIFIC ANALYSIS:
+
+WORK VISA (H1B for USA, Tier 2 for UK, employer-sponsored):
+  Primary: H10 (career) + H12 (foreign work) + H11 (employment gain)
+  H10 sub lord must signify H12 (career going abroad)
+  H10 sub lord signifies H11 = employer sponsorship secured
+  Mercury favorable = approval letter / petition through
+  Saturn favorable = structured employer + long-term commitment
+  USA H1B specifically: Rahu (foreign tech) + Mercury + H10 + H12
+  UK Tier 2 / Skilled Worker: Sun (authority) + H10 + H12 + Jupiter
+
+STUDENT VISA (F1 USA, Tier 4 UK, study permit Canada):
+  Primary: H4 (institutional setting) OR H9 (higher learning) + H12 + H11
+  H4 sub lord signifies H9 + H12 = student visa for undergraduate
+  H9 sub lord signifies H12 = student visa for graduate / PhD
+  Mercury favorable = test scores accepted (GRE / IELTS / TOEFL)
+  Jupiter favorable = quality institution + scholarship possibility
+  Cross-link to `education.txt` (abroad education section)
+
+BUSINESS / INVESTOR VISA (E-2 USA, Tier 1 Investor UK, etc.):
+  Primary: H7 (business / public dealings) + H10 + H11 + H12
+  Mercury + Mars favorable = business plan accepted
+  Rahu favorable = unconventional / digital business through
+  Cross-link to `business.txt`
+
+TOURIST / VISITOR VISA (B1/B2 USA, Schengen, etc.):
+  Primary: H9 (short pilgrimage / leisure travel) + H12 + H11
+  Easier structurally than work / immigration visas
+  Caveat: tourist visa with intent-to-overstay = H7 + H8 affliction
+  may show "intent flagged"
+
+DEPENDENT / SPOUSE VISA (H4 USA dependent visa, etc.):
+  Primary: H7 (spouse already there) + H12 + H4 (joining family home)
+  H7 sub lord favorable + H12 + H11 = approved
+  Cross-link to `marriage.txt` + Bhavat Bhavam from H7
+
+PR / GREEN CARD / CITIZENSHIP (long-term settlement):
+  Cross-link to `foreign_settle` framework (already in this file)
+  Plus H10 + H11 (lifetime career + community fulfillment in foreign land)
+  Saturn favorable = structured long-arc immigration
+  Jupiter favorable = wisdom-based decision + family stability
+
+VISA REJECTION + APPEAL:
+  H3 + H6 + H11 favorable = appeal succeeds
+  H7 (consular officer's perspective) + H11 = re-application approval
+  Mercury favorable + Jupiter favorable in appeal window
+  Cross-link to `litigation.txt` §7 (Appeal Success) for formal appeal
+
+VISA TIMING SCAN:
+  Step 1: identify the visa-type-specific houses (above)
+  Step 2: scan upcoming ADs for one where those houses' lords all
+    signify favorably
+  Step 3: PAD-level refinement for application-submission timing
+  Step 4: Cross-check with Ruling Planets at question moment
+  Step 5: For ambiguous windows, recommend application during
+    favorable PAD AND seek expert immigration counsel
+
+
+═══════════════════════════════════════════════════════════════════════
+COUNTRY-SPECIFIC PATTERNS (PR B4.2)
+═══════════════════════════════════════════════════════════════════════
+
+Different destination countries have astrologically observable patterns
+that align with their cultural / governmental characteristics:
+
+USA (United States):
+  Rahu primary (tech / unconventional / opportunity / shadow / immigration
+  complexity) + Mercury (commerce / analysis) + Jupiter (expansion) +
+  Mars secondary (achievement-drive)
+  H1B work visa: Rahu + Mercury + H10 + H12
+  F1 student visa: Mercury + H9 + H12 + favorable Jupiter
+  Green card / citizenship: Saturn favorable (long process) + Jupiter
+    (wisdom-decision) + H4 (new home)
+
+UK (United Kingdom):
+  Sun primary (historical authority / tradition / structure) + Jupiter
+  (legal precision / academia) + Mercury (commerce)
+  Skilled Worker visa: Sun + Mercury + H10 + H12
+  Student visa (Tier 4): Jupiter + Mercury + H9 + H12
+  Settlement: Saturn + Sun + H4 + H12
+
+CANADA:
+  Mercury primary (analytical / point-based immigration) + Jupiter
+  (wisdom-based merit) + Saturn (structured Express Entry process)
+  Express Entry: Mercury + Jupiter + H10 + H12 + H11
+  Study permit: Mercury + H9 + H12
+  PR: Saturn + Jupiter + H4 + H12
+
+AUSTRALIA:
+  Mars + Sun (sportive / outdoors / merit) + Mercury (skill-based
+  immigration)
+  Skilled Independent: Mars + Mercury + H10 + H12
+  Study visa: Sun + Mercury + H9 + H12
+
+NEW ZEALAND, IRELAND, EUROPEAN UNION:
+  Similar patterns to UK / Canada (English-speaking + EU = Mercury
+  + Jupiter + Saturn dominant)
+
+GULF / MIDDLE EAST (UAE, Saudi, Kuwait, Qatar, Oman):
+  Sun (authority / traditional Islamic governance) + Mars (energy /
+  oil / labor) + Mercury (commerce hub) + Venus (luxury / consumption)
+  Work visa: Sun + Mars + H10 + H12
+  Family visa: H7 + H12 + Sun favorable
+  Typical: relatively easier structural support for short-term work,
+    harder for citizenship (most Gulf states don't offer citizenship)
+
+EAST ASIA (Singapore, Japan, South Korea, Hong Kong):
+  Mercury primary (precision / technology / commerce) + Saturn
+  (structured / disciplined) + Sun (hierarchy)
+  Work visa: Mercury + Sun + H10 + H12
+  Student visa: Mercury + H9 + H12 + Jupiter
+
+AFRICA / SOUTH AMERICA:
+  Less common for Indian-origin natives; Rahu favorable + H12 dominant
+  + adventure-context Mars
+
+CAVEAT ON COUNTRY-SPECIFIC PATTERNS:
+  These are statistical tendencies observed across charts. INDIVIDUAL
+  charts may not follow the typical pattern — the specific person's
+  H10/H12/H11 chain is always primary. Country pattern is supporting
+  context.
+
+
+═══════════════════════════════════════════════════════════════════════
+RETURN FROM ABROAD + REVERSE-MIGRATION (PR B4.2)
+═══════════════════════════════════════════════════════════════════════
+
+For "I want to return home" / "should I move back" questions:
+
+STRUCTURAL RETURN SIGNATURE:
+  H4 (home / native land) sub lord active in current AD
+  H3 (movement) + H4 (return-home destination) signified together
+  H1 (self) + H11 (fulfillment) favorable
+  Jupiter favorable (wisdom-based return)
+
+VOLUNTARY RETURN:
+  H4 signifies H1 + H11 = return brings fulfillment
+  H4 signifies H2 (family wealth back home) = home-country economic pull
+  Saturn favorable = structured planned return
+
+FORCED RETURN (visa denied, family emergency, work ended):
+  H4 + H8 (sudden) + H12 (loss of foreign status)
+  Mars-Saturn affliction = abrupt return
+  Frame: structural support for next chapter at home; cite specific
+    favorable dasha post-return
+
+DEPORTATION (specific legal return-mandate):
+  H12 (foreign) → H4 (home) under H6 (legal) + H8 (sudden) affliction
+  Apply Tier 2 framing with sensitivity
+  Recommend: immigration lawyer + family + therapy
+  Cross-link to `litigation.txt` if appealing deportation
+
+RETURN-THEN-RE-MIGRATE PATTERN:
+  Modern context — some natives return for family reasons, then
+  re-migrate later. Read across multiple AD cycles:
+  Current AD = return; next favorable AD = re-migrate
+  Reframe: "the chart shows return is structurally supported; later
+  re-migration is also structurally accessible if/when desired"
+
+═══════════════════════════════════════════════════════════════════════
+SOURCE CITATIONS (PR B4.2 additions)
+═══════════════════════════════════════════════════════════════════════
+
+Original foreign.txt sources retained.
+Additional B4.2 sources:
+- KP Astro Vision foreign-settlement framework
+- Various country-specific KP case studies
+- Cross-link to internal: education.txt (abroad education),
+  business.txt (foreign business / investor visa), marriage.txt
+  (spouse visa), litigation.txt (visa appeal), property.txt §14
+  (foreign property + NRI inheritance)
