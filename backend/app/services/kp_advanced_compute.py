@@ -23,6 +23,9 @@ from app.services.chart_engine import (
     HOUSE_TOPICS,
     NAKSHATRAS,
     SIGN_LORDS,
+    # PR A2.0a — single source of truth for topic-house mappings
+    TOPIC_HOUSE_MAP_CANONICAL,
+    TOPIC_ALIASES,
 )
 
 
@@ -1324,30 +1327,41 @@ SEMI_FRUITFUL  = {"Taurus", "Libra"}
 
 
 # ── Topic denial houses (for harmony scoring) ────────────────────────
-# These match the system prompt's RULE 5 denial sets — when the
-# system prompt and this dict disagree, fix BOTH at the same time.
+# PR A2.0a — DERIVED from chart_engine.TOPIC_HOUSE_MAP_CANONICAL (the single
+# source of truth). Previously this was a separate literal that disagreed
+# with chart_engine.HOUSE_TOPICS on multiple topics (e.g., business denial
+# was [1,6,9] but its primary cusp was 7, making the 12th-from logic
+# inconsistent). Now any change to the canonical map flows through here
+# automatically.
+#
+# Resolved conflicts in PR A2.0a:
+#   - health: now consistent with HOUSE_TOPICS (wellness framing, denial = disease houses)
+#   - litigation: now consistent with HOUSE_TOPICS (WIN framing, denial = LOSS houses)
+#   - business: now uses H10 as primary (per KSK doctrine) — was H7 in legacy chart_engine
+#   - wealth: now KSK strict {2,6,11}, denial {1,8,12} — H10 removed from relevant
+#   - children: denial now includes H7 (was missing)
+#   - property: denial expanded {3} → {3,5,6,8} (12th-from-each pattern)
+#   - Added missing topics: divorce, father, mother, siblings, spirituality,
+#     foreign_settle, disease_risk, litigation_loss, education_higher,
+#     personality (these were missing from one or more legacy dicts)
 
-TOPIC_DENIAL: Dict[str, List[int]] = {
-    # PR A1.3-fix-2 (C3): each set is now grounded in either explicit KSK
-    # rule or strict 12th-from-relevant logic; matches RULE 5 + KB.
-    "marriage":       [1, 6, 10, 12],   # KSK Reader Rule 2 verbatim
-    "divorce":        [2, 7, 11],       # = marriage relevant (reconciliation = denial of divorce)
-    "job":            [1, 5, 9, 12],    # 12th-from [2,6,10,11] (KSK Simple Rules)
-    "career":         [1, 5, 9, 12],    # alias of job
-    "profession":     [1, 5, 9, 12],    # alias of job
-    "business":       [1, 6, 9],        # 12th-from [7,2,10,11] — H7 primary not H6 (FIX from job copy)
-    "foreign_travel": [2, 8, 11],       # 12th-from [3,9,12]
-    "foreign_settle": [2, 8, 11],       # same as travel; H12 primary
-    "education":      [3, 8, 10],       # KSK rule (other_topics.txt:28 + RULE 5) — was [3,5,8,12]
-    "children":       [1, 4, 10],       # KSK rule (other_topics.txt) — H4=12th from H5
-    "property":       [3],              # KSK: only H3 explicit (12th from H4); H10 secondary
-    "litigation":     [7, 12],          # RULE 5: opponent wins via H7/H12 — was [5,7,12]
-    "wealth":         [1, 8, 12],       # 12th-from H2 + debt + loss
-    # Health: HOUSE_TOPICS health = [6,8,12] (disease houses = relevant for
-    # "do I have/will I have disease"). TOPIC_DENIAL = wellness houses
-    # [1,5,11] (denial-of-disease = healthy). No overlap with relevant.
-    "health":         [1, 5, 11],
-}
+def _build_topic_denial() -> Dict[str, List[int]]:
+    """Build TOPIC_DENIAL dict (list shape) from the canonical source of truth.
+
+    Includes all canonical topics + every alias entry pointing to the same
+    denial list as its canonical topic. Lists are sorted for deterministic
+    output (legacy consumers expected sorted lists).
+    """
+    result: Dict[str, List[int]] = {}
+    for topic, data in TOPIC_HOUSE_MAP_CANONICAL.items():
+        result[topic] = sorted(data["denial"])
+    for alias, canonical in TOPIC_ALIASES.items():
+        if canonical in result:
+            result[alias] = result[canonical]
+    return result
+
+
+TOPIC_DENIAL: Dict[str, List[int]] = _build_topic_denial()
 
 
 # ── A / B / C / D significator hierarchy (KSK Reader V) ──────────────

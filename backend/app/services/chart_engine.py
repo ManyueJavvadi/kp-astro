@@ -598,26 +598,265 @@ SIGN_LORDS = [
     "Venus", "Mars", "Jupiter", "Saturn", "Saturn", "Jupiter"
 ]
 
-# House topics for KP — which houses govern which life areas
-# IMPORTANT: First house in each list is the PRIMARY CUSP checked in check_promise()
-# Primary cusp = the most direct KP gate for that topic
-HOUSE_TOPICS = {
-    "marriage":         [7, 2, 11],      # H7 = spouse house (primary gate)
-    "divorce":          [6, 10, 12],
-    "job":              [10, 2, 6, 11],  # H10 = profession house (primary gate)
-    "business":         [7, 2, 10, 11],  # H7 = partners/public (primary gate)
-    "foreign_travel":   [9, 3, 12],      # H9 = long journeys (primary gate)
-    "foreign_settle":   [12, 3, 9],      # H12 = foreign land (primary gate)
-    "education":        [9, 4, 11],      # H9 = higher learning (primary gate)
-    "health":           [6, 8, 12],      # disease/illness set; H1 removed to fix relevant/denial overlap (PR A1.3-fix-2)
-    "children":         [5, 2, 11],      # H5 = children (primary gate)
-    "property":         [4, 11, 12],     # H4 = immovable property (primary gate)
-    "father":           [9, 10],
-    "mother":           [4, 10],
-    "litigation":       [6, 8, 12],      # H6 = disputes (primary gate)
-    "spirituality":     [9, 8, 12],
-    "wealth":           [2, 6, 10, 11]   # H2 = accumulated wealth (primary gate)
+# ════════════════════════════════════════════════════════════════════
+# TOPIC-TO-HOUSE MAPPING — CANONICAL SOURCE OF TRUTH (PR A2.0a)
+# ════════════════════════════════════════════════════════════════════
+#
+# Previously the codebase had THREE conflicting topic-to-house dicts:
+#   1. chart_engine.HOUSE_TOPICS (relevant houses, first = primary cusp)
+#   2. csl_chains.TOPIC_HOUSE_MAP (relevant + denial + primary_cusp)
+#   3. kp_advanced_compute.TOPIC_DENIAL (denial-only list)
+# They disagreed on 13 of 15 topics — health was OPPOSITE framing, litigation
+# had the LOSS set marked as "relevant", business had two different primary
+# cusps, etc. (see .claude/research/pre-pr-findings-2026-05-22.md).
+#
+# PR A2.0a makes TOPIC_HOUSE_MAP_CANONICAL below the SINGLE source of truth.
+# HOUSE_TOPICS (legacy shape used by check_promise + kp_advanced_compute) is
+# now DERIVED from this canonical map. csl_chains.TOPIC_HOUSE_MAP and
+# kp_advanced_compute.TOPIC_DENIAL also derive from this map.
+#
+# Editing rules:
+#   - Add new topics HERE only, in TOPIC_HOUSE_MAP_CANONICAL.
+#   - Document the framing ("what question does this answer?") explicitly.
+#   - For relevant/denial sets cite the KP source (KSK Reader / KP Astrology
+#     Learning page / etc.) in the inline comment.
+#   - For topic name variants (career/job/profession), add to TOPIC_ALIASES
+#     instead of duplicating the data.
+
+TOPIC_HOUSE_MAP_CANONICAL: dict = {
+
+    # ── MARRIAGE FAMILY ─────────────────────────────────────────────
+    "marriage": {
+        "relevant": {2, 7, 11}, "denial": {1, 6, 10, 12}, "primary_cusp": 7,
+        "framing": "Will marriage happen / be promised?",
+        # KSK Reader I-II §marriage — H7 spouse gate, H2 family, H11 desire fulfilled
+    },
+    "divorce": {
+        "relevant": {6, 10, 12}, "denial": {2, 7, 11}, "primary_cusp": 6,
+        "framing": "Will marriage END (separation / divorce)?",
+        # divorce.txt + KSK doctrine — H6 dispute, H10 formal end (public), H12 physical separation
+        # Denial = marriage relevant set (reconciliation = denial of divorce)
+    },
+
+    # ── CAREER / WORK ───────────────────────────────────────────────
+    "job": {
+        "relevant": {2, 6, 10, 11}, "denial": {1, 5, 9, 12}, "primary_cusp": 10,
+        "framing": "Will job/service-employment fire / be promoted?",
+        # KSK Simple Rules — H10 primary (career gate), denial = 12th-from-each
+    },
+    "business": {
+        "relevant": {2, 7, 10, 11}, "denial": {1, 6, 9, 12}, "primary_cusp": 10,
+        "framing": "Will business venture succeed?",
+        # KSK doctrine: H10 is the profession gate; H7 is partnerships/public dealings
+        # CHANGED from legacy chart_engine primary=7 (which conflated business with marriage gate)
+        # KP Astrology Learning H10: "If H10 sub lord signifies 7 → profession is business"
+    },
+
+    # ── WEALTH / MONEY ──────────────────────────────────────────────
+    "wealth": {
+        "relevant": {2, 6, 11}, "denial": {1, 8, 12}, "primary_cusp": 2,
+        "framing": "Will wealth accumulate?",
+        # KSK STRICT — wealth is 2/6/11 (NOT 2/6/10/11)
+        # CHANGED from legacy chart_engine which incorrectly included H10
+        # H10 is for PROFESSION (career), NOT for wealth ACCUMULATION (per other_topics.txt §4)
+        # Denial = 12th-from-H2 (loss of wealth) + H8 (debt) + H12 (loss/expenditure)
+    },
+
+    # ── EDUCATION ───────────────────────────────────────────────────
+    "education": {
+        "relevant": {4, 9, 11}, "denial": {3, 8, 10, 12}, "primary_cusp": 4,
+        "framing": "Will basic/school-level education complete?",
+        # KSK Reader — H4 primary for schooling, H9 for higher learning, H11 fulfillment
+        # CHANGED from legacy chart_engine primary=9 (that's the higher-learning framing)
+        # Denial: H3 (break in study), H8 (interruption), H10 (status without education), H12 (interruption)
+    },
+    "education_higher": {
+        "relevant": {4, 9, 11}, "denial": {3, 8, 10, 12}, "primary_cusp": 9,
+        "framing": "Will higher education (college/research/PhD) complete?",
+        # KSK Reader — H9 primary for research/doctorate
+    },
+
+    # ── HEALTH ──────────────────────────────────────────────────────
+    "health": {
+        "relevant": {1, 5, 11}, "denial": {6, 8, 12}, "primary_cusp": 1,
+        "framing": "Will I be healthy / recover from illness?",
+        # WELLNESS framing — H1 self/vitality, H5 = 12th-from-6 (no-disease/recovery),
+        # H11 fulfillment of health desire
+        # CHANGED from legacy chart_engine which had DISEASE framing relevant={6,8,12}
+        # For "will disease come?" framing, see "disease_risk" topic below.
+    },
+    "disease_risk": {
+        "relevant": {6, 8, 12}, "denial": {1, 5, 11}, "primary_cusp": 6,
+        "framing": "Will disease come / hospitalization risk?",
+        # The OLD legacy chart_engine HEALTH framing — preserved here under correct name
+        # so questions like "am I going to fall ill?" still get the right house set.
+    },
+
+    # ── CHILDREN / FERTILITY ────────────────────────────────────────
+    "children": {
+        "relevant": {2, 5, 11}, "denial": {1, 4, 7, 10}, "primary_cusp": 5,
+        "framing": "Will children come / fertility?",
+        # KSK Reader — H5 children, H2 family birth, H11 fulfillment of desire
+        # Denial = 12th-from-each + H7 (legacy TOPIC_DENIAL was missing H7)
+    },
+
+    # ── PROPERTY / VEHICLE ──────────────────────────────────────────
+    "property": {
+        "relevant": {4, 11, 12}, "denial": {3, 5, 6, 8}, "primary_cusp": 4,
+        "framing": "Will property acquisition happen?",
+        # KSK — H4 primary (immovable), H11 gain, H12 investment outflow
+        # Denial = 12th-from-each (H3 from H4, H6 from H11, etc.)
+        # CHANGED from legacy TOPIC_DENIAL=[3] which was too narrow
+    },
+
+    # ── FOREIGN ─────────────────────────────────────────────────────
+    "foreign_travel": {
+        "relevant": {3, 9, 12}, "denial": {2, 4, 11}, "primary_cusp": 9,
+        "framing": "Will I travel abroad (short journey)?",
+        # H9 primary for long journeys (KSK)
+    },
+    "foreign_settle": {
+        "relevant": {3, 9, 12}, "denial": {2, 4, 11}, "primary_cusp": 12,
+        "framing": "Will I settle abroad (long-term)?",
+        # H12 primary for foreign land settlement (KSK)
+    },
+
+    # ── LITIGATION ──────────────────────────────────────────────────
+    "litigation": {
+        "relevant": {6, 11}, "denial": {7, 8, 12}, "primary_cusp": 6,
+        "framing": "Will I WIN the court case?",
+        # WIN framing (KP Astrology Learning H6): H6 dispute, H11 victory
+        # Denial: H7 (opponent prevails), H8 (obstacle/stress), H12 (loss)
+        # CHANGED from legacy chart_engine which had LOSS framing relevant={6,8,12}
+    },
+    "litigation_loss": {
+        "relevant": {7, 8, 12}, "denial": {6, 11}, "primary_cusp": 7,
+        "framing": "Will I LOSE the court case (opponent prevails)?",
+        # Reverse framing — useful for "what's my risk of losing" questions
+    },
+
+    # ── RELATIVES (Bhavat Bhavam via primary cusp) ───────────────────
+    "father": {
+        "relevant": {9, 10}, "denial": {3, 4}, "primary_cusp": 9,
+        "framing": "Father's matters (status, health, support)",
+        # H9 = father (KP), H10 = father's status
+        # Denial: H3 = 8th-from-8 + minor stressor, H4 = 8th-from-9 (father's longevity stress)
+        # NEW in canonical map — was only in legacy chart_engine
+    },
+    "mother": {
+        "relevant": {4, 10}, "denial": {3, 9}, "primary_cusp": 4,
+        "framing": "Mother's matters (status, health, support)",
+        # H4 = mother (KP), H10 = 7th-from-4 (mother's partner / father, contextual)
+        # Denial: H3 = 12th-from-4, H9 = 6th-from-4 (mother's stress / illness)
+        # NEW in canonical map
+    },
+    "siblings": {
+        "relevant": {3, 11}, "denial": {9, 12}, "primary_cusp": 3,
+        "framing": "Siblings' matters / sibling relationships",
+        # H3 primary (KP)
+        # NEW in canonical map
+    },
+
+    # ── SPIRITUALITY / PERSONALITY ──────────────────────────────────
+    "spirituality": {
+        "relevant": {9, 8, 12}, "denial": {2, 3, 11}, "primary_cusp": 9,
+        "framing": "Spiritual progress / dharma / moksha",
+        # H9 dharma, H8 occult, H12 moksha
+        # Denial: material-attachment houses (H2 wealth, H3 ego/effort, H11 worldly desire)
+    },
+    "personality": {
+        "relevant": {1, 5, 9}, "denial": {6, 8, 12}, "primary_cusp": 1,
+        "framing": "Self / personality / character",
+        # H1 self primary, H5 intellect/creativity, H9 dharma
+    },
 }
+
+# Topic name aliases — resolve to canonical topic name in TOPIC_HOUSE_MAP_CANONICAL
+TOPIC_ALIASES: dict = {
+    "career":           "job",
+    "profession":       "job",
+    "service":          "job",
+    "employment":       "job",
+    "job_employment":   "job",
+    "career_business":  "business",
+    "startup":          "business",
+    "venture":          "business",
+    "self_employment":  "business",
+    "finance":          "wealth",
+    "money":            "wealth",
+    "fertility":        "children",
+    "foreign":          "foreign_travel",   # default foreign → travel
+    "immigration":      "foreign_settle",
+    "settlement":       "foreign_settle",
+    "court_case":       "litigation",
+    "lawsuit":          "litigation",
+    "appeal":           "litigation",
+    "spouse":           "marriage",
+    "parents":          "father",            # rough default; specific question should route to father/mother
+}
+
+
+def resolve_topic_alias(topic: str) -> str:
+    """Resolve a topic name alias to its canonical name in TOPIC_HOUSE_MAP_CANONICAL.
+
+    Returns the topic unchanged if it's already canonical, or if not in either
+    the alias map or canonical map (caller deals with unknown topics).
+    """
+    t = (topic or "").lower().strip()
+    if t in TOPIC_HOUSE_MAP_CANONICAL:
+        return t
+    return TOPIC_ALIASES.get(t, t)
+
+
+def get_topic_data(topic: str) -> dict | None:
+    """Get the full {relevant, denial, primary_cusp, framing} dict for a topic.
+
+    Returns None if topic is unknown.
+    """
+    canonical = resolve_topic_alias(topic)
+    return TOPIC_HOUSE_MAP_CANONICAL.get(canonical)
+
+
+def get_relevant_houses(topic: str) -> set:
+    """Return relevant houses set for any topic (canonical or alias). Empty if unknown."""
+    data = get_topic_data(topic)
+    return set(data["relevant"]) if data else set()
+
+
+def get_denial_houses(topic: str) -> set:
+    """Return denial houses set for any topic (canonical or alias). Empty if unknown."""
+    data = get_topic_data(topic)
+    return set(data["denial"]) if data else set()
+
+
+def get_primary_cusp(topic: str) -> int | None:
+    """Return primary cusp house (1-12) for any topic. None if unknown."""
+    data = get_topic_data(topic)
+    return data["primary_cusp"] if data else None
+
+
+def _build_legacy_house_topics() -> dict:
+    """Build the legacy HOUSE_TOPICS dict (list shape with primary cusp first).
+
+    Derived from TOPIC_HOUSE_MAP_CANONICAL. Includes all canonical topics +
+    every alias pointing to its canonical entry. Maintains backwards compat
+    for callers that still use HOUSE_TOPICS[topic] as a list.
+    """
+    result: dict = {}
+    for topic, data in TOPIC_HOUSE_MAP_CANONICAL.items():
+        primary = data["primary_cusp"]
+        rest = sorted(data["relevant"] - {primary})
+        result[topic] = [primary] + rest
+    # Add aliases (point to the canonical entry's list)
+    for alias, canonical in TOPIC_ALIASES.items():
+        if canonical in result:
+            result[alias] = result[canonical]
+    return result
+
+
+# Legacy HOUSE_TOPICS — DERIVED from TOPIC_HOUSE_MAP_CANONICAL above.
+# Do NOT edit this dict directly; edit TOPIC_HOUSE_MAP_CANONICAL.
+HOUSE_TOPICS = _build_legacy_house_topics()
 
 
 def get_house_number(cusp_longitude: float, cusps: dict) -> int:

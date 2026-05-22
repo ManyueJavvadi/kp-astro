@@ -1,0 +1,141 @@
+TOPIC: litigation
+QUESTION: Will I win the civil case I have filed against my former business partner?
+
+============================================================
+
+## LITIGATION ANALYSIS — Manyue
+**May 21, 2026** | Houses: Relevant = H6, H8, H12 | Win = H1, H6, H11 | Denial of win = H7, H12
+
+---
+
+### 1. DIRECT VERDICT
+
+**PROMISED — TIER 2 — Engine confidence: 73/100.** The H6 CSL (Mercury) signifies H6 cleanly with ALIGNED Star-Sub Harmony, and the H12 CSL (Mercury, same planet) also signifies H6 — two of three relevant cusps agree. The win-specific house group {H1, H6, H11} is partially supported at the primary gate. The primary timing window is **Mercury AD (Oct 2026 → Aug 2027)**, which is the KSK-flagged trigger (Mercury is sub-lord of H12, chain signifies H6, 3 RP slots, Yogini convergence confirmed).
+
+---
+
+### 2. CUSPAL EVIDENCE
+
+**Primary gate — H6 CSL = Mercury** (the litigation/dispute house)
+
+Per chart data: Mercury owns H3, H6.
+
+- Mercury occupies H1, owns H3 + H6
+- **STAR layer** (Sun, Mercury's star lord): Sun occupies H1, owns H5 → signifies {1, 5}. H1 is RELEVANT for winning (self-prevailing). Star says: native's self-assertion is active.
+- **SUB layer** (Rahu, Mercury's sub-lord): Rahu occupies H6 → signifies H6 directly. Rahu's full signification = {6, 12, 4, 1, 3}. H6 + H1 are RELEVANT for winning; H12 is the denial-qualified house (loss/foreign expense).
+- Step 4 (Moon, Rahu's star lord — FINAL DECIDER): Moon occupies H12, owns H4 → signifies {4, 12}. H12 is the denial house for litigation win (loss to opponent). **Step 4 carries a partial denier thread.**
+- **4-step union**: {1, 3, 4, 5, 6, 12}
+- **Harmony verdict: ALIGNED** — Sub layer (Rahu) strongly points to H6 (the dispute house itself), Star layer carries H1 (self-win). The Step 4 Moon→H12 thread is the friction signal.
+
+**CONFLICTING SIGNALS:**
+- Signal pointing YES: Sub layer (Rahu in H6) directly signifies H6 — the dispute is alive and the native is the active party. H1 from Star layer = self-prevailing thread.
+- Signal pointing NO: Step 4 (Moon→H12) = loss/expense thread at the final-decider level. This is the "offer-then-withdrawn" risk — case may progress well but face a reversal at the final stage.
+- How they resolve: Per KSK strict bhukti rule, the H12 thread fires in bhuktis of H12 significators (Moon, Saturn, Ketu, Jupiter, Rahu). The H6+H1 thread fires in bhuktis of H6+H1 significators (Mercury, Rahu-via-H6, Mars). **Mercury AD is the H6-thread bhukti — this is the win window.**
+
+**Supporting cusp — H8 CSL = Mars** (transformation/sudden events in litigation)
+
+Per chart data: Mars owns H1, H8.
+
+- Mars occupies H1, owns H1 + H8 → signifies {1, 8}
+- Star layer (Venus): Venus occupies H2, owns H2 + H7 → signifies {2, 7}. H7 is the DENIAL house (opponent wins).
+- Sub layer (Venus, same): same as above → {2, 7}
+- **Harmony: TENSION** — both Star and Sub layers carry H7 (opponent's house). H8 CSL Mars has a structural tension: H1 (self) is relevant but H7 (opponent) is the denial. This means the H8 thread (sudden events, transformation in the case) can cut either way.
+- H8 SAV = 25 (below average) — the transformation/sudden-event house is structurally weak.
+
+**Supporting cusp — H12 CSL = Mercury** (same planet as H6 CSL)
+
+- Same 4-step chain as H6 CSL: signifies {1, 3, 4, 5, 6, 12}
+- H6 is relevant → **KSK timing trigger confirmed**: Mercury is sub-lord of H12 AND its chain signifies H6 (the other relevant cusp). `ksk_timing_active = YES` for Mercury AD.
+- **TIER 2 confirmed**: H6 CSL (Mercury) + H12 CSL (Mercury) both signify H6. Same planet governs both gates — one source, two confirmations.
+
+**Win-specific house group {H1, H6, H11}:**
+- H1 CSL = Mercury → signifies {1, 3, 4, 5, 6, 12} → H1 + H6 ✓ (relevant), H12 ✗ (partial denier)
+- H6 CSL = Mercury → H6 ✓
+- H11 CSL = Ketu → signifies {1, 3, 5, 6, 12} → H6 ✓, H1 ✓, but H12 present (partial denier)
+
+All three win-cusps (H1, H6, H11) have Mercury or Ketu as CSL, and all signify H6. The win is structurally supported. The H12 thread across all three is the consistent friction signal — expenses, delays, possible partial loss before final win.
+
+**Structural anomalies:**
+- **H12 stellium (Moon, Saturn, Ketu — tight, 9.17°)**: Three planets concentrated in H12 powerfully activate loss/expense/isolation themes. This is the single most important structural feature for this case — the native will incur significant legal expenses and emotional isolation during the case.
+- **H1 stellium (Sun, Mars, Mercury — loose, 15.42°)**: Equally, three planets in H1 = strong self-assertion, fighting capacity, identity invested in this dispute.
+- **Lagna lord Mars in H1 (own house)**: Strong self-reliant identity, robust fighting capacity. Mars in Aries (own sign) — maximum martial energy for the dispute.
+- **Sade Sati Phase 1 (Rising)**: Saturn currently transiting H12 (Pisces), which already holds the H12 stellium. This amplifies the loss/expense/anxiety thread significantly during the current period.
+
+---
+
+### 3. FRUITFUL SIGNIFICATORS
+
+Today's RPs (per engine): Mercury, Venus, Mars, Moon
+
+Win-relevant significators (H1, H6, H11) intersecting with RPs:
+- **Mercury** — D-level for H6 (owner), also Asc Sign Lord + Moon Star Lord (2 RP slots) → **FRUITFUL, strong**
+- **Mars** — D-level for H1 (owner), also Asc Star Lord (1 RP slot) → **FRUITFUL**
+- **Moon** — A-level for H12 (star of occupant), Moon Sign Lord (1 RP slot) → fruitful but carries the H12 denial thread
+- **Venus** — C-level for H8 (star of Mars, H8 lord), Day Lord → fruitful but H8 is the tension-cusp
+
+Mercury and Mars are the cleanest fruitful significators for the win thread. Moon is fruitful but activates the expense/loss thread. The query moment is Mercury + Mars dominated — structurally, the question is being asked at a moment when the win-thread planets are ruling.
+
+---
+
+### 4. TIMING WINDOWS
+
+| AD Lord | Period | Houses Signified (4-step) | Win-relevant? | Quality |
+|---------|--------|--------------------------|---------------|---------|
+| Sun | 2022-12-27 → 2023-04-15 | H1, H5 | H1 ✓ partial | WEAK |
+| Moon | 2023-04-15 → 2023-10-15 | H4, H12 | H12 denial | UNFAVORABLE |
+| Mars | 2023-10-15 → 2024-02-19 | H1, H2, H7, H8 | H1 ✓, H7 denial | MIXED |
+| Rahu | 2024-02-19 → 2025-01-13 | H6, H12, H4, H1, H3 | H6 ✓, H1 ✓ | MODERATE |
+| Jupiter | 2025-01-13 → 2025-11-01 | H2, H7, H9, H10, H11, H12 | H11 ✓, H7 denial | MIXED |
+| **Saturn** | **2025-11-01 → 2026-10-14** | **H10, H11, H12** | **H11 ✓, H12 denial** | **MIXED-CURRENT** |
+| **Mercury** | **2026-10-14 → 2027-08-21** | **H1, H3, H4, H5, H6, H12** | **H6 ✓, H1 ✓** | **STRONG ⭐ KSK-fires** |
+| Ketu | 2027-08-21 → 2027-12-26 | H1, H3, H5, H6, H12 | H6 ✓, H1 ✓ | MODERATE |
+| Venus | 2027-12-26 → 2028-12-26 | H1, H2, H4, H6, H7, H8, H12 | H6 ✓, H1 ✓, H7 denial | MIXED |
+
+- **PRIMARY WINDOW: Mercury AD (Oct 14, 2026 → Aug 21, 2027)** — Mercury is the H6 CSL itself, sub-lord of H12 with chain signifying H6, 3 RP slots (strongest upcoming AD), Yogini Rahu convergence confirmed, KSK timing trigger active. This is the joint period for case resolution in the native's favor.
+- **SECONDARY WINDOW: Ketu AD (Aug 21 → Dec 26, 2027)** — Ketu signifies H6 + H1 via its chain {1, 3, 5, 6, 12}. Moderate strength, 0 RP slots currently but structurally supportive.
+- **UNFAVORABLE: Moon AD (2023), Saturn AD (current)** — Moon AD signifies H12 (loss); Saturn AD signifies H11 (partial gain) but H12 (expense) dominates. Current Saturn AD is a period of legal expenses and procedural delays, not resolution.
+
+**Note:** Window rankings reflect today's Ruling Planets and may shift slightly on other days.
+
+---
+
+### 5. PRATYANTARDASHA (within Mercury AD — Oct 2026 → Aug 2027)
+
+Mercury AD is the primary window. Within it, the PADs that activate the win thread:
+
+| PAD | Dates | Win-relevant? | Best Sookshma |
+|-----|-------|---------------|---------------|
+| **Mercury PAD** | Oct 14 → Nov 27, 2026 | H6 ✓ (Mercury self-signifies) | Mercury Sookshma Oct 14-20 (fire 3/10, RP-confirmed) |
+| **Moon PAD** | Feb 20 → Mar 18, 2027 | H12 (partial denier) | Avoid for verdict |
+| **Mars PAD** | Mar 18 → Apr 5, 2027 | H1 ✓, H8 (tension) | Mercury Sookshma Mar 27-29 |
+| **Jupiter PAD** | May 22 → Jul 2, 2027 | H11 ✓ (gain), H7 denial | Mercury Sookshma Jun 2-8 |
+| **Saturn PAD** | Jul 2 → Aug 21, 2027 | H12 (expense) | Avoid for verdict |
+
+**Strongest PAD for favorable verdict: Mercury PAD (Oct 14 → Nov 27, 2026)** — Mercury is the H6 CSL, self-signifying, 3 RP slots. The Mercury Sookshma within this PAD (Oct 14-20, 2026) is the day-precision firing window for a favorable development (hearing, order, or settlement offer).
+
+**Secondary: Jupiter PAD (May 22 → Jul 2, 2027)** — Jupiter signifies H11 (gain/victory fulfillment). Mercury Sookshma within Jupiter PAD (Jun 2-8, 2027) is the next precision window.
+
+**Avoid: Moon PAD and Saturn PAD** — both carry the H12 denial thread strongly; these are periods of setbacks, expenses, or procedural losses within the Mercury AD.
+
+---
+
+### 6. PRE-ANSWERED FOLLOW-UPS
+
+**"The current Saturn AD feels like nothing is moving — is that normal?"**
+Yes, structurally expected. Saturn AD signifies H10 + H11 + H12 — the H12 thread (expenses, isolation, delays) is dominant. Saturn is also transiting H12 natally right now, amplifying the H12 stellium (Moon + Saturn + Ketu already there). Sade Sati Phase 1 adds anxiety and work pressure. The case is alive but the current period is procedural grinding, not resolution. The native should use this period to strengthen documentation and legal strategy, not expect a verdict.
+
+**"Is the opponent (former business partner) structurally stronger in this case?"**
+H7 (opponent) CSL = Mercury → signifies {1, 3, 4, 5, 6, 12}. The opponent's house (H7) has the same CSL as the native's H6 — Mercury governs both. This means both parties have structural claim. However, H7 SAV = 31 (strong) vs H6 SAV = 32 (slightly stronger). The native's H6 has marginally stronger Ashtakavarga support. The H8 CSL (Mars) carries H7 in its Star-Sub layers (TENSION verdict) — the transformation/sudden-event thread can favor the opponent in Mars-dominated bhuktis. Avoid Mars PAD for expecting favorable orders.
+
+**"Will there be a settlement or a court verdict?"**
+H7 (settlement/agreement with other party) CSL = Mercury → signifies H6 + H1 (native's side). H6 + H7 both active in Mercury AD suggests a **negotiated settlement is more likely than a full court verdict**. The H12 thread across all CSLs suggests the native may accept a settlement that involves some financial concession (H12 = outflow) but retains the core claim (H6 + H1 preserved). A clean court verdict in the native's favor is possible in Jupiter PAD (May-Jul 2027) when H11 (gain) activates.
+
+---
+
+### 7. CLIENT SUMMARY
+
+"Your case is structurally supported — the chart shows you have genuine legal standing and the fighting capacity to see this through. The current period (until October 2026) is slow and expensive — that's the chart's pattern, not a sign the case is lost. The real movement begins in October 2026 when a new planetary cycle opens that directly activates your dispute house. The strongest window for a favorable outcome is between October 2026 and July 2027, with the clearest signal in the October-November 2026 window and again in May-July 2027. A negotiated settlement during this period is more likely than a full court verdict, and you may need to accept some financial concession to close it — but the core of your claim should hold."
+
+---
+
+**Calibration note:** Engine confidence 73/100 is conservative. The Mercury AD KSK trigger (sub-lord of H12, chain signifies H6, 3 RP slots, Yogini convergence) is a strong structural alignment. The primary friction is the H12 stellium and Step 4 Moon→H12 partial denier — these explain the expense and delay pattern, not denial of the win itself. Free-will caveat: legal outcomes depend on evidence, counsel quality, and judicial discretion — the chart shows structural probability, not certainty.

@@ -25,6 +25,9 @@ UNION of Steps 1-4 → final CSL signification set.
 from app.services.chart_engine import (
     get_sign, get_nakshatra_and_starlord, get_sub_lord,
     SIGN_LORDS as _SIGN_LORDS_LIST,
+    # PR A2.0a — single source of truth for topic-house mappings
+    TOPIC_HOUSE_MAP_CANONICAL,
+    resolve_topic_alias,
 )
 
 # PR A1.3-fix-24 — derive the dict-shaped SIGN_LORDS from chart_engine's
@@ -253,20 +256,21 @@ def format_csl_chains_for_llm(csl_chains: dict) -> str:
 # Now that A1.12 computes Step 4, we can detect this exactly per topic.
 # ──────────────────────────────────────────────────────────────────────
 
-# Topic-to-houses mapping (relevant / denial sets per house_combinations_canonical.md)
+# Topic-to-houses mapping — PR A2.0a: now DERIVED from the canonical map in
+# chart_engine.py (TOPIC_HOUSE_MAP_CANONICAL). Previously this dict was a
+# separate literal that disagreed with chart_engine.HOUSE_TOPICS on 13 of 15
+# topics (see .claude/research/pre-pr-findings-2026-05-22.md).
+#
+# TOPIC_HOUSE_MAP retains the same shape it had pre-refactor (relevant + denial
+# + primary_cusp) so the rest of this module's Pattern D2 detector code keeps
+# working unchanged.
 TOPIC_HOUSE_MAP = {
-    "marriage":         {"relevant": {2, 7, 11},    "denial": {1, 6, 10, 12}, "primary_cusp": 7},
-    "career":           {"relevant": {2, 6, 10, 11}, "denial": {5, 8, 9, 12}, "primary_cusp": 10},
-    "career_business":  {"relevant": {2, 7, 10, 11}, "denial": {5, 8, 12},    "primary_cusp": 10},
-    "job_employment":   {"relevant": {2, 6, 10, 11}, "denial": {5, 8, 9, 12}, "primary_cusp": 10},
-    "wealth":           {"relevant": {2, 6, 11},    "denial": {5, 8, 12},    "primary_cusp": 2},
-    "children":         {"relevant": {2, 5, 11},    "denial": {1, 4, 7, 10}, "primary_cusp": 5},
-    "education":        {"relevant": {4, 9, 11},    "denial": {3, 8, 10},    "primary_cusp": 4},
-    "education_higher": {"relevant": {4, 9, 11},    "denial": {3, 8, 10},    "primary_cusp": 9},
-    "property":         {"relevant": {4, 11, 12},   "denial": {3, 5, 6, 8},  "primary_cusp": 4},
-    "foreign":          {"relevant": {3, 9, 12},    "denial": {2, 4, 11},    "primary_cusp": 12},
-    "litigation":       {"relevant": {6, 11},       "denial": {7, 8, 12},    "primary_cusp": 6},
-    "health":           {"relevant": {1, 5, 11},    "denial": {6, 8, 12},    "primary_cusp": 1},
+    topic: {
+        "relevant":     set(data["relevant"]),
+        "denial":       set(data["denial"]),
+        "primary_cusp": data["primary_cusp"],
+    }
+    for topic, data in TOPIC_HOUSE_MAP_CANONICAL.items()
 }
 
 
@@ -287,7 +291,9 @@ def detect_pattern_d2(csl_chains: dict, topic: str) -> dict | None:
          denial houses (no relevant overlap) = "final decider blocks"
       5. If both → Pattern D2 fires. Otherwise None.
     """
-    topic_info = TOPIC_HOUSE_MAP.get(topic.lower())
+    # PR A2.0a — resolve alias first so e.g. "career" → "job", "foreign" → "foreign_travel"
+    canonical_topic = resolve_topic_alias(topic)
+    topic_info = TOPIC_HOUSE_MAP.get(canonical_topic)
     if not topic_info:
         return None
 
