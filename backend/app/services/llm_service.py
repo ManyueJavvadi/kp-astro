@@ -172,15 +172,15 @@ TOPIC_TO_FILE = {
     "land_dispute":       "litigation.txt",
     "litigation_loss":    "litigation.txt",
 
-    # ── Health cluster ──
+    # ── Health cluster (PR B2.4 — hospitalization cluster → hospitalization.md) ──
     "disease_risk":       "health.txt",
-    "hospitalization":    "health.txt",
-    "surgery":            "health.txt",
-    "accident_risk":      "health.txt",
+    "hospitalization":    "hospitalization.md",
+    "icu":                "hospitalization.md",
+    "critical_care":      "hospitalization.md",
+    "discharge":          "hospitalization.md",
+    "surgery":            "health.txt",        # B2.7 will expand surgery section
+    "accident_risk":      "health.txt",        # B2.8 will expand
     "recovery":           "health.txt",
-    "icu":                "health.txt",
-    "critical_care":      "health.txt",
-    "discharge":          "health.txt",
 
     # ── Batch 2: Longevity cluster (PR B2.2 — dedicated longevity.md) ──
     "longevity":              "longevity.md",
