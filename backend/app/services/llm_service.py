@@ -506,6 +506,13 @@ ADVANCED_FILES = [
     # question framework). These apply to ALL topics so they're loaded universally
     # instead of duplicated inside every per-topic KB file.
     "timing_and_karaka_overlay.md",
+    # PR B6.1 — compound-topics master library. Top 20+ cross-topic compound
+    # patterns (career+marriage / business+wealth / health+children / etc.).
+    # Loaded universally because compound questions can hit any topic-pair.
+    "compound_topics.md",
+    # PR B6.2 — worked-examples library (10-15 canonical case studies). Provides
+    # the AI with reference cases to model output structure on.
+    "worked_examples_library.md",
 ]
 
 # PR A1.3-fix-18 — User-mode lean KB.
