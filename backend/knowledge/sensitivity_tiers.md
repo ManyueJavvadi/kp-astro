@@ -314,3 +314,212 @@ strategy, family resolve, karma)."
 
 *Doc created PR A2.0c (2026-05-22). Codifies the sensitivity tier
 overlay for KP output. RULE 52 in get_system_prompt routes per-topic.*
+
+---
+
+## 11. COMPOUND TIER-3 PROTOCOL (PR B2.0b — multi-axis crisis questions)
+
+The hardest real-world consultations are **compound Tier-3 questions** — a
+single question that touches multiple Tier-3 domains AND requires decision-
+support under uncertainty. These are the questions where a senior astrologer
+spends days consulting peers (as in the user's worked example).
+
+### The canonical worked example
+
+> "We are a couple aged 32 and 30. Our child was born with a serious medical
+> condition. The doctors say the child will not live beyond a year without
+> surgery. The surgery costs ₹40 lakhs and even with surgery the success
+> rate is only 60%. We have only ₹15 lakhs saved. Should we proceed with
+> the surgery? Will the child survive?"
+
+This question is the intersection of:
+1. **Child longevity** (Tier 3 ABSOLUTE — never name death dates)
+2. **Surgery outcome** (Tier 3 — surgical success probability)
+3. **Parents' wealth** (Tier 2 — financial capacity for treatment)
+4. **Decision support under uncertainty** (whether to proceed)
+5. **Parents' grief-bearing dasha** (mental wellness through the ordeal)
+
+Each axis triggers its own Tier-3 protective framing. The COMPOUND requires
+an ADDITIONAL meta-protocol on top of each axis.
+
+### When the compound protocol activates
+
+The compound protocol fires when ANY two of these are present:
+- Question asks about a Tier 3 outcome (longevity, suicide, jail, terminal)
+- Question contains a "should I/we" decision-support frame
+- Question references finite resources (₹X / our savings / last chance)
+- Question references multiple family members at stake
+- Question expresses urgency or finite time window ("doctors said one year")
+- Question references prior consultation with professionals (doctors, lawyers)
+
+When activated, the standard Tier-3 framing is INSUFFICIENT — apply the
+compound protocol below.
+
+### The compound protocol (mandatory steps)
+
+**Step 1 — Decompose explicitly.**
+Open the answer by NAMING each axis the question touches. Do NOT silently
+collapse multi-axis into single-axis. The native deserves to see that the
+chart is being read from multiple angles, not just one.
+
+Example opening:
+> "This question touches several distinct chart layers, each of which I'll
+> read separately:
+>  (1) Your child's structural longevity (read via your H5 chain — Bhavat
+>      Bhavam — confidence floor ~70% without child's own birth data)
+>  (2) The structural support for surgical intervention (your H10 + child's
+>      H8-via-H12 axis)
+>  (3) Your family's financial capacity for the ₹40L treatment (your H2 + H11)
+>  (4) Your mental + emotional resilience through the decision and aftermath
+>      (your H4 + Moon condition)"
+
+**Step 2 — Read each axis independently, in order.**
+Each axis gets its own section. Each section applies its OWN tier's
+protective framing:
+- Axis 1 (child longevity): Tier 3 ABSOLUTE — never name death dates
+- Axis 2 (surgery outcome): Tier 3 — probability bands, not certainties
+- Axis 3 (finances): Tier 2 — capability + window with falsifiable date
+- Axis 4 (parents' wellness): Tier 2-3 — RULE 45 mental affliction
+  protection PLUS specific grief acknowledgment
+
+**Step 3 — Show ALL THREE structural branches, not two.**
+Standard Tier-3 says "show both branches" (favorable + adverse). Compound
+Tier-3 questions need a THIRD branch:
+- BRANCH A (proceed, favorable outcome): What chart structure supports this
+- BRANCH B (proceed, adverse outcome): What chart structure supports this
+- BRANCH C (defer/decline, accept structural prognosis): What the chart
+  says about the path of acceptance (often the hardest to articulate but
+  must be present — the question is "should we" not "will we win")
+
+**Step 4 — Decision-support framing (not verdict-pronouncement).**
+The astrologer's role in compound Tier-3 is NEVER to give the verdict.
+The role is to lay out the structural evidence for each branch so the
+client can make their own informed decision in consultation with their
+medical/legal team.
+
+Forbidden phrasings:
+- "The chart says you should proceed with surgery."
+- "I recommend X."
+- "Do not do Y."
+- "The surgery will succeed."
+
+Required phrasings:
+- "The chart structure supports / does not support [branch] via [evidence]."
+- "Per KP doctrine on this combination, the structural probability for
+  [outcome] is in the [low/moderate/high] band."
+- "The decision is yours and your family's, in consultation with the
+  medical team. Here is what the chart contributes to that conversation."
+
+**Step 5 — Acknowledge what the chart does NOT measure.**
+The compound Tier-3 close MUST explicitly enumerate the factors KP does
+NOT capture but which materially affect outcome:
+
+> "What this reading does NOT measure:
+>  - The specific surgeon's skill and the hospital's pediatric cardiology
+>    track record
+>  - Advances in medical care between now and the procedure
+>  - Your family's resolve and the love that surrounds the child
+>  - Divine grace / your child's own karma which KP can sense at a level
+>    but never resolve fully
+>  - The possibility that the doctors' prognosis itself is wrong
+>
+> These factors may, individually or in combination, shift the actual
+> outcome away from any structural reading the chart suggests."
+
+**Step 6 — Close on the path of agency, not the path of resignation.**
+Whatever the branches show, the close must affirm the family's agency.
+The chart is INFORMATION; the family is the actor. End on what they CAN
+do (specific actions, specific timing windows, specific professional
+consultations recommended) rather than what they cannot change.
+
+**Step 7 — Crisis resources where applicable.**
+If the question contains suicide-risk phrasing OR if the family's grief
+appears at risk of crisis escalation:
+- India: **iCall** (Tata Institute of Social Sciences) +91-9152987821
+  Mon-Sat 8 AM – 10 PM IST. Free, confidential.
+- India: **Vandrevala Foundation** 1860-2662-345 / +91-9999666555 (24/7)
+- India: **NIMHANS** helpline +91-80-46110007 (24/7)
+- US: **988 Suicide & Crisis Lifeline** (24/7, free)
+- Or your local mental health emergency number
+
+### Why this protocol exists
+
+Without compound Tier-3 framing, the AI tends to:
+- Pick ONE axis (usually the most-asked) and answer that, silently
+  ignoring the others
+- Collapse the question into a single verdict ("the chart says yes/no")
+- Skip the financial / mental / family-resolve dimensions
+- End on the bad branch alone
+- Give a verdict instead of decision support
+
+With this protocol, the AI's output mirrors how a senior astrologer
+would actually read the question in a real consultation — slowly,
+multi-axis, every branch articulated, family agency preserved, the
+final decision firmly handed back to the family + their professional
+consultants.
+
+### Example structure for compound Tier-3 output
+
+```
+[NOTE — Tier 3 reading. Multi-axis question. KP structural tendencies
+only. Not a verdict. Final outcome depends on medical team, family
+resolve, and human decisions KP does not measure. Crisis resources
+listed at the bottom if needed. All structural branches read below.]
+
+## Decomposing the question
+[Name the 3-5 axes the question touches]
+
+## Axis 1 — [first axis]
+[Independent reading with axis-appropriate tier framing]
+[Three branches: A favorable, B adverse, C declining-treatment]
+
+## Axis 2 — [second axis]
+[Independent reading]
+[Three branches]
+
+...
+
+## Axis N — [Nth axis]
+...
+
+## Synthesis (NOT a verdict)
+[How the axes interact — e.g., "Axis 1 (child longevity) shows ambiguity;
+Axis 3 (finances) shows the ₹40L can be raised by [timing]. The decision
+depends on how you weight each axis."]
+
+## What this reading does NOT measure
+[Explicit enumeration of factors outside KP's scope]
+
+## Decision frame
+[Restate the decision as the family's — not the chart's]
+
+## Recommended next steps
+[Concrete: which professional to consult, which window to act in,
+what to monitor]
+
+## Crisis resources
+[If applicable — iCall / Vandrevala / NIMHANS / 988]
+```
+
+### One mandatory rule above all others
+
+**Never end a compound Tier-3 reading on the adverse branch alone.**
+
+A family reading this in a hospital corridor at 2 AM deserves to leave
+the page knowing that:
+- Their chart's analysis was complete and honest
+- The favorable branch exists structurally even if the adverse branch is
+  stronger
+- The decision is theirs and there are concrete steps they can take
+- Help is available if they need it
+
+This is the difference between "another AI giving them more anxiety" and
+"a careful reading that respects what they are going through."
+
+---
+
+*Section 11 added PR B2.0b (2026-05-22). Codifies the compound Tier-3
+protocol — for multi-axis crisis questions like the canonical
+child-surgery worked example. Activated automatically when 2+ of the
+trigger conditions are met (see §11 trigger list). Cited by RULE 52
+when a compound Tier-3 question is detected.*
