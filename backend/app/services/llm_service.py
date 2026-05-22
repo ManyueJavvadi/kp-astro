@@ -232,6 +232,90 @@ TOPIC_TO_FILE = {
     "used_car":              "vehicle.md",
     "new_car":               "vehicle.md",
 
+    # ── BATCH 5 (PR B5.0a — spiritual/occult/fame/politics/sports/missing/decision) ──
+    # Spirituality (canonical already exists, routed to general.txt — B5.1 will route to spirituality.md)
+    "spirituality":         "general.txt",   # → spirituality.md after B5.1
+    # Occult cluster (B5.2 will create occult.md)
+    "occult":               "general.txt",
+    "black_magic":          "general.txt",
+    "drishti":              "general.txt",
+    "evil_eye":             "general.txt",
+    "nazar":                "general.txt",
+    "curse":                "general.txt",
+    "spell":                "general.txt",
+    "tantric":              "general.txt",
+    "exorcism":             "general.txt",
+    "spirits":              "general.txt",
+    "ghost":                "general.txt",
+    "negative_energy":      "general.txt",
+    "protection_mantra":    "general.txt",
+
+    # Fame cluster (B5.3 will create fame_politics_sports.md)
+    "fame":                 "general.txt",
+    "celebrity":            "general.txt",
+    "famous":               "general.txt",
+    "public_recognition":   "general.txt",
+    "social_media_fame":    "general.txt",
+    "influencer":           "general.txt",
+    "actor":                "general.txt",
+    "youtuber":             "general.txt",
+    "creative_career":      "general.txt",
+    "performer":            "general.txt",
+
+    # Politics cluster
+    "politics":             "general.txt",
+    "election":             "general.txt",
+    "election_result":      "general.txt",
+    "election_win":         "general.txt",
+    "elections":            "general.txt",
+    "public_office":        "general.txt",
+    "minister":             "general.txt",
+    "mayor":                "general.txt",
+    "mla":                  "general.txt",
+    "mp":                   "general.txt",
+    "activism":             "general.txt",
+    "political_career":     "general.txt",
+
+    # Sports cluster
+    "sports":               "general.txt",
+    "sport":                "general.txt",
+    "athletics":            "general.txt",
+    "cricket":              "general.txt",
+    "football":             "general.txt",
+    "tennis":               "general.txt",
+    "chess":                "general.txt",
+    "olympics":             "general.txt",
+    "boxing":               "general.txt",
+    "martial_arts":         "general.txt",
+    "race":                 "general.txt",
+    "tournament":           "general.txt",
+    "match_result":         "general.txt",
+    "athlete":              "general.txt",
+
+    # Missing person / Prashna (B5.4 will create missing_person.md)
+    "missing_person":       "general.txt",
+    "lost_object":          "general.txt",
+    "lost_item":            "general.txt",
+    "lost_wallet":          "general.txt",
+    "lost_phone":           "general.txt",
+    "lost_jewelry":         "general.txt",
+    "missing":              "general.txt",
+    "kidnapping":           "general.txt",
+    "runaway":              "general.txt",
+    "where_is":             "general.txt",
+    "prashna":              "general.txt",
+    "horary_lost":          "general.txt",
+
+    # Decision support (B5.5 will create decision_support.md)
+    "decision":             "general.txt",
+    "should_i":             "general.txt",
+    "good_idea":            "general.txt",
+    "right_choice":         "general.txt",
+    "choose_between":       "general.txt",
+    "decision_help":        "general.txt",
+    "what_to_do":           "general.txt",
+    "comparison":           "general.txt",
+
     # ── Litigation cluster (PR A2.0d → litigation.txt; A2.3 will expand) ──
     "court_case":         "litigation.txt",
     "lawsuit":            "litigation.txt",
@@ -2866,6 +2950,15 @@ HEALTH (refined):
 - "general health" or "vitality" = health
 - "ICU" or "critical care" or "intensive care" = icu
 - "discharge from hospital" = discharge
+
+BATCH 5 SPIRITUAL / OCCULT / FAME / POLITICS / SPORTS / MISSING / DECISION (NEW B5.0a):
+- "spirituality" / "moksha" / "dharma" / "meditation" / "guru" = spirituality
+- "black magic" / "drishti" / "evil eye" / "nazar" / "curse" / "negative energy" / "tantric" / "exorcism" / "ghost" / "spirit" = occult
+- "fame" / "famous" / "celebrity" / "influencer" / "actor" / "YouTuber" / "social media fame" = fame
+- "election" / "election result" / "political career" / "minister" / "MLA" / "MP" / "public office" = politics
+- "cricket" / "football" / "tennis" / "chess" / "olympics" / "match result" / "tournament" / "athlete" = sports
+- "missing" / "lost wallet" / "lost phone" / "where is" / "kidnapping" / "runaway" / "prashna" = missing_person
+- "should I" + "X or Y" / "decision help" / "good idea?" / "right choice" = decision
 
 BATCH 4 PROPERTY / FOREIGN / VEHICLE / PILGRIMAGE / VISA (NEW B4.0a):
 - "visa" / "visa application" / "visa approval" / "visa rejected" / "work visa" / "H1B" / "student visa" / "F1 visa" / "tourist visa" / "business visa" = visa
