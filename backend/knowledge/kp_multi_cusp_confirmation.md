@@ -247,3 +247,174 @@ that single-cusp reading misses.
 
 This is the difference between a textbook KP read and a 20-year-experienced
 KP astrologer's read.
+
+
+---
+
+## 10. EXTENDED HOUSE-GROUP TABLE — ALL CANONICAL TOPICS (pre-test-cleanup)
+
+Beyond the foundational career + marriage examples in §1-9, the
+multi-cusp confirmation framework extends to every canonical topic in
+TOPIC_HOUSE_MAP_CANONICAL. Use this extended table to apply TIER 0-3
+multi-cusp confirmation across the full domain spectrum.
+
+### Career / Business / Wealth cluster
+
+| Topic | Primary | Supporting cusps | Denial set | Notes |
+|---|---|---|---|---|
+| `job` | H10 | H6, H2, H11 | 1, 5, 9, 12 | KSK strict: H10 + H6 (service house critical) |
+| `business` | H10 | H7, H2, H11 | 1, 6, 9, 12 | H10 NOT H7 primary (KSK doctrine; H7 = partners/public) |
+| `wealth` | H2 | H6, H11 | 1, 8, 12 | KSK STRICT — wealth is 2/6/11 NOT 2/6/10/11 |
+| `money_recovery` | H6 | H2, H11 | 1, 5, 8, 12 | H6 sub lord MUST exclude Saturn for clean recovery |
+| `salary_growth` | H2 | H10, H11 | 1, 8, 12 | Distinct from promotion (H6+H10+H11) |
+| `loan` | H6 | H2, H11 | 1, 5, 9, 12 | H6 sub lord NOT retrograde for approval |
+
+### Education cluster
+
+| Topic | Primary | Supporting | Denial | Notes |
+|---|---|---|---|---|
+| `education` | H4 | H9, H11 | 3, 8, 10, 12 | Default school-level |
+| `education_higher` | H9 | H4, H11 | 3, 8, 10, 12 | College/PhD — H9 primary |
+
+### Marriage / Family cluster
+
+| Topic | Primary | Supporting | Denial | Notes |
+|---|---|---|---|---|
+| `marriage` | H7 | H2, H11 | 1, 6, 10, 12 | KSK Rule 2 verbatim — foundational doctrine |
+| `divorce` | H6 | H10, H12 | 2, 7, 11 | Reconciliation = denial of divorce |
+| `second_marriage` | H2 | H9, H11 | 6, 8, 12 | H9 primary gate (= 3rd from H7); H2 = 8th-from-H7 |
+| `in_laws` | H7 | H2, H11 | 1, 6, 10, 12 | Bhavat Bhavam: mother-in-law = H10 |
+| `children` | H5 | H2, H11 | 1, 4, 7, 10 | KSK strict — H7 in denial set |
+| `pregnancy_complications` | H5 | H11 | 1, 4, 8, 12 | H8 affliction = C-section / high-risk |
+| `adoption` | H5 | H2, H9, H11 | 1, 4, 7, 10 | H5 doesn't distinguish biological vs adopted |
+| `blended_family` | H5 | H2, H11 | 6, 7, 12 | Step-child = dual-house (H5 + H11 via Bhavat Bhavam) |
+
+### Health cluster
+
+| Topic | Primary | Supporting | Denial | Notes |
+|---|---|---|---|---|
+| `health` | H1 | H5, H11 | 6, 8, 12 | WELLNESS framing (recovery) |
+| `disease_risk` | H6 | H8, H12 | 1, 5, 11 | DISEASE framing (will I fall ill?) |
+| `child_illness` | H5 | H2, H11 | 1, 4, 7, 10 | Read child via parent's H5 (Bhavat Bhavam, ~70% conf) |
+| `congenital_conditions` | H5 | H8, H12 | 1, 4, 9, 11 | Diagnostic-confirmatory, not diagnostic-primary |
+| `mental_health` | H1 | H4, H5, H9 | 6, 8, 12 | Moon + Mercury condition critical |
+| `suicide_risk` | H8 | H6, H12 | 1, 5, 9, 11 | TIER 3 ABSOLUTE — never tell client this signature |
+| `addiction` | H12 | H6, H8 | 1, 5, 9, 11 | Rahu primary planet, Jupiter as antidote |
+| `longevity` | H1 | H5, H9, H10 | 2, 7, 12 | Maraka + Badhaka (Badhaka MORE harmful than Maraka) |
+
+### Property / Foreign / Vehicle cluster
+
+| Topic | Primary | Supporting | Denial | Notes |
+|---|---|---|---|---|
+| `property` | H4 | H11, H12 | 3, 5, 6, 8 | KSK — H4 primary, H11 gain, H12 investment outflow |
+| `foreign_travel` | H9 | H3, H12 | 2, 4, 11 | H9 primary for short journeys |
+| `foreign_settle` | H12 | H3, H9 | 2, 4, 11 | H12 primary for long-term settlement |
+| `visa` | H12 | H3, H9, H11 | 2, 4, 7 | Different visa types emphasize different houses |
+| `pilgrimage` | H9 | H5, H12 | 2, 7, 11 | Distinct from spirituality (own canonical topic) |
+
+### Litigation cluster
+
+| Topic | Primary | Supporting | Denial | Notes |
+|---|---|---|---|---|
+| `litigation` | H6 | H11 | 7, 8, 12 | WIN framing |
+| `litigation_loss` | H7 | H8, H12 | 6, 11 | Reverse framing — used rarely |
+
+### Public-eye cluster
+
+| Topic | Primary | Supporting | Denial | Notes |
+|---|---|---|---|---|
+| `fame` | H10 | H1, H5, H11 | 6, 8, 12 | Sun + Jupiter karakas; Saturn distinguishes sustained vs flash |
+| `politics` | H10 | H7, H11 | 6, 8, 12 | H7 = public/opponents in democratic contest |
+| `sports` | H5 | H6, H11 | 8, 12 | Mars + Sun karakas; H6 = competition |
+
+### Other / niche cluster
+
+| Topic | Primary | Supporting | Denial | Notes |
+|---|---|---|---|---|
+| `spirituality` | H9 | H8, H12 | 2, 3, 11 | Jupiter + Ketu karakas |
+| `occult` | H8 | H9, H12 | 1, 5, 11 | TIER 2-3 sensitive — never confirm 'cursed' verdict |
+| `missing_person` | H12 | H3, H9 | 1, 4, 11 | Prashna context — chart cast at question moment |
+| `personality` | H1 | H5, H9 | 6, 8, 12 | H1 + Moon condition primary |
+| `father` | H9 | H10 | 3, 4 | Sun karaka |
+| `mother` | H4 | H10 | 3, 9 | Moon karaka |
+| `siblings` | H3 | H11 | 9, 12 | Mars + Mercury karakas |
+
+### Decision (META-topic)
+
+| Topic | Primary | Supporting | Denial | Notes |
+|---|---|---|---|---|
+| `decision` | H1 | H5, H9, H10, H11 | 6, 8, 12 | Routes THROUGH underlying domain KBs |
+
+
+---
+
+## 11. TIER CONFIDENCE BANDS BY TOPIC FAMILY
+
+The TIER 0-3 confidence framework (§4-7) maps differently across topic
+families. Apply these calibrations:
+
+### Tier 1 topics (factual — career promotion, salary, education,
+travel, vehicle, fame): TIER 0-3 maps directly to engine confidence
+   - TIER 3: 80-95% — high confidence multi-cusp confirmation
+   - TIER 2: 65-80% — clean primary + ALIGNED harmony
+   - TIER 1: 50-65% — CONTRA on supporting cusps
+   - TIER 0: 30-50% — friction at primary
+   - TIER -1: <30% — denial pattern
+
+### Tier 2 topics (life-impact — marriage, business, wealth,
+divorce, money recovery): same TIER bands but apply RULE 44
+(capability vs manifestation) framing — the verdict is structural
++ timing-dependent, not absolute.
+
+### Tier 3 ABSOLUTE topics (longevity, suicide_risk, child_illness,
+criminal_case): TIER bands inform STRUCTURAL READING but NEVER
+become death-date prediction. RULE 15 always governs.
+
+For longevity specifically:
+   - TIER 3 longevity-supportive = Poornyash bracket
+   - TIER 2 longevity-supportive = Madhyayasha bracket
+   - TIER 1 longevity-supportive = Madhyayasha-vulnerable bracket
+   - TIER 0 longevity-supportive = Alpayash structural propensity
+   - TIER -1 = strong structural vulnerability — apply Tier 3
+     framing with maximum care
+
+### Compound questions (multiple topics simultaneously)
+
+When a question is compound, each axis has its own TIER. The OVERALL
+output reflects the LOWEST TIER axis's protective framing (most
+conservative governs) while still articulating all axes.
+
+Cross-link to `compound_topics.md` §2 (decomposition protocol).
+
+
+---
+
+## 12. CROSS-LINKS TO TOPIC-SPECIFIC KB
+
+Each topic-specific KB file contains its own multi-cusp examples + KSK
+strict bhukti rule applications:
+
+- Career: `job.txt` §2-3 (H10 + H6 confirmation)
+- Business: `business.txt` §1-3 (H10 + H7 + H2 + H11)
+- Marriage: `marriage.txt` §2-4 (H7 + H2 + H11 trinity)
+- Children: `children_detailed.md` §4 (H5 + H2 + H11)
+- Health: `health.txt` §7 (H1 + H6 + H8 + H12 multi-cusp analysis steps)
+- Longevity: `longevity.md` §2 (Alpayash/Madhyayasha/Poornyash brackets)
+- Wealth: `wealth.txt` (H2 + H6 + H11 trinity — KSK strict)
+- Litigation: `litigation.txt` §4 (H6 + H1 + H11 win signature)
+- Money recovery: `money_recovery.md` §3 (4-house compound H6+H7+H8+H2)
+- Child health: `child_health.md` §2-4 (Bhavat Bhavam multi-cusp)
+- Mental health: `mental_health.md` §1 (H1+H4+H5+H9 wellness multi-cusp)
+- Suicide risk: `mental_health.md` §3 (TIER 3 ABSOLUTE — H8+Maraka+Badhaka+Mars)
+- Adoption: `adoption.md` §2 (4-layer reading)
+
+For canonical topics WITHOUT dedicated multi-cusp examples in their
+own files, apply the §10 extended table above as the primary reference.
+
+---
+
+*Sections 10-12 added pre-test-cleanup (2026-05-22). Extends multi-cusp
+confirmation TIER 0-3 framework to every canonical topic in
+TOPIC_HOUSE_MAP_CANONICAL. The career + marriage examples in §1-9 remain
+the foundational worked-examples; this extension provides the lookup
+table for the other 41 canonical topics.*

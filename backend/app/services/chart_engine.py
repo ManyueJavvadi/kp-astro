@@ -1380,16 +1380,31 @@ def _build_legacy_house_topics() -> dict:
     Derived from TOPIC_HOUSE_MAP_CANONICAL. Includes all canonical topics +
     every alias pointing to its canonical entry. Maintains backwards compat
     for callers that still use HOUSE_TOPICS[topic] as a list.
+
+    PR pre-test-cleanup — uses fixed-point iteration to handle multi-hop
+    alias chains (e.g., car_purchase -> vehicle -> property). Without this,
+    aliases inserted in TOPIC_ALIASES BEFORE their target alias were
+    silently dropped, producing empty HOUSE_TOPICS lookups -> 25/100
+    engine confidence (the same regression class as PR A2.7).
     """
     result: dict = {}
     for topic, data in TOPIC_HOUSE_MAP_CANONICAL.items():
         primary = data["primary_cusp"]
         rest = sorted(data["relevant"] - {primary})
         result[topic] = [primary] + rest
-    # Add aliases (point to the canonical entry's list)
-    for alias, canonical in TOPIC_ALIASES.items():
-        if canonical in result:
-            result[alias] = result[canonical]
+    # Fixed-point iteration — resolve all alias chains (handles up to N-hop)
+    changed = True
+    max_iterations = 10  # safety cap; real chains are 1-2 hops
+    iteration = 0
+    while changed and iteration < max_iterations:
+        changed = False
+        iteration += 1
+        for alias, canonical in TOPIC_ALIASES.items():
+            if alias in result:
+                continue  # already resolved
+            if canonical in result:
+                result[alias] = result[canonical]
+                changed = True
     return result
 
 
