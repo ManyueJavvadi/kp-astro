@@ -323,3 +323,138 @@ If user pushes back (e.g., my career counsellor said I should switch to X):
   Re-run the H10 + H6 + H7 + H11 chain analysis. Check if X aligns with the
   planetary combinations above. State which signals support which path. KP
   identifies STRUCTURAL FIT, not the only viable career.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 13: SALARY GROWTH / INCOME JUMP (PR A2.4 — distinct from promotion)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Salary growth is a SEPARATE question from promotion. A native may get a
+salary hike without a role change (annual revision, market correction,
+counter-offer retention) — different KP signature.
+
+PRIMARY HOUSES FOR SALARY GROWTH:
+  H2 (income / accumulated wealth from job)
+  H11 (gains / increase / fulfillment of income desire)
+  H6 (service house — the job paying the salary)
+  Plus H10 for the profession context
+
+THE SALARY-GROWTH SIGNATURE:
+  H2 sub lord signifies H6 + H10 + H11 → service-based income grows
+  H2 sub lord signifies H10 + H11 only → income grows but via career
+    change (not within current job)
+  H11 sub lord active in current AD AND signifies H2 → fulfillment
+    of income desire fires now (the hike arrives)
+
+PER PLANET FOR SALARY GROWTH:
+  Mercury favorable → tech / analytical roles see bigger hikes
+  Jupiter favorable → leadership / consulting roles see senior compensation
+  Venus favorable → entertainment / arts / hospitality / luxury sector
+  Sun favorable → government salary revisions / authority-based hikes
+  Saturn → slow but stable annual increment (no jumps but no drops)
+  Rahu → sudden / unconventional hikes (MNC / overseas / equity)
+  Mars → aggressive negotiation / counter-offer success
+
+TIMING THE SALARY HIKE:
+  Most companies revise salary annually (March-April or January). Scan
+  the PAD within current AD active in that calendar window for:
+  - H11 lord activation
+  - H2 sub lord involvement
+  - RP overlap with H11 + H2 significators
+  When all three align → the upcoming appraisal cycle = real hike
+
+NO HIKE / SALARY STAGNATION:
+  H11 sub lord signifies {1, 8, 12} (loss of gain)
+  H2 sub lord signifies denial set {1, 8, 12}
+  Saturn dominant in H10 chain + Saturn unfavorable PAD = stagnation period
+  Frame: not denial of career — denial of income GROWTH in this period
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 14: LAYOFF / FIRING / INVOLUNTARY JOB LOSS (PR A2.4)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LAYOFF / FIRING IS DIFFERENT FROM VOLUNTARY EXIT (Section 10 covers
+voluntary). Involuntary job loss has a more severe KP signature.
+
+LAYOFF / FIRED SIGNATURE:
+  H10 sub lord signifies H12 (loss of profession) AND
+  H10 sub lord signifies H8 (sudden disruption)
+  H1 sub lord weak in current AD = native lacks self-protection
+  H6 sub lord touching H12 = service relationship breaks
+
+CATASTROPHIC vs PLANNED LAYOFF:
+  Catastrophic (sudden, no warning):
+    H8 strongly activated + H12 + Rahu involvement
+    "Sudden, unexpected termination"
+  Planned (company restructuring, mass layoff):
+    Saturn dominant in H10 + H12 chain
+    "Long-anticipated, structured exit"
+
+INDUSTRY-LEVEL LAYOFFS (mass tech layoffs, etc.):
+  When H10 sub lord touches H12 AND Saturn-Rahu transit affects
+  H10 collectively (mundane transit) = sector-wide layoff cycle
+  Frame: "this is a structural-period phenomenon, not personal failure"
+
+RECOVERY TIMING POST-LAYOFF:
+  Scan upcoming ADs for H6 + H10 + H2 + H11 alignment (re-employment
+  signature)
+  H6 favorable + Mercury/Mars active = quick re-employment
+  H7 favorable + Jupiter = consulting / freelance opportunity
+  H10 + H4 = relocation for next job
+
+PROTECTIVE FRAMING (Tier 2):
+  - Acknowledge emotional + financial impact of layoff
+  - Cite RE-EMPLOYMENT window with specific dates (RULE 46)
+  - Frame as TEMPORARY structural period, not career denial
+  - Recommend: actively pursue (Mars + H3 effort) — don't passively
+    wait for the favorable dasha; the AD opens the door, action
+    walks through it
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 15: RETIREMENT TIMING (PR A2.4)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+VOLUNTARY RETIREMENT (chosen exit):
+  H10 sub lord signifies H4 (settling down) + H12 (winding up career)
+  H1 + H4 strong = native's decision-driven exit
+  Saturn dasha favorable = structured planned retirement
+
+FORCED RETIREMENT (mandatory age cut-off / health):
+  H10 sub lord + H12 + H8 (sudden) for surprise retirement
+  Health-related: cross-link to disease_risk topic + H6+H8+H12 chain
+
+POST-RETIREMENT INCOME (pension / consulting):
+  H11 sub lord signifies H2 + H10 → pension/income continues
+  H7 sub lord active = consulting / advisory post-retirement
+  H11 + Mercury = part-time work / consulting
+  H11 + Saturn alone = pension-only / minimal additional income
+
+GRACEFUL vs DIFFICULT RETIREMENT:
+  Graceful: Jupiter/Venus favorable in H10/H11 chain at retirement time
+  Difficult: Mars/Saturn malefic in H8 + H12 = forced/health-driven
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 16: APPRAISAL CYCLES + ANNUAL REVIEW PREDICTIONS (PR A2.4)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Most companies do annual performance review + salary revision in
+March-April (Indian financial year) or January (calendar-year).
+
+To predict the appraisal outcome:
+1. Identify the month of native's appraisal cycle.
+2. Compute MD/AD/PAD/Sookshma for that exact period.
+3. Apply Section 13 salary growth doctrine to that timing.
+4. Verdict:
+   - Strong: AD + PAD both signify H2+H10+H11 → big hike + good rating
+   - Moderate: AD favorable, PAD neutral → typical 10-15% hike
+   - Weak: AD signifies denial set → flat / minimal hike / poor rating
+   - Adverse: H10 + H12 active → poor rating / PIP risk
+
+POOR RATING / PERFORMANCE-IMPROVEMENT-PLAN (PIP) RISK:
+  H10 sub lord signifies H12 in appraisal PAD = poor rating risk
+  H6 + H12 = manager critical / dispute with management
+  Frame: structural friction in current period, not permanent
+

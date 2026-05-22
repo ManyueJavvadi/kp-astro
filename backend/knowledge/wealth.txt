@@ -78,9 +78,189 @@ REAL ESTATE / PROPERTY-DERIVED WEALTH:
 BUSINESS / SELF-EMPLOYMENT WEALTH:
   H7 + H10 + H11 (partnerships + profession + gain)
   Lord of H10 strong + H7 sub lord active
+  Cross-link to business.txt for full business doctrine
 
 LOAN / DEBT EXPOSURE:
   H6 + H8 (debt + obstacle)
   H6 sub lord signifying H2 (incoming loan) or H12 (outgoing repayment)
   Saturn affliction = long-term debt
   Mars affliction = aggressive collection / disputes
+
+================================================================
+LOAN APPROVAL + EMI MANAGEMENT (PR A2.5)
+================================================================
+
+GETTING A LOAN (you applying):
+  Per KP Astrology Learning H6:
+  "Sub lord of H6 cusp signifying 2, 6, and 11 → gets overdraft/loan."
+  H6 sub lord must NOT be retrograde for loan to materialize.
+  Jupiter or Mercury in chain = formal bank loan, smooth approval
+  Mars in chain = aggressive negotiation, possibly NBFC route
+  Saturn in chain = strict scrutiny, eventual approval with conditions
+  Rahu in chain = unconventional lender, possibly fintech / overseas
+
+LOAN REJECTION SIGNATURE:
+  H6 sub lord retrograde + signifies denial set (1, 5, 9, 12) for wealth
+  H8 sub lord touching H6 = adverse credit history affecting approval
+  Saturn-Saturn parent dasha = chronic loan rejection period
+
+EMI REPAYMENT CAPACITY:
+  H2 sub lord signifies H11 + H6 = native can sustain EMI from income
+  H2 sub lord signifies H8 + H12 = EMI burden exceeds capacity (default risk)
+  H12 in chain = outgoing payment is structurally heavy
+
+EMI DEFAULT / NPA RISK:
+  H6 + H8 + H12 firing together in AD = active default risk window
+  Saturn 7th-from-Saturn (Sade Sati) transit + H6 affliction = extended distress
+  Recommend: pre-emptive restructuring conversation with lender BEFORE
+  default cascades
+
+================================================================
+INVESTMENT CLASSES — STOCKS / MF / GOLD / CRYPTO / REAL ESTATE (PR A2.5)
+================================================================
+
+STOCK MARKET / EQUITY:
+  H5 (speculation) + H8 (volatility / sudden) + H11 (gain)
+  H5 sub lord signifies H2 + H11 = profitable equity investing
+  Mercury + Rahu favorable = tech-stock outperformance
+  Saturn favorable = long-term value investing succeeds
+  Jupiter favorable = sector ETF / mutual fund returns
+  Mars + H5 = aggressive/leveraged trading (high risk)
+
+MUTUAL FUNDS / SIPs:
+  H11 strongly signified by current AD lord = SIP returns favorable
+  Jupiter in chain = balanced funds outperform
+  Saturn in chain = slow but steady compounding
+  Lower volatility than direct equity → less H8 emphasis
+
+GOLD / BULLION:
+  Sun + Venus + H2 connection = gold appreciation period
+  Traditional store-of-value: H4 (mother's wealth / heritage) connection
+
+CRYPTO / ALT-INVESTMENTS:
+  Rahu HEAVY involvement (Rahu = unconventional / digital / shadow)
+  H8 (sudden gains AND sudden losses)
+  H5 speculation house + H11 + Rahu = volatile-but-potentially-large return
+  Caveat: KP doctrine specific to crypto is post-modern; apply with
+  caution. Treat as H5+H8+Rahu speculation.
+
+REAL ESTATE:
+  Cross-link to property.txt for full property doctrine
+  H4 + H11 = property as investment vehicle
+  Mars dasha favorable = property appreciation cycle
+
+PORTFOLIO DIVERSIFICATION (multi-asset):
+  H10 sub lord in dual sign + H2 strongly signified = multi-source
+  income / diversified portfolio promised
+  Mercury favorable = analytical asset allocation succeeds
+
+================================================================
+NRI / FOREIGN INCOME (PR A2.5)
+================================================================
+
+NRI EARNINGS:
+  H12 (foreign / abroad) + H11 (income) + H2 (wealth) + H10 (profession)
+  ALL FOUR active = foreign-based income stream is structurally promised
+  Rahu in chain = MNC / unconventional foreign employment
+  Mercury + H12 = software exports / overseas consulting
+
+REMITTANCE TO HOME COUNTRY:
+  H12 → H2 transfer (foreign income → home wealth)
+  H12 sub lord signifying H2 cleanly = remittance flows smoothly
+  Saturn affliction = remittance delays / regulatory friction
+
+FOREIGN CURRENCY EXPOSURE:
+  H8 (sudden change) + H12 (foreign) = forex volatility affects native
+  Rahu transit through H2 or H12 = unconventional currency movements
+
+================================================================
+RETIREMENT INCOME / PENSION (PR A2.5)
+================================================================
+
+PENSION FROM EMPLOYMENT:
+  H11 sub lord signifies H2 + H6 + H10 = pension structure promises
+  ongoing income post-retirement
+  Saturn in chain (favorable) = stable lifelong pension
+  Government job natives: Sun + Saturn + H10 + H11 = pension confirmed
+
+ANNUITY / RETIREMENT FUND (NPS / PPF / EPF):
+  H11 sub lord + Saturn in chain = long-term compounding
+  H2 + H11 active in late-life dasha = retirement corpus matures
+  Jupiter favorable = balanced retirement-fund returns
+
+POST-RETIREMENT EARNING (consulting / advisory):
+  H7 sub lord active = public-facing post-retirement work
+  Cross-link to job.txt Section 15 (Retirement doctrine)
+
+INADEQUATE RETIREMENT CORPUS:
+  H2 sub lord signifies denial set (1, 8, 12) in retirement-age dasha
+  Late-life Saturn + Rahu adverse = corpus drained / inadequate
+  Frame: cite specific shortfall window; recommend financial planner
+
+================================================================
+SUDDEN GAINS / WINDFALL (lottery / inheritance / settlement) (PR A2.5)
+================================================================
+
+LOTTERY / GAMBLING WIN:
+  H5 (speculation) + H8 (sudden) + H11 (gain) + Rahu (unconventional)
+  All four together in firing AD = windfall structurally possible
+  CAVEAT: lottery wins are dasha-window specific; do NOT predict
+  permanent wealth from a windfall signal
+
+INHERITANCE (received money/property from family):
+  H8 (legacy) + H2 (wealth received) + H4 (mother-side) OR H9 (father-side)
+  H8 sub lord signifying H2 + H4 = mother-side inheritance
+  H8 sub lord signifying H2 + H9 = father-side inheritance
+  Timing: parental dasha (Sun/Moon) + H8 activation
+  CAVEAT: Tier 2-3 sensitivity if parent is alive; never predict
+  parent's death timing
+
+LEGAL SETTLEMENT (court-awarded money):
+  Cross-link to litigation.txt + money_recovery.md
+  H6 + H11 + H2 → win + money flows
+  Settlement typically slower than windfall (Saturn often involved)
+
+================================================================
+BANKRUPTCY / FINANCIAL RUIN (PR A2.5 — TIER 2-3 ESCALATION)
+================================================================
+
+⚠ BANKRUPTCY questions can escalate to TIER 3 (suicide-risk
+correlation). Apply sensitivity_tiers.md framing.
+
+STRUCTURAL BANKRUPTCY SIGNALS:
+  H2 sub lord signifies denial set {1, 8, 12} AND
+  H11 sub lord blocked AND
+  H8 (sudden loss) heavily activated in current AD
+  Saturn 7th-from-Saturn (Sade Sati Phase 2) often correlates
+  → Structural risk of bankruptcy in firing dasha window
+
+RECOVERY POST-BANKRUPTCY:
+  Scan next 5+ years for H2 + H11 favorable AD
+  H2 sub lord signifying H6 + H11 (re-acquisition channel opens)
+  Frame: bankruptcy is a PERIOD, not a permanent verdict
+  Cite next favorable window with calendar dates (RULE 46)
+
+PROTECTIVE FRAMING:
+  - Recommend financial counsellor + bankruptcy lawyer
+  - Acknowledge emotional + family impact
+  - Show both branches: recovery path AND adverse path
+  - NEVER predict suicide / harm — escalate to Tier 3 if any language
+  - Cite the rebuild window EQUALLY to the loss period
+
+================================================================
+TAX NOTICE / IT SCRUTINY (PR A2.5)
+================================================================
+
+Per KP Astrology Learning H10:
+  "If H10 sub lord signifies 7, 8 and 12 → income tax trouble/scrutiny."
+
+When this fires in current AD:
+  - Tax notice / scrutiny is structurally active
+  - H7 (other party = tax dept) + H8 (sudden) + H12 (loss / penalty)
+  - Recommend: proactive CA consultation, voluntary disclosure if
+    applicable
+
+RESOLUTION TIMING:
+  Scan upcoming ADs for H6 + H11 favorable (Section 1 litigation
+  doctrine — tax notice IS a quasi-litigation matter)
+  Cross-link to litigation.txt for full dispute doctrine
