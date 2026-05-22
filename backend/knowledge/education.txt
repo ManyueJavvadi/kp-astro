@@ -1,0 +1,60 @@
+================================================================================
+KP ASTROLOGY — EDUCATION ANALYSIS COMPLETE RULES
+Source: K.S. Krishnamurti KP Readers + Vaastuinternational.com Rules
+Extracted PR A2.0d from other_topics.txt §1 (verbatim, no doctrine change)
+================================================================================
+
+RELEVANT HOUSES (LEVEL-BASED — different requirements per education level):
+
+EDUCATION PROMISE TIER 1 (any one for any-level promise):
+  H4 sub lord in star of Mercury or Jupiter = education is promised at all
+  Without this base, formal education is doubtful regardless of other houses
+
+EDUCATION PROMISE TIER 2 (basic / school-level — up to 12th std):
+  H4 sub lord signifying H4 + H11 (just the institution + completion)
+  Two-house connection sufficient for basic schooling
+
+EDUCATION PROMISE TIER 3 (higher / college / graduation):
+  H4 sub lord signifying H4 + H9 + H11 (institution + higher learning + completion)
+  ALL THREE needed for university-level education
+
+EDUCATION PROMISE TIER 4 (research / doctorate):
+  H9 sub lord signifying H4 + H9 + H11 + connection to Jupiter
+  Plus the native NOT being in barren signs at H9
+
+DENIAL HOUSES: H3 (break in study), H8 (interruption/scandal), H10 (status without education),
+  H12 (interruption from foreign / hospital / jail)
+
+KSK STRICT BHUKTI RULE applies — when CSL signifies both relevant + denial houses,
+the relevant-house bhuktis bring admission/exam success, denial-house bhuktis bring breaks.
+
+COMPETITIVE EXAMS / DEPARTMENTAL EXAMS:
+Add H6 (overcoming competition) and H10 (interview / authority assessment) to the
+relevant set. Now needs H4 + H6 + H9 + H10 + H11 connection in dasha.
+
+H4 CUSP FOR EDUCATION:
+"Sub lord of H4 cusp is in star of Mercury or Jupiter → promises education."
+"Planets signifying H4, H9, H11 give education in their periods."
+"H4 sub lord signifying H4 and H11 → admission into college is certain."
+"H4 sub lord signifying H8 and H12 → breaks in education or no education."
+
+H9 CUSP FOR HIGHER EDUCATION:
+"Sub lord of H9 throws light on higher studies and research."
+"If H9 sub lord signifies H11 → success in higher education."
+"If H9 sub lord signifies H4 and H9 → higher studies promised IF not in barren signs."
+"Barren signs (poor for education): Aries, Gemini, Leo, Virgo rasis."
+
+COMPETITIVE EXAMS:
+Houses: H4, H9, H11 for success
+"If H3 sub lord is Jupiter, Sun, Mars, or Venus → courage and confidence in competitive exams."
+"Houses 4, 9, 11 judged for timing of success."
+"For departmental exams and interviews: also include H6 and H10."
+
+H4 EXAM OUTCOME:
+"H4 sub lord connected to H11 AND no connection to H3 (negation of H4) → success in exam."
+
+TIMING FOR EDUCATION:
+Jupiter dasha: Natural education period (gnana karaka)
+Mercury dasha: Technical/communication education
+Moon dasha: Memory-based studies, may be interrupted
+Sun dasha: Authority-focused studies, government education

@@ -1,0 +1,43 @@
+================================================================================
+KP ASTROLOGY — LITIGATION / COURT CASES
+Source: K.S. Krishnamurti KP Readers + Vaastuinternational.com + KP Astrology Learning
+Extracted PR A2.0d from other_topics.txt §5 (verbatim, no doctrine change)
+================================================================================
+
+RELEVANT HOUSES:
+PRIMARY: H6 (disputes, enemies, litigation, legal disputes)
+SUPPORTING: H1 (self, native's case), H11 (winning, gains from litigation)
+OPPONENT: H7 (opponent, other party in the case)
+
+WIN IN LITIGATION:
+"H6 sub lord signifying H1, H6, H11 → success in litigation."
+"Also: H2 sub lord signifying H6 and H11 → success in litigation or promotion in service."
+"H3 sub lord deposited in star of significators of H6 and H11 → success in appeal/petition/courts."
+
+LOSS IN LITIGATION:
+"If dasha activates significators of H12 (loss) and H7 (opponent wins) = loss in case."
+When H7 is strongly activated in dasha = opponent's period, native's case weakens.
+
+TIMING OF LEGAL MATTERS:
+Saturn connection → lengthy legal battles
+Mars connection → aggressive, quick legal actions
+Mercury connection → documentation, written proceedings, settlements
+Jupiter connection → justice prevails, honest judgment
+
+APPEAL SUCCESS:
+"H3 sub lord connected to H6 and H11 → success in appeal/petition."
+
+NOTE: This file currently holds only the foundational doctrine from
+other_topics.txt §5. PR A2.3 will expand this file substantially with:
+  - Civil vs criminal case distinction
+  - Plaintiff vs defendant role
+  - Jail / imprisonment risk doctrine (H12 cusp sub-lord Rahu signal)
+  - Bail probability
+  - Settlement vs trial decision support
+  - Land/property dispute specifics
+  - Inheritance dispute
+  - Money recovery suit (cross-link to money_recovery.md from PR A2.2)
+  - Divorce litigation
+  - Fraud / cheating case
+  - Defamation suit
+  - Tier 3 sensitivity framing (per sensitivity_tiers.md from PR A2.0c)
