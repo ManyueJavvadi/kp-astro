@@ -708,6 +708,81 @@ TOPIC_HOUSE_MAP_CANONICAL: dict = {
         # The OLD legacy chart_engine HEALTH framing — preserved here under correct name
         # so questions like "am I going to fall ill?" still get the right house set.
     },
+    "longevity": {
+        "relevant": {1, 5, 9, 10}, "denial": {2, 7, 12}, "primary_cusp": 1,
+        "framing": "Longevity assessment (own / spouse / parent / child) — TIER 3 ABSOLUTE",
+        # NEW PR B2.0a — Per KSK doctrine + Divine Creation India "How to Judge
+        # Longevity - KP":
+        #   - H1 sub lord signifies H1/H5/H9/H10 -> Poornyash (long life 66+)
+        #   - H1 sub lord signifies H12 -> Alpayash (short life ≤33)
+        #   - H1 sub lord signifies H6/H8/H12 with Maraka/Badhaka involvement
+        #     -> very short / accidental
+        # Maraka houses (death-inflicting): H12 (12th from H1), H7 (12th from H8),
+        #   H2 (12th from H3) — denial set
+        # Badhaka by sign type — applied per chart
+        # RULE 15 ABSOLUTE: never predict death dates. This topic gates Tier 3
+        # protective framing in sensitivity_tiers.md.
+    },
+    "suicide_risk": {
+        "relevant": {6, 8, 12}, "denial": {1, 5, 9, 11}, "primary_cusp": 8,
+        "framing": "Suicide ideation / self-harm risk — TIER 3 ABSOLUTE (crisis)",
+        # NEW PR B2.0a — Per Vedic + KP doctrine:
+        #   - H8 sub lord in star of planet connecting to Maraka/Badhaka/H8/Mars
+        #     = structural risk indicator
+        #   - Moon-Saturn-Mars affliction + H12 = mental burden + escape behavior
+        # ABSOLUTE: never predict suicide dates. Always recommend crisis
+        # resources (988 in US, iCall in India). Framing per mental_health.md §3.
+        # This is the highest-sensitivity topic in the entire system.
+    },
+    "addiction": {
+        "relevant": {6, 8, 12}, "denial": {1, 5, 9, 11}, "primary_cusp": 12,
+        "framing": "Substance addiction / dependency — TIER 2-3",
+        # NEW PR B2.0a — Per KP + Vedic doctrine:
+        #   - Rahu primary (anxiety/escape), Mars secondary (impulse), Saturn
+        #     tertiary (chronic dependency)
+        #   - H12 (escape) + H6 (health damage) + H2 (mouth/throat consumption)
+        #   - Jupiter strong = recovery potential antidote
+    },
+    "child_illness": {
+        "relevant": {2, 5, 11}, "denial": {1, 4, 7, 10}, "primary_cusp": 5,
+        "framing": "Child's illness via parent's chart (Bhavat Bhavam) — TIER 3 ABSOLUTE",
+        # NEW PR B2.0a — Reading child's health via parent's chart:
+        #   - Child's H1 = native's H5 (child's body)
+        #   - Child's H6 = native's H10 (child's disease — 6th from 5th)
+        #   - Child's H8 = native's H12 (child's longevity stress)
+        # Apply RULE 13 Bhavat Bhavam + confidence floor ~70%.
+        # CRITICAL: recommend child's own birth data for 95%+ precision.
+        # The relevant/denial set here is for the "child PROMISE + flourishing"
+        # framing; for "child's DISEASE coming" use child_disease (separate
+        # topic if added later).
+    },
+    "congenital_conditions": {
+        "relevant": {5, 8, 12}, "denial": {1, 4, 9, 11}, "primary_cusp": 5,
+        "framing": "Congenital / genetic condition diagnosis — TIER 3 ABSOLUTE",
+        # NEW PR B2.0a — Congenital conditions via H5 + H8 + H12 affliction in
+        # mother's chart (typically), with malefic involvement (Mars/Saturn/Rahu/Ketu).
+        # Read via parent's chart with Bhavat Bhavam. Highly sensitive — applies
+        # maximum Tier 3 framing.
+    },
+    "pregnancy_complications": {
+        "relevant": {5, 11}, "denial": {1, 4, 8, 12}, "primary_cusp": 5,
+        "framing": "Pregnancy complications / miscarriage risk — TIER 2-3",
+        # NEW PR B2.0a — Per KP doctrine:
+        #   - H5 sub lord + Jupiter affliction + Mars/Saturn conjunction on H5
+        #     = miscarriage risk
+        #   - H8 affliction = C-section / high-risk pregnancy / delivery delay
+        #   - Multiple miscarriages: H5 lord severely afflicted in D1 + D9
+    },
+    "mental_health": {
+        "relevant": {1, 4, 5, 9}, "denial": {6, 8, 12}, "primary_cusp": 1,
+        "framing": "Mental health / emotional wellbeing — TIER 2 default / TIER 3 escalators",
+        # NEW PR B2.0a — Per KP doctrine:
+        #   - H1 (self), H4 (inner peace), H5 (joy/creativity), H9 (dharma) = wellness
+        #   - H6 (disease), H8 (transformation/trauma), H12 (hidden burden) = denial
+        # Moon condition critical: afflicted Moon + Saturn/Rahu = depression/anxiety
+        # Mercury affliction = OCD/communication
+        # Tier 3 escalators: suicide, kill myself, end it, no reason to live
+    },
 
     # ── CHILDREN / FERTILITY ────────────────────────────────────────
     "children": {
@@ -861,6 +936,58 @@ TOPIC_ALIASES: dict = {
     "hospitalization":  "disease_risk",     # PR A2.0b — being hospitalized = disease question
     "surgery":          "disease_risk",     # PR A2.0b
     "accident_risk":    "disease_risk",     # PR A2.0b
+    "icu":              "disease_risk",     # PR B2.0a — ICU = critical disease
+    "critical_care":    "disease_risk",     # PR B2.0a
+    "discharge":        "recovery",         # PR B2.0a — discharge = recovery question
+
+    # ── Longevity + Tier 3 cluster (PR B2.0a) ──
+    "death_timing":     "longevity",        # any "when will X die" → longevity (NEVER predict dates)
+    "spouse_longevity": "longevity",
+    "parent_longevity": "longevity",
+    "father_longevity": "longevity",
+    "mother_longevity": "longevity",
+    "child_longevity":  "longevity",        # via Bhavat Bhavam from H5
+    "will_i_live":      "longevity",
+    "how_long":         "longevity",
+    "outlive":          "longevity",
+
+    # ── Mental health cluster (PR B2.0a) ──
+    "depression":       "mental_health",
+    "anxiety":          "mental_health",
+    "bipolar":          "mental_health",
+    "schizophrenia":    "mental_health",
+    "ocd":              "mental_health",
+    "ptsd":             "mental_health",
+    "panic":            "mental_health",
+    "suicide":          "suicide_risk",      # CRITICAL — distinct topic
+    "self_harm":        "suicide_risk",
+    "kill_myself":      "suicide_risk",
+
+    # ── Child illness / congenital (PR B2.0a) ──
+    "child_disease":    "child_illness",
+    "child_surgery":    "child_illness",
+    "newborn_health":   "child_illness",
+    "infant_illness":   "child_illness",
+    "birth_defect":     "congenital_conditions",
+    "genetic_disorder": "congenital_conditions",
+    "down_syndrome":    "congenital_conditions",
+    "autism":           "congenital_conditions",
+    "heart_defect":     "congenital_conditions",
+
+    # ── Pregnancy cluster (PR B2.0a) ──
+    "miscarriage":      "pregnancy_complications",
+    "abortion":         "pregnancy_complications",
+    "c_section":        "pregnancy_complications",
+    "high_risk_pregnancy": "pregnancy_complications",
+    "delivery":         "pregnancy_complications",
+
+    # ── Addiction cluster (PR B2.0a) ──
+    "alcohol":          "addiction",
+    "alcoholism":       "addiction",
+    "drugs":            "addiction",
+    "substance":        "addiction",
+    "smoking":          "addiction",
+    "gambling_addiction": "addiction",
 
     # ── Property / vehicle ──
     "vehicle":          "property",         # PR A2.0b — H4 + Venus
