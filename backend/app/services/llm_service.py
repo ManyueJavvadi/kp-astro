@@ -138,15 +138,14 @@ TOPIC_TO_FILE = {
     "bankruptcy":         "wealth.txt",
     "money":              "wealth.txt",
 
-    # ── Money recovery cluster (PR A2.0d → wealth.txt has the H6 recovery
-    # rule; PR A2.2 will create dedicated money_recovery.md) ──
-    "money_recovery":     "wealth.txt",
-    "lent_money":         "wealth.txt",
-    "partner_cheated":    "wealth.txt",
-    "theft":              "wealth.txt",
-    "fraud":              "wealth.txt",
-    "refund":             "wealth.txt",
-    "embezzlement":       "wealth.txt",
+    # ── Money recovery cluster (PR A2.2 → dedicated money_recovery.md) ──
+    "money_recovery":     "money_recovery.md",
+    "lent_money":         "money_recovery.md",
+    "partner_cheated":    "money_recovery.md",
+    "theft":              "money_recovery.md",
+    "fraud":              "money_recovery.md",
+    "refund":             "money_recovery.md",
+    "embezzlement":       "money_recovery.md",
 
     # ── Marriage cluster ──
     "second_marriage":    "marriage.txt",
