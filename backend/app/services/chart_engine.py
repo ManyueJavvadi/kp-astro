@@ -922,6 +922,32 @@ TOPIC_HOUSE_MAP_CANONICAL: dict = {
         # H7 weak (previous-marriage residue) + H11 (new-family bond) +
         # H2 (combined family wealth/structure).
     },
+
+    # ── BATCH 4 (PR B4.0a — Property / Foreign / Vehicle / Pilgrimage / Visa) ──
+    "visa": {
+        "relevant": {3, 9, 11, 12}, "denial": {2, 4, 7}, "primary_cusp": 12,
+        "framing": "Visa application / approval / type / appeal",
+        # NEW PR B4.0a — Per KP doctrine on foreign:
+        #   H12 = foreign land + paperwork to enter
+        #   H9 = long journey + dharmic move
+        #   H11 = fulfillment of desire (visa approved)
+        #   H3 = short journey + courage to apply
+        # Denial: H2 stay-at-home wealth pulls, H4 home pull, H7 partner blocks
+        # Different visa types may emphasize different houses (work=H10+H12,
+        # student=H4/H9+H12, business=H7+H12, PR=H12+H4 for new home, etc.)
+    },
+    "pilgrimage": {
+        "relevant": {9, 12, 5}, "denial": {2, 7, 11}, "primary_cusp": 9,
+        "framing": "Religious/spiritual journey, Char Dham, Hajj, Vatican, sacred sites",
+        # NEW PR B4.0a — Per KP doctrine:
+        #   H9 = dharma + religious journey + father's blessing
+        #   H12 = foreign-to-home setting + spiritual liberation
+        #   H5 = devotion + heart-based engagement + bhakti
+        # Denial: H2 family-tie pulls, H7 partner not-supportive, H11
+        #   worldly-desire competing
+        # Specifically for pilgrimage (not general spirituality which uses
+        # different H9/H8/H12 framing in spirituality canonical)
+    },
 }
 
 # Topic name aliases — resolve to canonical topic name in TOPIC_HOUSE_MAP_CANONICAL
@@ -1068,6 +1094,77 @@ TOPIC_ALIASES: dict = {
     "step_children":           "blended_family",
     "step_parent":             "blended_family",
     "step_family":             "blended_family",
+
+    # ── BATCH 4 aliases (PR B4.0a — property/foreign/vehicle/pilgrimage/visa) ──
+    # Visa cluster
+    "visa_application":       "visa",
+    "visa_approval":          "visa",
+    "visa_rejection":         "visa",
+    "visa_appeal":            "visa",
+    "work_visa":              "visa",
+    "h1b":                    "visa",        # USA work visa
+    "student_visa":           "visa",
+    "f1_visa":                "visa",        # USA student visa
+    "tourist_visa":           "visa",
+    "business_visa":          "visa",
+    "pr_visa":                "foreign_settle",  # PR = permanent residency
+    "green_card":             "foreign_settle",  # USA permanent residency
+    "citizenship":            "foreign_settle",
+    "passport":               "visa",
+
+    # Pilgrimage cluster
+    "religious_journey":      "pilgrimage",
+    "spiritual_journey":      "pilgrimage",
+    "char_dham":              "pilgrimage",   # 4-pilgrimage Hindu circuit
+    "amarnath":               "pilgrimage",
+    "vaishno_devi":           "pilgrimage",
+    "tirupati":               "pilgrimage",
+    "sabarimala":             "pilgrimage",
+    "hajj":                   "pilgrimage",   # Muslim pilgrimage
+    "umrah":                  "pilgrimage",
+    "vatican":                "pilgrimage",   # Catholic pilgrimage
+    "kailash":                "pilgrimage",
+    "tirth_yatra":            "pilgrimage",
+
+    # Property cluster (refined)
+    "buying_property":        "property",
+    "selling_property":       "property",
+    "property_dispute":       "land_dispute", # → litigation.txt
+    "real_estate":            "property",
+    "home_loan":              "property",
+    "mortgage":               "property",
+    "construction":           "property",
+    "house_construction":     "property",
+    "land_purchase":          "property",
+    "flat_purchase":          "property",
+    "apartment":              "property",
+    "rental":                 "property",
+    "tenant":                 "property",
+    "landlord":               "property",
+    "property_inheritance":   "property",
+    "ancestral_property":     "property",
+
+    # Vehicle cluster (refined)
+    "car_purchase":           "vehicle",
+    "bike_purchase":          "vehicle",
+    "scooter":                "vehicle",
+    "motorbike":              "vehicle",
+    "two_wheeler":            "vehicle",
+    "four_wheeler":           "vehicle",
+    "commercial_vehicle":     "vehicle",
+    "vehicle_loan":           "vehicle",
+    "vehicle_insurance":      "vehicle",
+    "used_car":               "vehicle",
+    "new_car":                "vehicle",
+
+    # Foreign cluster (refined)
+    "foreign_job":            "foreign_travel",   # ambiguous — short or long
+    "foreign_education":      "education_higher",  # routes to education
+    "foreign_business":       "business",          # routes to business
+    "foreign_property":       "property",          # routes to property
+    "return_from_abroad":     "foreign_travel",
+    "deportation":            "foreign_travel",
+    "expat":                  "foreign_settle",
 
     # ── Addiction cluster (PR B2.0a) ──
     "alcohol":          "addiction",
