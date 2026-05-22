@@ -68,3 +68,325 @@ SALE OF PROPERTY:
   H10 sub lord signifies H3 + H10 = sale activated
   H10 + H11 = sale with gain
   H10 + H12 = sale at loss
+
+
+================================================================================
+SECTION 11: HOME LOAN / MORTGAGE — KP DOCTRINE (PR B4.1)
+================================================================================
+
+For "will I get a home loan" or "should I take a mortgage" questions:
+
+GETTING APPROVED FOR HOME LOAN:
+  Per KP Astrology Learning H6 (loan doctrine cross-link):
+  - H6 sub lord signifying H2 + H6 + H11 = loan approved
+  - H6 sub lord MUST NOT be retrograde
+  - Jupiter favorable = formal bank loan, smooth approval
+  - Mercury favorable = documentation goes through
+  - Sun favorable = approval from authority / government scheme
+
+PLUS for HOME LOAN specifically (combining property + loan):
+  - H4 (home) + H6 (loan) + H11 (gain) firing simultaneously in current AD
+  - H4 sub lord signifies H11 = the home acquisition fulfills desire
+  - H6 sub lord signifies H4 = the loan structurally supports the home
+
+LOAN AMOUNT ADEQUATE vs INADEQUATE:
+  H2 sub lord favorable + H11 strong = full requested amount approved
+  H2 sub lord signifying H8 = lender offers less than requested (haircut)
+  Saturn in chain = loan with stricter terms / longer tenure
+
+LOAN INTEREST RATE FAVORABILITY:
+  Jupiter favorable in approval window = competitive rate
+  Saturn dominant = standard / market rate
+  Mars-Saturn = high-interest / NBFC route
+
+LOAN TENURE:
+  Saturn = long tenure (20-30 years typical)
+  Mercury favorable = flexible / hybrid tenure
+  Mars favorable = short tenure (quick pay-off intention)
+
+LOAN REJECTION:
+  H6 sub lord signifies {1, 5, 9, 12} (denial set)
+  H6 sub lord retrograde + Saturn affliction = bureaucratic rejection
+  Bad credit-history correlation: H8 sub lord touching H6
+  Re-application timing: scan next AD where H6 + H2 + H11 align
+
+EMI MANAGEMENT (after loan disbursed):
+  Cross-link to `wealth.txt` (Loan Approval + EMI Management section)
+  H2 sub lord signifies H6 + H11 = sustainable EMI burden
+  H2 sub lord signifies H8 + H12 = EMI strains income (default risk)
+
+
+================================================================================
+SECTION 12: PROPERTY DISPUTE / LITIGATION (PR B4.1 — cross-link)
+================================================================================
+
+For property dispute questions:
+  Cross-link to `litigation.txt` §8 (land/property dispute section)
+  Specifically: H6 + H11 + H4 (property at stake) combined analysis
+  - H4 sub lord signifying H6 + H11 = property recovery via litigation
+  - H4 sub lord signifying H12 = property loss in dispute
+  - Mars dasha = aggressive land litigation
+  - Saturn dasha = drawn-out generational property case
+
+For boundary disputes / encroachment:
+  H4 (own property) + H3 (boundary / immediate neighbor) + H6 (dispute)
+  Mars + H3 + H4 = aggressive boundary contest
+  Recommend: revenue records verification + survey + legal opinion
+
+For tenant-landlord disputes:
+  H4 (landlord's perspective) or H7 (renter as 7th-from-H4-perspective)
+  + H6 (dispute)
+  Cross-link: `litigation.txt` for legal path
+
+
+================================================================================
+SECTION 13: RENTAL / TENANT / LANDLORD (PR B4.1)
+================================================================================
+
+For RENTING property to someone (you as landlord):
+  H4 (your property) + H7 (the tenant — as other party) + H11 (gain)
+  H4 sub lord signifying H11 = rental income flows reliably
+  H7 sub lord favorable = tenant pays + maintains property
+  H7 sub lord signifying H6 + H8 = problem tenant (late payments,
+    damage, conflict)
+  H7 sub lord signifying H12 = tenant abandons / loss of rental
+
+For RENTING property as tenant (you as renter):
+  H4 (the house you live in — though it's not yours, you OCCUPY H4)
+  H12 (paying rent = outflow)
+  Mercury favorable = documentation smooth
+  Saturn favorable = long-term stable tenancy
+
+For LANDLORD-TENANT DISPUTE:
+  H4 + H6 + H7 + H8 (your property + dispute + other party + sudden)
+  Mars affliction = escalating to legal
+  Cross-link to `litigation.txt`
+
+For EVICTION:
+  H4 sub lord signifies H3 (movement) + H12 (vacating)
+  Forced eviction (legal): H4 + H6 + H7 + Saturn
+  Voluntary vacating: H4 + H3 + H11 (better opportunity)
+
+For SECURITY DEPOSIT RECOVERY (tenant trying to recover from landlord):
+  Cross-link to `money_recovery.md` § (H6 + H2 + H11 + Saturn check)
+
+
+================================================================================
+SECTION 14: ANCESTRAL PROPERTY (PR B4.1)
+================================================================================
+
+For questions about inherited/ancestral property:
+
+PROMISE OF INHERITANCE:
+  H4 (immovable property) + H8 (legacy / inheritance) + H2 (received wealth)
+  H8 sub lord signifies H4 + H2 = property inherited
+  Saturn favorable = inheritance through legal/structured process
+  Jupiter favorable = inheritance from grandfather / paternal lineage
+  Moon favorable = inheritance from mother / maternal lineage
+
+PARENTAL PROPERTY SOURCE:
+  From father: H9 + H8 + H4 connection
+  From mother: H4 + H8 + H2 connection
+  From grandfather: H9 (father's H9 = native's H5 via Bhavat Bhavam) + H8
+
+DELAY IN INHERITANCE (RULE 15 ABSOLUTE):
+  Inheritance typically follows the parent's lifetime — NEVER predict
+  when the inheriting transition will occur (that's a death-timing
+  prediction, prohibited). Frame as: "inheritance is structurally
+  supported when [favorable dasha] activates; the actual transition
+  follows life events the chart does not pre-schedule."
+
+DISPUTED INHERITANCE (siblings contesting):
+  H3 (siblings) + H8 (inheritance) + H6 (dispute)
+  Cross-link to `litigation.txt` §8 (inheritance dispute) +
+  `parents_family.md` §10.4 (sibling inheritance disputes)
+  Recommend: family mediation BEFORE legal escalation
+
+NRI INHERITANCE COMPLICATIONS:
+  When inheritor is abroad (NRI) and property is in India:
+  H4 + H8 + H12 (foreign) + Mercury (paperwork)
+  Power-of-attorney + legal counsel + family liaison needed
+
+
+================================================================================
+SECTION 15: PROPERTY TYPE — APARTMENT vs HOUSE vs LAND (PR B4.1)
+================================================================================
+
+The KP doctrine on PROPERTY-TYPE shows up via sign-character of H4 cusp:
+
+APARTMENT / FLAT (urban high-rise):
+  H4 in airy signs (Gemini, Libra, Aquarius) = apartment likely
+  Rahu involvement = modern apartment / unconventional structure
+  Mercury favorable = communication-rich neighborhood
+
+HOUSE / VILLA / GROUND-LEVEL:
+  H4 in earth signs (Taurus, Virgo, Capricorn) = traditional house
+  Mars + H4 = solid construction
+  Saturn favorable = durable / long-lasting structure
+
+LAND / PLOT (vacant):
+  Mars dominant in H4 chain + earth sign = land acquisition primary
+  Plus H11 favorable for resale potential
+  Saturn favorable for long-hold investment
+
+COMMERCIAL PROPERTY:
+  H4 + H10 (career property) + H11 (gain)
+  Mars + Mercury favorable = profitable commercial
+  Cross-link to `business.txt` if business-use property
+
+AGRICULTURAL LAND:
+  H4 + Mars + Saturn (earth, slow build) + H11 (yield)
+  Specifically requires water-source (Moon favorable)
+  Long-arc investment
+
+
+================================================================================
+SECTION 16: MULTIPLE PROPERTIES (PR B4.1)
+================================================================================
+
+For owning MULTIPLE properties (real estate portfolio):
+
+STRUCTURAL SIGNATURE:
+  H4 sub lord in dual sign (Gemini, Virgo, Sagittarius, Pisces) =
+    multiple property tendency
+  H4 sub lord + Mercury favorable = portfolio approach
+  H4 sub lord signifying H11 strongly = each property yields gain
+  Jupiter favorable = expansive property accumulation
+
+TIMING FOR ADDITIONAL PROPERTY:
+  After first property, scan next AD where H4 + H11 + H2 align
+  Saturn favorable = stable second property; Mars = aggressive
+    acquisition; Venus = comfort second home (vacation property)
+
+INVESTMENT PROPERTIES (rental income focus):
+  H4 + H11 + H7 (renter as customer) + Mercury (administration)
+  Different from primary residence — H7 weight is critical
+
+VACATION PROPERTY / SECOND HOME:
+  H4 + H11 + Venus (comfort) + H12 (leisure / away from main residence)
+  Often in foreign location: H4 + H12 + H9 + Rahu
+
+CAVEAT:
+  Multiple property = wealth-building, not just promise. Cross-check
+  with `wealth.txt` for affordability + EMI sustainability if loans
+  involved.
+
+
+================================================================================
+SECTION 17: PROPERTY DAMAGE / LOSS (PR B4.1)
+================================================================================
+
+For questions about property DAMAGE (fire, flood, structural failure):
+
+DAMAGE RISK SIGNATURE:
+  H4 sub lord signifies H8 (sudden) + H12 (loss)
+  Mars on H4 = fire / explosion / accident damage
+  Saturn on H4 = structural decay / collapse
+  Rahu on H4 = unconventional damage (sinkholes, cyber-property theft)
+  Moon on H4 + H8 = water damage (flood / leak)
+
+DAMAGE TIMING:
+  When natally-set damage-risk significators activate in dasha
+  AND Mars transit reaches triggering position
+  → ELEVATED-CAUTION period (recommend insurance review, structural
+  inspection, preventive maintenance)
+
+INSURANCE CLAIM:
+  H4 (property) + H6 (claim / dispute mechanism) + H11 (payout received)
+  Mercury favorable = paperwork smooth
+  Jupiter favorable = fair claim settlement
+  Saturn dominant = slow / contested claim
+  Mars-Saturn affliction = claim rejected or reduced
+
+REBUILDING AFTER DAMAGE:
+  H4 + H11 + H2 + Mars (active rebuild) favorable in upcoming AD
+  Saturn = slow structured rebuild
+  Recommend: government disaster-relief schemes if applicable
+  + insurance liaison + structural engineer
+
+
+================================================================================
+SECTION 18: VAASTU CONSIDERATIONS (PR B4.1 — cross-link)
+================================================================================
+
+Vaastu is a related-but-distinct discipline. KP doctrine on house
+purchase / construction can supplement Vaastu:
+
+For buying/constructing a house, BEYOND KP timing:
+  - Consult a qualified Vaastu consultant for site selection
+  - KP shows TIMING; Vaastu shows SPATIAL ALIGNMENT
+  - The two work together — neither replaces the other
+
+When Vaastu and KP conflict:
+  - User has a structurally-favorable KP window but a Vaastu-adverse plot
+  - Reframe: the timing window is real; the plot can be remedied via
+    Vaastu corrections; OR consider alternate plot within the window
+
+KP cannot diagnose Vaastu defects of a specific plot — that requires
+on-site Vaastu inspection.
+
+
+================================================================================
+SECTION 19: PROTECTIVE FRAMING FOR PROPERTY QUESTIONS (PR B4.1)
+================================================================================
+
+PROPERTY = TIER 2 default (life-impact financial decision).
+Tier 3 escalation if:
+  - Bankruptcy-risk language present (cross-link to wealth.txt §)
+  - Ancestral-property dispute is causing family rupture
+  - Property purchase is "last chance" / "all savings" framed
+
+STANDARD TIER 2 FRAMING:
+  - Acknowledge property is a major financial decision
+  - Apply RULE 44 (capability vs manifestation) — chart promises
+    property; current period may delay
+  - Apply RULE 46 (falsifiable timing) — give specific window
+  - Apply RULE 29 (decision support for "should I buy this property?")
+  - Recommend professional consultation:
+    * Real estate lawyer for title verification
+    * Vaastu consultant for site alignment
+    * Financial planner for loan affordability
+    * Civil engineer for structural inspection (used property)
+
+ABSOLUTE PROHIBITIONS:
+  - Never predict a specific property purchase will succeed without
+    medical/legal/financial due diligence
+  - Never tell client to skip legal title verification based on chart
+  - Never recommend over-leveraging (loan beyond H11 EMI capacity)
+  - Never frame property denial as karmic punishment
+
+PERMISSIONS:
+  - Identify timing windows
+  - Recommend property type by sign-character
+  - Decision-support framing for buy/rent/wait
+  - Cross-link to loan/legal/inheritance/dispute sections
+
+
+================================================================================
+SECTION 20: SOURCE CITATIONS (PR B4.1)
+================================================================================
+
+- K.S. Krishnamurti KP Readers I-VI — H4 + H10 doctrine for property
+- KP Astrology Learning H4 cusp page — construction + acquisition rules
+- KP Astrology Learning H10 cusp page — sale rules
+- Vaastuinternational.com — KP property + construction rules
+
+Internal cross-links:
+- `wealth.txt` — loan / EMI / inheritance wealth-flow
+- `litigation.txt` — property dispute / inheritance dispute
+- `money_recovery.md` — security deposit recovery
+- `business.txt` — commercial property + business use
+- `parents_family.md` — sibling inheritance disputes
+- `foreign.txt` — foreign property + NRI inheritance
+- `sensitivity_tiers.md` — Tier 2 framing
+- RULE 13 (Bhavat Bhavam for parent inheritance source)
+- RULE 15 (never predict death — for inheritance timing)
+- RULE 44 (capability vs manifestation for property)
+- RULE 46 (falsifiable timing)
+
+---
+
+*Sections 11-20 added PR B4.1 (2026-05-22). property.txt now covers
+the full property-question spectrum: buying, selling, construction,
+loans, disputes, rental, inheritance, type-selection, multiple
+properties, damage, Vaastu integration, and Tier 2 protective framing.*
