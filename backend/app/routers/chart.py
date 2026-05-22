@@ -6,6 +6,7 @@ from app.services.chart_engine import (
     get_all_house_significators, check_promise,
     check_dasha_relevance, get_ruling_planets
 )
+from app.services.timezone_utils import resolve_birth_offset
 
 router = APIRouter()
 
@@ -22,27 +23,38 @@ class ChartRequest(BaseModel):
 
 @router.post("/generate")
 def get_chart(request: ChartRequest):
+    # PR A1.12 — Override caller-supplied timezone_offset with the
+    # birth-date-correct value resolved from lat/lon + birth date.
+    # Pre-fix: frontend's `timezone_offset: 5.5` default leaked through
+    # for every non-IST birthplace whose place-picker lookup silently
+    # failed → ~12.5h error → wrong lagna / cusps / dashas.
+    tz_offset, tz_name = resolve_birth_offset(
+        request.latitude, request.longitude,
+        request.date, request.time,
+        fallback_offset=request.timezone_offset,
+    )
     # PR A1.3-fix-24 — was silently dropping caller-supplied timezone_offset
     # (passed only 4 positional args). Non-IST callers got wrong charts.
     chart = generate_chart(
         request.date, request.time,
         request.latitude, request.longitude,
-        request.timezone_offset,
+        tz_offset,
     )
     moon_longitude = chart["planets"]["Moon"]["longitude"]
-    dashas = calculate_dashas(request.date, request.time, moon_longitude, request.timezone_offset)
+    dashas = calculate_dashas(request.date, request.time, moon_longitude, tz_offset)
     current_md = get_current_dasha(dashas)
     antardashas = calculate_antardashas(current_md)
     current_ad = get_current_antardasha(antardashas)
     all_significators = get_all_house_significators(chart["planets"], chart["cusps"])
     # PR A1.1: lat/lon/tz now required for correct RPs.
     ruling_planets = get_ruling_planets(
-        request.latitude, request.longitude, request.timezone_offset,
+        request.latitude, request.longitude, tz_offset,
     )
 
     return {
         "name": request.name,
         "chart": chart,
+        "timezone_resolved": {"offset": tz_offset, "iana": tz_name},
         "dashas": {
             "all_periods": dashas,
             "current_mahadasha": current_md,
@@ -64,17 +76,23 @@ class TopicRequest(BaseModel):
 
 @router.post("/analyze")
 def analyze_topic(request: TopicRequest):
+    # PR A1.12 — resolve birth-date-correct UTC offset from lat/lon
+    tz_offset, _ = resolve_birth_offset(
+        request.latitude, request.longitude,
+        request.date, request.time,
+        fallback_offset=request.timezone_offset,
+    )
     # Generate full chart
     chart = generate_chart(
         request.date, request.time,
         request.latitude, request.longitude,
-        request.timezone_offset
+        tz_offset,
     )
 
     moon_longitude = chart["planets"]["Moon"]["longitude"]
     dashas = calculate_dashas(
         request.date, request.time,
-        moon_longitude, request.timezone_offset
+        moon_longitude, tz_offset,
     )
     current_md = get_current_dasha(dashas)
     antardashas = calculate_antardashas(current_md)
@@ -88,7 +106,7 @@ def analyze_topic(request: TopicRequest):
     )
     # PR A1.1: lat/lon/tz now required for correct RPs.
     ruling_planets = get_ruling_planets(
-        request.latitude, request.longitude, request.timezone_offset,
+        request.latitude, request.longitude, tz_offset,
     )
 
     return {

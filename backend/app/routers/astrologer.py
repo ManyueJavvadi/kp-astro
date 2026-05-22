@@ -23,7 +23,7 @@ from app.services.llm_service import (
     resolve_effective_topic,
 )
 from app.services.csl_chains import compute_csl_chains, format_csl_chains_for_llm
-from app.services.timezone_utils import resolve_timezone
+from app.services.timezone_utils import resolve_timezone, resolve_birth_offset
 from app.services.chart_formatter import format_chart_for_frontend
 
 router = APIRouter()
@@ -342,14 +342,22 @@ def build_telugu_reference() -> str:
 
 @router.post("/workspace")
 def get_workspace(request: WorkspaceRequest):
+    # PR A1.12 — backend is now source of truth for the UTC offset.
+    # Frontend's `timezone_offset` is fallback only. See
+    # timezone_utils.resolve_birth_offset for the full bug story.
+    tz_offset, tz_name = resolve_birth_offset(
+        request.latitude, request.longitude,
+        request.date, request.time,
+        fallback_offset=request.timezone_offset,
+    )
     swe.set_sid_mode(swe.SIDM_KRISHNAMURTI_VP291)
     chart = generate_chart(
         request.date, request.time,
         request.latitude, request.longitude,
-        request.timezone_offset
+        tz_offset,
     )
     moon_longitude = chart["planets"]["Moon"]["longitude"]
-    dashas = calculate_dashas(request.date, request.time, moon_longitude, request.timezone_offset)
+    dashas = calculate_dashas(request.date, request.time, moon_longitude, tz_offset)
     current_md = get_current_dasha(dashas)
     antardashas = calculate_antardashas(current_md)
     current_ad = get_current_antardasha(antardashas)
@@ -363,7 +371,7 @@ def get_workspace(request: WorkspaceRequest):
     # + astrologer's actual location), use the Horary router which passes
     # real geolocation.
     ruling_planets = get_ruling_planets(
-        request.latitude, request.longitude, request.timezone_offset,
+        request.latitude, request.longitude, tz_offset,
     )
 
     cusp_longitudes = [data.get("cusp_longitude", 0) for data in chart["cusps"].values()]
@@ -449,7 +457,11 @@ def get_workspace(request: WorkspaceRequest):
         "time": request.time,
         "latitude": request.latitude,
         "longitude": request.longitude,
-        "timezone_offset": request.timezone_offset,
+        # PR A1.12 — return the engine's resolved offset, not the raw
+        # frontend input. Frontend reads this back to display the
+        # correct tz label after server validation.
+        "timezone_offset": tz_offset,
+        "timezone_iana": tz_name,
         "planets": planets_formatted,
         "cusps": cusps_formatted,
         "significators": significators_formatted,
@@ -486,8 +498,8 @@ def get_workspace(request: WorkspaceRequest):
             for p in pratyantardashas
         ],
         "ruling_planets": rp_formatted,
-        "panchangam_today": get_today_panchangam(request.timezone_offset, request.latitude, request.longitude),
-        "panchangam_birth": get_birth_panchangam(request.date, request.time, request.timezone_offset, request.latitude, request.longitude),
+        "panchangam_today": get_today_panchangam(tz_offset, request.latitude, request.longitude),
+        "panchangam_birth": get_birth_panchangam(request.date, request.time, tz_offset, request.latitude, request.longitude),
         "csl_chains": compute_csl_chains(cusps_formatted, planets_formatted),
         # PR A1.3-fix-20 / fix-21 — Tara Chakra (Navatara) + Chandra Bala +
         # Pariharam. Native's full chakra relative to janma nakshatra +

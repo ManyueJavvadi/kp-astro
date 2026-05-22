@@ -126,6 +126,16 @@ def build_full_chart_data(
         Optional sub-computes (transits / yogini / decision_support /
         ranked sookshmas) degrade silently with logging on error.
     """
+    # PR A1.12 — Override caller-supplied timezone_offset with the
+    # birth-date-correct value resolved from lat/lon. Frontend's
+    # number is now a fallback only — see timezone_utils.resolve_birth_offset
+    # docstring for the full bug story (silent IST fallback corrupted
+    # every non-IST chart).
+    from app.services.timezone_utils import resolve_birth_offset
+    timezone_offset, _resolved_tz_name = resolve_birth_offset(
+        latitude, longitude, date, time, fallback_offset=timezone_offset,
+    )
+
     # ── 1. Basic chart ──────────────────────────────────────────────
     chart = generate_chart(date, time, latitude, longitude, timezone_offset)
     moon_longitude = chart["planets"]["Moon"]["longitude"]

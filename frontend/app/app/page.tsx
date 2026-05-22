@@ -265,8 +265,17 @@ export default function Home() {
   const analyzeStreamAbortRef = useRef<AbortController | null>(null);
   // cslSelectedHouse state moved into tabs/HousesTab.tsx in PR R2 (tab-local).
   // Timezone (auto-detected from place)
+  // PR A1.12 — added `timezoneIana` so we can recompute the displayed
+  // offset using the BIRTH DATE (not today) whenever the user edits
+  // the date field. Pre-fix: line 1499 used `new Date()` which silently
+  // broke for any historical birth in a region whose DST rules have
+  // changed since (pre-2007 US, pre-2006 Indiana, pre-2011 Russia, etc.).
+  // The backend now also resolves authoritatively from lat/lon+date,
+  // so this state is informational — but we keep it accurate so the
+  // form's "tz IST/PDT/EST" label matches what the engine computes.
   const [timezoneOffset, setTimezoneOffset] = useState(5.5);
   const [timezoneLabel, setTimezoneLabel] = useState("IST");
+  const [timezoneIana, setTimezoneIana] = useState<string | null>(null);
   // Muhurtha Step 3 expanded state + AI
   const [mExpandedWindow, setMExpandedWindow] = useState<number | null>(null);
   const [mSelectedDate, setMSelectedDate] = useState<string | null>(null);
@@ -613,6 +622,72 @@ export default function Home() {
     if (parts.length !== 3) return null;
     return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
   };
+
+  // PR A1.12 — compute UTC offset for an IANA timezone AT the given
+  // birth-date. Replaces the prior `new Date()` (today) approach,
+  // which gave wrong results for historical births under regions
+  // whose DST rules changed (pre-2007 US, pre-2006 Indiana, etc).
+  // Returns null on parse failure so the caller can keep the prior
+  // displayed value instead of flashing 0/IST.
+  const computeOffsetForBirthDate = useCallback(
+    (iana: string, dateStr: string): { offset: number; label: string } | null => {
+      // dateStr is "DD/MM/YYYY" from the masked input — accept partial
+      // entries gracefully (the user might be mid-typing).
+      const parts = dateStr.split("/");
+      if (parts.length !== 3) return null;
+      const [dd, mm, yyyy] = parts;
+      if (yyyy.length !== 4 || !dd || !mm) return null;
+      const isoDate = `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
+      // Use noon UTC on the birth date — far from any DST boundary so
+      // the offset reading is unambiguous.
+      const refDate = new Date(`${isoDate}T12:00:00Z`);
+      if (Number.isNaN(refDate.getTime())) return null;
+      try {
+        const fmt = new Intl.DateTimeFormat("en-US", {
+          timeZone: iana,
+          timeZoneName: "longOffset",
+        });
+        const parts2 = fmt.formatToParts(refDate);
+        const tzPart = parts2.find((p) => p.type === "timeZoneName")?.value ?? "";
+        const m = tzPart.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);
+        if (!m) return null;
+        const sign = m[1] === "-" ? -1 : 1;
+        const h = parseInt(m[2], 10);
+        const mm2 = parseInt(m[3] ?? "0", 10);
+        const offset = sign * (h + mm2 / 60);
+        // Label: prefer the abbreviation (PDT/EST/IST) if the runtime
+        // provides it; fall back to last IANA segment.
+        let label = iana.split("/").pop() ?? `UTC${offset >= 0 ? "+" : ""}${offset}`;
+        try {
+          const fmt2 = new Intl.DateTimeFormat("en-US", {
+            timeZone: iana,
+            timeZoneName: "short",
+          });
+          const parts3 = fmt2.formatToParts(refDate);
+          const shortName = parts3.find((p) => p.type === "timeZoneName")?.value;
+          if (shortName && !shortName.startsWith("GMT")) label = shortName;
+        } catch {
+          /* fall through to default label */
+        }
+        return { offset, label };
+      } catch {
+        return null;
+      }
+    },
+    [],
+  );
+
+  // PR A1.12 — keep displayed offset+label in sync as the user edits
+  // the birth date (or after a place pick stores the IANA name).
+  useEffect(() => {
+    if (!timezoneIana) return;
+    if (!birthDetails.date) return;
+    const next = computeOffsetForBirthDate(timezoneIana, birthDetails.date);
+    if (next) {
+      setTimezoneOffset(next.offset);
+      setTimezoneLabel(next.label);
+    }
+  }, [timezoneIana, birthDetails.date, computeOffsetForBirthDate]);
 
   /** Convert a saved ChartSession to the API payload format (YYYY-MM-DD date, 24h time). */
   const sessionToApiPerson = (s: ChartSession) => {
@@ -1105,6 +1180,7 @@ export default function Home() {
     setShowChartDetails(false); setAnalysisMessages([]); setShowLangModal(false);
     setActiveTopic(""); setActiveTab("chart"); setSidebarOpen(true);
     setBirthDetails({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: null, longitude: null, gender: "" });
+    setTimezoneIana(null); // PR A1.12
     setPlaceStatus("idle"); setSavedSessions([]); setCurrentSessionId("");
   };
 
@@ -1121,6 +1197,7 @@ export default function Home() {
       setAnalysisMessages([]); setActiveTopic(""); setActiveTab("chart"); setSidebarOpen(true);
       setSelectedHouse(null); setChatQ(""); setCurrentSessionId("");
       setBirthDetails({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: null, longitude: null, gender: "" });
+      setTimezoneIana(null); // PR A1.12 — clear IANA cache when form resets
       setPlaceStatus("idle");
       return;
     }
@@ -1138,6 +1215,7 @@ export default function Home() {
     setPrevBirthDetailsStash(birthDetails);
     setPrevTimezoneStash({ offset: timezoneOffset, label: timezoneLabel });
     setBirthDetails({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: null, longitude: null, gender: "" });
+    setTimezoneIana(null); // PR A1.12 — clear so the picker for the new chart resolves fresh
     setPlaceStatus("idle");
     setNewChartModalOpen(true);
   };
@@ -1493,15 +1571,23 @@ export default function Home() {
                       latitude: pick ? pick.lat : null,
                       longitude: pick ? pick.lon : null,
                     }));
+                    // PR A1.12 — only persist the IANA tz name. The
+                    // useEffect [timezoneIana, birthDetails.date] computes
+                    // the displayed offset using the BIRTH date. Picking
+                    // a place before typing the date still shows a
+                    // sensible label once the date arrives.
                     if (pick?.timezone) {
-                      // Convert IANA tz to numeric offset if possible
+                      setTimezoneIana(pick.timezone);
+                      // Set an immediate "now"-based offset so the user
+                      // sees feedback the picker worked even before they
+                      // finish typing the date. The effect will refine
+                      // this once date is complete.
                       try {
-                        const now = new Date();
                         const fmt = new Intl.DateTimeFormat("en-US", {
                           timeZone: pick.timezone,
                           timeZoneName: "longOffset",
                         });
-                        const parts = fmt.formatToParts(now);
+                        const parts = fmt.formatToParts(new Date());
                         const tzPart = parts.find((p) => p.type === "timeZoneName")?.value ?? "";
                         const m = tzPart.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);
                         if (m) {
@@ -1511,11 +1597,11 @@ export default function Home() {
                           const offset = sign * (h + mm / 60);
                           setTimezoneOffset(offset);
                           setTimezoneLabel(pick.timezone.split("/").pop() ?? `UTC${offset >= 0 ? "+" : ""}${offset}`);
-                          return;
                         }
                       } catch {
-                        /* silent */
+                        /* silent — effect will fix once date is typed */
                       }
+                      return;
                     }
                     // fallback: try bigdatacloud path if picker didn't resolve tz
                     if (pick) {
@@ -1524,6 +1610,13 @@ export default function Home() {
                           params: { latitude: pick.lat, longitude: pick.lon, localityLanguage: "en" },
                         })
                         .then((res) => {
+                          const ianaName = res.data?.localityInfo?.administrative?.find(
+                            (a: { timeZone?: { name?: string } }) => a?.timeZone?.name,
+                          )?.timeZone?.name || res.data?.timeZone?.name;
+                          if (ianaName) {
+                            setTimezoneIana(ianaName);
+                            return;
+                          }
                           const tz = res.data?.timezone;
                           if (tz?.gmtOffset !== undefined) {
                             const offset = Math.round((tz.gmtOffset / 3600) * 2) / 2;
@@ -2026,11 +2119,14 @@ export default function Home() {
                       latitude: pick ? pick.lat : null,
                       longitude: pick ? pick.lon : null,
                     }));
+                    // PR A1.12 — see primary place-picker handler above
+                    // for the rationale. Mirror logic: store IANA name;
+                    // useEffect recomputes offset from birth date.
                     if (pick?.timezone) {
+                      setTimezoneIana(pick.timezone);
                       try {
-                        const now = new Date();
                         const fmt = new Intl.DateTimeFormat("en-US", { timeZone: pick.timezone, timeZoneName: "longOffset" });
-                        const parts = fmt.formatToParts(now);
+                        const parts = fmt.formatToParts(new Date());
                         const tzPart = parts.find((p) => p.type === "timeZoneName")?.value ?? "";
                         const m = tzPart.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);
                         if (m) {
@@ -2040,14 +2136,21 @@ export default function Home() {
                           const offset = sign * (h + mm / 60);
                           setTimezoneOffset(offset);
                           setTimezoneLabel(pick.timezone.split("/").pop() ?? `UTC${offset >= 0 ? "+" : ""}${offset}`);
-                          return;
                         }
-                      } catch { /* silent */ }
+                      } catch { /* silent — effect will fix once date is typed */ }
+                      return;
                     }
                     if (pick) {
                       axios.get("https://api.bigdatacloud.net/data/reverse-geocode-client", {
                         params: { latitude: pick.lat, longitude: pick.lon, localityLanguage: "en" },
                       }).then((res) => {
+                        const ianaName = res.data?.localityInfo?.administrative?.find(
+                          (a: { timeZone?: { name?: string } }) => a?.timeZone?.name,
+                        )?.timeZone?.name || res.data?.timeZone?.name;
+                        if (ianaName) {
+                          setTimezoneIana(ianaName);
+                          return;
+                        }
                         const tz = res.data?.timezone;
                         if (tz?.gmtOffset !== undefined) {
                           const offset = Math.round((tz.gmtOffset / 3600) * 2) / 2;
