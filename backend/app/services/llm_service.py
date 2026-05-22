@@ -2532,6 +2532,47 @@ INTELLIGENT OMISSION RULES (FORMAT B):
 # TOPIC DETECTION
 # ================================================================
 
+def resolve_effective_topic(topic: str | None, question: str) -> str:
+    """Resolve the topic value to one with engine-house support.
+
+    PR A2.7 — Fixes the "engine confidence: 25/100" bug.
+
+    Background: when the frontend sends ``topic="general"`` (the default for
+    freeform chat in the Analysis tab) or ``topic="auto"`` (legacy callers)
+    or any other value not present in ``HOUSE_TOPICS``, the engine
+    pre-compute (``compute_advanced_for_topic``) looks up
+    ``HOUSE_TOPICS.get(topic, [])`` and gets ``[]``. That zero-length
+    relevant-house list makes the engine confidence floor at ~25/100
+    regardless of how strong the actual chart promise is. The LLM then
+    has to compute the topic CSL chain manually, and politely notes the
+    engine block was empty.
+
+    This helper enforces: if the topic doesn't resolve to a valid set of
+    engine houses, run the Haiku detect_topic upgrade BEFORE building the
+    chart_data. ~$0.001 Haiku call, but the engine compute is now accurate.
+
+    Behaviour matrix:
+      topic="business"   -> "business"    (already canonical, no Haiku call)
+      topic="career"     -> "career"      (alias, HOUSE_TOPICS["career"] resolves)
+      topic="general"    -> detected      (Haiku upgrade — primary fix)
+      topic="auto"       -> detected      (Haiku upgrade — legacy callers)
+      topic=""           -> detected      (Haiku upgrade)
+      topic=None         -> detected      (Haiku upgrade)
+      topic="unknownxyz" -> detected      (Haiku upgrade — unknown value)
+    """
+    from app.services.chart_engine import HOUSE_TOPICS
+    t = (topic or "").strip().lower()
+    # If topic resolves to a non-empty house list in the engine, use as-is.
+    # HOUSE_TOPICS now (post PR A2.0a) includes all canonical topics + all
+    # aliases, so this covers career/job/business/wealth/litigation/etc.
+    if t and t in HOUSE_TOPICS and HOUSE_TOPICS.get(t):
+        return t
+    # Empty / "general" / "auto" / unknown — upgrade via Haiku detect_topic.
+    # The detect_topic function has its own keyword fallback if Haiku fails,
+    # so this is robust to Anthropic outages.
+    return detect_topic(question)
+
+
 def detect_topic(question: str) -> str:
     # PR A1.3-fix-10 (#7) — list expanded to match TOPIC_TO_FILE.
     # PR A2.0b — added 18 new categories (business cluster, money_recovery cluster,
