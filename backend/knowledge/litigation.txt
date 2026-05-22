@@ -1,43 +1,488 @@
 ================================================================================
-KP ASTROLOGY — LITIGATION / COURT CASES
-Source: K.S. Krishnamurti KP Readers + Vaastuinternational.com + KP Astrology Learning
-Extracted PR A2.0d from other_topics.txt §5 (verbatim, no doctrine change)
+KP ASTROLOGY — LITIGATION / COURT CASES / LEGAL MATTERS COMPLETE RULES
+Source: K.S. Krishnamurti KP Readers + Vaastuinternational.com +
+        KP Astrology Learning H6 + AstroSage KP litigation doctrine
+Expanded PR A2.3 (2026-05-22) — was 25 lines from other_topics.txt §5
 ================================================================================
 
-RELEVANT HOUSES:
-PRIMARY: H6 (disputes, enemies, litigation, legal disputes)
-SUPPORTING: H1 (self, native's case), H11 (winning, gains from litigation)
-OPPONENT: H7 (opponent, other party in the case)
+This file covers:
+  - Civil litigation (win / lose / settle)
+  - Criminal cases (acquittal / conviction / bail / jail — TIER 3)
+  - Land / property disputes (cross-link to property.txt)
+  - Inheritance disputes
+  - Money recovery suits (cross-link to money_recovery.md)
+  - Divorce litigation (cross-link to divorce.txt)
+  - Fraud / cheating cases
+  - Defamation suits
+  - Appeals
+  - Verdict timing windows
 
-WIN IN LITIGATION:
-"H6 sub lord signifying H1, H6, H11 → success in litigation."
-"Also: H2 sub lord signifying H6 and H11 → success in litigation or promotion in service."
-"H3 sub lord deposited in star of significators of H6 and H11 → success in appeal/petition/courts."
+SENSITIVITY TIERS (per sensitivity_tiers.md):
+  - Civil cases / property disputes / money recovery suits = TIER 2
+  - Criminal cases / jail risk / bail = TIER 3 (ABSOLUTE MAXIMUM CARE)
+  - Apply RULE 52 escalation rules
 
-LOSS IN LITIGATION:
-"If dasha activates significators of H12 (loss) and H7 (opponent wins) = loss in case."
-When H7 is strongly activated in dasha = opponent's period, native's case weakens.
+PROTECTIVE FRAMING DOCTRINE (absolute):
+  NEVER predict jail dates. NEVER predict conviction with certainty.
+  NEVER name specific acquittal dates as guarantees. Always frame as
+  STRUCTURAL probability, NEVER as legal opinion. Always defer
+  final outcome to the lawyer + trial dynamics. See Section 11.
 
-TIMING OF LEGAL MATTERS:
-Saturn connection → lengthy legal battles
-Mars connection → aggressive, quick legal actions
-Mercury connection → documentation, written proceedings, settlements
-Jupiter connection → justice prevails, honest judgment
+================================================================================
+SECTION 1: HOUSES FOR LITIGATION (KP CANONICAL)
+================================================================================
 
-APPEAL SUCCESS:
-"H3 sub lord connected to H6 and H11 → success in appeal/petition."
+PRIMARY GATE: H6 (disputes, enemies, litigation, legal disputes)
 
-NOTE: This file currently holds only the foundational doctrine from
-other_topics.txt §5. PR A2.3 will expand this file substantially with:
-  - Civil vs criminal case distinction
-  - Plaintiff vs defendant role
-  - Jail / imprisonment risk doctrine (H12 cusp sub-lord Rahu signal)
-  - Bail probability
-  - Settlement vs trial decision support
-  - Land/property dispute specifics
-  - Inheritance dispute
-  - Money recovery suit (cross-link to money_recovery.md from PR A2.2)
-  - Divorce litigation
-  - Fraud / cheating case
-  - Defamation suit
-  - Tier 3 sensitivity framing (per sensitivity_tiers.md from PR A2.0c)
+SUPPORTING HOUSES:
+  H1 = self (native's case strength)
+  H11 = winning, gains from litigation (the prize / favorable verdict)
+  H3 = courage to file / pursue / appeal
+
+OPPONENT HOUSES:
+  H7 = opponent (other party in the case)
+  H12 = loss to native = gain to opponent
+
+WIN HOUSES SET: {6, 11} (primary) + H1, H3 (supporting)
+DENIAL / LOSS HOUSES SET: {7, 8, 12}
+
+THE PRIMARY GATE RULE (per KP Astrology Learning H6, verbatim):
+  "A 6th cusp's sub lord signifying 1, 6, and 11 promises litigation success."
+
+THE SECONDARY GATES:
+  "H2 sub lord signifying H6 and H11 → success in litigation (or
+   promotion in service)."
+  "H3 sub lord deposited in star of significators of H6 and H11 →
+   success in appeal/petition/courts."
+
+LOSS GATE:
+  "If dasha activates significators of H12 (loss) and H7 (opponent
+   wins) = loss in case."
+  "When H7 is strongly activated in dasha = opponent's period;
+   native's case weakens."
+
+================================================================================
+SECTION 2: CIVIL vs CRIMINAL — KP DISTINCTION (CRITICAL)
+================================================================================
+
+KP doctrine treats civil and criminal cases with different intensity
+and different supporting cusps:
+
+CIVIL CASE (property / contract / family / financial):
+  Primary: H6 + H11 (standard litigation framework, Section 1)
+  Supporting: H2 (if money is at stake), H4 (if property),
+              H8 (if inheritance), H7 (always — the other party)
+  Sensitivity: TIER 2
+  Outcomes: win / lose / settle / withdraw / out-of-court
+
+CRIMINAL CASE (criminal liability / FIR / arrest / trial):
+  Primary: H6 + H11 (win = acquittal)
+  Plus CRITICAL: H12 (imprisonment) + H8 (sudden loss of freedom)
+  Sensitivity: TIER 3 (life-impact = jail risk = liberty deprivation)
+  Outcomes: acquittal / conviction / bail / jail / settlement (rare)
+
+KEY DIFFERENCE FOR CRIMINAL:
+  In criminal, the cost of LOSING is liberty (jail) — orders of
+  magnitude more serious than civil. The KP doctrine adds H12 +
+  Rahu involvement check (Section 5). Tier 3 framing is MANDATORY.
+
+================================================================================
+SECTION 3: PLAINTIFF vs DEFENDANT — ROLE-DEPENDENT READING
+================================================================================
+
+In KP, the CSL chains read slightly differently depending on whether
+the native is the one suing (plaintiff) or being sued (defendant):
+
+PLAINTIFF (you initiated the case — suing someone):
+  - H6 is YOUR weapon (your dispute / your case)
+  - H7 is your OPPONENT (defendant)
+  - H11 = your gain from winning
+  - H1 + H3 strong = you have the energy and standing to pursue
+  - Standard "win" doctrine (Section 1) applies cleanly
+
+DEFENDANT (you are being sued — responding to a case):
+  - H1 is YOUR defense (your self / self-protection)
+  - H7 is the PLAINTIFF (the one suing you)
+  - H11 = you successfully defending (their case fails)
+  - H12 = YOUR loss / having to pay damages / conviction
+  - REVERSAL of cusps: H7 strong = plaintiff strong = bad for you
+  - Win = your H1 strongly signified AND H7 (plaintiff) blocked
+
+CROSS-CHART CONSIDERATION (when opponent's chart is available):
+  If you have opponent's birth data:
+  - Compare your H6 strength to their H6 strength
+  - Whichever native's H6 CSL more strongly signifies {6, 11} → that
+    party prevails
+  - Whichever native is in a stronger AD for H6 + H11 = that side
+    has the upper hand in current period
+
+================================================================================
+SECTION 4: WIN IN LITIGATION (full doctrine)
+================================================================================
+
+STRUCTURAL WIN (chart-promised victory):
+  H6 sub lord signifies H1 + H6 + H11 → PROMISED WIN
+  (Per KP Astrology Learning H6, verbatim doctrine)
+
+ADDITIONAL CONFIRMING SIGNALS (chain together for stronger verdict):
+  - H2 sub lord signifies H6 + H11 → win + financial recovery
+  - H3 sub lord deposited in star of H6+H11 significators → win on
+    appeal/petition (if at appeal stage)
+  - H1 strongly signified in current AD → native's self-assertion
+    succeeds in court
+  - Mercury or Jupiter involvement in H6 chain → justice prevails,
+    documentation strong, honest case
+  - Sun in chain → authority-decided, judge favorable to native
+
+DASHA TRIGGER FOR WIN:
+  AD lord signifies H6 + H11 simultaneously AND
+  PAD lord touches H6 OR H11 = win window active
+
+  Verdict timing within the AD:
+  - Sub Lord in moveable sign → quick verdict
+  - Sub Lord in fixed sign → drawn-out judgment
+  - Sub Lord in common/dual sign → unpredictable timing
+
+================================================================================
+SECTION 5: LOSS / OPPONENT WINS / JAIL RISK (TIER 3 — MAXIMUM CARE)
+================================================================================
+
+⚠ TIER 3 SECTION — apply absolute protective framing per RULE 52.
+
+STRUCTURAL LOSS:
+  H7 sub lord signifies H6 + H11 from the opponent's side
+  (i.e., opponent's cusps fire while yours don't)
+  Or: native's H6 + H11 are denied in current dasha while H7 + H12
+  are activated
+
+DASHA-DRIVEN LOSS:
+  "If dasha activates significators of H12 (loss) and H7 (opponent
+   wins) = loss in case." (KP Astrology Learning H6)
+
+JAIL / IMPRISONMENT RISK (CRIMINAL CASES ONLY):
+
+KP doctrine on imprisonment (per Vaastuinternational + Dhirendranath
+Misra KP research + AstroSage):
+
+  "If the sub lord of the 12th cusp is Rahu, one must go to jail."
+
+  Refined version: H12 cuspal sub lord = Rahu AND H6/H8 affliction
+  signals present = high structural risk of imprisonment.
+
+  Other malefics on H12 sub lord (Saturn especially) increase risk
+  of prolonged confinement.
+
+  Research note (544 prisoner charts, AstroDatabank study): Rahu
+  appears as H12 CSL in significant majority but NOT universally.
+  Other malefic sub-lord patterns also indicate imprisonment.
+  Apply with caution — never as a certainty.
+
+DOCTRINE ON HOW TO READ IT (MANDATORY framing):
+
+When H12 CSL Rahu pattern fires:
+  - State as STRUCTURAL risk, NOT as verdict
+  - Frame: "the chart's structural caution windows for adverse legal
+    outcomes are dasha-X and dasha-Y"
+  - Cite the COUNTER-SIGNALS that mitigate (H1 strength, H6 favorable
+    in same dasha, RP overlap with H11)
+  - NEVER name a specific incarceration date
+  - ALWAYS recommend the lawyer's professional assessment as primary
+  - Cite KP's role: "structural orientation, NOT legal advice"
+
+BAIL PROBABILITY:
+
+Bail is the temporary release pending trial. KP doctrine:
+  - H11 sub lord signifying H1 + H3 → bail likely (gain of freedom
+    via active legal effort)
+  - H12 sub lord signifying H1 (self-release) → bail granted
+  - H6 sub lord signifying H11 → favorable interim outcome
+  - Mercury / Jupiter strong in chain → legal documentation succeeds
+  - Saturn in chain → bail delayed even if eventually granted
+  - Mars in chain → bail with conditions / aggressive opposition
+
+BAIL TIMING:
+  Scan upcoming PADs (week-level precision) within the active AD
+  for H1 + H11 alignment. That PAD is the bail-application-success
+  window.
+
+================================================================================
+SECTION 6: SETTLEMENT vs TRIAL — DECISION SUPPORT (RULE 29)
+================================================================================
+
+For "should I settle or go to trial?" questions, apply decision-support:
+
+SETTLEMENT FAVOURABLE STRUCTURE:
+  - H6 sub lord signifies H6 + H7 (dispute resolved with opponent)
+    without firing H11 (no clean win) → settlement is the realistic path
+  - Mercury strong in H6 chain → negotiation succeeds, paperwork
+    smooth
+  - Venus involvement → amicable terms
+  - Both parties' charts (if available) show simultaneous H11 weakness
+    = mutual exhaustion → settlement
+  - Saturn-heavy dasha for both sides = neither will win cleanly →
+    settle to avoid prolonged drain
+
+TRIAL FAVOURABLE STRUCTURE:
+  - H6 CSL signifies H6 + H11 cleanly (per Section 4) → trial wins
+  - Sun involvement → judge favorable, authority on your side
+  - Jupiter in chain → just verdict
+  - Mars + Mercury → fast aggressive litigation succeeds
+  - H3 + H6 + H11 lineup → appeals will also succeed if first
+    judgment goes against
+
+WHEN BOTH PATHS WEAK:
+  - Chart shows neither clean win nor clean settlement → consider
+    withdrawing case (if plaintiff) or seeking out-of-court compromise
+  - Cite this candidly: "Per the chart, neither path is structurally
+    promised. The most resource-efficient option is [withdrawal /
+    out-of-court]. Discuss with your lawyer."
+
+================================================================================
+SECTION 7: APPEAL SUCCESS
+================================================================================
+
+APPEAL FILING + PROSECUTION:
+  H3 sub lord in star of H6+H11 significators → success in appeal /
+  petition (KP Astrology Learning H6)
+  H3 is the courage/initiation house; H6+H11 is the dispute-win pair
+
+APPEAL TIMING:
+  Scan upcoming ADs for H3 lord activation alongside H6+H11
+  If current case lost in MD-X, look for next MD where H3 lord +
+  H6+H11 significators align — that's the appeal window
+
+REPEAT APPEALS (higher courts):
+  Same doctrine; each level of court adds H9 involvement (H9 = higher
+  authority / judicial hierarchy). H3 + H6 + H9 + H11 = high court
+  success structurally promised.
+
+================================================================================
+SECTION 8: SPECIFIC CASE TYPES
+================================================================================
+
+LAND / PROPERTY DISPUTE:
+  Cross-link to property.txt for property-specific doctrine.
+  KP litigation framework: H6 + H11 + H4 (property at stake)
+  - H4 sub lord signifying H6 + H11 = property recovery via litigation
+  - H4 sub lord signifying H12 = property loss in dispute
+  - Mars dasha = aggressive land litigation
+  - Saturn dasha = drawn-out generational property case
+
+INHERITANCE DISPUTE:
+  H8 (inheritance / legacy) + H6 + H11
+  - H8 sub lord signifying H2 + H11 = inheritance recovered via legal action
+  - H8 sub lord signifying H12 = lost to other claimants
+
+MONEY RECOVERY SUIT:
+  Cross-link to money_recovery.md (Section 3 — the 4-house compound).
+  Plus litigation: H6 + H11 for case win.
+  Combined reading: money_recovery doctrine for STRUCTURAL recovery
+  + litigation doctrine for COURT path.
+
+DIVORCE LITIGATION:
+  Cross-link to divorce.txt for divorce-specific doctrine.
+  Plus litigation: H6 + H7 + H10 for the formal/legal end.
+  Custody / alimony adds H5 (children) + H2 (financial settlement).
+
+FRAUD / CHEATING CASE:
+  Combined H6 + H7 + H8 + H2 (same 4-house compound as money_recovery
+  Section 3). Add H12 (the fraud's hidden nature).
+  Frame as CRIMINAL (Tier 3) if criminal charges filed.
+
+DEFAMATION SUIT:
+  H6 + H11 + H10 (reputation house) + H2 (financial damage)
+  H10 sub lord signifying H6 + H11 → reputation restored via win
+  H10 sub lord signifying H12 → reputation continues to suffer
+
+CONSUMER PROTECTION / SERVICE-PROVIDER COMPLAINT:
+  H6 (dispute) + H7 (other party = vendor) + H11 (favorable outcome)
+  Lower stakes than civil court usually; H3 enough for tribunal pursuit
+
+================================================================================
+SECTION 9: VERDICT TIMING WINDOW SCANNING
+================================================================================
+
+For "when will the verdict come?" questions, apply the structured scan:
+
+STEP 1: Identify all planets signifying H6 (or H7 if you're defendant)
+        in the chart's significator table.
+
+STEP 2: List the next 24 months of ADs / PADs / Sookshmas.
+
+STEP 3: Find the first AD where:
+        - AD lord signifies H6 (verdict house)
+        - PAD lord signifies H11 (favorable) OR H12 (unfavorable)
+
+STEP 4: That AD-PAD intersection = the verdict timing window.
+
+STEP 5: The verdict POLARITY depends on whether the firing planet
+        signifies H11 (win) or H12 (loss). State both branches.
+
+STEP 6: Cross-check with Ruling Planets at moment of asking:
+        If RP includes the firing planet AND H11 significators →
+        the favorable branch fires.
+
+OUTPUT FRAMING:
+  "Per the chart, the structural verdict window is [AD-PAD range].
+   Within that window:
+   - If H11 significators dominate (currently RP-supported): favorable
+   - If H12 significators dominate: unfavorable
+
+   Final outcome depends on legal strategy + evidence + trial dynamics
+   — KP gives the structural window, not the human-decided outcome."
+
+================================================================================
+SECTION 10: PLANETARY MODIFIERS (TIMING CHARACTER)
+================================================================================
+
+When these planets dominate the H6 chain, expect:
+
+Saturn:
+  - Lengthy legal battles (multi-year)
+  - Procedural delays, postponements
+  - Heavy filing / documentation work
+  - Eventual outcome but with much friction
+  - Often appeals to higher courts
+
+Mars:
+  - Aggressive, fast-moving litigation
+  - Confrontational legal style
+  - Quick decisions (for or against)
+  - Risk of escalation / counter-suits
+  - Physical / violent dispute origin (if criminal)
+
+Mercury:
+  - Documentation-heavy
+  - Negotiation succeeds
+  - Settlements likely
+  - Written proceedings dominate
+  - Articulate legal argumentation
+
+Jupiter:
+  - Justice prevails (favorable when on your side)
+  - Honest judgment, fair-minded judge
+  - Religious / dharmic angle if applicable
+  - Senior counsel / wise lawyer
+  - High court favorable
+
+Venus:
+  - Family-related disputes
+  - Amicable resolution preferred
+  - Mediation succeeds
+  - Romantic / spouse-related cases
+  - Comfortable settlements
+
+Sun:
+  - Government-tied cases
+  - Authority-driven outcome
+  - Public-eye attention
+  - Powerful adversary if Sun is against you
+  - Father-related inheritance cases
+
+Moon:
+  - Public sentiment matters (jury / media)
+  - Emotional / fluctuating case dynamics
+  - Mother-related disputes
+  - Family-court cases
+
+Rahu:
+  - International / foreign-jurisdiction angle
+  - Unconventional case (cyber-crime, novel charge)
+  - Hidden / underground elements
+  - JAIL RISK if H12 CSL (Section 5)
+
+Ketu:
+  - Spiritual / occult angle
+  - Sudden termination (case dismissed)
+  - Past-life-karma reading appropriate
+  - Headless wandering of case (no clean resolution)
+
+================================================================================
+SECTION 11: PROTECTIVE FRAMING (CRITICAL — TIER 2 + TIER 3 ABSOLUTE RULES)
+================================================================================
+
+LITIGATION QUESTIONS ARE TIER 2 BY DEFAULT.
+CRIMINAL CASE QUESTIONS ARE TIER 3 BY DEFAULT.
+JAIL / BAIL / IMPRISONMENT QUESTIONS ARE TIER 3.
+Apply RULE 52 framing throughout.
+
+ABSOLUTE RULES (NEVER VIOLATE):
+
+(1) NEVER name a specific date for:
+    - Conviction
+    - Acquittal as a guarantee
+    - Jail term length
+    - Bail rejection
+
+(2) ALWAYS frame as STRUCTURAL, NOT LEGAL OPINION:
+    "This is a chart-based structural reading, NOT legal advice. The
+     KP doctrine on [H12 cusp sub-lord Rahu involvement / H6 affliction]
+     shows [structural verdict]. Your lawyer is the authority on legal
+     strategy. This reading can COMPLEMENT — never substitute for —
+     their assessment."
+
+(3) ALWAYS show BOTH branches with equal weight (RULE 52 TIER 3):
+    "BRANCH A (favorable — if X significators fire): [acquittal /
+     win / settlement scenario]
+     BRANCH B (adverse — if Y significators fire): [conviction /
+     loss / appeal-needed scenario]
+     Counter-signals to mitigate each: [list]"
+
+(4) ALWAYS close on the favorable branch — never leave the page on
+    a negative outcome alone.
+
+(5) ALWAYS recommend professional consultation:
+    "Please discuss this reading with your lawyer. The chart's signals
+     inform; they don't replace the people qualified to act on your
+     specific case."
+
+(6) ALWAYS acknowledge KP's limits:
+    "KP shows structural tendencies. It does not measure: lawyer
+     skill, evidence strength, witness reliability, judge's personal
+     disposition, opponent's resources, jury sentiment. These all
+     interact with the chart's promise."
+
+(7) PUSHBACK DISCIPLINE:
+    If user pushes back ("my lawyer says I'll win for sure"):
+    Re-run the H6 + H11 chain analysis. Cite which signals support
+    which outcome. State openly if your reading and the lawyer's
+    assessment diverge; you are STRUCTURAL second opinion, lawyer is
+    the actual legal expert with case-specific knowledge.
+
+================================================================================
+SECTION 12: TIER 3 ESCALATION TRIGGERS
+================================================================================
+
+Auto-escalate to MAXIMUM Tier 3 framing if question contains:
+  - "jail", "prison", "convicted", "arrested"
+  - "FIR filed", "case against me", "bail"
+  - "criminal charge", "POCSO", "rape charge", "murder charge"
+  - "death penalty", "life imprisonment"
+  - "I'll end it" / "no other option" / "ruined" (suicide-risk
+    correlation with severe legal trouble)
+
+When escalated, PREPEND output with:
+  > **NOTE — Tier 3 reading. KP structural tendencies only. Not a
+  > verdict. Final outcome depends on legal counsel, evidence,
+  > trial dynamics, and human decisions KP does not measure. Please
+  > consult your lawyer for legal strategy. Both possible branches
+  > are read below.**
+
+================================================================================
+SOURCE CITATIONS (canonical KP)
+================================================================================
+
+- KP Astrology Learning — 6th house bhava rules (litigation, recovery):
+  https://kpastrologylearning.com/kp-jyotish-astrology-sixth-house-bhava-rules/
+- Vaastuinternational.com — KP Astrology litigation/jail studies
+- Dhirendranath Misra blog — KP Astrology research on imprisonment
+  (Rahu H12 CSL doctrine — 544-chart AstroDatabank study)
+- Ravinder Grover — KP forensic case studies (educational)
+- Vinay Bajrangi — KP litigation timing doctrine
+- AstroSage KP system — overview + verdict matrices
+- K.S. Krishnamurti KP Readers I-VI
+- Cross-link: `money_recovery.md` (for money-recovery suits, 4-house compound)
+- Cross-link: `business.txt` Section 3-4 (partner fraud, criminal-suit context)
+- Cross-link: `property.txt` (for land disputes)
+- Cross-link: `divorce.txt` (for divorce litigation)
+- Cross-link: `sensitivity_tiers.md` (for Tier 3 escalation rules)
