@@ -211,19 +211,19 @@ TOPIC_TO_FILE = {
     "self_harm":              "general.txt",
     "kill_myself":            "general.txt",
 
-    # ── Child illness / congenital (PR B2.0a — to children_detailed via fertility
-    # for now; → child_health.md after B2.1) ──
-    "child_illness":          "general.txt",  # → child_health.md after B2.1
-    "child_disease":          "general.txt",
-    "child_surgery":          "general.txt",
-    "newborn_health":         "general.txt",
-    "infant_illness":         "general.txt",
-    "congenital_conditions":  "general.txt",  # → child_health.md §3 after B2.1
-    "birth_defect":           "general.txt",
-    "genetic_disorder":       "general.txt",
-    "down_syndrome":          "general.txt",
-    "autism":                 "general.txt",
-    "heart_defect":           "general.txt",
+    # ── Child illness / congenital (PR B2.1 — routed to child_health.md) ──
+    "child_illness":          "child_health.md",
+    "child_disease":          "child_health.md",
+    "child_surgery":          "child_health.md",
+    "newborn_health":         "child_health.md",
+    "infant_illness":         "child_health.md",
+    "child_longevity":        "child_health.md",   # was → health.txt in B2.0a
+    "congenital_conditions":  "child_health.md",
+    "birth_defect":           "child_health.md",
+    "genetic_disorder":       "child_health.md",
+    "down_syndrome":          "child_health.md",
+    "autism":                 "child_health.md",
+    "heart_defect":           "child_health.md",
 
     # ── Pregnancy cluster (PR B2.0a — to children file until B2.6) ──
     "pregnancy_complications": "general.txt",  # → pregnancy.md after B2.6
