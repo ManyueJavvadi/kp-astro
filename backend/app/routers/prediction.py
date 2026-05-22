@@ -29,7 +29,9 @@ from typing import List
 # user questions to stdout; Railway retains stdout indefinitely).
 _log = logging.getLogger("prediction")
 
-from app.services.llm_service import get_prediction, get_prediction_stream, detect_topic
+from app.services.llm_service import (
+    get_prediction, get_prediction_stream, detect_topic, resolve_effective_topic,
+)
 from app.services.chart_pipeline import build_full_chart_data
 
 router = APIRouter()
@@ -60,14 +62,12 @@ class PredictionRequest(BaseModel):
 
 @router.post("/ask")
 def ask_prediction(request: PredictionRequest):
-    # Topic detection — same Haiku call used by astrologer mode. Detected
-    # topic feeds into advanced_compute_for_topic so significators are
-    # weighted for the right life domain.
-    topic = (
-        request.topic
-        if request.topic and request.topic != "auto"
-        else detect_topic(request.question)
-    )
+    # PR A2.7 — Upgrade topic to one with engine-house support if frontend
+    # sent "general"/"auto"/unknown/None. Was previously special-casing only
+    # "auto"; "general" silently fell through and produced 25/100 engine
+    # confidence floor because HOUSE_TOPICS["general"]=[] meant the relevant-
+    # house list was empty during compute_advanced_for_topic.
+    topic = resolve_effective_topic(request.topic, request.question)
     # PR A1.3-fix-24 — log only metadata (mode + topic + question length),
     # never the question body. Question text is PII.
     _log.info("ask mode=%s topic=%s qlen=%d", request.mode, topic, len(request.question))
@@ -154,11 +154,9 @@ def ask_prediction(request: PredictionRequest):
 
 @router.post("/ask-stream")
 async def ask_prediction_stream(request: PredictionRequest):
-    topic = (
-        request.topic
-        if request.topic and request.topic != "auto"
-        else detect_topic(request.question)
-    )
+    # PR A2.7 — same fix as /ask above. See resolve_effective_topic docstring
+    # in llm_service.py for full rationale.
+    topic = resolve_effective_topic(request.topic, request.question)
     # Phase 13.2 — promoted to WARNING so it's always Railway-visible
     # (entry log used to reconcile against [ANTHROPIC_AUDIT] lines).
     _log.warning(

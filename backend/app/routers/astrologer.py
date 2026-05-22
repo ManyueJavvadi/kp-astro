@@ -20,6 +20,7 @@ from app.services.telugu_terms import (
 )
 from app.services.llm_service import (
     get_prediction, get_prediction_stream, detect_topic, get_quick_insights,
+    resolve_effective_topic,
 )
 from app.services.csl_chains import compute_csl_chains, format_csl_chains_for_llm
 from app.services.timezone_utils import resolve_timezone
@@ -530,7 +531,10 @@ def analyze_topic(request: AnalysisRequest):
     # The 200+ lines of compute orchestration that used to live here now
     # live in chart_pipeline.build_full_chart_data().
     from app.services.chart_pipeline import build_full_chart_data
-    topic = request.topic
+    # PR A2.7 — Upgrade topic to one with engine-house support if frontend
+    # sent "general"/"auto"/unknown (was producing 25/100 floor confidence
+    # because compute_advanced_for_topic was getting empty relevant_houses).
+    topic = resolve_effective_topic(request.topic, request.question)
     chart_data = build_full_chart_data(
         name=request.name,
         date=request.date,
@@ -619,7 +623,9 @@ async def analyze_topic_stream(request: AnalysisRequest):
         len(request.history or []), request.question_type,
     )
 
-    topic = request.topic
+    # PR A2.7 — Upgrade topic to one with engine-house support if frontend
+    # sent "general"/"auto"/unknown (see resolve_effective_topic docstring).
+    topic = resolve_effective_topic(request.topic, request.question)
     chart_data = build_full_chart_data(
         name=request.name,
         date=request.date,
