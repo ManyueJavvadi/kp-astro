@@ -182,18 +182,17 @@ TOPIC_TO_FILE = {
     "critical_care":      "health.txt",
     "discharge":          "health.txt",
 
-    # ── Batch 2: Tier 3 sensitive cluster (PR B2.0a — routed to health.txt
-    # until dedicated KB files ship in B2.1-B2.6) ──
-    "longevity":              "health.txt",  # → longevity.md after B2.2
-    "death_timing":           "health.txt",  # → longevity.md after B2.2
-    "spouse_longevity":       "marriage.txt",
-    "parent_longevity":       "health.txt",  # → longevity.md after B2.2
-    "father_longevity":       "health.txt",  # → longevity.md after B2.2
-    "mother_longevity":       "health.txt",  # → longevity.md after B2.2
-    "child_longevity":        "health.txt",  # → child_health.md after B2.1
-    "will_i_live":            "health.txt",
-    "how_long":               "health.txt",
-    "outlive":                "health.txt",
+    # ── Batch 2: Longevity cluster (PR B2.2 — dedicated longevity.md) ──
+    "longevity":              "longevity.md",
+    "death_timing":           "longevity.md",
+    "spouse_longevity":       "longevity.md",
+    "parent_longevity":       "longevity.md",
+    "father_longevity":       "longevity.md",
+    "mother_longevity":       "longevity.md",
+    "child_longevity":        "child_health.md",  # PR B2.1 — child-specific KB
+    "will_i_live":            "longevity.md",
+    "how_long":               "longevity.md",
+    "outlive":                "longevity.md",
 
     # ── Mental health cluster (PR B2.0a — to general.txt until B2.3 ships) ──
     "mental_health":          "general.txt",  # → mental_health.md after B2.3
