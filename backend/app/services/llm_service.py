@@ -178,6 +178,69 @@ TOPIC_TO_FILE = {
     "surgery":            "health.txt",
     "accident_risk":      "health.txt",
     "recovery":           "health.txt",
+    "icu":                "health.txt",
+    "critical_care":      "health.txt",
+    "discharge":          "health.txt",
+
+    # ── Batch 2: Tier 3 sensitive cluster (PR B2.0a — routed to health.txt
+    # until dedicated KB files ship in B2.1-B2.6) ──
+    "longevity":              "health.txt",  # → longevity.md after B2.2
+    "death_timing":           "health.txt",  # → longevity.md after B2.2
+    "spouse_longevity":       "marriage.txt",
+    "parent_longevity":       "health.txt",  # → longevity.md after B2.2
+    "father_longevity":       "health.txt",  # → longevity.md after B2.2
+    "mother_longevity":       "health.txt",  # → longevity.md after B2.2
+    "child_longevity":        "health.txt",  # → child_health.md after B2.1
+    "will_i_live":            "health.txt",
+    "how_long":               "health.txt",
+    "outlive":                "health.txt",
+
+    # ── Mental health cluster (PR B2.0a — to general.txt until B2.3 ships) ──
+    "mental_health":          "general.txt",  # → mental_health.md after B2.3
+    "depression":             "general.txt",
+    "anxiety":                "general.txt",
+    "bipolar":                "general.txt",
+    "schizophrenia":          "general.txt",
+    "ocd":                    "general.txt",
+    "ptsd":                   "general.txt",
+    "panic":                  "general.txt",
+
+    # ── Suicide risk (PR B2.0a — TIER 3 ABSOLUTE — distinct from mental_health) ──
+    "suicide_risk":           "general.txt",  # → mental_health.md §3 after B2.3
+    "suicide":                "general.txt",
+    "self_harm":              "general.txt",
+    "kill_myself":            "general.txt",
+
+    # ── Child illness / congenital (PR B2.0a — to children_detailed via fertility
+    # for now; → child_health.md after B2.1) ──
+    "child_illness":          "general.txt",  # → child_health.md after B2.1
+    "child_disease":          "general.txt",
+    "child_surgery":          "general.txt",
+    "newborn_health":         "general.txt",
+    "infant_illness":         "general.txt",
+    "congenital_conditions":  "general.txt",  # → child_health.md §3 after B2.1
+    "birth_defect":           "general.txt",
+    "genetic_disorder":       "general.txt",
+    "down_syndrome":          "general.txt",
+    "autism":                 "general.txt",
+    "heart_defect":           "general.txt",
+
+    # ── Pregnancy cluster (PR B2.0a — to children file until B2.6) ──
+    "pregnancy_complications": "general.txt",  # → pregnancy.md after B2.6
+    "miscarriage":             "general.txt",
+    "abortion":                "general.txt",
+    "c_section":               "general.txt",
+    "high_risk_pregnancy":     "general.txt",
+    "delivery":                "general.txt",
+
+    # ── Addiction cluster (PR B2.0a — to general until B2.5) ──
+    "addiction":              "general.txt",  # → addiction.md after B2.5
+    "alcohol":                "general.txt",
+    "alcoholism":             "general.txt",
+    "drugs":                  "general.txt",
+    "substance":              "general.txt",
+    "smoking":                "general.txt",
+    "gambling_addiction":     "general.txt",
 
     # ── Property/vehicle (PR A2.0d → dedicated files) ──
     "vehicle":            "vehicle.md",
@@ -2662,6 +2725,25 @@ HEALTH (refined):
 - "surgery" or "operation" = surgery
 - "accident risk" = accident_risk
 - "general health" or "vitality" = health
+- "ICU" or "critical care" or "intensive care" = icu
+- "discharge from hospital" = discharge
+
+BATCH 2 TIER 3 ABSOLUTE (NEW B2.0a — life-or-death framing):
+- "how long will I live" / "how long will [X] live" / "outlive" = longevity
+- "when will I die" / "when will [X] die" / "death timing" = longevity (NEVER predict)
+- "spouse longevity" / "will I be widowed" = spouse_longevity
+- "father's longevity" / "father will live" = father_longevity
+- "mother's longevity" / "mother will live" = mother_longevity
+- "will my child live" / "child longevity" = child_longevity
+- "I want to end it" / "suicide" / "kill myself" / "no reason to live" = suicide_risk
+- "depression" / "anxious" / "panic attacks" / "OCD" / "bipolar" = mental_health
+- "schizophrenia" / "psychosis" = mental_health
+- "child born with [condition]" / "newborn illness" / "infant disease" = child_illness
+- "child has [disease]" / "child needs surgery" = child_illness
+- "congenital" / "birth defect" / "genetic disorder" / "Down syndrome" / "autism" / "heart defect" = congenital_conditions
+- "miscarriage" / "abortion risk" / "pregnancy complications" = pregnancy_complications
+- "C-section" / "high risk pregnancy" / "delivery date" = pregnancy_complications
+- "addiction" / "alcoholism" / "drug abuse" / "smoking" / "substance" = addiction
 
 PROPERTY / VEHICLE:
 - "buy a house/flat/land" = property
