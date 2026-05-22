@@ -268,14 +268,14 @@ TOPIC_TO_FILE = {
     "mother_relationship":    "general.txt",
     "father_relationship":    "general.txt",
     "estranged_parent":       "general.txt",
-    # Adoption + blended family → adoption.md (B3.4)
-    "adoption":               "general.txt",    # B3.4 will create adoption.md
-    "adopting":               "general.txt",
-    "adopt_child":            "general.txt",
-    "blended_family":         "general.txt",
-    "step_children":          "general.txt",
-    "step_parent":            "general.txt",
-    "step_family":            "general.txt",
+    # Adoption + blended family → dedicated adoption.md (PR B3.4)
+    "adoption":               "adoption.md",
+    "adopting":               "adoption.md",
+    "adopt_child":            "adoption.md",
+    "blended_family":         "adoption.md",
+    "step_children":          "adoption.md",
+    "step_parent":            "adoption.md",
+    "step_family":            "adoption.md",
 
     # ── Property/vehicle (PR A2.0d → dedicated files) ──
     "vehicle":            "vehicle.md",
