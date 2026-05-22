@@ -185,20 +185,20 @@ TOPIC_TO_FILE = {
     "expat":                 "foreign.txt",
     "foreign_job":           "foreign.txt",
 
-    # Pilgrimage cluster (PR B4.4 will create pilgrimage.md)
-    "pilgrimage":            "general.txt",   # → pilgrimage.md after B4.4
-    "religious_journey":     "general.txt",
-    "spiritual_journey":     "general.txt",
-    "char_dham":             "general.txt",
-    "amarnath":              "general.txt",
-    "vaishno_devi":          "general.txt",
-    "tirupati":              "general.txt",
-    "sabarimala":            "general.txt",
-    "hajj":                  "general.txt",
-    "umrah":                 "general.txt",
-    "vatican":               "general.txt",
-    "kailash":               "general.txt",
-    "tirth_yatra":           "general.txt",
+    # Pilgrimage cluster (PR B4.4 — dedicated pilgrimage.md)
+    "pilgrimage":            "pilgrimage.md",
+    "religious_journey":     "pilgrimage.md",
+    "spiritual_journey":     "pilgrimage.md",
+    "char_dham":             "pilgrimage.md",
+    "amarnath":              "pilgrimage.md",
+    "vaishno_devi":          "pilgrimage.md",
+    "tirupati":              "pilgrimage.md",
+    "sabarimala":            "pilgrimage.md",
+    "hajj":                  "pilgrimage.md",
+    "umrah":                 "pilgrimage.md",
+    "vatican":               "pilgrimage.md",
+    "kailash":               "pilgrimage.md",
+    "tirth_yatra":           "pilgrimage.md",
 
     # Property cluster (refined — already routed to property.txt)
     "buying_property":       "property.txt",
