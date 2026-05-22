@@ -194,21 +194,21 @@ TOPIC_TO_FILE = {
     "how_long":               "longevity.md",
     "outlive":                "longevity.md",
 
-    # ── Mental health cluster (PR B2.0a — to general.txt until B2.3 ships) ──
-    "mental_health":          "general.txt",  # → mental_health.md after B2.3
-    "depression":             "general.txt",
-    "anxiety":                "general.txt",
-    "bipolar":                "general.txt",
-    "schizophrenia":          "general.txt",
-    "ocd":                    "general.txt",
-    "ptsd":                   "general.txt",
-    "panic":                  "general.txt",
+    # ── Mental health cluster (PR B2.3 — dedicated mental_health.md) ──
+    "mental_health":          "mental_health.md",
+    "depression":             "mental_health.md",
+    "anxiety":                "mental_health.md",
+    "bipolar":                "mental_health.md",
+    "schizophrenia":          "mental_health.md",
+    "ocd":                    "mental_health.md",
+    "ptsd":                   "mental_health.md",
+    "panic":                  "mental_health.md",
 
-    # ── Suicide risk (PR B2.0a — TIER 3 ABSOLUTE — distinct from mental_health) ──
-    "suicide_risk":           "general.txt",  # → mental_health.md §3 after B2.3
-    "suicide":                "general.txt",
-    "self_harm":              "general.txt",
-    "kill_myself":            "general.txt",
+    # ── Suicide risk (PR B2.3 — TIER 3 ABSOLUTE — routes to mental_health.md §3) ──
+    "suicide_risk":           "mental_health.md",
+    "suicide":                "mental_health.md",
+    "self_harm":              "mental_health.md",
+    "kill_myself":            "mental_health.md",
 
     # ── Child illness / congenital (PR B2.1 — routed to child_health.md) ──
     "child_illness":          "child_health.md",
