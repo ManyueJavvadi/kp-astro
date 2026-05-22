@@ -513,6 +513,12 @@ ADVANCED_FILES = [
     # PR B6.2 — worked-examples library (10-15 canonical case studies). Provides
     # the AI with reference cases to model output structure on.
     "worked_examples_library.md",
+    # PR pre-test-cleanup — capability_vs_manifestation.md is cited in
+    # 6 KB files (child_health / compound_topics / decision_support /
+    # mental_health / longevity / adoption) but was never loaded as
+    # universal KB. RULE 44 references it; loading it makes the citation
+    # functional rather than dangling.
+    "capability_vs_manifestation.md",
 ]
 
 # PR A1.3-fix-18 — User-mode lean KB.

@@ -1351,13 +1351,27 @@ def _build_topic_denial() -> Dict[str, List[int]]:
     Includes all canonical topics + every alias entry pointing to the same
     denial list as its canonical topic. Lists are sorted for deterministic
     output (legacy consumers expected sorted lists).
+
+    PR pre-test-cleanup — uses fixed-point iteration (mirrors
+    chart_engine._build_legacy_house_topics) to handle multi-hop alias
+    chains. Without this, aliases-of-aliases were dropped.
     """
     result: Dict[str, List[int]] = {}
     for topic, data in TOPIC_HOUSE_MAP_CANONICAL.items():
         result[topic] = sorted(data["denial"])
-    for alias, canonical in TOPIC_ALIASES.items():
-        if canonical in result:
-            result[alias] = result[canonical]
+    # Fixed-point iteration for multi-hop alias resolution
+    changed = True
+    max_iterations = 10
+    iteration = 0
+    while changed and iteration < max_iterations:
+        changed = False
+        iteration += 1
+        for alias, canonical in TOPIC_ALIASES.items():
+            if alias in result:
+                continue
+            if canonical in result:
+                result[alias] = result[canonical]
+                changed = True
     return result
 
 
