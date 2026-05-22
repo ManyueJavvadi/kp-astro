@@ -58,3 +58,162 @@ Jupiter dasha: Natural education period (gnana karaka)
 Mercury dasha: Technical/communication education
 Moon dasha: Memory-based studies, may be interrupted
 Sun dasha: Authority-focused studies, government education
+
+================================================================================
+ABROAD EDUCATION / STUDY OVERSEAS (PR A2.6)
+================================================================================
+
+ABROAD STUDY PROMISE:
+  H4 (school) or H9 (higher learning) + H12 (foreign land) + H11 (gain)
+  ALL THREE must connect for abroad-study to materialize
+  For PhD/research abroad: H9 primary + H12 + H11
+  For undergraduate abroad: H4 primary + H12 + H11
+
+VISA / ADMISSION TIMING:
+  Scan ADs for H12 + H9 (or H4) + H11 alignment
+  Jupiter favorable in chain = formal admission, structured program
+  Mercury favorable = test scores good (GRE/GMAT/SAT/IELTS/TOEFL)
+  Rahu favorable = foreign / overseas alignment strong
+  Venus favorable = cultural fit / quality-of-life favorable
+  Sun favorable = government scholarship / authority-supported
+
+SPECIFIC TEST OUTCOMES (GRE / GMAT / CAT / UPSC / SAT):
+  H3 sub lord favorable + H6 (competitive exam) + H11 (success)
+  Mercury strong = analytical test sections succeed
+  Jupiter strong = qualitative / essay sections succeed
+  H4 + H11 → admission follows successful test scores
+
+SCHOLARSHIP / FINANCIAL AID PROBABILITY:
+  H11 (fulfillment of desire) + H2 (received money) + Jupiter favorable
+  Sun involvement = government/merit-based scholarship
+  H4 sub lord signifies H2 AND H11 = scholarship covers tuition
+  Without H11+H2 favorable in chain = self-funded / loan-based study
+
+FAILURE-RECOVERY PATH:
+  If a chart shows the abroad-study window OPENS but native fails
+  test/visa: scan NEXT 2 favorable ADs. KP timing windows often
+  repeat structurally; the next firing can be retake-success.
+
+================================================================================
+EXAM-PASS / EXAM-RESULT HORARY (PR A2.6)
+================================================================================
+
+EXAM PASS / FAIL PREDICTION:
+  H4 sub lord (or H9 for higher) signifying H11 AND no connection
+  to H3 (denial of H4) → success in exam
+  H4/H9 sub lord signifying H3 + H8 → fail / poor result
+  H6 (competitive exam) involvement = competitive context, ranks matter
+
+RESULT-DAY HORARY:
+  Specific to "will I pass this exam scheduled for [date]" questions:
+  - Cast horary chart at moment of question
+  - H4 (or H9) CSL of horary moment is the gate
+  - Apply same TIER 1-3 doctrine (H4 + H11 success / H3 + H8 fail)
+  - Confirmation: significators in RP at horary moment = high confidence
+
+RANK / PERCENTILE (relative position):
+  Beyond pass/fail, ranks matter for competitive exams (JEE, NEET,
+  UPSC):
+  - H10 + H11 + H6 favorable = top rank / merit list
+  - H10 only neutral = mid-rank (passed but not top)
+  - H10 + H8 = surprise outcome (better or worse than expected)
+
+REVISIONS / SUPPLEMENTARY EXAMS:
+  H4 + H11 in NEXT AD (not this one) = pass on supplementary attempt
+  Apply RULE 44 (capability vs manifestation) — capability exists,
+  manifestation deferred to next dasha window
+
+================================================================================
+DROP-OUT / EDUCATION INTERRUPTION (PR A2.6)
+================================================================================
+
+DROP-OUT SIGNATURE:
+  H4 sub lord signifies H3 + H8 + H12 = chronic interruption pattern
+  Mental affliction (RULE 45) often co-occurs
+  Addiction connection (H6 + H8) sometimes part of pattern
+
+RECOVERABLE INTERRUPTION (temporary break):
+  H4 + H11 firing in NEXT favorable AD = student returns
+  Frame as PERIOD-SPECIFIC interruption, not permanent denial
+
+PERMANENT DROP-OUT:
+  H4 sub lord signifies primary denial set (3, 8, 10, 12) with NO
+  H4/H11 relevant touch in next 5+ years
+  Frame: chart suggests this path of education is not the structural
+  promise; explore alternative skill-building pathways (H10 + Mars
+  practical skills, H3 + Mercury short courses)
+
+MENTAL HEALTH + EDUCATION INTERRUPTION:
+  Cross-link to RULE 45 (mental affliction protection) framework
+  Recommend therapist + family support; do NOT predict permanent
+  cognitive issues from H4 affliction alone
+
+================================================================================
+SUBJECT / SPECIALIZATION CHOICE (PR A2.6)
+================================================================================
+
+For 12th-grade or college decisions on stream/specialization:
+
+PRIMARY-PLANET-IN-H4/H9 MAPS TO FIELD:
+  Mercury in H4/H9 chain → IT / commerce / data / writing / journalism
+  Jupiter → law / finance / philosophy / counseling / academia
+  Mars → engineering / military / sports / medicine (surgery)
+  Venus → arts / design / hospitality / fashion / entertainment
+  Saturn → research / heavy industry / agriculture / structured fields
+  Sun → administration / government / politics / leadership
+  Moon → psychology / nursing / public-facing / retail
+  Rahu → unconventional / overseas / technology / research
+  Ketu → spirituality / occult / healing arts / isolation-related
+
+CROSS-CHECK WITH H10 (FUTURE CAREER):
+  If H10 sub lord aligns with same planet group → specialization
+  feeds directly into career; strong structural fit
+  If H10 misaligned → specialization is academic-only; career may
+  diverge
+
+================================================================================
+COACHING / TUTORING EFFECTIVENESS (PR A2.6)
+================================================================================
+
+For "should I join this coaching institute / take this tutor" questions:
+
+H4 (education infrastructure) + H6 (effort / overcoming) + H11 (success)
++ The PROVIDER is via H7 (other-party-providing-service)
+
+Effective coaching signature:
+  H4 sub lord active in AD AND signifies H11 = study environment
+  produces results
+  H6 sub lord favorable = native's effort pays off
+  H7 sub lord signifies H4 + H11 = provider's contribution is real
+
+Ineffective coaching:
+  H6 sub lord signifies H12 = wasted effort
+  H4 sub lord blocked = environment doesn't support
+  H7 sub lord signifies {1, 6, 12} for native = provider exploits
+  rather than helps (consider another provider)
+
+================================================================================
+PARENTAL CONCERN ABOUT CHILD'S EDUCATION (PR A2.6 — Bhavat Bhavam)
+================================================================================
+
+When parent asks about CHILD's education (using parent's chart):
+Apply Bhavat Bhavam (RULE 13):
+  Child's H4 (their school) = parent's H8 (5th + 4th = 9th counted
+    differently; the canonical KP mapping is child=H5, child's school
+    = 4th from H5 = H8 of native)
+  Child's H9 (their higher education) = parent's H1 (9th from H5)
+  Child's H11 (their success/desire fulfilled) = parent's H3 (11th
+    from H5 = H3 of native)
+
+When ANALYSIS is from parent's chart only:
+  - Confidence floor: ~70% (Bhavat Bhavam precision)
+  - Apply sensitivity tier doctrine for child's chart concerns
+  - Recommend: get the child's own birth data for ~95% precision
+  - Frame parent's chart reading as ORIENTATION, not verdict
+
+TIER 2-3 ESCALATION:
+  If parent's question is "will my child be able to study at all"
+  (concerns about cognitive ability, learning disorder, severe
+  difficulty) → Tier 3 escalation per sensitivity_tiers.md
+  Recommend educational psychologist + assessment alongside KP reading
+
