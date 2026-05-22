@@ -259,8 +259,9 @@ TOPIC_TO_FILE = {
     "sister_in_law":          "marriage.txt",
     "brother_in_law":         "marriage.txt",
     "sas_bahu":               "marriage.txt",
-    # Siblings + parents → parents_family.md
-    "siblings_relationship":  "general.txt",    # B3.3 expansion will route to parents_family.md
+    # Siblings + parents — routed to general.txt; parents_family.md
+    # loaded as deep-dive via TOPIC_DEEP_DIVE for these aliased topics
+    "siblings_relationship":  "general.txt",
     "brother_relationship":   "general.txt",
     "sister_relationship":    "general.txt",
     "parents_relationship":   "general.txt",
@@ -302,6 +303,14 @@ TOPIC_DEEP_DIVE = {
     "father":     ["parents_family.md", "bhavat_bhavam.md"],
     "spouse":     ["parents_family.md", "bhavat_bhavam.md"],
     "siblings":   ["parents_family.md", "bhavat_bhavam.md"],
+    # PR B3.3 — extend parent + sibling relationship aliases to deep-dive
+    "parents_relationship":  ["parents_family.md", "bhavat_bhavam.md"],
+    "mother_relationship":   ["parents_family.md", "bhavat_bhavam.md"],
+    "father_relationship":   ["parents_family.md", "bhavat_bhavam.md"],
+    "estranged_parent":      ["parents_family.md", "bhavat_bhavam.md"],
+    "siblings_relationship": ["parents_family.md", "bhavat_bhavam.md"],
+    "brother_relationship":  ["parents_family.md", "bhavat_bhavam.md"],
+    "sister_relationship":   ["parents_family.md", "bhavat_bhavam.md"],
 }
 
 # Advanced KP files always loaded alongside topic-specific file (every query).
