@@ -64,6 +64,7 @@ def _load_kb(name: str) -> str:
     return content
 
 TOPIC_TO_FILE = {
+    # ── Existing topic routings (unchanged) ────────────────────────
     "marriage": "marriage.txt",
     "job": "job.txt",
     "career": "job.txt",
@@ -99,6 +100,89 @@ TOPIC_TO_FILE = {
     "friendship":  "general.txt",
     "decision":    "general.txt",
     "comparison":  "general.txt",
+
+    # ─────────────────────────────────────────────────────────────────
+    # PR A2.0b — Topic-routing enhancement
+    # ─────────────────────────────────────────────────────────────────
+    # Adds explicit entries for new topics + every alias so the routing
+    # funnel doesn't drop them. New topics route to EXISTING KB files for
+    # now; dedicated KB files (business.txt, money_recovery.md,
+    # litigation.txt expansion) come in PRs A2.1/A2.2/A2.3.
+
+    # ── Business cluster (→ job.txt until A2.1 ships business.txt) ──
+    "business":           "job.txt",
+    "startup":            "job.txt",
+    "venture":            "job.txt",
+    "self_employment":    "job.txt",
+    "partnership":        "job.txt",       # business partnership context
+    "career_business":    "job.txt",
+    "layoff":             "job.txt",
+    "retirement":         "job.txt",
+    "resignation":        "job.txt",
+    "employment":         "job.txt",
+    "service":            "job.txt",
+
+    # ── Wealth cluster (→ other_topics.txt §4 wealth section) ──
+    "loan":               "other_topics.txt",
+    "debt":               "other_topics.txt",
+    "emi":                "other_topics.txt",
+    "salary":             "other_topics.txt",
+    "salary_growth":      "other_topics.txt",
+    "income":             "other_topics.txt",
+    "investment":         "other_topics.txt",
+    "bankruptcy":         "other_topics.txt",
+    "money":              "other_topics.txt",
+
+    # ── Money recovery cluster (→ other_topics.txt; dedicated KB in A2.2) ──
+    "money_recovery":     "other_topics.txt",
+    "lent_money":         "other_topics.txt",
+    "partner_cheated":    "other_topics.txt",
+    "theft":              "other_topics.txt",
+    "fraud":              "other_topics.txt",
+    "refund":             "other_topics.txt",
+    "embezzlement":       "other_topics.txt",
+
+    # ── Marriage cluster ──
+    "second_marriage":    "marriage.txt",
+
+    # ── Relatives ──
+    "in_laws":            "marriage.txt",   # spouse → marriage; uses bhavat_bhavam deep-dive
+    "in_laws_health":     "marriage.txt",
+    "sibling_rivalry":    "general.txt",
+    "brother":            "general.txt",
+    "sister":             "general.txt",
+
+    # ── Foreign cluster ──
+    "abroad":             "foreign.txt",
+    "immigration":        "foreign.txt",
+    "settlement":         "foreign.txt",
+    "foreign":            "foreign.txt",
+
+    # ── Litigation cluster (→ other_topics.txt; dedicated KB in A2.3) ──
+    "court_case":         "other_topics.txt",
+    "lawsuit":            "other_topics.txt",
+    "appeal":             "other_topics.txt",
+    "civil_case":         "other_topics.txt",
+    "criminal_case":      "other_topics.txt",
+    "land_dispute":       "other_topics.txt",
+    "litigation_loss":    "other_topics.txt",
+
+    # ── Health cluster ──
+    "disease_risk":       "health.txt",
+    "hospitalization":    "health.txt",
+    "surgery":            "health.txt",
+    "accident_risk":      "health.txt",
+    "recovery":           "health.txt",
+
+    # ── Property/vehicle ──
+    "vehicle":            "other_topics.txt",   # vehicle section in §6
+    "vehicle_purchase":   "other_topics.txt",
+
+    # ── Education ──
+    "study_abroad":       "other_topics.txt",
+    "phd":                "other_topics.txt",
+    "exam":               "other_topics.txt",
+    "education_higher":   "other_topics.txt",
 }
 
 # PR A1.3 — Topic-specific deep-dive files (loaded ALONGSIDE the topic file).
@@ -2374,47 +2458,109 @@ INTELLIGENT OMISSION RULES (FORMAT B):
 
 def detect_topic(question: str) -> str:
     # PR A1.3-fix-10 (#7) — list expanded to match TOPIC_TO_FILE.
-    # Was 11 topics, now 20 — covers personality / fame / creativity /
-    # spirituality / addiction / mental_health / friendship / decision /
-    # comparison + relative aliases.
+    # PR A2.0b — added 18 new categories (business cluster, money_recovery cluster,
+    # specific career states, second_marriage, hospitalization, etc.) that were
+    # previously mis-routing to wealth/job/litigation/general. Real-world test
+    # before A2.0b showed 5 of 8 batch-1 questions routed to wrong topic.
     prompt = f"""Identify the PRIMARY life topic in this question. Reply with ONLY the topic name.
 
 Question: "{question}"
 
 Choose exactly ONE from this list:
-marriage / divorce / spouse / job / foreign_travel / foreign_settle /
-education / health / children / fertility / property / wealth /
-litigation / personality / fame / creativity / spirituality /
-addiction / mental_health / friendship / decision / comparison /
+
+CORE LIFE TOPICS:
+marriage / second_marriage / divorce / spouse / in_laws_health /
+children / fertility /
+job / career_business / business / partnership / startup /
+layoff / retirement /
+wealth / loan / debt / salary_growth / investment / bankruptcy /
+money_recovery / lent_money / partner_cheated / theft / fraud / refund /
+property / vehicle_purchase /
+education / education_higher / exam /
+foreign_travel / foreign_settle /
+litigation / civil_case / criminal_case / land_dispute /
+health / disease_risk / hospitalization / surgery / recovery /
+personality / fame / creativity / spirituality /
+addiction / mental_health / friendship /
+decision / comparison /
 parents / mother / father / siblings / general
 
-Rules:
-- "buy a house" or "buy property" or "buy flat" = property
-- "move abroad" or "settle in another country" or "immigrate" or "PR visa" = foreign_settle
-- "visit abroad" or "travel overseas" or "go to another country" = foreign_travel
+KEY DISAMBIGUATION RULES (apply in priority order):
+
+MONEY RECOVERY (NEW PR A2.0b — high priority over wealth/litigation):
+- "partner cheated/stole/took my money" or "business partner fraud" = partner_cheated
+- "lent money will it come back" or "owes me money" or "money returned" = lent_money
+- "theft" or "stolen funds" = theft
+- "refund pending" or "money owed" = refund
+- (If question is primarily about RECOVERING money someone took/owes, pick money_recovery cluster — NOT wealth, NOT litigation)
+
+BUSINESS (NEW PR A2.0b — distinct from job):
+- "start a business" or "own venture" or "consulting firm" or "my own company" = business
+- "business partner" (selection or compatibility, not cheating) = partnership
+- "shut down business" or "business loss" or "bankrupt" = bankruptcy
+- "franchise" or "expand business" = business
+
+CAREER (existing, refined):
+- "job" or "promotion" or "appraisal" or "transfer" = job
+- "got laid off" or "fired" or "let go" or "company shutting down" = layoff
+- "salary hike" or "income jump" or "package growth" = salary_growth
+- "should i retire" or "retirement timing" = retirement
+
+WEALTH / FINANCE (DIFFERENT from money_recovery):
+- "should i take this loan" or "EMI" or "credit card debt" = loan/debt
+- "savings" or "investment" or "stocks" or "MF" = wealth/investment
+- "general wealth accumulation" = wealth
+
+MARRIAGE (refined):
+- "second marriage" or "remarriage" or "after divorce" = second_marriage
+- "in-laws health" or "father-in-law" or "mother-in-law" = in_laws_health
 - "get married" or "when marriage" = marriage
-- "divorce" or "separation" or "breakup" or "marital discord" or "split" = divorce
-- "what is my partner like" or "spouse details" or "who will i marry" = spouse
-- "job" or "career" or "work" or "promotion" = job
-- "sick" or "health" or "disease" or "illness" = health
-- "child" or "baby" or "pregnant" or "trying to conceive" = children
-- "ivf" or "fertility" or "trouble conceiving" = fertility
-- "study" or "education" or "degree" or "exam" = education
-- "money" or "wealth" or "savings" or "investment" = wealth
-- "court" or "case" or "lawsuit" = litigation
-- "who am i" or "my personality" or "what kind of person" = personality
-- "famous" or "recognition" or "public figure" = fame
-- "creative" or "artistic" or "talent" = creativity
-- "spiritual" or "meditation" or "moksha" or "dharma" = spirituality
-- "addiction" or "habit" or "drinking" or "smoking" = addiction
-- "depression" or "anxiety" or "mental" = mental_health
-- "friend" or "social circle" or "network" = friendship
+- "divorce" or "separation" = divorce
+- "spouse details" or "what kind of partner" = spouse
+
+CHILDREN (existing):
+- "child" or "pregnant" or "son/daughter" = children
+- "IVF" or "trouble conceiving" = fertility
+
+EDUCATION (existing + refined):
+- "school" or "12th std" or "basic education" = education
+- "PhD" or "doctorate" or "MS abroad" = education_higher
+- "exam pass" or "result" = exam
+
+FOREIGN (existing):
+- "settle abroad" or "PR visa" or "immigrate permanently" = foreign_settle
+- "travel abroad" or "trip overseas" = foreign_travel
+
+LITIGATION (refined — DIFFERENT from money_recovery):
+- "court case" or "lawsuit" (general) = litigation
+- "civil case" or "civil suit" = civil_case
+- "criminal case" or "FIR" or "bail" or "jail" = criminal_case (HIGH SENSITIVITY)
+- "land dispute" or "property fight" = land_dispute
+- (If court case is to RECOVER money from a partner, prefer partner_cheated over litigation)
+
+HEALTH (refined):
+- "will I recover" or "treatment outcome" or "discharge from hospital" = recovery
+- "diagnosed with X" + "will I be ok" = recovery (wellness framing)
+- "will I get sick" or "disease risk" or "hospitalisation likely" = disease_risk
+- "surgery" or "operation" = surgery
+- "accident risk" = accident_risk
+- "general health" or "vitality" = health
+
+PROPERTY / VEHICLE:
+- "buy a house/flat/land" = property
+- "buy a car/bike" or "vehicle purchase" = vehicle_purchase
+
+RELATIVES (existing):
+- "father" = father  /  "mother" = mother
+- "brother/sister/sibling" = siblings
+- "sibling fight/rivalry" = sibling_rivalry
+
+OTHER:
 - "should i" or "decision" or "good idea" = decision
-- "x vs y" or "compare" or "or" (between two options) = comparison
-- "father" = father
-- "mother" = mother
-- "brother" or "sister" or "sibling" = siblings
-- "parent" or "parents" = parents
+- "x vs y" or "compare" = comparison
+- "spiritual" or "moksha" or "dharma" = spirituality
+- "depression" or "anxiety" = mental_health
+- "addiction" or "habit" = addiction
 - (anything not matching above) = general
 
 Reply with ONLY the single topic word."""
@@ -2449,27 +2595,112 @@ Reply with ONLY the single topic word."""
 
 
 def _keyword_fallback(question: str) -> str:
+    """PR A2.0b — expanded with money_recovery and business clusters.
+
+    Priority order matters: more-specific patterns must match BEFORE
+    generic patterns. money_recovery checked before litigation+wealth
+    because partner-cheating questions contain "money" AND "court" AND
+    "litigation" — but the recovery framing is the most specific.
+    """
     q = question.lower()
+
+    # ── HIGHEST PRIORITY: money recovery (PR A2.0b — was mis-routing to
+    # litigation or wealth, which gave the wrong KB context) ──
+    if any(w in q for w in [
+        "partner cheated", "partner took", "partner stole", "business partner fraud",
+        "lent money", "loaned money", "owes me", "owed money", "money returned",
+        "stolen money", "embezzle", "recover the money", "get my money back",
+        "refund pending", "refund will", "stopped responding",
+    ]):
+        return "money_recovery"
+
+    # ── Business cluster (PR A2.0b — was mis-routing to wealth/job) ──
+    if any(w in q for w in [
+        "start a business", "own business", "own venture", "consulting firm",
+        "my own company", "business loss", "shut down business", "bankrupt",
+        "franchise", "expand business", "startup",
+    ]):
+        return "business"
+    if any(w in q for w in ["business partner", "partnership", "co-founder"]):
+        return "partnership"
+
+    # ── Career states (PR A2.0b) ──
+    if any(w in q for w in ["laid off", "laid-off", "got fired", "let go", "company shutting"]):
+        return "layoff"
+    if any(w in q for w in ["should i retire", "retirement plan", "after retirement"]):
+        return "retirement"
+    if any(w in q for w in ["salary hike", "salary growth", "income jump", "package growth"]):
+        return "salary_growth"
+
+    # ── Marriage / relatives refined (PR A2.0b) ──
+    if any(w in q for w in ["second marriage", "remarriage", "remarry", "after divorce"]):
+        return "second_marriage"
+    if any(w in q for w in ["in-law", "in law", "father-in-law", "mother-in-law", "fil ", "mil "]):
+        return "in_laws_health"
+    if any(w in q for w in ["marr", "wife", "husband", "spouse", "bride", "groom"]) and "wedding" not in q:
+        # plain "marriage" or "wedding"
+        pass
     if any(w in q for w in ["marr", "wife", "husband", "wedding", "spouse", "bride", "groom"]):
         return "marriage"
     if any(w in q for w in ["divorc", "separat", "breakup", "break up", "marital discord", "split"]):
         return "divorce"
-    if any(w in q for w in ["health", "sick", "ill", "disease", "hospital", "medicine"]):
+
+    # ── Health refined (PR A2.0b) ──
+    if any(w in q for w in ["recover from", "discharge from", "will i be ok", "treatment outcome"]):
+        return "recovery"
+    if any(w in q for w in ["surgery", "operation", "operate"]):
+        return "surgery"
+    if any(w in q for w in ["accident risk", "road accident", "car accident"]):
+        return "accident_risk"
+    if any(w in q for w in ["will i get sick", "fall ill", "hospitalisation", "hospitalization"]):
+        return "disease_risk"
+    # PR A2.0b — "ill" alone matches "civil" (substring). Use word-bounded patterns
+    # or full words to avoid the bug. "sick" can match "homesick" but acceptable.
+    if any(w in q for w in ["health", "sick", " ill ", " ill.", " ill,", "illness", "disease", "hospital", "medicine"]):
         return "health"
+
+    # ── Property / vehicle (PR A2.0b) ──
+    if any(w in q for w in ["car ", "bike ", "vehicle", "motorbike", "scooter"]):
+        return "vehicle_purchase"
     if any(w in q for w in ["house", "property", "land", "flat", "apartment", "real estate"]):
         return "property"
+
+    # ── Foreign (existing) ──
     if any(w in q for w in ["settle", "immigrat", "permanent resident", "pr visa"]):
         return "foreign_settle"
-    if any(w in q for w in ["travel", "abroad", "foreign", "visa", "overseas", "immigrat", "another country"]):
+    if any(w in q for w in ["travel", "abroad", "foreign", "visa", "overseas", "another country"]):
         return "foreign_travel"
+
+    # ── Children (existing) ──
     if any(w in q for w in ["child", "baby", "pregnant", "son", "daughter"]):
         return "children"
+
+    # ── Education refined (PR A2.0b) ──
+    if any(w in q for w in ["phd", "doctorate", "ms abroad", "study abroad"]):
+        return "education_higher"
+    if any(w in q for w in ["exam pass", "exam result", "pass exam"]):
+        return "exam"
     if any(w in q for w in ["stud", "educat", "degree", "university", "college", "exam"]):
         return "education"
+
+    # ── Wealth refined (PR A2.0b) ──
+    if any(w in q for w in ["loan", "emi", "debt", "credit card"]):
+        return "loan"
+    if any(w in q for w in ["investment", "stocks", "mutual fund", "sip", "crypto"]):
+        return "investment"
     if any(w in q for w in ["money", "wealth", "rich", "savings", "invest", "financ"]):
         return "wealth"
+
+    # ── Litigation refined (PR A2.0b) ──
+    if any(w in q for w in ["criminal case", "fir filed", "bail", "jail"]):
+        return "criminal_case"
+    if any(w in q for w in ["civil case", "civil suit"]):
+        return "civil_case"
+    if any(w in q for w in ["land dispute", "property fight"]):
+        return "land_dispute"
     if any(w in q for w in ["court", "case", "lawsuit", "legal", "litigat"]):
         return "litigation"
+
     return "job"
 
 

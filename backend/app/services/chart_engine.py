@@ -661,6 +661,23 @@ TOPIC_HOUSE_MAP_CANONICAL: dict = {
         # H10 is for PROFESSION (career), NOT for wealth ACCUMULATION (per other_topics.txt §4)
         # Denial = 12th-from-H2 (loss of wealth) + H8 (debt) + H12 (loss/expenditure)
     },
+    "money_recovery": {
+        "relevant": {2, 6, 11}, "denial": {1, 5, 8, 12}, "primary_cusp": 6,
+        "framing": "Will I recover lent money / partner fraud / theft?",
+        # NEW canonical topic (PR A2.0b).
+        # KP Astrology Learning H6 page (verbatim):
+        #   "Retrieving Trapped Money: 6th cusp's sub lord to signify 2, 6, and 11,
+        #    excluding Saturn → entangled money returned"
+        #   "Monetary Receipts: H6 sub lord signifies 2, 6, 11 → desired monetary receipts foreseen"
+        #   "Saturn connected to H6 sub lord → money recovery difficulty"
+        # H6 = primary recovery mechanism (legal channel, dispute resolution)
+        # H2 = the money/asset owed; H11 = realised gain (money actually arrives)
+        # Denial: H1 (12th-from-H2 = loss), H5 (12th-from-H6 = no-recovery channel),
+        #   H8 (obstacle/sudden loss), H12 (total loss/foreign-hidden)
+        # Saturn-on-H6-CSL is a planetary modifier, not a house modifier — flagged in prompt
+        # Applies to: lent money recovery, partner-cheating recovery, theft funds,
+        #   refunds owed, EMI defaults to you, alimony, debt collection
+    },
 
     # ── EDUCATION ───────────────────────────────────────────────────
     "education": {
@@ -773,26 +790,86 @@ TOPIC_HOUSE_MAP_CANONICAL: dict = {
 
 # Topic name aliases — resolve to canonical topic name in TOPIC_HOUSE_MAP_CANONICAL
 TOPIC_ALIASES: dict = {
+    # ── Career cluster ──
     "career":           "job",
     "profession":       "job",
     "service":          "job",
     "employment":       "job",
     "job_employment":   "job",
+    "layoff":           "job",            # PR A2.0b — fired/let-go scenarios
+    "retirement":       "job",            # PR A2.0b
+    "resignation":      "job",            # PR A2.0b
+
+    # ── Business cluster ──
     "career_business":  "business",
     "startup":          "business",
     "venture":          "business",
     "self_employment":  "business",
+    "partnership":      "business",       # PR A2.0b — partnership setup
+
+    # ── Wealth cluster ──
     "finance":          "wealth",
     "money":            "wealth",
+    "loan":             "wealth",         # PR A2.0b — taking/giving loan, H6+H2+H11
+    "debt":             "wealth",         # PR A2.0b
+    "emi":              "wealth",         # PR A2.0b
+    "salary":           "wealth",         # PR A2.0b — salary growth context
+    "salary_growth":    "wealth",         # PR A2.0b
+    "income":           "wealth",         # PR A2.0b
+    "investment":       "wealth",         # PR A2.0b
+    "bankruptcy":       "wealth",         # PR A2.0b
+
+    # ── Money recovery cluster (PR A2.0b — NEW canonical money_recovery) ──
+    "theft":            "money_recovery", # NEW — recovery of stolen funds
+    "refund":           "money_recovery", # NEW — money owed to be returned
+    "lent_money":       "money_recovery", # NEW — money you lent
+    "partner_cheated":  "money_recovery", # NEW — business partner fraud recovery
+    "fraud":            "money_recovery", # NEW — fraud recovery
+    "embezzlement":     "money_recovery", # NEW
+
+    # ── Marriage cluster ──
+    "spouse":           "marriage",
+    "second_marriage":  "marriage",       # PR A2.0b — H7+H9+H11 nuance still applies
+
+    # ── Children cluster ──
     "fertility":        "children",
+
+    # ── Relatives ──
+    "parents":          "father",          # rough default; specific Q routes to father/mother
+    "in_laws":          "marriage",        # PR A2.0b — spouse resolves to marriage; use direct
+    "in_laws_health":   "marriage",        # PR A2.0b — uses Bhavat Bhavam from H7 (spouse house)
+    "sibling_rivalry":  "siblings",        # PR A2.0b
+    "brother":          "siblings",
+    "sister":           "siblings",
+
+    # ── Foreign cluster ──
     "foreign":          "foreign_travel",   # default foreign → travel
     "immigration":      "foreign_settle",
     "settlement":       "foreign_settle",
+    "abroad":           "foreign_travel",   # PR A2.0b
+
+    # ── Litigation cluster ──
     "court_case":       "litigation",
     "lawsuit":          "litigation",
     "appeal":           "litigation",
-    "spouse":           "marriage",
-    "parents":          "father",            # rough default; specific question should route to father/mother
+    "civil_case":       "litigation",       # PR A2.0b
+    "criminal_case":    "litigation",       # PR A2.0b — caveat: high sensitivity
+    "land_dispute":     "litigation",       # PR A2.0b
+
+    # ── Health cluster ──
+    "recovery":         "health",           # PR A2.0b — recovering from illness
+    "hospitalization":  "disease_risk",     # PR A2.0b — being hospitalized = disease question
+    "surgery":          "disease_risk",     # PR A2.0b
+    "accident_risk":    "disease_risk",     # PR A2.0b
+
+    # ── Property / vehicle ──
+    "vehicle":          "property",         # PR A2.0b — H4 + Venus
+    "vehicle_purchase": "property",         # PR A2.0b
+
+    # ── Education ──
+    "study_abroad":     "education_higher", # PR A2.0b
+    "phd":              "education_higher", # PR A2.0b
+    "exam":             "education",        # PR A2.0b
 }
 
 
