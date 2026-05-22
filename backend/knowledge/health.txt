@@ -358,3 +358,172 @@ PUSHBACK DISCIPLINE:
   KP gives structural disposition; medical realities differ.
   Always recommend medical follow-up for actual diagnosis/treatment.
   Never make absolute death-timing predictions (RULE 15 prohibits).
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 10: ACCIDENT RISK + POST-TRAUMA RECOVERY (PR B2.8)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+KP doctrine on accident-risk windows (per general.txt §8 + longevity.md):
+
+PRIMARY HOUSES FOR ACCIDENTS:
+  H8 (sudden events, transformation, surgical intervention)
+  H12 (loss, hospitalization, hidden)
+  H1 (body — what gets hurt)
+  H6 (injuries, disease, medical intervention)
+
+PRIMARY PLANETS FOR ACCIDENTS:
+  Mars (cutting, blood, vehicle accidents, sports injuries, burns)
+  Saturn (chronic injury, slow trauma, structural damage)
+  Rahu (sudden / unconventional / cyber-incident / drug overdose)
+  Ketu (sudden cut-off, mysterious accidents, electrical / radiation)
+
+ACCIDENT RISK SIGNATURE:
+  H1 sub lord signifies H8 + H12 with Mars or Rahu/Ketu in chain
+  Particularly: when transit Mars + Saturn cross natal H1 or H8
+  Sade Sati Phase 2 + Mars transit affliction = elevated period
+
+VEHICLE ACCIDENT SPECIFIC:
+  H4 (vehicle) + Mars + Rahu involvement
+  H8 + H4 + Mars = vehicle-related injury risk
+  Two-wheeler accident: H3 (short journey) + Mars + H8
+  Long-journey accident: H9 + Mars + Saturn
+
+WORKPLACE / OCCUPATIONAL ACCIDENT:
+  H10 (workplace) + H8 + Mars/Saturn
+  Specific industries: Mars-Saturn dominant (construction, mining,
+  defense, surgery, manufacturing) = higher baseline workplace risk
+
+HOME / DOMESTIC ACCIDENT:
+  H4 + H8 + Mars
+  Falls in elderly: Saturn + H1 + H8 (cross-link to longevity.md)
+  Cooking burns: H2 (mouth) + Mars + Sun
+
+ACCIDENT TIMING WINDOW (when this signal activates):
+  When natally-set accident-risk significators are activated in dasha
+  AND Mars transit reaches a triggering position
+  These windows can be PREDICTED structurally as ELEVATED-CAUTION
+  periods (NOT as specific dates of accidents)
+
+POST-TRAUMA RECOVERY:
+  Physical recovery: H1 + H5 + H11 framework (standard recovery trinity)
+  Psychological recovery (PTSD): cross-link to mental_health.md §2.6
+  Surgical recovery from accident: cross-link to health_detailed.md §6
+  + hospitalization.md framework
+  Long-term disability: chronic-management framing (see SECTION 11
+  below)
+
+PROTECTIVE FRAMING (accident questions):
+  - State as ELEVATED-CAUTION period, not accident-certain
+  - Recommend specific precautions per the chart's affliction profile:
+    * Vehicle: extra caution while driving in window, defensive
+      driving classes, postpone long road trips if elective
+    * Workplace: safety protocols audit, PPE compliance
+    * Home: childproofing, elder-fall prevention
+    * Sports: avoid high-risk activities in adverse window
+  - Frame: "the chart shows structural caution period, NOT a verdict
+    of accident. Preventive action significantly mitigates structural
+    risk"
+  - Recommend insurance review + emergency contact updates (practical
+    actions a worried client can DO)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 11: CHRONIC DISEASE MANAGEMENT (PR B2.8)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Chronic conditions (diabetes, hypertension, thyroid, PCOS/PCOD, asthma,
+arthritis, autoimmune, IBS, migraines) require LIFE-LONG management
+rather than cure-seeking. KP framing:
+
+SECTION 8 (Age-Watch Matrix) above lists the natal-chart signatures
+for chronic-disease propensity. This section covers MANAGEMENT
+framing for natives who have ALREADY been diagnosed.
+
+THE MANAGEMENT FRAMEWORK:
+  - Acknowledge: the condition is part of the long-arc dasha pattern
+  - Identify: easier dasha windows (when condition is more manageable)
+    + harder dasha windows (when extra vigilance is needed)
+  - Validate: chronic conditions are NOT failure; many high-functioning
+    lives include chronic management
+
+SPECIFIC CHRONIC CONDITION FRAMING:
+
+DIABETES (Type 2):
+  Pattern: Jupiter or Saturn in H6 in earth sign + H2 (food) afflicted
+  Management: Mercury favorable bhuktis = medication adherence + diet
+    discipline land; Jupiter favorable = lifestyle change motivation
+  Recommend: endocrinologist + dietitian + structured exercise per
+    favorable dasha
+
+HYPERTENSION:
+  Pattern: Mars + Sun in H1/H4/H8 with affliction
+  Management: Saturn favorable = lifestyle change discipline lands;
+    Moon favorable = stress reduction effective
+  Recommend: cardiologist + stress-management + monitor BP daily
+
+THYROID (hypo / hyper):
+  Pattern: Saturn-Mercury affliction (Saturn = hypo / slow; Rahu =
+    hyper / autoimmune)
+  Management: medication + endocrinology follow-up; T3/T4 + TSH
+    monitoring per dasha review cycles
+
+PCOS / PCOD:
+  Pattern: Venus + Moon affliction + H5/H8 + Mars-Saturn
+  Management: gynecological + endocrine + lifestyle (weight,
+    insulin sensitivity)
+  Cross-link to pregnancy.md if fertility-related question
+
+AUTOIMMUNE (RA, lupus, MS, IBD):
+  Pattern: Rahu severe + Moon afflicted + H6+H8+H12 active
+  Management: rheumatology / specialty consultation + steady
+    medication + stress management
+
+ASTHMA / RESPIRATORY:
+  Pattern: Mercury (lungs/breath) afflicted by Saturn (chronic) +
+    H4 (chest cavity)
+  Management: pulmonology + inhaler adherence + allergen
+    identification
+
+ARTHRITIS:
+  Pattern: Saturn dominant + H6 + H8 + age-related dasha
+  Management: rheumatology + joint-care + appropriate exercise
+
+CHRONIC PAIN / FIBROMYALGIA:
+  Pattern: Saturn + Moon + H6 + H1 sub lord weak
+  Management: pain specialist + therapy + lifestyle + mental-health
+    support (often co-occurring depression — cross-link mental_health.md)
+
+CHRONIC FATIGUE SYNDROME:
+  Pattern: H1 sub lord weak + Saturn + H12 hidden burden
+  Management: rest + gradual rebuild + comprehensive workup
+
+THE LIFE-LONG-MANAGEMENT FRAMING:
+  "Your chart shows this condition is part of your structural
+   long-arc — likely a multi-dasha companion. This is not failure;
+   many high-functioning lives include lifelong condition management.
+   The chart shows when management is EASIER (favorable dashas) and
+   when EXTRA VIGILANCE is needed (adverse dashas). Within those
+   windows, [specific medical / lifestyle / spiritual support] aligns
+   with what the chart supports.
+
+   The chart does NOT promise a cure for [chronic condition]. It
+   promises that the structural weight can be MANAGED, with periods
+   of greater ease + periods needing extra care. Your medical team's
+   long-term plan + your daily commitment + the chart's timing-window
+   awareness, together, support sustained good quality of life."
+
+PROHIBITED in chronic-disease framing:
+  - "You will be cured of [condition]" (rarely structurally supported)
+  - "Just use these herbs / mantras / stones and the condition will go"
+    (NEVER replace medical management)
+  - Predicting "the condition will worsen and you will die"
+  - Predicting the condition is "punishment"
+
+PERMITTED:
+  - Identifying the structural-easier windows (medication response peaks,
+    lifestyle change motivation peaks)
+  - Identifying the structural-harder windows (flare-up risk periods)
+  - Cross-link to relevant remedies (Jupiter strengthening, lifestyle
+    aligned with favorable planets)
+  - Validation + compassion + agency framing

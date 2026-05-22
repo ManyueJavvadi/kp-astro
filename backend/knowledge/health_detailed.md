@@ -191,6 +191,136 @@ Example: H8 CSL signifying H1 → head/neurological issue (chronic)
 - H8 CSL favoring H1 + H11 = surgery successful
 - H8 CSL signifying H8 + H12 alone = surgery has complications
 
+### Major vs minor surgery distinction (PR B2.7)
+
+**MINOR / OUTPATIENT** (cosmetic, dental, minor cyst removal, etc.):
+- H8 sub lord favorable + Mars favorable
+- No H12 (no hospitalization) involvement
+- Recovery in next PAD reliably; Tier 2
+
+**MAJOR / INPATIENT** (cardiac, brain, joint replacement, organ transplant,
+cancer resection, complex trauma):
+- H8 + H12 + Mars + Saturn (intervention + hospitalization + cutting +
+  long duration)
+- Tier 3 sensitivity for life-threatening procedures
+- Cross-link to `hospitalization.md` for ICU/discharge timing
+- Cross-link to `child_health.md` §6 for pediatric surgery
+- Cross-link to `longevity.md` if surgery context is end-of-life
+
+### Specific high-stakes surgeries (PR B2.7)
+
+**Cardiac surgery (CABG, valve, bypass, transplant)**:
+- Sun (heart karaka) condition critical
+- H4 (chest cavity) involvement + Sun afflicted = structural concern
+- H8 + Mars + Sun = surgical intervention on heart
+- Recovery: H1 + H5 + Sun favorable in post-op PAD = good outcome
+- Cross-link to `child_health.md` §5 (congenital heart defect signatures)
+
+**Brain / neurosurgery**:
+- Mercury (nervous system) + Moon (mind) + Saturn (rigid structure)
+- H1 (head) + H12 (hidden interior) + Mars (cutting)
+- Recovery: Mercury + Moon favorable + H4 (mental peace) returning
+
+**Cancer resection**:
+- H8 (tumor / transformation) + Mars (cutting) + Rahu (cells
+  multiplying / unconventional growth)
+- Adjacent organ houses involved per cancer site (lung = H4, kidney =
+  H7-H8, liver = Jupiter sign, etc.)
+- Recovery: H5 (= 12th-from-H6 / end of disease) + Jupiter (grace)
+  favorable in post-op AD
+
+**Organ transplant**:
+- H8 (transformation / receiving someone else's organ) + Rahu (foreign
+  body in the system)
+- Mars favorable for transplant surgery itself
+- Saturn favorable for long-term immunosuppression compliance
+- Cross-link to longevity.md if recipient context
+
+**Pediatric major surgery**:
+- Apply child_health.md §6 framework
+- Bhavat Bhavam from parent's chart if child's chart unavailable
+- TIER 3 ABSOLUTE for life-threatening pediatric surgery
+- The canonical compound case in child_health.md §7 covers this
+
+### Surgery success probability bands (PR B2.7)
+
+KP cannot give an exact medical-grade success percentage, but can
+give STRUCTURAL PROBABILITY BANDS:
+
+**HIGH structural support** (~probable success):
+- H8 CSL signifies H11 cleanly
+- H1 sub lord favorable in post-op PAD
+- Jupiter favorable in surgical AD
+- 3+ favorable significators in current dasha
+→ Frame: "Chart shows strong structural support for the surgical
+   intervention. Counter-signals are favorable. The medical team's
+   assessment is the primary source; this reading supports their
+   assessment with structural backdrop."
+
+**MODERATE structural support** (mixed):
+- H8 CSL signifies H11 + H12 (success with complications)
+- Some favorable + some adverse signals
+- Recovery PAD active but with friction
+→ Frame: "Chart shows mixed structural support. Surgery is structurally
+   supported with some complication-risk thread. Recovery PAD will be
+   active but extended care may be needed. The medical team's specific
+   prognosis is primary; this reading provides structural context."
+
+**LOW structural support** (concerning):
+- H8 CSL signifies H8 + H12 alone (no H11 touch)
+- Mars-Saturn affliction on surgery date
+- Recovery PAD weak
+→ TIER 3 ESCALATION. Recommend:
+  - Second opinion if there is time
+  - Reconsideration of timing if elective
+  - Family preparation if emergency
+  - NEVER predict surgical failure as certainty
+  - Always show favorable counter-signals
+  - Cross-link to longevity.md for elderly + serious-surgery cases
+
+### Post-surgery complications prediction (PR B2.7)
+
+When H8 CSL has H12 affliction in post-op PAD:
+- Wound infection (Mars + H6)
+- Bleeding complications (Mars + H8)
+- Anesthesia issues (Moon + H12 + Saturn)
+- Prolonged ICU stay (Saturn + H12)
+- Re-operation needed (Mars repeating in next PAD)
+
+When these signals fire, recommend:
+- Extra-vigilant post-op monitoring
+- Family presence at hospital
+- Tertiary center if not already there
+- Cross-link to hospitalization.md §3 (ICU framing)
+
+### Surgery timing — when there's choice (elective) (PR B2.7)
+
+For elective surgery, identify the most-favorable window:
+1. Scan upcoming 6-12 months
+2. Find PAD where H8 CSL touches H11 (success) + H1 (vitality)
+3. Jupiter aspect favorable
+4. Avoid PADs where Mars-Saturn afflict the surgical date
+5. Avoid Sade Sati Phase 2 if elective (chronic-stress overlay)
+6. Recommend that window to the surgical team for scheduling
+   (the team will weigh medical urgency + scheduling logistics)
+
+For emergency surgery (no choice on timing):
+- Read what the chart says about THIS specific window
+- Identify counter-signals + favorable post-op windows
+- Frame as supportive context for the medical team, not as cosmic veto
+
+### Pre-surgery muhurta cross-reference (PR B2.7)
+
+For elective surgery date selection, the Muhurta tab's recommendation
+can be used in conjunction:
+- Muhurta uses panchang + lagna selection for the surgery date
+- KP doctrine (this section) uses the native's dasha + transit
+- Best date = where BOTH agree:
+  - Native's H8 CSL touches H11 in that PAD
+  - Muhurta lagna sub lord signifies H1+H11 for the patient
+  - Mars favorable (clean intervention)
+  - Jupiter favorable (good outcome)
+
 ---
 
 ## 7. Mental Health & Emotional Wellbeing
