@@ -948,6 +948,81 @@ TOPIC_HOUSE_MAP_CANONICAL: dict = {
         # Specifically for pilgrimage (not general spirituality which uses
         # different H9/H8/H12 framing in spirituality canonical)
     },
+
+    # ── BATCH 5 (PR B5.0a — Spiritual / Occult / Fame / Politics / Sports /
+    #   Missing person / Decision support) ──
+    "occult": {
+        "relevant": {8, 12, 9}, "denial": {1, 5, 11}, "primary_cusp": 8,
+        "framing": "Occult / black magic / drishti / spiritual attack / protection",
+        # NEW PR B5.0a — Per KP doctrine:
+        #   H8 = hidden / occult / sudden transformation / mysteries
+        #   H12 = hidden enemies / curses / negative energies / isolation
+        #   H9 = guru / spiritual protection / dharma (positive side)
+        # Denial: H1 (self-protection), H5 (devotional immunity),
+        #   H11 (community support against negativity)
+        # Tier 2-3 because culturally-sensitive; never confirm "yes you
+        # are cursed" — frame as structural caution + recommend
+        # both spiritual + psychological evaluation
+    },
+    "fame": {
+        "relevant": {10, 11, 1, 5}, "denial": {6, 8, 12}, "primary_cusp": 10,
+        "framing": "Public recognition / celebrity / influence / status",
+        # NEW PR B5.0a — Per KP doctrine:
+        #   H10 = profession / public status / authority
+        #   H11 = mass-following / large audience / community
+        #   H1 = self-projection / personality
+        #   H5 = entertainment / creative platform
+        # Sun + Jupiter karakas. Note: "fame" was previously a topic alias
+        # routing to general.txt — now elevated to canonical with proper
+        # houses.
+    },
+    "politics": {
+        "relevant": {10, 11, 7}, "denial": {6, 8, 12}, "primary_cusp": 10,
+        "framing": "Politics / election / public office / activism",
+        # NEW PR B5.0a — Per KP doctrine:
+        #   H10 = authority + public status
+        #   H11 = public/mass support + electoral win = fulfillment
+        #   H7 = the public + opponents
+        # Denial: H6 (defeat), H8 (sudden setback), H12 (loss to opponent)
+        # Sun (king-karaka) + Jupiter (political wisdom) + Mars (campaign-
+        # energy) all relevant
+    },
+    "sports": {
+        "relevant": {5, 6, 11}, "denial": {8, 12}, "primary_cusp": 5,
+        "framing": "Sports / athletic competition / game result",
+        # NEW PR B5.0a — Per KP doctrine:
+        #   H5 = sports (entertainment / play / speculation)
+        #   H6 = competition (overcoming opponents)
+        #   H11 = winning (gain from competition)
+        # Mars (energy/aggression) + Sun (championship/victory) +
+        # Mercury (skill/strategy) karakas. Different sports
+        # emphasize different planets (cricket = Mercury+Mars; chess =
+        # Mercury alone; combat = Mars; athletics = Mars+Sun).
+    },
+    "missing_person": {
+        "relevant": {3, 9, 12}, "denial": {1, 4, 11}, "primary_cusp": 12,
+        "framing": "Missing person / lost object / Prashna (horary)",
+        # NEW PR B5.0a — KP Prashna doctrine for missing items/people:
+        #   H12 = hidden / lost / out-of-reach
+        #   H3 = short-journey-away (within neighborhood)
+        #   H9 = long-journey-away (far / abroad)
+        # Denial = found: H1 (self-found / returns home), H4 (returns
+        # to home setting), H11 (recovery/fulfillment of finding)
+        # The Prashna chart is cast at the moment of the question; this
+        # framework reads native's chart for ongoing missing-context.
+    },
+    "decision": {
+        "relevant": {1, 5, 9, 10, 11}, "denial": {6, 8, 12}, "primary_cusp": 1,
+        "framing": "Decision support — 'should I do X' / choosing between options",
+        # NEW PR B5.0a — Per RULE 29 (decision support framework):
+        #   H1 = self / agency
+        #   H5 + H9 = intellect + dharma (wisdom of decision)
+        #   H10 + H11 = career/gain implication of decision
+        # Denial: H6/H8/H12 = obstacles to clear decision
+        # This is a META-topic: actual decision content uses the
+        # underlying topic (career/marriage/business/etc.) PLUS this
+        # decision-support overlay.
+    },
 }
 
 # Topic name aliases — resolve to canonical topic name in TOPIC_HOUSE_MAP_CANONICAL
@@ -1165,6 +1240,81 @@ TOPIC_ALIASES: dict = {
     "return_from_abroad":     "foreign_travel",
     "deportation":            "foreign_travel",
     "expat":                  "foreign_settle",
+
+    # ── BATCH 5 aliases (PR B5.0a) ──
+    # Occult cluster
+    "black_magic":            "occult",
+    "drishti":                "occult",
+    "evil_eye":               "occult",
+    "nazar":                  "occult",
+    "curse":                  "occult",
+    "spell":                  "occult",
+    "tantric":                "occult",
+    "exorcism":               "occult",
+    "spirits":                "occult",
+    "ghost":                  "occult",
+    "negative_energy":        "occult",
+    "protection_mantra":      "occult",
+
+    # Fame cluster
+    "celebrity":              "fame",
+    "famous":                 "fame",
+    "public_recognition":     "fame",
+    "social_media_fame":      "fame",
+    "influencer":             "fame",
+    "actor":                  "fame",
+    "youtuber":               "fame",
+    "creative_career":        "fame",
+    "performer":              "fame",
+
+    # Politics cluster
+    "election":               "politics",
+    "election_result":        "politics",
+    "election_win":           "politics",
+    "elections":              "politics",
+    "public_office":          "politics",
+    "minister":               "politics",
+    "mayor":                  "politics",
+    "mla":                    "politics",
+    "mp":                     "politics",
+    "activism":               "politics",
+    "political_career":       "politics",
+
+    # Sports cluster
+    "sport":                  "sports",
+    "athletics":              "sports",
+    "cricket":                "sports",
+    "football":               "sports",
+    "tennis":                 "sports",
+    "chess":                  "sports",
+    "olympics":               "sports",
+    "boxing":                 "sports",
+    "martial_arts":           "sports",
+    "race":                   "sports",
+    "tournament":             "sports",
+    "match_result":           "sports",
+    "athlete":                "sports",
+
+    # Missing person + lost objects (Prashna)
+    "lost_object":            "missing_person",
+    "lost_item":              "missing_person",
+    "lost_wallet":            "missing_person",
+    "lost_phone":             "missing_person",
+    "lost_jewelry":           "missing_person",
+    "missing":                "missing_person",
+    "kidnapping":             "missing_person",   # extreme variant
+    "runaway":                "missing_person",
+    "where_is":               "missing_person",
+    "prashna":                "missing_person",   # KP Prashna horary
+    "horary_lost":            "missing_person",
+
+    # Decision support
+    "should_i":               "decision",
+    "good_idea":              "decision",
+    "right_choice":           "decision",
+    "choose_between":         "decision",
+    "decision_help":          "decision",
+    "what_to_do":             "decision",
 
     # ── Addiction cluster (PR B2.0a) ──
     "alcohol":          "addiction",
