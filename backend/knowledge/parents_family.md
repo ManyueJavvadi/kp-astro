@@ -320,3 +320,150 @@ When user asks "what is my [relative] like?" produce a profile section:
   from native's chart alone.
 - DO recommend the relative's own chart for deeper insight if user wants
   more.
+
+
+---
+
+## 9. PARENT RELATIONSHIPS — DEEP DOCTRINE (PR B3.3)
+
+Beyond longevity (`longevity.md` §9) and parent-as-character-profile
+(§8 above), this section covers the LIVED RELATIONSHIP with parents:
+emotional bond, support patterns, estrangement, conflict, reconciliation.
+
+### 9.1 Houses for parent-relationship reading
+
+**Mother relationship**:
+- H4 (mother + emotional security + home)
+- Moon (mother karaka)
+- H4 sub lord signifying H1 + H11 = harmonious mother bond
+- H4 sub lord signifying H6 + H8 + H12 = friction / estrangement
+
+**Father relationship**:
+- H9 (father + dharma + authority)
+- Sun (father karaka)
+- H9 sub lord signifying H1 + H11 = harmonious father bond
+- H9 sub lord signifying H6 + H12 = friction / distance
+
+### 9.2 Estrangement signatures
+
+Estrangement from parents has specific structural signals:
+- H4 OR H9 sub lord signifies H12 (loss / distance / hidden)
+- Saturn afflicting H4 or H9 (rigid disconnect)
+- Mars afflicting H4 or H9 (conflict / sharp break)
+- Moon-Saturn affliction (mother estrangement specifically)
+- Sun in adverse condition + H9 afflicted (father estrangement)
+
+### 9.3 Reconciliation timing
+
+When the natal chart shows estrangement structure but the client wants
+reconciliation:
+- Scan upcoming AD where H4 OR H9 sub lord becomes favorable
+- Jupiter favorable in that window (forgiveness karaka)
+- Venus favorable (emotional softening)
+- Recommend: that AD as the structurally-supported reconciliation window
+- Recommend: family counselor / therapist for actual reconciliation process
+
+### 9.4 Parent's support / financial help
+
+For "will my parents support me / lend money / help with home":
+- H4 sub lord signifies H2 + H11 = mother's financial support
+- H9 sub lord signifies H2 + H11 = father's financial support
+- Combined H2 + H4 + H9 + H11 = strong family financial backing
+- Jupiter favorable = abundance from parents
+
+### 9.5 Caregiver role reversal (elderly parents)
+
+When the native is an adult and becomes caregiver for aging parents
+(common in mid-40s+ contexts):
+- H4 (mother) + H6 (caregiving service) + H12 (their confinement) firing
+- H9 (father) + H6 + H12 same pattern
+- This is a STRUCTURAL phase, not failure — Saturn dasha often correlates
+- Recommend: respite care, eldercare resources, sibling-sharing of duty,
+  acknowledgment of grief-while-caring
+- Cross-link to `longevity.md` if elderly-parent longevity questions arise
+
+### 9.6 Religious / cultural framing
+
+In Indian context, parents are sacred (Pitru karma doctrine). Always
+frame parent-relationship questions with cultural sensitivity:
+- Reconciliation is karmically valued
+- Even in genuine estrangement contexts (abuse, etc.), the chart can
+  show that boundary-setting + therapy is the healthier path than
+  forced reconciliation
+- Honor the client's lived experience over cultural pressure
+
+### 9.7 Abuse / trauma in parent relationships
+
+When parent estrangement is rooted in past abuse (physical / emotional
+/ sexual):
+- H4 or H9 + H8 (trauma) + Mars + Saturn affliction
+- Apply RULE 45 (mental affliction protection)
+- NEVER recommend forced reconciliation with an abuser
+- Frame: "the chart shows the structural trauma; healing requires
+  trauma-informed therapy + your own choice on contact level"
+- Crisis resources cited if active mental health crisis (cross-link
+  to `mental_health.md`)
+
+---
+
+## 10. SIBLINGS — DEEP DOCTRINE (PR B3.3)
+
+Extends §8.3 sibling-profile framework with relationship + estrangement
++ rivalry doctrine.
+
+### 10.1 Sibling rivalry signatures
+
+- H3 sub lord signifies H6 (enemies / conflict) + H8 (sudden disruption)
+- Mars afflicting H3 (aggressive sibling dynamic)
+- Saturn afflicting H3 (cold / distant siblings)
+- Rahu in H3 = unconventional sibling relationship (estranged sibling,
+  or step-sibling, or distant sibling)
+
+### 10.2 Sibling support signatures
+
+- H3 sub lord signifies H1 + H11 = mutually supportive siblings
+- Venus + Jupiter favorable in H3 chain = loving sibling bond
+- Mercury favorable = communicative sibling relationship
+- H11 (elder sibling) + favorable = elder protects/supports
+
+### 10.3 Estrangement from siblings
+
+Same approach as parent estrangement (§9.2) but with H3 + H11 chain
+instead of H4/H9. Reconciliation timing: scan upcoming AD where H3 lord
+favorable.
+
+### 10.4 Sibling inheritance disputes
+
+H3 + H8 (inheritance) + H4 (parents' property) combined:
+- Disputes structurally indicated if H3 + H6 + H8 all afflicted
+- Cross-link to `litigation.txt` for inheritance disputes
+- Recommend: family mediation BEFORE legal escalation
+- Frame: "the chart shows the structural conflict pattern; the choice
+  to pursue legally vs mediate is yours"
+
+### 10.5 Sibling involvement in marriage decisions
+
+In Indian families, siblings (especially elder siblings) often have
+strong influence on marriage decisions:
+- H3 + H7 chain interaction
+- H11 (elder sibling) + H7 connection = elder sibling's role in match
+- Cross-link to `marriage.txt` for full marriage doctrine
+
+### 10.6 Cross-links
+
+- `child_health.md` (PR B2.1) — for sibling-of-ill-child contexts
+  (the "well sibling" emotional burden)
+- `longevity.md` (PR B2.2) — for elderly sibling questions
+- `marriage.txt` — for sibling involvement in marriage decisions
+- `litigation.txt` — for inheritance disputes
+
+---
+
+## 11. THE FOUNDATIONAL PRINCIPLE FOR PARENT/SIBLING QUESTIONS
+
+> Parent and sibling relationships are the chart's longest-running
+> chapters. They shape who we are; they outlast most other relationships.
+> The chart shows the structural pattern; the lived relationship is
+> shaped by choices, time, and the willingness of both sides to engage.
+> The astrologer's role: honor the lived experience while showing the
+> structural backdrop with compassion.
