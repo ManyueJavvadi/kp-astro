@@ -1,0 +1,404 @@
+================================================================================
+KP ASTROLOGY — BUSINESS / ENTREPRENEURSHIP / PARTNERSHIP COMPLETE RULES
+Source: K.S. Krishnamurti KP Readers + KP Astrology Learning + KSK Reader IV
+PR A2.1 (2026-05-22) — created from web research + canonical doctrine
+================================================================================
+
+This file is the dedicated KP doctrine for business questions:
+  - Starting a venture
+  - Partnership selection / setup / dissolution
+  - Partner cheating / fraud (compound with money_recovery.md)
+  - Profit / loss verdict
+  - Business expansion / multiple branches
+  - Business loss / bankruptcy
+  - Business sale / exit
+  - Family business succession
+  - Type classification (sole / partnership / corporate / family)
+
+Sensitivity tier: BUSINESS IS TIER 2 (life-impact, per sensitivity_tiers.md).
+Bankruptcy questions escalate toward Tier 3 (suicide-risk correlation).
+Partner-fraud questions cross-link to money_recovery.md.
+
+================================================================================
+SECTION 1: HOUSES FOR BUSINESS (KP CANONICAL)
+================================================================================
+
+PRIMARY GATE: H10 (profession / career / status)
+  Per KP Astrology Learning H10 cusp page:
+    "If H10 sub lord signifies 7 → profession is BUSINESS."
+    "If H10 sub lord signifies 6 → profession is SERVICE (job)."
+    "Dual sign + both H6 and H7 → both service and business."
+
+CRITICAL DISAMBIGUATION (vs job):
+  - Service / job: H10 sub lord signifies H6 (service house)
+  - Business: H10 sub lord signifies H7 (public dealings / partnerships)
+  - The DIFFERENTIATOR is whether H6 or H7 fires from H10.
+
+SUPPORTING HOUSES:
+  H7 = partners, public dealings, customers
+  H11 = profits, fulfillment of business desire
+  H2 = accumulated business wealth (vs H10 which is the source)
+
+DENIAL HOUSES (12th-from-relevant logic):
+  H1  = 12th from H2 (loss of business wealth)
+  H6  = 12th from H7 (loss of partners / customers — confusingly H6 is good
+        for SERVICE jobs but bad for BUSINESS partnerships)
+  H9  = 12th from H10 (loss of profession / status)
+  H12 = universal loss (expenditure / hidden / abroad-hidden-money)
+
+WHEN H10 CSL SIGNIFIES PRIMARY DENIAL SET ({1, 6, 9, 12}) AND HAS NO RELEVANT TOUCH:
+  → Business venture DENIED / fails to launch.
+
+WHEN H10 CSL SIGNIFIES BOTH RELEVANT AND DENIAL HOUSES:
+  → CONDITIONAL — apply KSK strict bhukti rule:
+    - Bhuktis of relevant-house significators → business opens / profits arrive
+    - Bhuktis of denial-house significators → business fails / partnership dissolves
+
+================================================================================
+SECTION 2: STARTING A NEW VENTURE
+================================================================================
+
+Required for business launch:
+  H10 + H7 + H11 + H2 (profession + public + profits + wealth)
+  ALL FOUR must connect in the activating dasha
+  H3 also relevant (boldness/effort/courage to act)
+
+Per KP Astrology Learning H7:
+  "If the 7th house is stronger than the 6th, advisors counsel
+   clients to start their own venture."
+
+TIMING TRIGGER (joint period for business launch):
+  Look for an AD lord (and ideally PAD lord) that signifies H10+H7+H11
+  simultaneously. The launch fires in that window.
+
+PER PLANET FOR BUSINESS LAUNCH:
+  Mars dasha → trades, manufacturing, real estate, defense
+  Mercury dasha → trading, commerce, IT, consulting, agencies
+  Jupiter dasha → finance, banking, education, legal services
+  Venus dasha → luxury, entertainment, fashion, hospitality
+  Saturn dasha → mining, heavy industry, agriculture, structured services
+  Rahu dasha → unconventional, foreign-tied, technology-driven, MNC partnerships
+  Sun dasha → government-tied, authority-driven, leadership ventures
+  Moon dasha → public-facing, hospitality, retail, customer-emotion-driven
+
+================================================================================
+SECTION 3: PARTNERSHIP ANALYSIS (KP READER IV — DEFINITIVE)
+================================================================================
+
+H7 cusp sub lord is the PRIMARY gate for partnership outcome.
+Per KP Astrology Learning H7 (and KSK Reader IV verbatim):
+
+PARTNERSHIP RULES (H7 cusp sub lord):
+
+(a) LASTING BUSINESS PARTNERSHIP:
+    "7th cusp's sub lord, when in a planet's constellation representing
+     6 and 11" → lasting partnership.
+
+(b) PARTNERSHIP DISSOLUTION:
+    "Signifying 6 and 12 → the partnership ends."
+    This is the structural dissolution signal — flag explicitly.
+
+(c) STRONG LASTING BOND:
+    "Indicating 5 and 11 ensures a lasting bond."
+    H5 (heart connection) + H11 (mutual gain) = bond endures.
+
+(d) ⚠ PARTNER PROFITS, YOU LOSE (CRITICAL — partner fraud signal):
+    "Signifying 5, 8, and 12 → benefits the partner but causes your loss."
+    This is the KP doctrinal signature for partner cheating you out of
+    money. When this fires, the partner GAINS while you LOSE — even
+    without overt fraud, the structure is wealth flowing partner-ward
+    and loss flowing native-ward. Cross-link to money_recovery.md.
+
+(e) MULTIPLE PARTNERS / SCALE:
+    "Mercury sub lord indicates multiple partners, with 11 signifying
+     a strong bond."
+    Mercury rules partnerships in dual signs; with H11 = scalable.
+
+(f) HARMONIOUS PARTNERSHIP:
+    "Venus connection promising harmony."
+    Venus involvement in H7 chain = smooth interpersonal dynamics.
+
+PARTNERSHIP COMPATIBILITY (cross-chart — for partner selection):
+When choosing a business partner, examine BOTH charts:
+  - Each chart's H7 sub lord signification (should hit 6+11 or 5+11)
+  - Cross-resonance: native's H10 lord = partner's H11 lord (or similar
+    cross-overlap) → mutually beneficial structural compatibility
+  - Check D9 (Navamsa) for the partnership's resilience
+
+KSK READER IV CROSS-RULE (stricter — when applicable):
+"H7 Cusp Sign/Star/Sub of one partner should ideally appear in the
+Ruling Planets of the other partner at the moment of partnership."
+When 3-of-3 match: EXCEPTIONAL business compatibility (rare).
+When 2-of-3: STRONG compatibility.
+When 1-of-3: ORDINARY (typical business arrangement).
+
+================================================================================
+SECTION 4: PARTNER CHEATING / FRAUD RECOVERY (COMPOUND READING)
+================================================================================
+
+This is the 4-house compound question — pure money_recovery.md alone
+is insufficient because the PARTNER is involved as the perpetrator.
+
+COMPOUND READING required (cite all four for completeness):
+
+(1) H7 CSL — Partner intent / structural signal:
+    Does H7 sub lord signify {5, 8, 12}? → Per rule (d) above, structural
+    "partner profits you lose" signal is firing. The cheating is
+    CHART-EMBEDDED, not just a personality failure of the partner.
+
+(2) H6 CSL — Recovery / dispute mechanism:
+    Per KP Astrology Learning H6: "H6 sub lord signifying 2, 6, 11
+    excluding Saturn → entangled money returned."
+    - If H6 CSL signifies the recovery trinity {2,6,11} cleanly without
+      Saturn: recovery probable
+    - If Saturn is in chain: recovery delayed / difficult
+    - If H6 CSL signifies {6, 12}: legal expense (litigation costs
+      will be high)
+
+(3) H8 CSL — Loss recovery / sudden gain channel:
+    Per KP Astrology Learning H8: "If H8 sub lord signifies 2, 10, or 11
+    → the borrowed money is returned."
+    - H8 CSL touching H2/H11 = lost money structurally returnable
+    - H8 CSL signifying {6, 11} = lender's loss (the partner loses too,
+      mutual destruction outcome)
+
+(4) H2 CSL — The native's own wealth resilience:
+    Does H2 sub lord signify {2, 6, 11}? → Native's wealth gate is open,
+    the loss is RECOVERABLE structurally even if not all from this partner.
+    If H2 sub lord signifies {1, 8, 12} primarily → loss is part of a
+    broader wealth-denial period; recovery via THIS channel less likely.
+
+DASHA TRIGGER (when does recovery fire):
+  Scan upcoming ADs for one that signifies {2, 6, 11} simultaneously
+  and is NOT a Saturn-dominated AD. That window is the structural
+  recovery point.
+  Cross-check with Ruling Planets at the moment the question was asked
+  (RP overlap with H6/H11 significators confirms timing).
+
+OUTPUT FRAMING (Tier 2 question — apply RULE 52):
+  - Show both branches:
+    BRANCH A (recovery): conditions for full or partial return
+    BRANCH B (no recovery): conditions for permanent loss
+  - Cite specific calendar windows for each branch's firing
+  - Give falsifiable date: "If by [DATE] no recovery action has fired,
+    audit the reading"
+  - Do NOT predict the partner's behavior; predict the chart structure
+  - Recommend: legal counsel for the legal mechanism, KP for the timing
+
+================================================================================
+SECTION 5: PROFIT vs LOSS VERDICT
+================================================================================
+
+PROFITABLE BUSINESS:
+  H11 (gains) strongly signified by:
+    - H10 sub lord (profession source signifying H11)
+    - H7 sub lord (public dealings signifying H11)
+    - H2 sub lord (accumulated wealth signifying H11)
+  At least 2 of the 3 cusps' sub lords must touch H11 → profitable.
+
+BUSINESS LOSS / OPERATING AT LOSS:
+  H8 (sudden loss) + H12 (drain) activated in dasha
+  H10 sub lord signifying H8 or H12 = structural loss period
+  H7 sub lord signifying H6 + H12 = customer loss + drain
+
+UNSUSTAINED PROFITS (boom-bust):
+  H5 (speculation) heavy involvement = volatile profits
+  Rahu strong in H10/H7 chain = unpredictable / cyclic
+  Saturn malefic = slow but stagnant
+
+PROFIT TYPE:
+  Mercury + H11 = trading/commerce profits
+  Venus + H11 = luxury/services profits
+  Saturn + H11 = slow industrial profits
+  Jupiter + H11 = consulting/educational/financial profits
+  Mars + H11 = aggressive growth, possibly with disputes
+  Sun + H11 = government-tied profits, prestige-driven
+
+================================================================================
+SECTION 6: BUSINESS EXPANSION / MULTIPLE BRANCHES
+================================================================================
+
+SCALABILITY (multi-branch / franchise / multiple lines):
+  H10 sub lord in dual sign (Gemini, Virgo, Sagittarius, Pisces)
+    → multiple ventures possible
+  Mercury involvement = particularly favorable for multi-branch
+  H11 strongly fortified = each branch profitable
+
+NEW BRANCH OPENING TIMING:
+  Same as Section 2 trigger logic but applied to expansion AD
+  H10 + H7 + H11 firing in a NEW AD ≠ the launch AD
+  H4 (place) also relevant for physical branch (new location)
+
+FRANCHISE / LICENSE:
+  H10 + H7 + H11 + H9 (long-distance / others' authority involved)
+  Jupiter in chain = formal structured franchise
+  Rahu in chain = foreign / unconventional franchise
+
+================================================================================
+SECTION 7: BUSINESS LOSS / SHUTDOWN / BANKRUPTCY
+================================================================================
+
+⚠ BANKRUPTCY QUESTIONS = Tier 2-3 escalation per sensitivity_tiers.md
+  Apply maximum protective framing. Mention financial counselor
+  recommendation. Do NOT predict specific bankruptcy date.
+
+STRUCTURAL BANKRUPTCY SIGNALS:
+  H10 sub lord signifying primary denial {1, 6, 9, 12} AND
+    H2 sub lord signifying {1, 8, 12} AND
+    H8 (sudden loss / debt obligation) heavily activated
+  → Structural risk of shutdown / bankruptcy in the firing dasha
+
+VOLUNTARY EXIT vs FORCED SHUTDOWN:
+  Voluntary exit: H10 sub lord + H4 (settling down) + H12 (winding up)
+  Forced shutdown: H10 sub lord + H8 (sudden) + H12 + opponent (H7)
+    or court (H6+H7) involvement
+
+BUSINESS LOSS RECOVERY (different from bankruptcy):
+  Even if H10 + H11 in current AD is unfavorable, look at next 2-3 ADs.
+  If a future AD has H10 + H11 + H2 alignment → business recoverable.
+  Cite that window as the structural recovery period.
+
+================================================================================
+SECTION 8: BUSINESS SALE / EXIT / SUCCESSION
+================================================================================
+
+SELLING THE BUSINESS:
+  H10 sub lord signifies H3 + H10 (transfer + own business)
+  H10 + H11 = sale with gain (profitable exit)
+  H10 + H12 = sale at loss (distressed sale)
+  H7 involvement = buyer found
+
+FAMILY BUSINESS SUCCESSION:
+  H4 (inheritance) + H10 (profession) + H2 (wealth)
+  H4 sub lord signifying H10 + H2 = mother-side succession
+  H9 sub lord signifying H10 + H2 = father-side succession
+  H5 sub lord (child) signifying H10 = child inheriting the business
+
+PASSING TO CHILDREN:
+  H5 (children) connection to H10/H11 = child capable + willing
+  H5 sub lord signifying {6, 8, 12} = child uninterested / unable
+  Family business often passes when Jupiter/Sun activates parental
+  dasha + H10 transfer signals fire simultaneously.
+
+================================================================================
+SECTION 9: TYPE CLASSIFICATION (SOLE / PARTNERSHIP / FAMILY / CORPORATE)
+================================================================================
+
+SOLE PROPRIETOR / FREELANCE:
+  H10 sub lord signifies H2 or H10 (self-acquisition)
+  H7 weakly signified or absent
+  Mercury/Rahu favorable = consultant/digital freelance
+
+PARTNERSHIP (formal):
+  H10 + H7 strongly aligned
+  H11 + H7 = profits shared with partners
+  See Section 3 for partnership-specific compatibility doctrine
+
+FAMILY BUSINESS:
+  H4 (mother / home) + H10 (profession) connected
+  H4 sub lord signifies H10 OR H10 sub lord signifies H4
+  Often inherited (Section 8 succession applies)
+
+CORPORATE / LARGE ENTERPRISE:
+  H10 + H11 + H7 ALL strongly signified
+  Multiple planets in H10 chain (4+ significators)
+  Jupiter/Saturn often dominant (institutional weight)
+  Mercury for tech-heavy corporate; Mars for industrial
+
+GOVERNMENT TENDER / B2G CONTRACT BUSINESS:
+  H10 sub lord linked to Sun (government / authority)
+  H6 involvement = competitive bidding (overcoming rivals)
+  H11 + H6 + Sun = tender win promised
+
+================================================================================
+SECTION 10: ILLEGAL INCOME / REGULATORY TROUBLE / TAX SCRUTINY
+================================================================================
+
+Per KP Astrology Learning H10:
+
+ILLEGAL INCOME WARNING:
+  "If the 10th cusp sub lord is Saturn and signifies 11th house,
+   one will earn money through illegal ways."
+  When this fires, flag it explicitly — the chart shows the structural
+  tendency. Frame as "this is a pattern to be aware of, not a verdict
+  on the native's character; karma + free will shape actual choice."
+
+PUBLIC ACTIVITIES WITHOUT MATERIAL GAIN:
+  "If H10 sub lord only signifies H7 → public activities without
+   any material happiness or return."
+  Business that runs but doesn't yield personal wealth.
+
+INCOME TAX TROUBLE:
+  "Houses 7, 8 and 12 sub lord of the 10th cusp → income tax trouble."
+  Tax notice / scrutiny / penalties. When fired in a current AD, flag
+  as an active risk worth proactive accounting attention.
+
+REGULATORY / LICENSE TROUBLE:
+  H10 sub lord signifying H8 + H12 = sudden license cancellation /
+  regulatory action.
+
+================================================================================
+SECTION 11: PUSHBACK DISCIPLINE FOR BUSINESS QUESTIONS
+================================================================================
+
+If user pushes back ("my CA said I should start trading instead of
+consulting"):
+  Re-run the H10 + H7 + H11 chain analysis. Check which business type
+  aligns with the planetary combinations.
+  Cite which signals support which path. KP identifies STRUCTURAL FIT
+  for the business type, not the only viable path.
+
+If user says "but I'm already losing money in this business":
+  This may be the structural-loss period (Section 7). Scan upcoming
+  ADs for the H10+H11+H2 recovery window. If a recovery window exists
+  in the next 2-3 years, cite it explicitly with calendar dates.
+  Recommend FINANCIAL COUNSELOR consultation alongside KP reading.
+
+If user says "should I trust my partner with the next deal":
+  This is a Section 3 partnership question + possibly Section 4 cheating
+  signal check. Cite the H7 CSL signification verbatim. If {5, 8, 12}
+  fires, flag the structural risk explicitly.
+
+================================================================================
+PROTECTIVE FRAMING (per RULE 52 — TIER 2 default for business)
+================================================================================
+
+ALWAYS APPLY for business questions:
+  1. Capability vs Manifestation (RULE 44):
+     "Your chart shows the business is structurally promised. The
+      current dasha shows the activation window. Both layers matter."
+  2. Falsifiable timing (RULE 46):
+     Cite specific calendar window. State the audit date if nothing fires.
+  3. Decision-support framing (RULE 29):
+     For "should I start this business?" — show BOTH paths' signals.
+  4. Cite KP's limits:
+     "KP shows structural fit + timing. It does NOT replace your CA,
+      lawyer, or business advisor. This is a STRUCTURAL second opinion."
+  5. Acknowledge financial pressure:
+     "This is a real decision with real money. The structure suggests
+      [X]; the final call is yours, with your advisors."
+
+ESCALATION TO TIER 3 triggered by these question-content patterns:
+  - "I'll go bankrupt" or "I'll lose everything"
+  - "I'm considering ending it" (suicide risk — Tier 3 immediately)
+  - "Family will be ruined"
+  - "Last chance for me" / "no other option"
+When triggered, apply full sensitivity_tiers.md §1 Tier 3 framing.
+
+================================================================================
+SOURCE CITATIONS (canonical KP)
+================================================================================
+
+- KP Astrology Learning — 7th house bhava rules (partnership):
+  https://kpastrologylearning.com/kp-jyotish-astrology-seventh-house-bhava-rules/
+- KP Astrology Learning — 10th house bhava rules (profession / business
+  vs service / income tax / illegal income):
+  https://kpastrologylearning.com/kp-jyotish-astrology-tenth-house-bhava-rules/
+- KP Astrology Learning — 6th house bhava rules (loan / debt recovery
+  / litigation / employment):
+  https://kpastrologylearning.com/kp-jyotish-astrology-sixth-house-bhava-rules/
+- KP Astrology Learning — 8th house bhava rules (sudden loss /
+  partner gain at your loss / borrowed money returned):
+  https://kpastrologylearning.com/kp-jyotish-astrology-eighth-house-bhava-rules/
+- K.S. Krishnamurti — KP Readers I–VI (foundational KP doctrine)
+- KSK Reader IV — cross-chart partnership compatibility doctrine

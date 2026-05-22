@@ -113,13 +113,14 @@ TOPIC_TO_FILE = {
     # now; dedicated KB files (business.txt, money_recovery.md,
     # litigation.txt expansion) come in PRs A2.1/A2.2/A2.3.
 
-    # ── Business cluster (→ job.txt until A2.1 ships business.txt) ──
-    "business":           "job.txt",
-    "startup":            "job.txt",
-    "venture":            "job.txt",
-    "self_employment":    "job.txt",
-    "partnership":        "job.txt",       # business partnership context
-    "career_business":    "job.txt",
+    # ── Business cluster (PR A2.1 → business.txt) ──
+    "business":           "business.txt",
+    "startup":            "business.txt",
+    "venture":            "business.txt",
+    "self_employment":    "business.txt",
+    "partnership":        "business.txt",   # partnership analysis = business doctrine
+    "career_business":    "business.txt",
+    # Career-state aliases stay routed to job.txt (their canonical = job)
     "layoff":             "job.txt",
     "retirement":         "job.txt",
     "resignation":        "job.txt",

@@ -1,0 +1,135 @@
+Q: I am considering forming a 50-50 partnership with my school friend to start a small consulting firm. Will this partnership succeed long-term, or should I be cautious about him?
+
+## BUSINESS / PARTNERSHIP ANALYSIS — Manyue
+**May 21, 2026** | Houses: H10 (profession), H7 (partnership), H2 (wealth), H11 (gains)
+
+---
+
+### 1. DIRECT VERDICT
+
+**CONDITIONAL — TIER 0 — partnership is structurally possible but carries a built-in friction signal.** Engine confidence: 66/100. The H10 CSL (Saturn) signifies H10+H11 (relevant) but its SUB layer (Sun) points to H1+H5 (denial), creating a TENSION harmony. The H7 CSL (Mercury) — the direct partnership gate — signifies **zero relevant houses** for business, pointing instead to H1, H3, H4, H5, H6, H12. This is the critical finding: the partnership gate itself is structurally weak. Business is promised through H10 (career/profession), but the specific 50-50 partnership mechanism faces a structural block.
+
+> **Note — Tier 2 reading.** This is a life-impact decision. KP shows structural tendencies; your free will, the partner's character, and legal agreements shape the actual outcome. Consult a business lawyer for the partnership deed regardless of this reading.
+
+---
+
+### 2. CUSPAL EVIDENCE
+
+**H10 CSL = Saturn (self-significator — in own star Uttara Bhadrapada)**
+
+Per chart data: Saturn owns H10, H11.
+
+- **SELF/STAR layer** (Saturn): occupies H12, owns H10+H11 → signifies {10, 11, 12}. H10+H11 are RELEVANT. Star strongly points to career and gains.
+- **SUB layer** (Sun): occupies H1, owns H5 → signifies {1, 5}. H1 is DENIAL (12th from H2), H5 is DENIAL (12th from H6). Sub layer is entirely denial-pointing.
+- **Harmony: TENSION** — Star says career/profession is alive; Sub blocks the fulfillment mechanism.
+- Step 4 (Sun's star lord = Sun, self-referential): confirms {1, 5} — the final decider reinforces the denial thread. This is a **Pattern D2 signal**: the career/business is offered but the completion mechanism is structurally weak.
+
+**H7 CSL = Mercury (the partnership gate — CRITICAL)**
+
+Per chart data: Mercury owns H3, H6.
+
+- Mercury occupies H1, owns H3+H6 → {1, 3, 6}
+- Star layer (Sun): occupies H1, owns H5 → {1, 5}
+- Sub layer (Rahu): occupies H6, Step 4 Moon → H12, H4 → {4, 6, 12}
+- **Combined H7 CSL significations: {1, 3, 4, 5, 6, 12}**
+- For business partnership, relevant = {2, 7, 10, 11}. **Zero relevant houses touched.**
+- Denial houses present: H1 (self-only), H6 (loss of partners — the 12th from H7), H12 (loss/drain).
+- **Harmony: DENIED** at the partnership gate.
+
+**CONFLICTING SIGNALS:**
+- Signal pointing YES: H10 CSL Saturn's STAR layer strongly signifies H10+H11 (career + gains). Saturn is a self-significator (own star) — pure, concentrated career energy. SAV for H10=34, H11=37 (both strong). Saturn is also a fruitful significator (in RP as Asc Sub Lord).
+- Signal pointing NO: H7 CSL Mercury signifies zero relevant business houses. H7 CSL's full chain {1, 3, 4, 5, 6, 12} contains H6 (loss of partnership) and H12 (drain/loss) — the structural dissolution signal per KP doctrine.
+- How they resolve: H10 says "you CAN build a career/business." H7 says "this specific 50-50 partnership structure is not the vehicle." The career promise is real; the partnership mechanism is the weak link.
+
+**Supporting cusps:**
+- H2 CSL = Rahu → signifies {1, 2, 4, 6, 7, 8, 12}. H2+H7 are relevant (partial). But H1+H6+H12 are denial. **CONDITIONAL** — wealth can flow but with friction and loss threads.
+- H11 CSL = Ketu → signifies {1, 3, 5, 6, 12}. **Zero relevant houses.** Gains/fulfillment gate is structurally closed.
+
+**Multi-Cusp Confirmation Tier: TIER -1 / TIER 0.** H10 alone partially supports (career yes, partnership mechanism no). H7 = denied. H11 = denied. H2 = conditional. This is the weakest possible multi-cusp configuration for a partnership venture.
+
+**Intercepted signs:** None flagged in this chart.
+
+**H12 Stellium (Moon + Saturn + Ketu — tight, 9.17°):** Three planets concentrated in H12 (loss/expenditure/hidden matters). This is a high-signal structural feature — the chart has a strong H12 theme. For business, H12 activation means money flowing out, hidden costs, and potential for the partner to benefit while the native bears losses. Cross-reference with KP doctrine: H7 CSL signifying H12 = "partnership carries a drain/loss thread."
+
+---
+
+### 3. FRUITFUL SIGNIFICATORS
+
+Today's RPs (per engine): Venus, Mercury, Rahu, Saturn, Moon.
+
+Significators of business-relevant houses {10, 2, 7, 11} that are also RP:
+- **Saturn** — C/D-level significator of H10+H11, also Asc Sub Lord RP → **fruitful** (career/profession thread active)
+- **Venus** — B-level significator of H2+H7, also Day Lord RP → **fruitful** (wealth/partnership thread active today)
+- **Rahu** — via proxy (Moon star lord → H12, H4; sign lord Mercury → H3, H6) — Asc Star Lord RP, but signifies denial houses primarily
+
+Non-fruitful significators: Mars (A-level for H2, not in RP), Jupiter (A-level for H2, not in RP).
+
+The two fruitful significators (Saturn + Venus) are both CONDITIONAL — Saturn carries the H12 denial thread, Venus carries the H1 denial thread. Neither fires cleanly.
+
+---
+
+### 4. TIMING WINDOWS
+
+| AD Lord | Period | Houses Signified (4-step) | Touches Business? | Quality |
+|---------|--------|--------------------------|-------------------|---------|
+| Sun | 2022-12-27 → 2023-04-15 | H1, H5 | Denial only | AVOID |
+| Moon | 2023-04-15 → 2023-10-15 | H4, H12 | Denial only | AVOID |
+| Mars | 2023-10-15 → 2024-02-19 | H1, H2, H7, H8 | H2+H7 relevant | MODERATE |
+| Rahu | 2024-02-19 → 2025-01-13 | H1, H2, H4, H6, H7, H8, H12 | H2+H7 relevant, H1+H6+H12 denial | CONDITIONAL ⭐ KSK-fires H2 |
+| Jupiter | 2025-01-13 → 2025-11-01 | H2, H7, H9, H10, H11, H12 | H2+H7+H10+H11 relevant | STRONG (past) |
+| **Saturn** | **2025-11-01 → 2026-10-14** | **H1, H5, H10, H11, H12** | **H10+H11 relevant** | **MODERATE ⭐ KSK-fires H10** |
+| **Mercury** | **2026-10-14 → 2027-08-21** | **H1, H3, H4, H5, H6, H12** | **Zero relevant** | **AVOID** |
+| Ketu | 2027-08-21 → 2027-12-26 | H1, H3, H5, H6, H12 | Zero relevant | AVOID |
+| Venus | 2027-12-26 → 2028-12-26 | H1, H2, H4, H7, H8, H12 | H2+H7 relevant | CONDITIONAL |
+
+**PRIMARY WINDOW: Saturn AD (current, Nov 2025 → Oct 2026)** — activates H10+H11 (career + gains). This is the KSK-fires window for the H10 primary cusp. However, the TENSION harmony means the career theme is active but the partnership mechanism is blocked. This period is better for **solo consulting work or service-based income** than for launching a 50-50 partnership.
+
+**SECONDARY WINDOW: Venus AD (Dec 2027 → Dec 2028)** — activates H2+H7 (wealth + partnership). This is the next window where the partnership houses fire. However, H7 CSL remains Mercury (denied), so even in Venus AD, the partnership gate doesn't structurally open. Venus AD is better for client relationships and revenue than for formal co-founder structures.
+
+**UNFAVORABLE: Mercury AD (Oct 2026 → Aug 2027)** — Mercury is the H7 CSL itself, and its chain signifies zero relevant houses. Launching a formal partnership in Mercury AD carries the highest structural risk of dissolution. Avoid signing partnership deeds in this window.
+
+**Dasha-Transit Convergence:** Rahu transits H10 from Oct 2026 → Apr 2028 — this overlaps with Mercury AD and Venus AD. Rahu on H10 = career pivot/sudden rise, but also unconventional/unstable. Combined with Mercury AD's zero-relevant signification, this period favors individual career pivots, not stable partnerships.
+
+**Yogini cross-check:** Current Yogini is Sankata (lord Rahu, 2024–2032). Rahu is not a clean business significator in this chart (signifies H6+H12 primarily). The Vimsottari-Yogini CONFLICT flag is active for Saturn AD — systems disagree, reducing confidence by 5-10 points on the current window.
+
+> Note: Window rankings reflect today's Ruling Planets and may shift slightly on other days.
+
+---
+
+### 5. PRATYANTARDASHA (within current Saturn AD)
+
+Within Saturn AD (Nov 2025 → Oct 2026), the PAD-level picture:
+
+| PAD | Dates | Fire Score | Assessment |
+|-----|-------|-----------|------------|
+| Saturn PAD | Nov 1 – Dec 25, 2025 | 3/10 MODERATE | H10+H11 active; H12 penalty |
+| Venus PAD | Mar 5 – May 2, 2026 | 3/10 MODERATE | H2+H7 active; H1 penalty |
+| **Moon PAD** | **May 19 – Jun 17, 2026** | **2/10 WEAK** | H12 penalty; vargottama Moon |
+| Jupiter PAD | Aug 28 – Oct 14, 2026 | 0/10 AVOID | H2+H7 relevant but H9+H12 denial |
+
+**Current position:** Moon PAD (May 19 – Jun 17, 2026), Sookshma Mars (May 21–23). Fire score 1/10 — this is a structurally weak window. Mars sookshma signifies H1+H8 (denial for business). **Do not sign partnership documents this week.**
+
+The best PAD within Saturn AD for business discussions (not signing) was **Venus PAD (Mar 5 – May 2, 2026)** — that window has passed. The next usable window is the **Saturn sookshma within Jupiter PAD (Sep 3–10, 2026)** — fire score 3/10 MODERATE, H10+H11 active, RP-confirmed.
+
+---
+
+### 6. PRE-ANSWERED FOLLOW-UPS
+
+**"Is the H7 CSL denial absolute, or can the partnership still work?"**
+The H7 CSL (Mercury) signifying zero relevant houses is a structural weakness, not an absolute denial — the chart doesn't have a DENIED verdict at the primary H10 level. What it means practically: the 50-50 equal-partnership structure is the weak point. A consulting arrangement where Manyue is the primary operator (sole proprietor or majority owner) with the friend in a defined role (not equal co-founder) would bypass the H7 structural block. The career/business IS promised; the equal-partnership vehicle is not.
+
+**"What does the H12 stellium mean for this specific partnership?"**
+Moon + Saturn + Ketu tightly clustered in H12 is the chart's most concentrated structural feature. For business, H12 = hidden costs, money flowing out, and the KP doctrine signal: "H7 CSL signifying H12 = partnership carries a drain thread." The friend may benefit more from the arrangement than Manyue does — not necessarily through fraud, but through structural imbalance. The KP rule from business.txt §3(d) is relevant: "Signifying 5, 8, and 12 → benefits the partner but causes your loss." H7 CSL chain includes H12 and H5 — this pattern is partially present.
+
+**"When is the earliest viable window to launch any business venture?"**
+The structural career promise is real (H10 SAV=34, H11 SAV=37, Saturn self-significator). The earliest viable window for a **solo or majority-owned** consulting practice is the **Saturn sookshma within Jupiter PAD (Sep 3–10, 2026)** for initial steps, with Mercury AD (Oct 2026 → Aug 2027) being structurally unfavorable for formal launches. Venus AD (Dec 2027 → Dec 2028) is the next meaningful window — combined with Rahu transiting H10 (career pivot energy), this is the better launch window for any venture.
+
+---
+
+### 7. CLIENT SUMMARY
+
+"Your chart strongly supports a consulting career — the career and gains houses are well-fortified and the timing is active. However, the specific 50-50 equal partnership structure with your school friend carries a structural caution: the partnership house in your chart points toward friction and potential imbalance rather than mutual gain. If you proceed, consider a structure where you hold majority ownership or a clearly defined lead role rather than equal shares — this aligns better with your chart's promise. The better window to formalize any business arrangement is late 2027 into 2028; the current period and the next 12 months are better used for building the client base and testing the working relationship informally before committing to legal co-ownership."
+
+---
+
+**Calibration note:** Engine confidence 66/100 is conservative. The H7 CSL denial is a genuine structural signal, not a borderline reading. The career promise (H10) is real and strong; the partnership mechanism is the specific weak point. Free will and a well-drafted legal agreement can mitigate structural risks — the chart shows tendencies, not fate.
