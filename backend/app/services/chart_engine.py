@@ -1649,7 +1649,30 @@ def check_promise(topic: str, cusps: dict, planets: dict) -> dict:
     Check if a matter is promised in the chart.
 
     KP Rule: The sub lord of the primary cusp for the topic
-    must be a significator of the relevant houses.
+    must be a significator of the relevant houses AND must
+    NOT predominantly signify the denial houses (12th-from
+    each relevant house in canonical KSK).
+
+    PR A1.13 — Returns a 3-tier verdict {Promised / Conditional /
+    Denied / Inconclusive}, derived from BOTH the relevant and the
+    denial significator sets. Pre-fix this was a flat membership
+    check that ignored denial houses entirely, so any cusp sublord
+    that touched a single relevant house — even if it ALSO heavily
+    signified the denial houses — was returned as "Strong Promise".
+    That created a direct visual contradiction between the
+    dashboard badge (e.g. "Strong" career promise) and the AI's
+    deeper read (e.g. "Denied" / "Conditional with last-mile
+    friction"). The 3-tier verdict mirrors compute_advanced's
+    promise classification so the dashboard and the Analysis tab
+    no longer disagree.
+
+    Backward-compat fields (`is_promised`, `promise_strength`)
+    are preserved so any caller reading the legacy shape keeps
+    working — `is_promised` is now True for Promised AND
+    Conditional (the matter IS promised; "conditional" just means
+    with caveats). `promise_strength` maps to "Strong" /
+    "Conditional" / "Weak or Denied" so existing UI strings remain
+    valid.
     """
     if topic not in HOUSE_TOPICS:
         return {"error": f"Unknown topic: {topic}"}
@@ -1657,30 +1680,72 @@ def check_promise(topic: str, cusps: dict, planets: dict) -> dict:
     relevant_houses = HOUSE_TOPICS[topic]
     primary_house = relevant_houses[0]
 
+    # Lazy import — kp_advanced_compute imports chart_engine, so a top-level
+    # `from kp_advanced_compute import TOPIC_DENIAL` would loop. Inside the
+    # function the import is resolved after both modules have finished loading.
+    try:
+        from app.services.kp_advanced_compute import TOPIC_DENIAL
+        denial_houses = list(TOPIC_DENIAL.get(topic, []))
+    except Exception:
+        denial_houses = []
+
     # Get sub lord of primary cusp
     primary_cusp_sublord = cusps[f"House_{primary_house}"]["sub_lord"]
 
-    # Get all significators for relevant houses
+    # Compute the two significator pools (relevant + denial) using the same
+    # 4-level (L1-L4) significator engine that powers compute_advanced.
     planet_positions = get_planet_house_positions(planets, cusps)
-    all_significators = []
 
-    for house_num in relevant_houses:
-        sigs = get_significators(house_num, planets, cusps, planet_positions)
-        all_significators.extend(sigs["all_significators"])
+    relevant_sigs: set = set()
+    for h in relevant_houses:
+        sigs = get_significators(h, planets, cusps, planet_positions)
+        relevant_sigs.update(sigs["all_significators"])
 
-    all_significators = list(set(all_significators))
+    denial_sigs: set = set()
+    for h in denial_houses:
+        sigs = get_significators(h, planets, cusps, planet_positions)
+        denial_sigs.update(sigs["all_significators"])
 
-    # Is the sub lord a significator of relevant houses?
-    is_promised = primary_cusp_sublord in all_significators
+    csl_in_relevant = primary_cusp_sublord in relevant_sigs
+    csl_in_denial   = primary_cusp_sublord in denial_sigs
+
+    # 3-tier verdict per KSK strict CSL doctrine
+    if csl_in_relevant and not csl_in_denial:
+        verdict = "Promised"
+        strength = "Strong"
+        is_promised = True
+    elif csl_in_relevant and csl_in_denial:
+        # Sublord touches BOTH — promise present but with structural friction.
+        # This is the case the production AI catches as "offer comes but with
+        # conditions / last-mile delay" (Pattern D2-adjacent).
+        verdict = "Conditional"
+        strength = "Conditional"
+        is_promised = True   # promise IS present; conditions accompany it
+    elif not csl_in_relevant and csl_in_denial:
+        verdict = "Denied"
+        strength = "Weak or Denied"
+        is_promised = False
+    else:
+        verdict = "Inconclusive"
+        strength = "Weak or Denied"
+        is_promised = False
 
     return {
         "topic": topic,
         "relevant_houses": relevant_houses,
+        "denial_houses": denial_houses,
         "primary_cusp": primary_house,
         "primary_cusp_sublord": primary_cusp_sublord,
-        "relevant_significators": all_significators,
+        "relevant_significators": sorted(relevant_sigs),
+        "denial_significators": sorted(denial_sigs),
+        "csl_in_relevant": csl_in_relevant,
+        "csl_in_denial":   csl_in_denial,
+        # PR A1.13 — new field; preferred over is_promised/promise_strength for
+        # new UI work. Frontend can render a 3-state badge.
+        "verdict": verdict,
+        # Backward-compat (do not remove — UI badges and existing callers read these)
         "is_promised": is_promised,
-        "promise_strength": "Strong" if is_promised else "Weak or Denied"
+        "promise_strength": strength,
     }
 
 

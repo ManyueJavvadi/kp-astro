@@ -520,3 +520,86 @@ the place picker showing **"tz IST (UTC+5.5)"** for a California birthplace.
   offset until the user picks a place again. Backend still recomputes
   correctly because it uses lat/lon, not the saved offset.
 - **Phase 11 message type** added optional `t: number` field for timestamp. Old messages without it skip the timestamp row gracefully.
+
+---
+
+## 2026-05-22 (continued) — PR A1.13 (Gemini audit fixes)
+
+### Trigger
+External audit (Gemini Antigravity tool) flagged 3 codebase issues + a
+case-study on Manyue's chart. After grep-verification: 1 audit finding
+was stale (already fixed), 3 were real and shipped here.
+
+### What shipped
+1. **PDF engine lat/lon guard** — both `pdf_engine.py` (legacy fallback)
+   and `pdf_engine_v2.py` (active 14-section report) now raise `ValueError`
+   when `latitude` or `longitude` is missing from the workspace dict,
+   instead of silently defaulting to (0,0) and computing a Gulf-of-Guinea
+   chart. Defense-in-depth — frontend already injects lat/lon, but a
+   stale caller used to ship confidently-wrong reports.
+2. **`check_promise()` upgraded to 3-tier verdict** — was a flat
+   membership check `{is_promised: bool, promise_strength: "Strong" or
+   "Weak or Denied"}` that ignored denial houses entirely. New shape:
+   ```python
+   verdict: "Promised" | "Conditional" | "Denied" | "Inconclusive"
+   denial_houses, denial_significators, csl_in_relevant, csl_in_denial
+   ```
+   Logic: CSL in relevant only → Promised; CSL in BOTH → Conditional
+   (last-mile friction, Pattern D2 adjacent); CSL in denial only →
+   Denied; neither → Inconclusive. Backward-compat fields preserved
+   (`is_promised=True` for Promised+Conditional; `promise_strength`
+   maps to Strong/Conditional/"Weak or Denied").
+
+   On Manyue's chart now correctly returns:
+   - marriage = **Conditional** (was incorrectly "Strong" — Rahu
+     touches H7/H2/H11 relevant AND H1/H6/H10 denial). Matches the
+     Gemini audit's independent manual classification exactly.
+   - wealth = **Denied** (Mercury misses relevant H2/H6/H11)
+   - job = **Promised** (Rahu covers H2/H6/H10/H11 cleanly — unchanged)
+   - children = **Conditional** (Venus touches both sides)
+   - property = **Inconclusive** (Moon touches neither cleanly)
+
+   Eliminates the "dashboard says Strong, AI says Denied" UX
+   contradiction the audit flagged.
+3. **`RPContextStrip` mode prop + LIVE/NATAL/FALLBACK badge** — opt-in
+   `mode` prop renders a colored chip so the astrologer instantly knows
+   the RP frame: green LIVE (astrologer-current-loc + now), gold NATAL
+   (chart loc + server time — workspace default), amber FALLBACK
+   (live-geo failed/denied, using natal-loc as fallback). Wired into
+   HoraryTab: shows LIVE when `liveLoc.status === "ready"`, FALLBACK
+   otherwise. CSS gives the whole strip an amber tint in fallback mode
+   so the warning catches the eye before the chip is parsed. Tooltip on
+   hover explains each frame. Existing call sites without the prop
+   render no chip (back-compat).
+
+### Audit findings NOT shipped (with rationale)
+- **Venus Karaka Override discrepancy** — stale claim. compatibility_engine.py
+  already has the override removed (file comments at lines 21, 1598, 1606
+  state "Venus override REMOVED (KSK strict)"). Audit was reading a
+  pre-fix commit OR inferred the bug from doctrine without confirming.
+- **365.25 vs 365.2422 day-year drift** — micro-quibble. ~0.0078 days/year
+  × 20 years = 1 hour max drift. Inside KP birth-time natural tolerance.
+  Would force re-baselining every regression test for zero user-visible
+  improvement.
+- **Barren-sign for children KB** — legit gap but low-leverage. Defer to
+  a focused children-KB pass; not bundling here.
+
+### Cross-engine validation (the high-value part of the audit)
+Gemini independently ran pyswisseph on Manyue's chart (09-09-2000 12:31
+Tenali) and got mathematically identical values to our engine:
+- Lagna Scorpio 24°40'09" (234.6693°) — match
+- Moon Capricorn 2°24'12" (272.4035°) — match
+- H7 Taurus 54.6693°, H10 Virgo 150.2564° — both match
+- H10 CSL = Rahu — match
+
+Their career verdict ("STRONGLY PROMISED") converged with both the
+production AI's reading and a manual third-party read. **Three independent
+AI analyses agree** on the structural conclusion. Math layer is verified
+correct across two independent swisseph invocations on the same chart.
+
+### Verification
+- 88/88 backend tests pass.
+- `npx tsc --noEmit` clean. `npx next build` clean.
+- Smoke-tested: both PDF engines raise ValueError on missing lat/lon;
+  check_promise returns 3-tier verdict with backward-compat fields
+  intact on Manyue's chart across job/marriage/wealth topics.

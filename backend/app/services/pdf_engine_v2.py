@@ -1173,6 +1173,20 @@ def _make_footer(workspace: dict):
 # ─── Public entry ─────────────────────────────────────────────────────────
 def generate_pdf_v2(workspace: dict) -> bytes:
     """Build the full v2 KP report and return its bytes."""
+    # PR A1.13 — same guard as pdf_engine.py fallback: refuse to render a
+    # report with missing lat/lon rather than silently computing a
+    # Gulf-of-Guinea chart. Internal _safe_float was previously coercing
+    # None → 0.0 across the entire file, so a missing key would print
+    # "0.0000° N, 0.0000° E" on the cover and still render full cusp tables
+    # at the wrong coordinates. Front-line guard here is the cleanest spot.
+    if workspace.get("latitude") is None or workspace.get("longitude") is None:
+        raise ValueError(
+            "generate_pdf_v2: workspace is missing latitude/longitude. "
+            "These are required for correct Placidus cusps — refusing to "
+            "render at (0,0). Frontend must inject birthDetails.{latitude,longitude} "
+            "into the workspace payload before calling /pdf/export."
+        )
+
     buf = BytesIO()
     doc = SimpleDocTemplate(
         buf, pagesize=A4,

@@ -4958,6 +4958,49 @@ textarea:focus-visible {
   opacity: 0.4;
   margin: 0 2px;
 }
+
+/* ═══ PR A1.13 — RP FRAME MODE BADGE ═══════════════════════════════════
+   Three frame modes (live/natal/fallback) on the RPContextStrip.
+   - LIVE      = green; RPs are astrologer-current-loc + current-moment
+   - NATAL     = gold;  RPs are NATAL chart loc + server-time (default for /workspace)
+   - FALLBACK  = amber; live-geo was requested but denied, fell back to natal-loc
+   See RPContextStrip.tsx mode prop. Tooltip on hover explains each frame
+   so the astrologer never has to guess what context the RPs came from. */
+.rp-context-frame {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px 1px 5px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+  cursor: help;
+  flex-shrink: 0;
+}
+.rp-context-frame.is-live {
+  color: #34d399;
+  background: rgba(52,211,153,0.10);
+  border-color: rgba(52,211,153,0.32);
+}
+.rp-context-frame.is-natal {
+  color: var(--accent, #c9a96e);
+  background: rgba(201,169,110,0.10);
+  border-color: rgba(201,169,110,0.32);
+}
+.rp-context-frame.is-fallback {
+  color: #fbbf24;
+  background: rgba(251,191,36,0.10);
+  border-color: rgba(251,191,36,0.38);
+}
+/* Whole strip tints amber when in fallback mode so the warning catches
+   the eye even before the badge is parsed. */
+.rp-context-strip.is-fallback {
+  background: rgba(251,191,36,0.04);
+  border: 1px solid rgba(251,191,36,0.18);
+}
 .rp-context-strip b {
   color: var(--text);
   font-weight: 600;

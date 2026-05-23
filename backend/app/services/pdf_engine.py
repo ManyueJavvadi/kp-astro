@@ -139,8 +139,25 @@ def generate_pdf(workspace: dict) -> bytes:
     date: str = workspace.get("date", "—")
     time: str = workspace.get("time", "—")
     place: str = workspace.get("place", "")
-    lat: float = workspace.get("latitude", 0)
-    lon: float = workspace.get("longitude", 0)
+    # PR A1.13 — fail loud instead of silently computing a Gulf-of-Guinea
+    # chart. Per audit finding B: the prior `workspace.get("latitude", 0)`
+    # silently defaulted to (0,0) on missing keys, yielding wrong Placidus
+    # cusps for any caller that forgot to inject `place/latitude/longitude`
+    # into the workspace payload (the frontend used to do this; one stale
+    # caller is enough to ship a wrong report). Active PDF path is
+    # pdf_engine_v2.py — this fallback engine should fail noisily, not
+    # produce a confidently-wrong report.
+    lat_raw = workspace.get("latitude")
+    lon_raw = workspace.get("longitude")
+    if lat_raw is None or lon_raw is None:
+        raise ValueError(
+            "pdf_engine.generate_pdf: workspace is missing latitude/longitude. "
+            "These are required for correct Placidus cusps — refusing to "
+            "render a chart at (0,0). Frontend must inject birthDetails.{latitude,longitude} "
+            "into the workspace payload before calling /pdf/export."
+        )
+    lat: float = float(lat_raw)
+    lon: float = float(lon_raw)
     mahadasha: dict = workspace.get("mahadasha", {}) or {}
     antardasha: dict = workspace.get("current_antardasha", {}) or {}
     pratyantardasha: dict = workspace.get("current_pratyantardasha", {}) or {}

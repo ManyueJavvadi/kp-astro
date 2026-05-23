@@ -522,10 +522,17 @@ export function HoraryTab({
                           );
                         })}
                       </div>
-                      {/* PR A1.1 — muted strip showing WHICH location + moment produced these RPs. */}
+                      {/* PR A1.1 — muted strip showing WHICH location + moment produced these RPs.
+                          PR A1.13 — mode prop tells the astrologer at a glance which RP-frame these are.
+                          Live = astrologer's geolocation resolved successfully.
+                          Fallback = live request failed/denied → using natal-loc as fallback. */}
                       {r.rp_context && (
                         <div style={{ maxWidth: 560, margin: "8px auto 0" }}>
-                          <RPContextStrip ctx={r.rp_context} locationName={liveLoc.location?.display} />
+                          <RPContextStrip
+                            ctx={r.rp_context}
+                            locationName={liveLoc.location?.display}
+                            mode={liveLoc.status === "ready" ? "live" : "fallback"}
+                          />
                         </div>
                       )}
                     </div>
