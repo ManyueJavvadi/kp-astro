@@ -212,7 +212,7 @@ export default function HousePanel({ house, cusps, significators, planets, rulin
           delay: 0.32,
           ease: [0.16, 1, 0.3, 1],
         }}
-        style={{ padding: "12px 14px", overflowY: "auto", flex: 1 }}
+        style={{ padding: "12px 14px", paddingBottom: isMobile ? "80px" : "24px", overflowY: "auto", flex: 1 }}
       >
         {/* Cusp info */}
         {cusp && (

@@ -70,6 +70,8 @@ interface MuhurthaTabProps {
   handleMEventLocSearch: any;
   handleMNewPDateChange: any;
   handleMNewPTimeChange: any;
+  snapshotCurrentSession: any;
+  sessionToApiPerson: any;
 }
 
 export function MuhurthaTab(props: MuhurthaTabProps) {
@@ -92,6 +94,8 @@ export function MuhurthaTab(props: MuhurthaTabProps) {
     mAiLoading, setMAiLoading,
     handleMEventLocSearch, handleMNewPDateChange,
     handleMNewPTimeChange,
+    snapshotCurrentSession,
+    sessionToApiPerson,
   } = props;
   const API_URL = apiUrl;
   return (
@@ -163,7 +167,7 @@ export function MuhurthaTab(props: MuhurthaTabProps) {
             {t("Or pick from KP canon", "లేదా KP గ్రంధం నుండి ఎంచుకోండి")}
           </div>
           {/* Event type icon card grid — hover reveal shows KP meaning */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: "1.5rem" }}>
+          <div className="muhurtha-event-grid">
             {[
               { Icon: HandHeart,   te: "వివాహం",     en: "Marriage",         meaning: t("H7 cusp · Venus karaka · Jupiter aspect",   "H7 కస్ప్ · శుక్ర కారక · గురు దృష్టి") },
               { Icon: Briefcase,   te: "వ్యాపారం",   en: "Business Opening", meaning: t("H10 · H11 gains · Mercury or Jupiter SL",    "H10 · H11 లాభ · బుధ/గురు SL") },
@@ -253,7 +257,7 @@ export function MuhurthaTab(props: MuhurthaTabProps) {
                 now a contained sub-card with labeled field eyebrows,
                 gender pills, PlacePicker, and pill action buttons. */}
             {mShowAddParticipant && (() => {
-              const canAdd = !!(mNewP.name && mNewP.date && mNewP.time);
+              const canAdd = !!(mNewP.name && mNewP.date && mNewP.date.length === 10 && mNewP.time && mNewP.time.length === 5);
               return (
                 <div className="muhurtha-participant-form">
                   <div className="pf-header">
@@ -318,7 +322,7 @@ export function MuhurthaTab(props: MuhurthaTabProps) {
                   {/* Place — now using the shared PlacePicker for consistency */}
                   <div>
                     <div className="pf-field-label">
-                      <Globe2 size={10} strokeWidth={2} /> {t("Place of birth", "పుట్టిన ఊరు")}
+                      <Globe size={10} strokeWidth={2} /> {t("Place of birth", "పుట్టిన ఊరు")}
                     </div>
                     <PlacePicker
                       value={mNewP.place}
@@ -426,22 +430,24 @@ export function MuhurthaTab(props: MuhurthaTabProps) {
 
       {/* Step 2 — Date selection */}
       {mStep === 2 && (
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "0.75rem" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <button onClick={() => setMStep(1)} style={{ background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 18, padding: 0 }}>←</button>
-            <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>
+            <div className="celestial-serif" style={{ fontSize: "11px", color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, fontWeight: "bold" }}>
               {t("Which dates should we scan?", "ఏ తేదీలు చూడాలి?")}
             </div>
           </div>
+          
           {/* Event location section */}
-          <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem", marginBottom: "1rem" }}>
-            <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.625rem", display: "inline-flex", alignItems: "center", gap: 5 }}>
-              <MapPin size={11} strokeWidth={1.8} /> {t("Event location", "ఈవెంట్ ప్రదేశం")}
+          <div className="celestial-glass celestial-panel" style={{ border: "1px solid rgba(212, 175, 55, 0.2)", borderRadius: 12, padding: "16px" }}>
+            <div className="celestial-serif" style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.75rem", display: "inline-flex", alignItems: "center", gap: 5, fontWeight: "bold" }}>
+              <MapPin size={12} strokeWidth={1.8} /> {t("Event location", "ఈవెంట్ ప్రదేశం")}
             </div>
-            <div style={{ display: "flex", gap: 6, marginBottom: mEventLocMode === "different" ? 10 : 0 }}>
+            <div style={{ display: "flex", gap: 8, marginBottom: mEventLocMode === "different" ? 12 : 0 }}>
               {(["same","different"] as const).map(mode => (
                 <button key={mode} onClick={() => { setMEventLocMode(mode); if(mode==="same") setMEventLoc(null); }}
-                  style={{ flex: 1, padding: "8px 6px", background: mEventLocMode === mode ? "rgba(201,169,110,0.12)" : "var(--card)", border: `0.5px solid ${mEventLocMode === mode ? "rgba(201,169,110,0.55)" : "var(--border2)"}`, borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontSize: 11, color: mEventLocMode === mode ? "var(--accent)" : "var(--muted)", fontWeight: mEventLocMode === mode ? 600 : 400, transition: "all 0.15s", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                  className="celestial-glass celestial-panel"
+                  style={{ flex: 1, padding: "9px 12px", background: mEventLocMode === mode ? "rgba(201,169,110,0.12)" : "rgba(255,255,255,0.02)", border: `1px solid ${mEventLocMode === mode ? "rgba(212,175,55,0.4)" : "rgba(255,255,255,0.05)"}`, borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontSize: 11, color: mEventLocMode === mode ? "var(--accent)" : "var(--muted)", fontWeight: mEventLocMode === mode ? 600 : 400, transition: "all 0.15s", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
                   {mode === "same" ? (<><HomeIcon size={12} strokeWidth={1.8} /> {t("Same as birth", "పుట్టినచోట")}</>) : (<><MapPin size={12} strokeWidth={1.8} /> {t("Different location", "వేరే ప్రదేశం")}</>)}
                 </button>
               ))}
@@ -452,19 +458,19 @@ export function MuhurthaTab(props: MuhurthaTabProps) {
                   placeholder={t("Search event location…", "ఈవెంట్ ప్రదేశం వెతకండి…")}
                   defaultValue={mEventLoc?.place || ""}
                   onChange={e => handleMEventLocSearch(e.target.value)}
-                  style={{ width: "100%", background: "var(--card)", border: `0.5px solid ${mEventLoc ? "var(--accent)" : "var(--border2)"}`, borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "var(--text)", outline: "none", boxSizing: "border-box" as const }}
+                  style={{ width: "100%", background: "var(--card)", border: `1px solid ${mEventLoc ? "var(--accent)" : "var(--border2)"}`, borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--text)", outline: "none", boxSizing: "border-box" as const }}
                 />
-                {mEventLocSearching && <div style={{ position: "absolute", right: 10, top: 9, fontSize: 10, color: "var(--muted)" }}>...</div>}
+                {mEventLocSearching && <div style={{ position: "absolute", right: 12, top: 11, fontSize: 10, color: "var(--muted)" }}>...</div>}
                 {mEventLoc && <div style={{ fontSize: 10, color: "#34d399", marginTop: 4 }}>✓ {mEventLoc.place}</div>}
                 {mEventLocSugg.length > 0 && (
-                  <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100, background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 6, overflow: "hidden", marginTop: 2 }}>
+                  <div className="celestial-glass" style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100, background: "var(--surface2)", border: "1px solid var(--border2)", borderRadius: 8, overflow: "hidden", marginTop: 4 }}>
                     {mEventLocSugg.map((s, i) => (
                       <button key={i} onClick={() => {
                         axios.get("https://api.bigdatacloud.net/data/reverse-geocode-client", { params: { latitude: s.lat, longitude: s.lon, localityLanguage: "en" } })
                           .then(r => { const tz = Math.round(((r.data?.timezone?.gmtOffset || 0) / 3600) * 2) / 2; setMEventLoc({ lat: s.lat, lon: s.lon, tz, place: s.display }); })
                           .catch(() => setMEventLoc({ lat: s.lat, lon: s.lon, tz: 0, place: s.display }));
                         setMEventLocSugg([]);
-                      }} style={{ width: "100%", padding: "7px 10px", background: "none", border: "none", borderBottom: "0.5px solid var(--border)", color: "var(--text)", fontSize: 11, textAlign: "left" as const, cursor: "pointer", fontFamily: "inherit" }}>
+                      }} style={{ width: "100%", padding: "8px 12px", background: "none", border: "none", borderBottom: "1px solid var(--border)", color: "var(--text)", fontSize: 11, textAlign: "left" as const, cursor: "pointer", fontFamily: "inherit" }}>
                         {s.display}
                       </button>
                     ))}
@@ -474,72 +480,154 @@ export function MuhurthaTab(props: MuhurthaTabProps) {
             )}
           </div>
 
-          {/* Participant summary — PR A2.2d.1: always show the
-              primary chart holder explicitly. Previous version only
-              listed additional participants (mParticipants), making
-              it look like the client's own chart was excluded.
-              Now always shows "primary · others" so the astrologer
-              confirms their main chart is included in the scan. */}
-          <div style={{ padding: "6px 10px", background: "rgba(201,169,110,0.06)", border: "0.5px solid rgba(201,169,110,0.2)", borderRadius: 6, marginBottom: "0.875rem", fontSize: 11, color: "var(--muted)", display: "flex", flexWrap: "wrap" as const, gap: 4, alignItems: "center" }}>
+          {/* Participant summary */}
+          <div className="celestial-glass celestial-panel" style={{ padding: "10px 16px", border: "1px solid rgba(212,175,55,0.25)", borderRadius: 8, fontSize: 11, color: "var(--muted)", display: "flex", flexWrap: "wrap" as const, gap: 6, alignItems: "center" }}>
             <span>{t("For", "కోసం")}:</span>
-            <span style={{ color: "var(--accent)" }}>
+            <span className="celestial-serif" style={{ color: "var(--accent)", fontWeight: "bold" }}>
               {workspaceData?.name || birthDetails?.name || t("primary chart", "ప్రధాన చార్ట్")}
             </span>
-            <span style={{ fontSize: 9, padding: "1px 6px", background: "rgba(201,169,110,0.14)", color: "var(--accent)", borderRadius: 4, letterSpacing: "0.04em", fontWeight: 600 }}>
+            <span className="celestial-mono" style={{ fontSize: 9, padding: "2px 6px", background: "rgba(201,169,110,0.18)", color: "var(--accent)", borderRadius: 4, letterSpacing: "0.04em", fontWeight: 600 }}>
               {t("PRIMARY", "ప్రధాన")}
             </span>
             {mParticipants.length > 0 && (
               <>
                 <span style={{ color: "var(--border2)", margin: "0 4px" }}>+</span>
                 {mParticipants.map((p, i) => (
-                  <span key={p.id} style={{ color: "var(--accent)", marginRight: i < mParticipants.length - 1 ? 6 : 0 }}>
+                  <span className="celestial-serif" key={p.id} style={{ color: "var(--accent)", marginRight: i < mParticipants.length - 1 ? 6 : 0, fontWeight: "bold" }}>
                     {p.name || p.birthDetails.name}
                   </span>
                 ))}
               </>
             )}
           </div>
+
           {/* Quick picks */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: "1rem" }}>
-            {[
-              { en: "This week",  te: "ఈ వారం",    days: 7 },
-              { en: "Next week",  te: "వచ్చే వారం", days: 14 },
-              { en: "This month", te: "ఈ నెల",     days: 30 },
-              { en: "Next month", te: "వచ్చే నెల",  days: 60 },
-            ].map(q => {
-              const s = new Date(); s.setDate(s.getDate() + (q.days === 14 ? 7 : 0));
-              const e = new Date(); e.setDate(e.getDate() + q.days);
-              const fmt = (d: Date) => d.toISOString().split("T")[0];
-              const active = mDateStart === fmt(s) && mDateEnd === fmt(e);
-              const label = lang === "en" ? q.en : q.te;
-              return (
-                <button key={q.en} onClick={() => { setMDateStart(fmt(s)); setMDateEnd(fmt(e)); }}
-                  style={{ padding: "10px 8px", background: active ? "rgba(201,169,110,0.12)" : "var(--card)", border: `0.5px solid ${active ? "rgba(201,169,110,0.5)" : "var(--border2)"}`, borderRadius: 999, cursor: "pointer", color: active ? "var(--accent)" : "var(--text)", fontSize: 12, fontFamily: "inherit", fontWeight: active ? 600 : 400, transition: "all 160ms", textAlign: "center" as const }}
-                  onMouseEnter={e2 => { if (!active) { e2.currentTarget.style.borderColor = "rgba(201,169,110,0.35)"; e2.currentTarget.style.background = "rgba(201,169,110,0.04)"; } }}
-                  onMouseLeave={e2 => { if (!active) { e2.currentTarget.style.borderColor = "var(--border2)"; e2.currentTarget.style.background = "var(--card)"; } }}
-                >
-                  {label}
-                </button>
-              );
-            })}
+          <div>
+            <div className="celestial-serif" style={{ fontSize: 9, color: "var(--accent)", marginBottom: 6, letterSpacing: "0.08em", textTransform: "uppercase" as const, fontWeight: "bold" }}>
+              {t("Quick select range", "త్వరిత ఎంపిక పరిధి")}
+            </div>
+            <div className="muhurtha-quick-grid">
+              {[
+                { en: "This week",  te: "ఈ వారం",    days: 7 },
+                { en: "Next week",  te: "వచ్చే వారం", days: 14 },
+                { en: "This month", te: "ఈ నెల",     days: 30 },
+                { en: "Next month", te: "వచ్చే నెల",  days: 60 },
+              ].map(q => {
+                const s = new Date(); s.setDate(s.getDate() + (q.days === 14 ? 7 : 0));
+                const e = new Date(); e.setDate(e.getDate() + q.days);
+                const fmt = (d: Date) => d.toISOString().split("T")[0];
+                const active = mDateStart === fmt(s) && mDateEnd === fmt(e);
+                const label = lang === "en" ? q.en : q.te;
+                return (
+                  <button key={q.en} onClick={() => { setMDateStart(fmt(s)); setMDateEnd(fmt(e)); }}
+                    className="celestial-glass celestial-panel"
+                    style={{
+                      padding: "10px 8px",
+                      background: active ? "rgba(212, 175, 55, 0.12)" : "rgba(255,255,255,0.02)",
+                      border: `1px solid ${active ? "rgba(212,175,55,0.5)" : "rgba(255,255,255,0.05)"}`,
+                      boxShadow: active ? "0 0 12px rgba(212, 175, 55, 0.2)" : "none",
+                      borderRadius: 999,
+                      cursor: "pointer",
+                      color: active ? "var(--accent)" : "var(--muted)",
+                      fontSize: 12,
+                      fontFamily: "inherit",
+                      fontWeight: active ? 600 : 400,
+                      transition: "all 160ms ease",
+                      textAlign: "center" as const,
+                      transform: active ? "scale(1.03)" : "none",
+                    }}
+                    onMouseEnter={e => {
+                      if (!active) {
+                        e.currentTarget.style.borderColor = "rgba(212, 175, 55, 0.3)";
+                        e.currentTarget.style.background = "rgba(255,255,255,0.05)";
+                      }
+                    }}
+                    onMouseLeave={e => {
+                      if (!active) {
+                        e.currentTarget.style.borderColor = "rgba(255,255,255,0.05)";
+                        e.currentTarget.style.background = "rgba(255,255,255,0.02)";
+                      }
+                    }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
+
           {/* Custom date range */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: "1rem" }}>
+          <div className="celestial-glass celestial-panel muhurtha-date-grid" style={{ border: "1px solid rgba(212,175,55,0.15)", borderRadius: 12, padding: "18px" }}>
             <div>
-              <div style={{ fontSize: 9, color: "var(--muted)", marginBottom: 4, letterSpacing: "0.08em", textTransform: "uppercase" as const }}>
-                {t("From", "నుండి")}
+              <div className="celestial-serif" style={{ fontSize: 9, color: "var(--accent)", marginBottom: 6, letterSpacing: "0.08em", textTransform: "uppercase" as const, fontWeight: "bold" }}>
+                {t("From date", "ప్రారంభ తేదీ")}
               </div>
-              <input type="date" value={mDateStart} onChange={e => setMDateStart(e.target.value)}
-                style={{ width: "100%", background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "8px 10px", fontSize: 12, color: "var(--text)", outline: "none" }} />
+              <input
+                type="date"
+                value={mDateStart}
+                onChange={e => setMDateStart(e.target.value)}
+                style={{
+                  width: "100%",
+                  background: "rgba(20, 18, 30, 0.45)",
+                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                  borderRadius: 8,
+                  padding: "10px 14px",
+                  fontSize: 13,
+                  color: "var(--accent)",
+                  outline: "none",
+                  fontFamily: "var(--font-mono), monospace",
+                  transition: "all 0.2s ease",
+                  cursor: "pointer",
+                  boxSizing: "border-box" as const,
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = "rgba(212, 175, 55, 0.6)";
+                  e.currentTarget.style.boxShadow = "0 0 10px rgba(212, 175, 55, 0.15)";
+                  e.currentTarget.style.background = "rgba(20, 18, 30, 0.65)";
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.08)";
+                  e.currentTarget.style.boxShadow = "none";
+                  e.currentTarget.style.background = "rgba(20, 18, 30, 0.45)";
+                }}
+              />
             </div>
             <div>
-              <div style={{ fontSize: 9, color: "var(--muted)", marginBottom: 4, letterSpacing: "0.08em", textTransform: "uppercase" as const }}>
-                {t("To", "వరకు")}
+              <div className="celestial-serif" style={{ fontSize: 9, color: "var(--accent)", marginBottom: 6, letterSpacing: "0.08em", textTransform: "uppercase" as const, fontWeight: "bold" }}>
+                {t("To date", "ముగింపు తేదీ")}
               </div>
-              <input type="date" value={mDateEnd} onChange={e => setMDateEnd(e.target.value)}
-                style={{ width: "100%", background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 6, padding: "8px 10px", fontSize: 12, color: "var(--text)", outline: "none" }} />
+              <input
+                type="date"
+                value={mDateEnd}
+                onChange={e => setMDateEnd(e.target.value)}
+                style={{
+                  width: "100%",
+                  background: "rgba(20, 18, 30, 0.45)",
+                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                  borderRadius: 8,
+                  padding: "10px 14px",
+                  fontSize: 13,
+                  color: "var(--accent)",
+                  outline: "none",
+                  fontFamily: "var(--font-mono), monospace",
+                  transition: "all 0.2s ease",
+                  cursor: "pointer",
+                  boxSizing: "border-box" as const,
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = "rgba(212, 175, 55, 0.6)";
+                  e.currentTarget.style.boxShadow = "0 0 10px rgba(212, 175, 55, 0.15)";
+                  e.currentTarget.style.background = "rgba(20, 18, 30, 0.65)";
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.08)";
+                  e.currentTarget.style.boxShadow = "none";
+                  e.currentTarget.style.background = "rgba(20, 18, 30, 0.45)";
+                }}
+              />
             </div>
           </div>
+          
           <button onClick={async () => {
             if (!mDateStart || !mDateEnd || !workspaceData) return;
             setMLoading(true); setMStep(3);

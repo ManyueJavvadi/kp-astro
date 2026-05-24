@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import remarkGfm from "remark-gfm";
 import axios from "axios";
-import { ArrowRight, Loader2, CheckCircle, XCircle, MessageCircle, MapPin, ChevronLeft, ChevronRight, Sparkles, User, Clock, Globe2, Target, LayoutGrid, Home as HomeIcon, Hourglass, MessageSquare, Calendar, Heart, HelpCircle, Moon, Star, Sunrise, Sunset, MoonStar, Crown, TriangleAlert, Ban, CircleDashed, Sun, Briefcase, Plane, BookOpen, Stethoscope, Wallet, Car, HandHeart, Lock, Wand2, Dices, CheckCircle2, HeartPulse, Baby, Scale, Globe, TrendingUp, ChevronDown, RefreshCw, Compass, Orbit } from "lucide-react";
+import { ArrowRight, Loader2, CheckCircle, XCircle, MessageCircle, MapPin, ChevronLeft, ChevronRight, Sparkles, User, Clock, Globe2, Target, LayoutGrid, Home as HomeIcon, Hourglass, MessageSquare, Calendar, Heart, HelpCircle, Moon, Star, Sunrise, Sunset, MoonStar, Crown, TriangleAlert, Ban, CircleDashed, Sun, Briefcase, Plane, BookOpen, Stethoscope, Wallet, Car, HandHeart, Lock, Wand2, Dices, CheckCircle2, HeartPulse, Baby, Scale, Globe, TrendingUp, ChevronDown, RefreshCw, Compass, Orbit, Maximize2, Minimize2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { PLANET_COLORS } from "./components/constants";
 import { ContentCard } from "@/components/ui/content-card";
@@ -52,6 +52,8 @@ import { FadeIn, StaggerChildren, StaggerItem } from "@/components/motion";
 // PR A1.3-fix-20 — RasiChart replaces SouthIndianChart with proper KP
 // sign-fixed layout + North/South/East tabs. Drop-in replacement.
 import RasiChart from "./components/RasiChart";
+import MobileChartSheet from "./components/mobile/MobileChartSheet";
+import TransitWheel from "./components/workspace/TransitWheel";
 const SouthIndianChart = RasiChart;  // backwards-compat alias for existing call sites
 import TaraChakraWidget from "./components/TaraChakraWidget";
 import DashaTimeline from "./components/DashaTimeline";
@@ -102,6 +104,64 @@ export default function Home() {
   const [setupDone, setSetupDone] = useState(false);
   const [chartData, setChartData] = useState<any>(null);
   const [workspaceData, setWorkspaceData] = useState<any>(null);
+  const [rectifying, setRectifying] = useState(false);
+
+  const handleTimeShift = async (minutesDelta: number) => {
+    if (!birthDetails.time || rectifying) return;
+    setRectifying(true);
+    try {
+      let [hh, mm] = birthDetails.time.split(":").map(Number);
+      if (birthDetails.ampm === "PM" && hh !== 12) hh += 12;
+      if (birthDetails.ampm === "AM" && hh === 12) hh = 0;
+      
+      let totalMinutes = hh * 60 + (mm || 0) + minutesDelta;
+      if (totalMinutes < 0) totalMinutes += 24 * 60;
+      totalMinutes %= 24 * 60;
+      
+      const new24H = Math.floor(totalMinutes / 60);
+      const newM = totalMinutes % 60;
+      
+      let new12H = new24H % 12;
+      if (new12H === 0) new12H = 12;
+      const newAmpm = new24H >= 12 ? "PM" : "AM";
+      
+      const paddedHours = String(new12H).padStart(2, "0");
+      const paddedMinutes = String(newM).padStart(2, "0");
+      const newTimeStr = `${paddedHours}:${paddedMinutes}`;
+      
+      const updatedBirthDetails = { 
+        ...birthDetails, 
+        time: newTimeStr,
+        ampm: newAmpm
+      };
+      setBirthDetails(updatedBirthDetails);
+      
+      const parts = updatedBirthDetails.date.split("/");
+      if (parts.length !== 3) {
+        setRectifying(false);
+        return;
+      }
+      const formattedDate = `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+      const newTime24 = `${String(new24H).padStart(2, "0")}:${String(newM).padStart(2, "0")}`;
+      
+      const res = await axios.post(`${API_URL}/astrologer/workspace`, {
+        name: updatedBirthDetails.name,
+        date: formattedDate,
+        time: newTime24,
+        latitude: updatedBirthDetails.latitude,
+        longitude: updatedBirthDetails.longitude,
+        timezone_offset: timezoneOffset,
+        gender: updatedBirthDetails.gender || ""
+      });
+      
+      setWorkspaceData(res.data);
+      setToast({ msg: `Time shifted by ${minutesDelta > 0 ? "+" : ""}${minutesDelta} min. Calculations updated!`, tone: "info" });
+    } catch (err) {
+      setToast({ msg: "Time travel calculation failed. Please try again.", tone: "error" });
+    } finally {
+      setRectifying(false);
+    }
+  };
   const [showChartDetails, setShowChartDetails] = useState(false);
   const [activeNote, setActiveNote] = useState<string | null>(null);
   const [noteInput, setNoteInput] = useState("");
@@ -146,6 +206,8 @@ export default function Home() {
   // New-chart floating modal: kept separate from the initial `!setupDone`
   // onboarding so the workspace stays mounted (and visibly blurred) behind.
   const [newChartModalOpen, setNewChartModalOpen] = useState(false);
+  const [mobileChartSheetOpen, setMobileChartSheetOpen] = useState(false);
+  const [aiMaximized, setAiMaximized] = useState(false);
   const [prevBirthDetailsStash, setPrevBirthDetailsStash] = useState<BirthDetails | null>(null);
   const [prevTimezoneStash, setPrevTimezoneStash] = useState<{ offset: number; label: string } | null>(null);
   // Muhurtha wizard state
@@ -495,7 +557,7 @@ export default function Home() {
     if (query.length < 3) { setSuggestions([]); setShowSuggestions(false); return; }
     setPlaceStatus("loading");
     try {
-      const res = await axios.get("https://nominatim.openstreetmap.org/search", { params: { q: query, format: "json", limit: 5, addressdetails: 1, "accept-language": "en" }, headers: { "User-Agent": "DevAstroAI/1.0" } });
+      const res = await axios.get("https://nominatim.openstreetmap.org/search", { params: { q: query, format: "json", limit: 5, addressdetails: 1, "accept-language": "en" } });
       const features = res.data;
       const mapped: PlaceSuggestion[] = features.map((f: any) => {
         const addr = f.address || {};
@@ -513,8 +575,7 @@ export default function Home() {
     setPcCitySearching(true);
     try {
       const res = await axios.get("https://nominatim.openstreetmap.org/search", {
-        params: { q: query, format: "json", limit: 5, addressdetails: 1, "accept-language": "en" },
-        headers: { "User-Agent": "DevAstroAI/1.0" }
+        params: { q: query, format: "json", limit: 5, addressdetails: 1, "accept-language": "en" }
       });
       const mapped: PlaceSuggestion[] = res.data.map((f: any) => {
         const addr = f.address || {};
@@ -557,7 +618,7 @@ export default function Home() {
     mNewPSearchRef.current = setTimeout(async () => {
       setMNewPPlaceStatus("searching");
       try {
-        const res = await axios.get("https://nominatim.openstreetmap.org/search", { params: { q: val, format: "json", limit: 5, addressdetails: 1, "accept-language": "en" }, headers: { "User-Agent": "DevAstroAI/1.0" } });
+        const res = await axios.get("https://nominatim.openstreetmap.org/search", { params: { q: val, format: "json", limit: 5, addressdetails: 1, "accept-language": "en" } });
         const features = res.data;
         const mapped: PlaceSuggestion[] = features.map((f: any) => {
           const addr = f.address || {};
@@ -577,7 +638,7 @@ export default function Home() {
     mEventLocSearchRef.current = setTimeout(async () => {
       setMEventLocSearching(true);
       try {
-        const res = await axios.get("https://nominatim.openstreetmap.org/search", { params: { q: val, format: "json", limit: 5, addressdetails: 1, "accept-language": "en" }, headers: { "User-Agent": "DevAstroAI/1.0" } });
+        const res = await axios.get("https://nominatim.openstreetmap.org/search", { params: { q: val, format: "json", limit: 5, addressdetails: 1, "accept-language": "en" } });
         const mapped: PlaceSuggestion[] = res.data.map((f: any) => {
           const addr = f.address || {};
           const parts = [addr.suburb || addr.city_district || addr.city || addr.town || addr.village || addr.county || f.display_name.split(",")[0], addr.state, addr.country].filter(Boolean);
@@ -1059,6 +1120,10 @@ export default function Home() {
   const handleTopicAnalysis = async (topic: string) => {
     if (!workspaceData) return;
     setActiveTopic(topic); setAnalysisLoading(true); setActiveTab("analysis");
+    if (!isMobile) {
+      setSidebarOpen(true);
+      setAiMaximized(true);
+    }
     // Phase 6 / PR 15 — language-aware topic label (was hardcoded Telugu).
     const topicEntry = TOPICS.find(t => t.id === topic);
     const topicLabel = topicEntry ? (lang === "en" ? topicEntry.en : topicEntry.te) : topic;
@@ -1094,6 +1159,10 @@ export default function Home() {
   const handleWorkspaceChat = async () => {
     if (!chatQ.trim()) return;
     const q = chatQ; setChatQ(""); setAnalysisLoading(true); setActiveTab("analysis");
+    if (!isMobile) {
+      setSidebarOpen(true);
+      setAiMaximized(true);
+    }
     // CRITICAL: pass ALL prior messages as history so the AI doesn't
     // repeat reasoning already given. Snapshot BEFORE we append the
     // placeholder so history doesn't include the empty new message.
@@ -1251,17 +1320,63 @@ export default function Home() {
 
   const handleRemoveSession = (id: string) => setSavedSessions(prev => prev.filter(s => s.id !== id));
 
-  const handleSwitchSession = (target: ChartSession) => {
+  const handleSwitchSession = async (target: ChartSession) => {
     const snap = snapshotCurrentSession();
-    setSavedSessions(prev => {
-      const withoutTarget = prev.filter(s => s.id !== target.id);
-      if (!snap) return withoutTarget;
-      const idx = withoutTarget.findIndex(s => s.id === snap.id);
-      return idx >= 0 ? withoutTarget.map((s, i) => i === idx ? snap : s) : [...withoutTarget, snap];
-    });
     setCurrentSessionId(target.id);
     setBirthDetails(target.birthDetails);
-    setWorkspaceData(target.workspaceData);
+    
+    let wsData = target.workspaceData;
+    if (!wsData) {
+      setChartLoading(true);
+      try {
+        let formattedDate = target.birthDetails.date;
+        if (target.birthDetails.date.includes("/")) {
+          const parts = target.birthDetails.date.split("/");
+          if (parts.length === 3) {
+            formattedDate = `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+          }
+        } else if (target.birthDetails.date.includes("-")) {
+          const parts = target.birthDetails.date.split("-");
+          if (parts.length === 3) {
+            if (parts[0].length === 4) {
+              formattedDate = target.birthDetails.date;
+            } else {
+              formattedDate = `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+            }
+          }
+        }
+
+        let time24 = target.birthDetails.time;
+        if (target.birthDetails.time && target.birthDetails.time.includes(":")) {
+          const timeParts = target.birthDetails.time.split(":").map(Number);
+          if (timeParts.length >= 2 && !isNaN(timeParts[0]) && !isNaN(timeParts[1])) {
+            let h = timeParts[0];
+            const m = timeParts[1];
+            if (target.birthDetails.ampm === "PM" && h < 12) h += 12;
+            if (target.birthDetails.ampm === "AM" && h === 12) h = 0;
+            time24 = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+          }
+        }
+
+        const res = await axios.post(`${API_URL}/astrologer/workspace`, {
+          name: target.birthDetails.name,
+          date: formattedDate,
+          time: time24,
+          latitude: target.birthDetails.latitude,
+          longitude: target.birthDetails.longitude,
+          timezone_offset: target.birthDetails.timezone_offset ?? timezoneOffset,
+          gender: target.birthDetails.gender || ""
+        });
+        wsData = res.data;
+        target.workspaceData = wsData;
+      } catch (err) {
+        setToast({ msg: "Failed to calculate workspace data for this session.", tone: "error" });
+      } finally {
+        setChartLoading(false);
+      }
+    }
+
+    setWorkspaceData(wsData);
     setAnalysisMessages(target.analysisMessages);
     setActiveTopic(target.activeTopic);
     setSelectedHouse(target.selectedHouse);
@@ -1270,6 +1385,15 @@ export default function Home() {
     setActiveTab(target.activeTab);
     setSetupDone(true);
     setMode("astrologer");
+
+    setSavedSessions(prev => {
+      const withoutTarget = prev.filter(s => s.id !== target.id);
+      const targetWithWs = { ...target, workspaceData: wsData };
+      if (!snap) return [...withoutTarget, targetWithWs];
+      const idx = withoutTarget.findIndex(s => s.id === snap.id);
+      const updatedList = idx >= 0 ? withoutTarget.map((s, i) => i === idx ? snap : s) : [...withoutTarget, snap];
+      return [...updatedList.filter(s => s.id !== target.id), targetWithWs];
+    });
   };
 
   const inputStyle: React.CSSProperties = { width: "100%", background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 8, padding: "10px 14px", fontSize: 14, color: "var(--text)", outline: "none" };
@@ -1299,6 +1423,450 @@ export default function Home() {
     4: "Home & Mother", 5: "Children & Intelligence", 6: "Health & Enemies",
     7: "Marriage & Partnership", 8: "Longevity & Obstacles", 9: "Fortune & Father",
     10: "Career & Status", 11: "Gains & Fulfillment", 12: "Losses & Foreign",
+  };
+
+  const activeSessionId = currentSessionId || "active";
+  const activeSession = workspaceData ? {
+    id: activeSessionId,
+    name: workspaceData.name,
+    birthDetails,
+    workspaceData,
+    analysisMessages,
+    activeTopic,
+    selectedHouse,
+    chatQ,
+    analysisLang,
+    activeTab
+  } : null;
+  const openSessions = activeSession ? [activeSession, ...savedSessions.filter(s => s.id !== activeSessionId)] : [];
+
+  const TOPIC_ICONS: Record<string, React.ComponentType<{ size?: number; style?: React.CSSProperties }>> = {
+    marriage: HeartPulse,
+    job: Briefcase,
+    health: Stethoscope,
+    foreign_travel: Globe,
+    children: Baby,
+    education: BookOpen,
+    property: HomeIcon,
+    wealth: Wallet,
+    finance: TrendingUp,
+    legal: Scale,
+  };
+
+  const renderClientStatusTicker = () => {
+    if (!workspaceData) return null;
+    const genderSymbol = birthDetails.gender === "male" ? "♂" : birthDetails.gender === "female" ? "♀" : "◈";
+    const dashaText = workspaceData.current_dasha
+      ? `MD: ${workspaceData.current_dasha.lord_en}${workspaceData.current_antardasha ? ` — AD: ${workspaceData.current_antardasha.lord_en}` : ""}`
+      : "";
+    
+    const formattedLat = birthDetails.latitude ? `${Math.abs(Number(birthDetails.latitude)).toFixed(2)}°${Number(birthDetails.latitude) >= 0 ? "N" : "S"}` : "";
+    const formattedLng = birthDetails.longitude ? `${Math.abs(Number(birthDetails.longitude)).toFixed(2)}°${Number(birthDetails.longitude) >= 0 ? "E" : "W"}` : "";
+    const coords = formattedLat && formattedLng ? `${formattedLat}, ${formattedLng}` : "";
+
+    return (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 20,
+          padding: "8px 20px",
+          background: "rgba(10, 10, 18, 0.65)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          borderBottom: "1px solid rgba(255, 255, 255, 0.04)",
+          fontSize: 11,
+          fontFamily: "var(--font-mono), monospace",
+          color: "var(--muted)",
+          whiteSpace: "nowrap",
+          overflowX: "auto",
+          flexShrink: 0,
+          letterSpacing: "0.05em",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
+        }}
+        className="custom-scrollbar"
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--accent)", fontWeight: 700 }}>
+          <span style={{ fontSize: 13 }}>{genderSymbol}</span>
+          <span className="celestial-serif" style={{ textTransform: "uppercase", letterSpacing: "0.08em" }}>{workspaceData.name}</span>
+        </div>
+        <span style={{ opacity: 0.2 }}>|</span>
+        <div>
+          <span style={{ color: "rgba(255,255,255,0.35)" }}>DOB:</span> <span className="celestial-mono" style={{ color: "var(--text)" }}>{birthDetails.date}</span>
+        </div>
+        <span style={{ opacity: 0.2 }}>|</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ color: "rgba(255,255,255,0.35)" }}>TOB:</span> 
+          <span className="celestial-mono" style={{ color: "var(--text)", fontWeight: 600 }}>{birthDetails.time} {birthDetails.ampm}</span>
+        </div>
+
+        {/* 🪐 BIRTH-TIME TRAVEL RECTIFIER UNIT */}
+        <span style={{ opacity: 0.2 }}>|</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span className="celestial-serif" style={{ color: "rgba(212,175,55,0.75)", fontSize: 9.5, fontWeight: 700, letterSpacing: "0.08em" }}>TIME SHIFT:</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <button
+              onClick={() => handleTimeShift(-5)}
+              disabled={rectifying}
+              className="celestial-serif"
+              title="Shift time backward by 5 minutes"
+              style={{
+                background: "rgba(255, 255, 255, 0.02)",
+                border: "1px solid rgba(255, 255, 255, 0.04)",
+                color: "rgba(255,255,255,0.8)",
+                padding: "2px 8px",
+                borderRadius: 4,
+                cursor: rectifying ? "not-allowed" : "pointer",
+                fontSize: 9,
+                fontWeight: 600,
+                transition: "all 0.15s"
+              }}
+              onMouseEnter={(e) => { if (!rectifying) { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.background = "rgba(212,175,55,0.1)"; } }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.04)"; e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }}
+            >
+              -5m
+            </button>
+            <button
+              onClick={() => handleTimeShift(-1)}
+              disabled={rectifying}
+              className="celestial-serif"
+              title="Shift time backward by 1 minute"
+              style={{
+                background: "rgba(255, 255, 255, 0.02)",
+                border: "1px solid rgba(255, 255, 255, 0.04)",
+                color: "rgba(255,255,255,0.8)",
+                padding: "2px 8px",
+                borderRadius: 4,
+                cursor: rectifying ? "not-allowed" : "pointer",
+                fontSize: 9,
+                fontWeight: 600,
+                transition: "all 0.15s"
+              }}
+              onMouseEnter={(e) => { if (!rectifying) { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.background = "rgba(212,175,55,0.1)"; } }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.04)"; e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }}
+            >
+              -1m
+            </button>
+
+            <div 
+              className={rectifying ? "ticker-pulse-recalc" : "ticker-pulse-active"}
+              style={{
+                padding: "2px 10px",
+                borderRadius: 4,
+                fontSize: 9,
+                fontWeight: 700,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                transition: "all 0.3s"
+              }}
+            >
+              {rectifying ? (
+                <>
+                  <span className="kp-spin" style={{ display: "inline-block" }}>🪐</span>
+                  <span>CALCULATING</span>
+                </>
+              ) : (
+                <>
+                  <span>✦</span>
+                  <span>SYNCED</span>
+                </>
+              )}
+            </div>
+
+            <button
+              onClick={() => handleTimeShift(1)}
+              disabled={rectifying}
+              className="celestial-serif"
+              title="Shift time forward by 1 minute"
+              style={{
+                background: "rgba(255, 255, 255, 0.02)",
+                border: "1px solid rgba(255, 255, 255, 0.04)",
+                color: "rgba(255,255,255,0.8)",
+                padding: "2px 8px",
+                borderRadius: 4,
+                cursor: rectifying ? "not-allowed" : "pointer",
+                fontSize: 9,
+                fontWeight: 600,
+                transition: "all 0.15s"
+              }}
+              onMouseEnter={(e) => { if (!rectifying) { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.background = "rgba(212,175,55,0.1)"; } }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.04)"; e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }}
+            >
+              +1m
+            </button>
+            <button
+              onClick={() => handleTimeShift(5)}
+              disabled={rectifying}
+              className="celestial-serif"
+              title="Shift time forward by 5 minutes"
+              style={{
+                background: "rgba(255, 255, 255, 0.02)",
+                border: "1px solid rgba(255, 255, 255, 0.04)",
+                color: "rgba(255,255,255,0.8)",
+                padding: "2px 8px",
+                borderRadius: 4,
+                cursor: rectifying ? "not-allowed" : "pointer",
+                fontSize: 9,
+                fontWeight: 600,
+                transition: "all 0.15s"
+              }}
+              onMouseEnter={(e) => { if (!rectifying) { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.background = "rgba(212,175,55,0.1)"; } }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.04)"; e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }}
+            >
+              +5m
+            </button>
+          </div>
+        </div>
+
+        {birthDetails.place && (
+          <>
+            <span style={{ opacity: 0.2 }}>|</span>
+            <div>
+              <span style={{ color: "rgba(255,255,255,0.35)" }}>PLACE:</span> <span className="celestial-serif" style={{ color: "var(--text)", fontSize: 10, letterSpacing: "0.02em" }}>{birthDetails.place}</span>
+            </div>
+          </>
+        )}
+        {coords && (
+          <>
+            <span style={{ opacity: 0.2 }}>|</span>
+            <div>
+              <span style={{ color: "rgba(255,255,255,0.35)" }}>COORDS:</span> <span className="celestial-mono" style={{ color: "var(--text)" }}>{coords}</span>
+            </div>
+          </>
+        )}
+        {dashaText && (
+          <>
+            <span style={{ opacity: 0.2 }}>|</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ color: "rgba(255,255,255,0.35)" }}>ACTIVE DASHA:</span>
+              <span className="celestial-serif" style={{ color: "var(--accent)", fontSize: 10.5, fontWeight: 700, background: "rgba(212, 175, 55, 0.08)", padding: "2px 8px", borderRadius: 4, border: "0.5px solid rgba(212, 175, 55, 0.25)", letterSpacing: "0.06em" }}>
+                {dashaText}
+              </span>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  const renderAiContent = (isMax: boolean) => {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: isMax ? "16px 24px" : "10px 14px", borderBottom: "0.5px solid rgba(255,255,255,0.08)", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <Sparkles size={isMax ? 15 : 13} style={{ color: "#c9a96e" }} />
+            <span style={{ fontSize: isMax ? 13 : 11, fontWeight: 700, color: "var(--accent)", letterSpacing: "0.05em", textTransform: "uppercase" }}>AI Companion</span>
+            {isMax && (
+              <span style={{ fontSize: 9, background: "rgba(201, 169, 110, 0.12)", color: "var(--accent)", border: "0.5px solid rgba(201, 169, 110, 0.35)", padding: "2px 8px", borderRadius: 999, marginLeft: 8, fontWeight: 600, letterSpacing: "0.03em" }}>
+                Notion Space
+              </span>
+            )}
+          </div>
+          
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {/* Language switch */}
+            <div style={{ display: "flex", background: "rgba(255,255,255,0.03)", borderRadius: 5, border: "0.5px solid rgba(255,255,255,0.08)", overflow: "hidden" }}>
+              {([["english", "EN"], ["telugu_english", "తె+EN"]] as const).map(([val, label]) => (
+                <button key={val} onClick={() => setAnalysisLang(val)} style={{ padding: isMax ? "4px 8px" : "2px 6px", background: analysisLang === val ? "rgba(201,169,110,0.15)" : "transparent", color: analysisLang === val ? "var(--accent)" : "var(--muted)", border: "none", cursor: "pointer", fontSize: isMax ? 10.5 : 9.5, fontFamily: "inherit" }}>{label}</button>
+              ))}
+            </div>
+
+            {/* Maximize / Minimize toggle */}
+            <button
+              onClick={() => setAiMaximized(!isMax)}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "var(--muted)",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                padding: "4px",
+                transition: "color 0.15s",
+              }}
+              onMouseEnter={e => e.currentTarget.style.color = "var(--accent)"}
+              onMouseLeave={e => e.currentTarget.style.color = "var(--muted)"}
+              title={isMax ? t("Dock sidebar", "సైడ్‌బార్‌గా మార్చు") : t("Maximize window", "పెద్దదిగా చేయి")}
+            >
+              {isMax ? <Minimize2 size={isMax ? 15 : 13} /> : <Maximize2 size={isMax ? 15 : 13} />}
+            </button>
+
+            {/* Close */}
+            <button
+              onClick={() => { setSidebarOpen(false); setAiMaximized(false); }}
+              style={{
+                border: "none",
+                background: "transparent",
+                color: "var(--muted)",
+                cursor: "pointer",
+                fontSize: isMax ? 20 : 16,
+                padding: "2px 6px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "color 0.15s",
+              }}
+              onMouseEnter={e => e.currentTarget.style.color = "#f87171"}
+              onMouseLeave={e => e.currentTarget.style.color = "var(--muted)"}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+
+        {/* Scrollable messages area */}
+        <div
+          data-lenis-prevent
+          className="custom-scrollbar"
+          style={{
+            flex: 1,
+            overflowY: "auto",
+            padding: isMax ? "32px 40px" : "12px",
+            display: "flex",
+            flexDirection: "column",
+            gap: isMax ? 18 : 10,
+            minHeight: 0,
+            alignItems: isMax ? "center" : "stretch"
+          }}
+        >
+          <div style={{ width: "100%", maxWidth: isMax ? "800px" : "100%", display: "flex", flexDirection: "column", gap: isMax ? 18 : 10 }}>
+            {/* Topic cards inside sidebar */}
+            {analysisMessages.length === 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: isMax ? 11 : 9, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8, textAlign: isMax ? "center" : "left" }}>
+                  Topic Quick Analysis
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: isMax ? "repeat(4, 1fr)" : "repeat(2, 1fr)", gap: isMax ? 10 : 8 }}>
+                  {TOPICS.map(t => (
+                    <button key={t.id} onClick={() => handleTopicAnalysis(t.id)} disabled={analysisLoading}
+                      style={{ padding: isMax ? "16px 10px" : "8px 4px", borderRadius: 10, border: `0.5px solid ${activeTopic === t.id ? "var(--accent)" : "rgba(255,255,255,0.06)"}`, background: activeTopic === t.id ? "rgba(201,169,110,0.1)" : "rgba(255,255,255,0.02)", cursor: analysisLoading ? "default" : "pointer", fontFamily: "inherit", textAlign: "center", transition: "all 0.15s" }}
+                      onMouseEnter={e => { if (activeTopic !== t.id) (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(201,169,110,0.3)"; }}
+                      onMouseLeave={e => { if (activeTopic !== t.id) (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.06)"; }}>
+                      {(() => {
+                        const TopicIcon = TOPIC_ICONS[t.id] || HelpCircle;
+                        return (
+                          <div style={{ color: activeTopic === t.id ? "var(--accent)" : "var(--muted)", marginBottom: 4, display: "flex", justifyContent: "center" }}>
+                            <TopicIcon size={isMax ? 20 : 16} />
+                          </div>
+                        );
+                      })()}
+                      <div style={{ fontSize: isMax ? 12 : 10.5, color: activeTopic === t.id ? "var(--accent)" : "var(--text)", fontWeight: 500 }}>{lang === "en" ? t.en : t.te}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {analysisMessages.map((msg, idx) => (
+              <div key={idx} style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 6 }}>
+                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                  <div
+                    style={{
+                      padding: "8px 16px",
+                      fontSize: isMax ? 14 : 13,
+                      color: "var(--accent)",
+                      maxWidth: "100%",
+                      width: "100%",
+                      borderRadius: 4,
+                      background: "rgba(201, 169, 110, 0.03)",
+                      borderLeft: "3px solid var(--accent)",
+                      fontStyle: "italic",
+                      fontWeight: 500,
+                      fontFamily: "inherit"
+                    }}
+                  >
+                    "{msg.q}"
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 8, justifyContent: "flex-start" }}>
+                  <div
+                    style={{
+                      padding: isMax ? "20px 24px" : "12px 14px",
+                      fontSize: isMax ? 14 : 13,
+                      color: "var(--text)",
+                      maxWidth: "100%",
+                      width: "100%",
+                      background: "rgba(255, 255, 255, 0.01)",
+                      border: "1px solid rgba(255, 255, 255, 0.04)",
+                      borderRadius: 8,
+                    }}
+                  >
+                    {msg.isTopic && (
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+                        <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: "rgba(201,169,110,0.12)", color: "var(--accent)", border: "0.5px solid rgba(201,169,110,0.3)" }}>
+                          {activeTopic?.toUpperCase()} Analysis
+                        </span>
+                      </div>
+                    )}
+                    <div className="markdown-body" style={{ maxWidth: "100%", lineHeight: 1.6 }}><ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.a}</ReactMarkdown></div>
+                    {msg.t && <div style={{ fontSize: 9, color: "var(--muted)", marginTop: 6, textAlign: "right" }}>{formatDate(new Date(msg.t).toISOString())}</div>}
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {analysisLoading && (
+              <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: 6 }}>
+                <div className="chat-bubble-ai" style={{ padding: isMax ? "14px 18px" : "12px", display: "flex", alignItems: "center", gap: 8, color: "var(--muted)", fontSize: isMax ? 13 : 12, borderRadius: 12, background: "rgba(255,255,255,0.02)", border: "0.5px solid rgba(255,255,255,0.05)" }}>
+                  <Loader2 size={isMax ? 14 : 13} style={{ animation: "spin 1s linear infinite" }} />
+                  Analyzing chart...
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Sidebar Ask input strip */}
+        <div style={{ borderTop: "0.5px solid rgba(255,255,255,0.08)", padding: isMax ? "16px 40px" : "10px 12px", background: "rgba(13, 13, 22, 0.6)", display: "flex", gap: 8, alignItems: "center", flexShrink: 0, justifyContent: "center" }}>
+          <div style={{ width: "100%", maxWidth: isMax ? "800px" : "100%", display: "flex", gap: 8, alignItems: "center" }}>
+            <input
+              value={chatQ}
+              onChange={e => setChatQ(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") handleWorkspaceChat(); }}
+              placeholder={isMax ? t("Ask AI Companion a deeper question about this chart…", "జన్మ కుండలి గురించి లోతైన విశ్లేషణ కోసం తోడు AI ని అడగండి…") : t("Ask AI Companion…", "తోడు AI ని అడగండి…")}
+              style={{
+                flex: 1,
+                background: "rgba(255, 255, 255, 0.03)",
+                border: "0.5px solid rgba(255, 255, 255, 0.08)",
+                borderRadius: 10,
+                padding: isMax ? "12px 18px" : "8px 12px",
+                fontSize: isMax ? 14 : 12,
+                color: "var(--text)",
+                outline: "none",
+                fontFamily: "inherit",
+                transition: "all 0.15s"
+              }}
+              onFocus={e => {
+                e.currentTarget.style.borderColor = "var(--accent)";
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
+              }}
+              onBlur={e => {
+                e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.08)";
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.03)";
+              }}
+            />
+            <button onClick={handleWorkspaceChat} disabled={analysisLoading || !chatQ.trim()}
+              style={{
+                background: chatQ.trim() ? "var(--accent)" : "rgba(255,255,255,0.03)",
+                color: chatQ.trim() ? "#09090f" : "var(--muted)",
+                border: "none",
+                borderRadius: 10,
+                padding: isMax ? "12px 24px" : "8px 14px",
+                fontSize: isMax ? 14 : 12,
+                cursor: chatQ.trim() ? "pointer" : "default",
+                fontWeight: 600,
+                fontFamily: "inherit",
+                transition: "all 0.15s"
+              }}
+            >
+              {t("Ask", "అడగు")}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -1345,7 +1913,21 @@ export default function Home() {
           .grid-4col { grid-template-columns: repeat(2, 1fr) !important; }
           .setup-grid { grid-template-columns: 1fr !important; }
           .chat-input-container { position: sticky; bottom: 0; background: var(--bg); padding-bottom: env(safe-area-inset-bottom, 8px); z-index: 20; border-top: 0.5px solid var(--border); margin-top: 0 !important; }
-          .house-panel-overlay { position: fixed !important; bottom: 0 !important; left: 0 !important; right: 0 !important; top: auto !important; max-height: 65vh !important; border-radius: 16px 16px 0 0 !important; z-index: 50; }
+          .house-panel-overlay {
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            top: auto !important;
+            max-height: 70vh !important;
+            border-radius: 20px 20px 0 0 !important;
+            z-index: 150 !important;
+            background: #09090f !important;
+            border-top: 1px solid rgba(201, 169, 110, 0.4) !important;
+            box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.8) !important;
+            backdrop-filter: blur(14px) !important;
+            -webkit-backdrop-filter: blur(14px) !important;
+          }
         }
         @media (max-width: 480px) {
           .workspace-sidebar { max-height: 180px; }
@@ -1353,11 +1935,32 @@ export default function Home() {
         }
       `}</style>
 
-      {/* Stars bg */}
+      {/* Stars bg — elevated with twinkling animations and soft golden accents */}
       <div style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" }}>
-        {[...Array(80)].map((_, i) => (
-          <div key={i} style={{ position: "absolute", width: "1px", height: "1px", background: "white", borderRadius: "50%", left: `${(i * 137.5) % 100}%`, top: `${(i * 97.3) % 100}%`, opacity: 0.06 + (i % 5) * 0.06 }} />
-        ))}
+        {[...Array(80)].map((_, i) => {
+          const left = `${(i * 137.5) % 100}%`;
+          const top = `${(i * 97.3) % 100}%`;
+          const size = (i % 3 === 0) ? "2px" : "1px";
+          const color = (i % 4 === 0) ? "rgba(212, 175, 55, 0.95)" : "rgba(255, 255, 255, 0.9)"; // subtle gold vs bright star
+          const delay = `${(i * 0.27).toFixed(2)}s`;
+          const duration = `${(4 + (i % 5) * 1.5).toFixed(1)}s`;
+          return (
+            <div
+              key={i}
+              className="celestial-star"
+              style={{
+                left,
+                top,
+                width: size,
+                height: size,
+                background: color,
+                animationDelay: delay,
+                animationDuration: duration,
+                boxShadow: (i % 6 === 0) ? `0 0 4px ${color}` : "none"
+              }}
+            />
+          );
+        })}
       </div>
 
       {/* Astrologer-mode badge + Clear-saved-charts button.
@@ -2252,17 +2855,435 @@ export default function Home() {
         </div>
       )}
 
-      {setupDone && mode === "astrologer" && workspaceData && (
-        <div
-          style={{
-            display: "flex", flexDirection: "column", flex: 1, overflow: "hidden",
-            position: "relative", zIndex: 5,
-            filter: newChartModalOpen ? "blur(4px) saturate(0.85)" : "none",
-            pointerEvents: newChartModalOpen ? "none" : "auto",
-            transition: "filter 160ms ease",
-          }}
-          aria-hidden={newChartModalOpen ? "true" : undefined}
-        >
+{setupDone && mode === "astrologer" && workspaceData && (
+  isMobile ? (
+    <div
+      style={{
+        display: "flex", flexDirection: "column", flex: 1, overflow: "hidden",
+        position: "relative", zIndex: 5,
+        filter: newChartModalOpen ? "blur(4px) saturate(0.85)" : "none",
+        pointerEvents: newChartModalOpen ? "none" : "auto",
+        transition: "filter 160ms ease",
+      }}
+      aria-hidden={newChartModalOpen ? "true" : undefined}
+    >
+      {/* Person Hero Banner — always visible above tabs */}
+      <PersonHeroBanner
+        workspaceData={workspaceData as WorkspaceData}
+        birthDetails={birthDetails}
+        onNewChart={handleNewChart}
+        onPdf={async () => {
+          if (!workspaceData || pdfLoading) return;
+          setPdfLoading(true); setPdfError("");
+          try {
+            const enrichedWorkspace = {
+              ...workspaceData,
+              place: birthDetails.place || (workspaceData as any).place,
+            };
+            const res = await axios.post(`${API_URL}/pdf/export`, { workspace: enrichedWorkspace }, { responseType: "blob", timeout: 30000 });
+            const url = URL.createObjectURL(new Blob([res.data], { type: "application/pdf" }));
+            const a = document.createElement("a"); a.href = url;
+            a.download = `${workspaceData.name || "kp_chart"}_report.pdf`; a.click();
+            setTimeout(() => { try { URL.revokeObjectURL(url); } catch { /* ignore */ } }, 1000);
+          } catch (e: any) {
+            const msg = e?.response?.status === 500
+              ? "PDF server error — please try again"
+              : e?.response?.status === 413
+              ? "Workspace too large for PDF export"
+              : "PDF download failed — please try again";
+            setPdfError(msg);
+            setToast({ msg, tone: "error" });
+          }
+          setPdfLoading(false);
+        }}
+        pdfLoading={pdfLoading}
+        savedSessions={savedSessions}
+        onSwitchSession={handleSwitchSession}
+        astrologerMode={true}
+      />
+      <div className="workspace-layout kp-constellation" style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative" }}>
+        {/* Drifting background cosmic nebulae */}
+        <div className="celestial-nebula-blue" />
+        <div className="celestial-nebula-gold" />
+        {!sidebarOpen && (
+          <button
+            type="button"
+            aria-label="Open sidebar"
+            onClick={() => setSidebarOpen(true)}
+            style={{
+              width: 36,
+              flexShrink: 0,
+              borderRight: "0.5px solid var(--border)",
+              background: "var(--surface)",
+              border: "none",
+              borderTop: "none",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "flex-start",
+              justifyContent: "center",
+              padding: "12px 0",
+              color: "var(--muted)",
+              transition: "color 120ms, background 120ms",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = "var(--text)";
+              e.currentTarget.style.background = "rgba(255,255,255,0.02)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = "var(--muted)";
+              e.currentTarget.style.background = "var(--surface)";
+            }}
+          >
+            <ChevronRight size={16} />
+          </button>
+        )}
+        {sidebarOpen && (
+          <div className="workspace-sidebar" style={{ width: 210, borderRight: "0.5px solid var(--border)", background: "var(--surface)", display: "flex", flexDirection: "column", overflow: "auto", flexShrink: 0, transition: "width 0.2s" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 10px 8px", borderBottom: "0.5px solid var(--border)", flexShrink: 0 }}>
+              <span style={{ fontSize: 9, color: "var(--muted)", letterSpacing: "0.12em", textTransform: "uppercase" as const, fontWeight: 500 }}>Workspace</span>
+              <button
+                type="button"
+                aria-label="Collapse sidebar"
+                onClick={() => setSidebarOpen(false)}
+                style={{
+                  width: 24,
+                  height: 24,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "transparent",
+                  border: "none",
+                  borderRadius: 5,
+                  color: "var(--muted)",
+                  cursor: "pointer",
+                  transition: "color 120ms, background 120ms",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = "var(--text)";
+                  e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = "var(--muted)";
+                  e.currentTarget.style.background = "transparent";
+                }}
+              >
+                <ChevronLeft size={14} />
+              </button>
+            </div>
+            {(savedSessions.length > 0 || (mode === "astrologer" && setupDone)) && (
+              <div className="sidebar-section" style={{ padding: "8px 10px", borderBottom: "0.5px solid var(--border)", flexShrink: 0 }}>
+                <div style={{ fontSize: 9, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 5 }}>{t("Charts", "చార్టులు")}</div>
+                {workspaceData?.name && (
+                  <div style={{ padding: "8px", borderRadius: 8, background: "rgba(201,169,110,0.08)", border: "0.5px solid rgba(201,169,110,0.4)", marginBottom: 6 }}>
+                    <div style={{ fontSize: 12, color: "var(--accent)", fontWeight: 500, marginBottom: 1 }}>
+                      {workspaceData.name.split(" ")[0]}
+                    </div>
+                    <div style={{ fontSize: 10, color: "rgba(201,169,110,0.6)" }}>★ {t("Active", "ప్రస్తుతం")}</div>
+                  </div>
+                )}
+                {savedSessions.length === 0 && workspaceData?.name && (
+                  <div style={{ fontSize: 10, color: "var(--muted)", padding: "4px 2px 6px", lineHeight: 1.45 }}>
+                    {lang === "en" ? (
+                      <>Use <strong style={{ color: "var(--accent)", fontWeight: 500 }}>+ New Chart</strong> in the header to add another. Saved charts appear here.</>
+                    ) : (
+                      <><strong style={{ color: "var(--accent)", fontWeight: 500 }}>+ కొత్త చార్ట్</strong> బటన్‌తో మరొకటి జోడించండి. సేవ్ చేసిన చార్టులు ఇక్కడ కనిపిస్తాయి.</>
+                    )}
+                  </div>
+                )}
+                {savedSessions.map(s => {
+                  const dasha = s.workspaceData?.mahadasha?.lord_en || "";
+                  const ad = s.workspaceData?.current_antardasha?.lord_en || "";
+                  const gender = s.birthDetails?.gender;
+                  const birthYear = s.birthDetails?.date?.split("/")?.[2] || s.birthDetails?.date?.split("-")?.[0] || "";
+                  const dashaLabel = dasha && ad ? `${dasha}–${ad}` : dasha || "";
+                  return (
+                    <div key={s.id} style={{ position: "relative", marginBottom: 6 }}>
+                      <button onClick={() => handleSwitchSession(s)}
+                        style={{ width: "100%", padding: "8px 28px 8px 8px", borderRadius: 8, background: "var(--surface2)", border: "0.5px solid var(--border2)", cursor: "pointer", textAlign: "left", fontFamily: "inherit", transition: "border-color 0.2s" }}
+                        onMouseEnter={e => (e.currentTarget.style.borderColor = "rgba(201,169,110,0.4)")}
+                        onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border2)")}>
+                        <div style={{ fontSize: 12, color: "var(--text)", fontWeight: 500, marginBottom: 2 }}>
+                          {gender === "male" ? "♂ " : gender === "female" ? "♀ " : "◈ "}{s.name?.split(" ")[0]}
+                        </div>
+                        {dashaLabel && <div style={{ fontSize: 10, color: "var(--accent)", marginBottom: 1 }}>{dashaLabel}</div>}
+                        {birthYear && <div style={{ fontSize: 10, color: "var(--muted)" }}>{t(`Born ${birthYear}`, `${birthYear} జన్మ`)}</div>}
+                      </button>
+                      <button onClick={() => handleRemoveSession(s.id)}
+                        style={{ position: "absolute", top: 6, right: 6, background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "2px 4px", opacity: 0.5 }}
+                        onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
+                        onMouseLeave={e => (e.currentTarget.style.opacity = "0.5")}>×</button>
+                    </div>
+                  );
+                })}
+                <button onClick={handleNewChart}
+                  style={{ width: "100%", padding: "3px 8px", borderRadius: 6, background: "transparent", border: "0.5px dashed var(--border2)", fontSize: 10, color: "var(--muted)", cursor: "pointer", fontFamily: "inherit", textAlign: "center" }}>
+                  + {t("New Chart", "కొత్త చార్ట్")}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        <div className="workspace-main" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
+          {(liveTodayPanchang || workspaceData?.panchangam_today) && (
+            <TodayStrip
+              data={liveTodayPanchang ?? workspaceData.panchangam_today}
+              isLive={!!liveTodayPanchang}
+              cityLabel={liveTodayPanchang?._city}
+              onJumpToPanchang={() => setActiveTab("panchang")}
+            />
+          )}
+          <div className="tab-bar" style={{ display: "flex", borderBottom: "0.5px solid var(--border)", background: "var(--surface)", overflowX: "auto", flexShrink: 0 }}>
+            {TABS.map(tab => {
+              const TabIcon = tab.Icon;
+              const active = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  onMouseEnter={e => { if (!active) e.currentTarget.style.background = "rgba(201,169,110,0.04)"; }}
+                  onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}
+                  style={{
+                    padding: "10px 16px",
+                    background: active ? "rgba(201,169,110,0.07)" : "transparent",
+                    border: "none",
+                    borderBottom: active ? "2px solid var(--accent)" : "2px solid transparent",
+                    color: active ? "var(--accent)" : "var(--muted)",
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                    whiteSpace: "nowrap",
+                    transition: "color 0.15s, border-color 0.15s, background 0.15s",
+                    flexShrink: 0,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 3,
+                  }}
+                >
+                  <TabIcon size={15} strokeWidth={1.8} />
+                  <span style={{ fontSize: 11 }}>
+                    {lang === "en" ? tab.en : tab.te}
+                  </span>
+                  {lang === "te_en" && (
+                    <span style={{ fontSize: 9, opacity: 0.55 }}>{tab.en}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          {workspaceData && ["chart", "houses", "dasha", "analysis", "match"].includes(activeTab) && (
+            <ChartContextStrip workspaceData={workspaceData as WorkspaceData} />
+          )}
+          <div style={{ flex: 1, overflow: "auto", padding: "1.25rem" }}>
+            {activeTab === "chart" && workspaceData && (
+              <ChartTab
+                workspaceData={workspaceData as WorkspaceData}
+                selectedHouse={selectedHouse}
+                setSelectedHouse={setSelectedHouse}
+              />
+            )}
+            {activeTab === "houses" && workspaceData && (
+              <HousesTab
+                workspaceData={workspaceData as WorkspaceData}
+                selectedHouse={selectedHouse}
+                setSelectedHouse={setSelectedHouse}
+              />
+            )}
+            {activeTab === "dasha" && workspaceData && (
+              <DashaTab
+                workspaceData={workspaceData as WorkspaceData}
+                transitState={{
+                  data: transitData,
+                  loading: transitLoading,
+                  date: transitDate,
+                  fetchedAt: transitFetchedAt,
+                  subTab: transitSubTab,
+                  show: showTransitInDasha,
+                  setData: setTransitData,
+                  setLoading: setTransitLoading,
+                  setDate: setTransitDate,
+                  setFetchedAt: setTransitFetchedAt,
+                  setSubTab: setTransitSubTab,
+                  setShow: setShowTransitInDasha,
+                }}
+                liveLoc={liveLoc}
+                timezoneOffset={timezoneOffset}
+                apiUrl={API_URL}
+                isMobile={isMobile}
+              />
+            )}
+            {activeTab === "panchang" && (
+              <PanchangTab
+                workspaceData={workspaceData}
+                apiUrl={API_URL}
+                liveLoc={liveLoc}
+                searchPcCities={searchPcCities}
+                pcData={pcData} setPcData={setPcData}
+                pcLoading={pcLoading} setPcLoading={setPcLoading}
+                pcLocationName={pcLocationName} setPcLocationName={setPcLocationName}
+                pcDetectedCoords={pcDetectedCoords} setPcDetectedCoords={setPcDetectedCoords}
+                pcGeoError={pcGeoError} setPcGeoError={setPcGeoError}
+                pcShowCityModal={pcShowCityModal} setPcShowCityModal={setPcShowCityModal}
+                pcCityQuery={pcCityQuery} setPcCityQuery={setPcCityQuery}
+                pcCitySuggestions={pcCitySuggestions} setPcCitySuggestions={setPcCitySuggestions}
+                pcCitySearching={pcCitySearching}
+                pcCitySearchRef={pcCitySearchRef}
+                pcFetchLocationRef={pcFetchLocationRef}
+                calMonth={calMonth} setCalMonth={setCalMonth}
+                calData={calData} setCalData={setCalData}
+                calLoading={calLoading} setCalLoading={setCalLoading}
+                calSelectedDay={calSelectedDay} setCalSelectedDay={setCalSelectedDay}
+              />
+            )}
+            {activeTab === "muhurtha" && (
+              <MuhurthaTab
+                workspaceData={workspaceData}
+                apiUrl={API_URL}
+                liveLoc={liveLoc}
+                birthDetails={birthDetails}
+                timezoneOffset={timezoneOffset}
+                savedSessions={savedSessions}
+                setSavedSessions={setSavedSessions}
+                mEventLocSearching={mEventLocSearching}
+                mStep={mStep} setMStep={setMStep}
+                mEventType={mEventType} setMEventType={setMEventType}
+                mDateStart={mDateStart} setMDateStart={setMDateStart}
+                mDateEnd={mDateEnd} setMDateEnd={setMDateEnd}
+                mEventLoc={mEventLoc} setMEventLoc={setMEventLoc}
+                mEventLocMode={mEventLocMode} setMEventLocMode={setMEventLocMode}
+                mEventLocSugg={mEventLocSugg} setMEventLocSugg={setMEventLocSugg}
+                mParticipants={mParticipants} setMParticipants={setMParticipants}
+                mShowAddParticipant={mShowAddParticipant} setMShowAddParticipant={setMShowAddParticipant}
+                mNewP={mNewP} setMNewP={setMNewP}
+                mNewPPlaceSugg={mNewPPlaceSugg} setMNewPPlaceSugg={setMNewPPlaceSugg}
+                mNewPPlaceStatus={mNewPPlaceStatus} setMNewPPlaceStatus={setMNewPPlaceStatus}
+                mLoading={mLoading} setMLoading={setMLoading}
+                mResults={mResults} setMResults={setMResults}
+                mSelectedDate={mSelectedDate} setMSelectedDate={setMSelectedDate}
+                mExpandedWindow={mExpandedWindow} setMExpandedWindow={setMExpandedWindow}
+                mAiQuestion={mAiQuestion} setMAiQuestion={setMAiQuestion}
+                mAiMessages={mAiMessages} setMAiMessages={setMAiMessages}
+                mAiLoading={mAiLoading} setMAiLoading={setMAiLoading}
+                handleMEventLocSearch={handleMEventLocSearch}
+                handleMNewPDateChange={handleMNewPDateChange}
+                handleMNewPTimeChange={handleMNewPTimeChange}
+                snapshotCurrentSession={snapshotCurrentSession}
+                sessionToApiPerson={sessionToApiPerson}
+              />
+            )}
+            {activeTab === "match" && (
+              <MatchTab
+                workspaceData={workspaceData}
+                birthDetails={birthDetails}
+                savedSessions={savedSessions}
+                setSavedSessions={setSavedSessions}
+                apiUrl={API_URL}
+                snapshotCurrentSession={snapshotCurrentSession}
+                sessionToApiPerson={sessionToApiPerson}
+                matchPerson2Inline={matchPerson2Inline}
+                setMatchPerson2Inline={setMatchPerson2Inline}
+                matchResults={matchResults}
+                setMatchResults={setMatchResults}
+                matchLoading={matchLoading}
+                setMatchLoading={setMatchLoading}
+                matchSubTab={matchSubTab}
+                setMatchSubTab={setMatchSubTab}
+                matchHouseShared={matchHouseShared}
+                setMatchHouseShared={setMatchHouseShared}
+                matchAnalysisMessages={matchAnalysisMessages}
+                setMatchAnalysisMessages={setMatchAnalysisMessages}
+                matchAnalysisLoading={matchAnalysisLoading}
+                matchAnalysisLang={matchAnalysisLang}
+                setMatchAnalysisLang={setMatchAnalysisLang}
+                matchChatQ={matchChatQ}
+                setMatchChatQ={setMatchChatQ}
+                mNewP={mNewP}
+                setMNewP={setMNewP}
+                mNewPPlaceSugg={mNewPPlaceSugg}
+                setMNewPPlaceSugg={setMNewPPlaceSugg}
+                mNewPPlaceStatus={mNewPPlaceStatus}
+                setMNewPPlaceStatus={setMNewPPlaceStatus}
+                handleMatchChat={handleMatchChat}
+                handleMatchTopicAnalysis={handleMatchTopicAnalysis}
+                handleMNewPDateChange={handleMNewPDateChange}
+                handleMNewPTimeChange={handleMNewPTimeChange}
+              />
+            )}
+            {activeTab === "horary" && (
+              <HoraryTab
+                workspaceData={workspaceData}
+                setToast={setToast}
+                liveLoc={liveLoc}
+                apiUrl={API_URL}
+                horaryNumber={horaryNumber}
+                setHoraryNumber={setHoraryNumber}
+                horaryDiceSpin={horaryDiceSpin}
+                setHoraryDiceSpin={setHoraryDiceSpin}
+                horaryDigitEditing={horaryDigitEditing}
+                setHoraryDigitEditing={setHoraryDigitEditing}
+                horaryDigitDraft={horaryDigitDraft}
+                setHoraryDigitDraft={setHoraryDigitDraft}
+                horaryRollRef={horaryRollRef}
+                horaryQuestion={horaryQuestion}
+                setHoraryQuestion={setHoraryQuestion}
+                horaryTopic={horaryTopic}
+                setHoraryTopic={setHoraryTopic}
+                horaryResult={horaryResult}
+                setHoraryResult={setHoraryResult}
+                horaryLoading={horaryLoading}
+                setHoraryLoading={setHoraryLoading}
+              />
+            )}
+            {activeTab === "analysis" && (
+              <AnalysisTab
+                analysisMessages={analysisMessages as any}
+                setAnalysisMessages={setAnalysisMessages as any}
+                analysisLoading={analysisLoading}
+                setAnalysisLoading={setAnalysisLoading}
+                activeTopic={activeTopic}
+                setActiveTopic={setActiveTopic}
+                analysisLang={analysisLang}
+                setAnalysisLang={setAnalysisLang}
+                setChatQ={setChatQ}
+                handleTopicAnalysis={handleTopicAnalysis}
+                askStreamAbortRef={askStreamAbortRef}
+                analyzeStreamAbortRef={analyzeStreamAbortRef}
+                chatEndRef={chatEndRef}
+              />
+            )}
+          </div>
+          {activeTab !== "horary" && activeTab !== "panchang" && activeTab !== "muhurtha" && !selectedHouse && (
+            <div style={{ borderTop: "0.5px solid var(--border)", padding: "0.75rem 1.25rem", background: "var(--surface)", display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+              <input
+                value={chatQ}
+                onChange={e => setChatQ(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") handleWorkspaceChat(); }}
+                placeholder={t("Ask a deeper question…", "లోతైన విశ్లేషణ కోసం అడగండి…")}
+                style={{ flex: 1, background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 8, padding: "9px 14px", fontSize: 13, color: "var(--text)", outline: "none", fontFamily: "inherit" }}
+              />
+              <button onClick={handleWorkspaceChat} disabled={analysisLoading || !chatQ.trim()}
+                style={{ background: chatQ.trim() ? "var(--accent)" : "var(--surface2)", color: chatQ.trim() ? "#09090f" : "var(--muted)", border: "none", borderRadius: 8, padding: "9px 18px", fontSize: 13, cursor: chatQ.trim() ? "pointer" : "default", fontWeight: 500, fontFamily: "inherit" }}>
+                {t("Ask", "అడగు")}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  ) : (
+    <>
+      {/* Parallax celestial background */}
+      <div className="celestial-stars-bg" />
+
+      <div
+        style={{
+          display: "flex", flexDirection: "column", flex: 1, overflow: "hidden",
+          position: "relative", zIndex: 5,
+          filter: newChartModalOpen ? "blur(4px) saturate(0.85)" : "none",
+          pointerEvents: newChartModalOpen ? "none" : "auto",
+          transition: "filter 160ms ease",
+        }}
+        aria-hidden={newChartModalOpen ? "true" : undefined}
+      >
         {/* Person Hero Banner — always visible above tabs */}
         <PersonHeroBanner
           workspaceData={workspaceData as WorkspaceData}
@@ -2272,10 +3293,6 @@ export default function Home() {
             if (!workspaceData || pdfLoading) return;
             setPdfLoading(true); setPdfError("");
             try {
-              // Phase 14 PR A hotfix — inject `place` (which lives in
-              // birthDetails, not the workspace return) so the PDF
-              // cover and birth-details section render the proper
-              // city name instead of falling back to lat/lon.
               const enrichedWorkspace = {
                 ...workspaceData,
                 place: birthDetails.place || (workspaceData as any).place,
@@ -2284,14 +3301,8 @@ export default function Home() {
               const url = URL.createObjectURL(new Blob([res.data], { type: "application/pdf" }));
               const a = document.createElement("a"); a.href = url;
               a.download = `${workspaceData.name || "kp_chart"}_report.pdf`; a.click();
-              // PR A1.3-fix-24 — defer revoke so slow browsers (Safari iOS,
-              // some Android Chromes) get to start the download before the
-              // blob URL is invalidated. 1s is conservative; PDFs typically
-              // start streaming in <100ms.
               setTimeout(() => { try { URL.revokeObjectURL(url); } catch { /* ignore */ } }, 1000);
             } catch (e: any) {
-              // PR A1.3-fix-25 — surface as a visible toast (was silently
-              // setting pdfError state that nothing rendered).
               const msg = e?.response?.status === 500
                 ? "PDF server error — please try again"
                 : e?.response?.status === 413
@@ -2307,268 +3318,187 @@ export default function Home() {
           onSwitchSession={handleSwitchSession}
           astrologerMode={true}
         />
-        {/* PR A1.3-fix-25 — global toast for transient errors (PDF, horary,
-            place-picker service errors, etc.). Auto-dismisses after 5s.
-            Replaces the prior pattern where errors silently set state nothing
-            rendered. role=status + aria-live announces to screen readers. */}
-        {toast && (
-          <div
-            role="status"
-            aria-live="polite"
-            style={{
-              position: "fixed",
-              top: 76,
-              right: 16,
-              zIndex: 200,
-              background: toast.tone === "error" ? "rgba(248,113,113,0.12)" : "var(--surface2)",
-              border: `0.5px solid ${toast.tone === "error" ? "rgba(248,113,113,0.4)" : "var(--border2)"}`,
-              borderRadius: 10,
-              padding: "10px 14px",
-              fontSize: 13,
-              color: toast.tone === "error" ? "#fca5a5" : "var(--text)",
-              maxWidth: 360,
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
-            }}
-          >
-            <span style={{ flex: 1 }}>{toast.msg}</span>
-            <button
-              onClick={() => setToast(null)}
-              aria-label="Dismiss notification"
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "inherit",
-                opacity: 0.7,
-                cursor: "pointer",
-                padding: 2,
-                fontSize: 14,
-                lineHeight: 1,
-                fontFamily: "inherit",
-              }}
-            >×</button>
-          </div>
-        )}
-        {/* Phase 9 / PR 24 — constellation backdrop. The gold-flecked
-            radial-gradient pattern lives behind the workspace at <4%
-            opacity. Adds peripheral cosmos texture without competing
-            with the chart canvas. Class-based + background-attachment
-            fixed → static stars while the workspace scrolls. */}
-        <div className="workspace-layout kp-constellation" style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
-          {/* Collapsed rail — shown when sidebar is closed, gives the user
-              a Claude-style reopen affordance on the left edge. */}
-          {!sidebarOpen && (
-            <button
-              type="button"
-              aria-label="Open sidebar"
-              onClick={() => setSidebarOpen(true)}
-              style={{
-                width: 36,
-                flexShrink: 0,
-                borderRight: "0.5px solid var(--border)",
-                background: "var(--surface)",
-                border: "none",
-                borderTop: "none",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "flex-start",
-                justifyContent: "center",
-                padding: "12px 0",
-                color: "var(--muted)",
-                transition: "color 120ms, background 120ms",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = "var(--text)";
-                e.currentTarget.style.background = "rgba(255,255,255,0.02)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = "var(--muted)";
-                e.currentTarget.style.background = "var(--surface)";
-              }}
-            >
-              <ChevronRight size={16} />
-            </button>
-          )}
-
-          {/* Sidebar */}
-          {sidebarOpen && (
-            <div className="workspace-sidebar" style={{ width: 210, borderRight: "0.5px solid var(--border)", background: "var(--surface)", display: "flex", flexDirection: "column", overflow: "auto", flexShrink: 0, transition: "width 0.2s" }}>
-              {/* Sidebar header — collapse toggle on the right, Claude-style. */}
+        {/* Browser-style Client Tabs Strip */}
+        <div className="client-tabs-bar" style={{ display: "flex", gap: 6, padding: "8px 12px", borderBottom: "0.5px solid var(--border)", background: "var(--surface)", alignItems: "center", flexShrink: 0, overflowX: "auto" }}>
+          {openSessions.map(session => {
+            const isActive = session.id === activeSessionId;
+            const gender = session.birthDetails?.gender;
+            const genderSym = gender === "male" ? "♂" : gender === "female" ? "♀" : "";
+            return (
               <div
+                key={session.id}
+                className={`client-tab ${isActive ? "is-active" : ""}`}
+                onClick={() => {
+                  if (!isActive) {
+                    handleSwitchSession(session);
+                  }
+                }}
                 style={{
-                  display: "flex",
+                  display: "inline-flex",
                   alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "10px 10px 8px",
-                  borderBottom: "0.5px solid var(--border)",
-                  flexShrink: 0,
+                  gap: 8,
+                  padding: "6px 12px",
+                  borderRadius: 8,
+                  background: isActive ? "rgba(201,169,110,0.12)" : "rgba(255,255,255,0.02)",
+                  border: `0.5px solid ${isActive ? "var(--accent)" : "var(--border)"}`,
+                  color: isActive ? "var(--accent)" : "var(--text)",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  fontWeight: isActive ? 600 : 500,
+                  whiteSpace: "nowrap",
+                  transition: "all 120ms",
                 }}
               >
-                <span
-                  style={{
-                    fontSize: 9,
-                    color: "var(--muted)",
-                    letterSpacing: "0.12em",
-                    textTransform: "uppercase" as const,
-                    fontWeight: 500,
-                  }}
-                >
-                  Workspace
+                <span>
+                  {genderSym && <span style={{ marginRight: 4, opacity: 0.7 }}>{genderSym}</span>}
+                  {session.name || "Unnamed"}
                 </span>
-                <button
-                  type="button"
-                  aria-label="Collapse sidebar"
-                  onClick={() => setSidebarOpen(false)}
-                  style={{
-                    width: 24,
-                    height: 24,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    background: "transparent",
-                    border: "none",
-                    borderRadius: 5,
-                    color: "var(--muted)",
-                    cursor: "pointer",
-                    transition: "color 120ms, background 120ms",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.color = "var(--text)";
-                    e.currentTarget.style.background = "rgba(255,255,255,0.04)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.color = "var(--muted)";
-                    e.currentTarget.style.background = "transparent";
-                  }}
-                >
-                  <ChevronLeft size={14} />
-                </button>
+                {openSessions.length > 1 && (
+                  <button
+                    type="button"
+                    className="client-tab-close"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveSession(session.id);
+                      if (isActive) {
+                        const other = openSessions.find(s => s.id !== session.id);
+                        if (other) {
+                          handleSwitchSession(other);
+                        } else {
+                          handleNewChart();
+                        }
+                      }
+                    }}
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: "var(--muted)",
+                      cursor: "pointer",
+                      fontSize: 14,
+                      lineHeight: 1,
+                      marginLeft: 4,
+                      padding: "0 2px",
+                      opacity: 0.6,
+                      transition: "opacity 120ms",
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.opacity = "1"}
+                    onMouseLeave={e => e.currentTarget.style.opacity = "0.6"}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            );
+          })}
+          <button
+            type="button"
+            onClick={handleNewChart}
+            style={{
+              marginLeft: "auto",
+              padding: "4px 12px",
+              borderRadius: 6,
+              background: "rgba(201,169,110,0.1)",
+              border: "0.5px dashed rgba(201,169,110,0.4)",
+              color: "var(--accent)",
+              fontSize: 11,
+              fontWeight: 500,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              transition: "all 120ms"
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = "rgba(201,169,110,0.18)";
+              e.currentTarget.style.borderColor = "var(--accent)";
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = "rgba(201,169,110,0.1)";
+              e.currentTarget.style.borderColor = "rgba(201,169,110,0.4)";
+            }}
+          >
+            + {t("New Chart", "కొత్త చార్ట్")}
+          </button>
+        </div>
+
+        {renderClientStatusTicker()}
+
+        {/* Three-panel desktop grid layout */}
+        <div className={`astrologer-desk-grid ${(sidebarOpen && !aiMaximized) ? "astrologer-desk-grid-with-sidebar" : ""}`}>
+
+          {/* LEFT anchored panel: Chart + active dasha + live ruling planets */}
+          {activeTab !== "match" && (
+            <div className="desk-left-panel celestial-glass celestial-panel" data-lenis-prevent style={{ padding: "1.2rem", borderRadius: 12 }}>
+              <SectionEyebrow te="జన్మ చార్ట్" en="Natal Birth Chart" />
+              <SouthIndianChart
+                planets={workspaceData.planets}
+                cusps={workspaceData.cusps}
+                onHouseClick={h => setSelectedHouse(prev => prev === h ? null : h)}
+                selectedHouse={selectedHouse}
+              />
+              <div style={{ fontSize: 9.5, color: "var(--muted)", marginTop: 4, textAlign: "center", opacity: 0.65 }}>
+                Tap house to filter · <span style={{ color: "#c9a96e" }}>↑</span> = Lagna
               </div>
 
-              {/* PR A1.3-fix-25 — sidebar Charts section now ALWAYS renders
-                  when in astrologer mode + setupDone, so first-time users
-                  see their current chart in the list (with the ★ Active
-                  highlight) instead of an empty sidebar with no clue.
-                  Was previously gated on `savedSessions.length > 0` which
-                  hid the entire section before any chart was generated. */}
-              {(savedSessions.length > 0 || (mode === "astrologer" && setupDone)) && (
-                <div className="sidebar-section" style={{ padding: "8px 10px", borderBottom: "0.5px solid var(--border)", flexShrink: 0 }}>
-                  {/* Phase 5 / PR 13 — i18n holes (#14). The sidebar
-                      eyebrow + active marker + the verbose help text
-                      were hardcoded English even in pure TEL mode. Now
-                      every chrome string flows through t(en, te). */}
-                  <div style={{ fontSize: 9, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 5 }}>{t("Charts", "చార్టులు")}</div>
-                  {workspaceData?.name && (
-                    <div style={{ padding: "8px", borderRadius: 8, background: "rgba(201,169,110,0.08)", border: "0.5px solid rgba(201,169,110,0.4)", marginBottom: 6 }}>
-                      <div style={{ fontSize: 12, color: "var(--accent)", fontWeight: 500, marginBottom: 1 }}>
-                        {workspaceData.name.split(" ")[0]}
-                      </div>
-                      <div style={{ fontSize: 10, color: "rgba(201,169,110,0.6)" }}>★ {t("Active", "ప్రస్తుతం")}</div>
-                    </div>
-                  )}
-                  {savedSessions.length === 0 && workspaceData?.name && (
-                    <div style={{ fontSize: 10, color: "var(--muted)", padding: "4px 2px 6px", lineHeight: 1.45 }}>
-                      {lang === "en" ? (
-                        <>Use <strong style={{ color: "var(--accent)", fontWeight: 500 }}>+ New Chart</strong> in the header to add another. Saved charts appear here.</>
-                      ) : (
-                        <><strong style={{ color: "var(--accent)", fontWeight: 500 }}>+ కొత్త చార్ట్</strong> బటన్‌తో మరొకటి జోడించండి. సేవ్ చేసిన చార్టులు ఇక్కడ కనిపిస్తాయి.</>
-                      )}
-                    </div>
-                  )}
-                  {savedSessions.map(s => {
-                    const dasha = s.workspaceData?.mahadasha?.lord_en || "";
-                    const ad = s.workspaceData?.current_antardasha?.lord_en || "";
-                    const gender = s.birthDetails?.gender;
-                    const birthYear = s.birthDetails?.date?.split("/")?.[2] || s.birthDetails?.date?.split("-")?.[0] || "";
-                    const dashaLabel = dasha && ad ? `${dasha}–${ad}` : dasha || "";
-                    return (
-                      <div key={s.id} style={{ position: "relative", marginBottom: 6 }}>
-                        <button onClick={() => handleSwitchSession(s)}
-                          style={{ width: "100%", padding: "8px 28px 8px 8px", borderRadius: 8, background: "var(--surface2)", border: "0.5px solid var(--border2)", cursor: "pointer", textAlign: "left", fontFamily: "inherit", transition: "border-color 0.2s" }}
-                          onMouseEnter={e => (e.currentTarget.style.borderColor = "rgba(201,169,110,0.4)")}
-                          onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border2)")}>
-                          <div style={{ fontSize: 12, color: "var(--text)", fontWeight: 500, marginBottom: 2 }}>
-                            {gender === "male" ? "♂ " : gender === "female" ? "♀ " : "◈ "}{s.name?.split(" ")[0]}
-                          </div>
-                          {dashaLabel && <div style={{ fontSize: 10, color: "var(--accent)", marginBottom: 1 }}>{dashaLabel}</div>}
-                          {birthYear && <div style={{ fontSize: 10, color: "var(--muted)" }}>{t(`Born ${birthYear}`, `${birthYear} జన్మ`)}</div>}
-                        </button>
-                        <button onClick={() => handleRemoveSession(s.id)}
-                          style={{ position: "absolute", top: 6, right: 6, background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "2px 4px", opacity: 0.5 }}
-                          onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
-                          onMouseLeave={e => (e.currentTarget.style.opacity = "0.5")}>×</button>
-                      </div>
-                    );
-                  })}
-                  <button onClick={handleNewChart}
-                    style={{ width: "100%", padding: "3px 8px", borderRadius: 6, background: "transparent", border: "0.5px dashed var(--border2)", fontSize: 10, color: "var(--muted)", cursor: "pointer", fontFamily: "inherit", textAlign: "center" }}>
-                    + {t("New Chart", "కొత్త చార్ట్")}
+              {selectedHouse && (
+                <div style={{
+                  marginTop: 12,
+                  padding: "10px 12px",
+                  background: "rgba(255,255,255,0.02)",
+                  border: "0.5px solid rgba(255,255,255,0.06)",
+                  borderRadius: 10,
+                  position: "relative"
+                }}>
+                  <button
+                    onClick={() => setSelectedHouse(null)}
+                    style={{ position: "absolute", top: 8, right: 8, border: "none", background: "transparent", color: "var(--muted)", cursor: "pointer", fontSize: 12 }}
+                  >
+                    ×
                   </button>
+                  <div style={{ fontSize: 10, color: "var(--accent)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 4 }}>
+                    House {selectedHouse} Significations
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--text)", lineHeight: 1.4 }}>
+                    {HOUSE_TOPICS[selectedHouse]}
+                  </div>
                 </div>
               )}
-              {/* Phase 3 — sidebar restructure (#B).
-                  REMOVED:
-                    1. Avatar + name + birth-details + KP/Placidus badges
-                       block. The persistent header (PersonHeroBanner)
-                       already carries this; showing it again here was
-                       pure duplication and the dead-air below it ate
-                       half the rail.
-                    2. The "PANCHANG · NOW" / "TODAY" sidebar widget. Its
-                       content moved up to <TodayStrip>, which is sticky,
-                       discoverable, and scoped to one job.
-                  KEPT: the chart switcher (the only thing that earns a
-                  permanent rail). */}
+
+
+
+              {/* Ruling Planets Strip */}
+              {workspaceData.ruling_planets && (
+                <div style={{ borderTop: "0.5px solid rgba(255,255,255,0.08)", marginTop: 12, paddingTop: 12 }}>
+                  <SectionEyebrow te="రూలింగ్ గ్రహాలు" en="Ruling Planets @ Birth" />
+                  <RPContextStrip ctx={workspaceData.ruling_planets?.rp_context || workspaceData.ruling_planets} locationName={birthDetails.place} />
+                </div>
+              )}
             </div>
           )}
 
-          {/* Main content */}
-          <div className="workspace-main" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
-            {/* Phase 3 — Today panchang strip (#F). Phase 8 / PR 21 — pills
-                are clickable shortcuts into the Panchang tab.
-                Phase 10 / PR 27 — when liveLoc has resolved (browser geo
-                or manual city pick), `liveTodayPanchang` carries today's
-                panchang for the user's CURRENT location and we render
-                that. Falls back to the chart-load `panchangam_today`
-                snapshot (birth lat/lon) when live data isn't available
-                yet — and the strip's eyebrow pill says so. */}
-            {(liveTodayPanchang || workspaceData?.panchangam_today) && (
-              <TodayStrip
-                data={liveTodayPanchang ?? workspaceData.panchangam_today}
-                isLive={!!liveTodayPanchang}
-                cityLabel={liveTodayPanchang?._city}
-                onJumpToPanchang={() => setActiveTab("panchang")}
-              />
-            )}
-
-            {/* Tabs */}
-            <div className="tab-bar" style={{ display: "flex", borderBottom: "0.5px solid var(--border)", background: "var(--surface)", overflowX: "auto", flexShrink: 0 }}>
-              {TABS.map(tab => {
+          {/* CENTER workspace: responsive tab selector and scrolling tab calculations */}
+          <div className="desk-center-workspace celestial-glass celestial-panel" data-lenis-prevent style={{ display: "flex", flexDirection: "column", gridColumn: activeTab === "match" ? "span 2" : "span 1", borderRadius: 12 }}>
+            <div className="tab-bar" style={{ display: "flex", borderBottom: "0.5px solid rgba(255,255,255,0.08)", background: "rgba(13, 13, 22, 0.45)", overflowX: "auto", flexShrink: 0 }}>
+              {TABS.filter(tab => tab.id !== "analysis").map(tab => {
                 const TabIcon = tab.Icon;
                 const active = activeTab === tab.id;
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    onMouseEnter={e => { if (!active) e.currentTarget.style.background = "rgba(201,169,110,0.04)"; }}
-                    onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                    }}
                     style={{
-                      // Phase 5 / PR 14 — active tab now reads as a filled
-                      // gold pill (subtle bg + same gold underline) instead
-                      // of just a 2px line — much clearer at a glance.
-                      // Inactive tabs get a hint of gold on hover so the
-                      // tab bar feels alive (#M).
                       padding: "10px 16px",
-                      background: active ? "rgba(201,169,110,0.07)" : "transparent",
+                      background: "transparent",
                       border: "none",
                       borderBottom: active ? "2px solid var(--accent)" : "2px solid transparent",
                       color: active ? "var(--accent)" : "var(--muted)",
                       cursor: "pointer",
                       fontFamily: "inherit",
                       whiteSpace: "nowrap",
-                      transition: "color 0.15s, border-color 0.15s, background 0.15s",
+                      transition: "color 0.15s, border-color 0.15s",
                       flexShrink: 0,
                       display: "flex",
                       flexDirection: "column",
@@ -2577,7 +3507,6 @@ export default function Home() {
                     }}
                   >
                     <TabIcon size={15} strokeWidth={1.8} />
-                    {/* Primary + secondary lines — hidden based on lang */}
                     <span style={{ fontSize: 11 }}>
                       {lang === "en" ? tab.en : tab.te}
                     </span>
@@ -2587,28 +3516,32 @@ export default function Home() {
                   </button>
                 );
               })}
+
+              {/* AI sidebar toggle button */}
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                style={{
+                  marginLeft: "auto",
+                  padding: "10px 16px",
+                  background: "transparent",
+                  border: "none",
+                  color: sidebarOpen ? "var(--accent)" : "var(--muted)",
+                  cursor: "pointer",
+                  fontSize: 11,
+                  fontFamily: "inherit",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6
+                }}
+              >
+                <MessageSquare size={14} style={{ color: sidebarOpen ? "var(--accent)" : "inherit" }} />
+                <span>{sidebarOpen ? t("Close AI", "AI మూసివేయి") : t("AI Companion", "AI తోడు")}</span>
+              </button>
             </div>
 
-            {/* Phase 3 — chart context strip (#A).
-                Lagna / Moon / Sun + current dasha (MD/AD/PAD) + RPs at
-                birth — moved here from the persistent header so they sit
-                attached to the chart-related tabs where they're relevant.
-                Skipped on Panchang / Muhurtha / Horary which have their
-                own situational context (live RPs, event RPs, prashna
-                RPs respectively) and don't need the natal chips on top. */}
-            {workspaceData && ["chart", "houses", "dasha", "analysis", "match"].includes(activeTab) && (
-              <ChartContextStrip workspaceData={workspaceData as WorkspaceData} />
-            )}
-
-            {/* Tab content */}
+            {/* Scrollable calculations wrapper */}
             <div style={{ flex: 1, overflow: "auto", padding: "1.25rem" }}>
-
-              {/* CHART — two-column: chart left, PlanetList right */}
-              {/* PR R1 (Phase A foundation refactor) — chart tab extracted to
-                  tabs/ChartTab.tsx as proof-of-pattern. Same behavior, ~108
-                  lines of JSX moved out of page.tsx. chartView state moved
-                  into the component (tab-local); selectedHouse stays here
-                  because HousesTab (next extraction) also reads it. */}
               {activeTab === "chart" && workspaceData && (
                 <ChartTab
                   workspaceData={workspaceData as WorkspaceData}
@@ -2617,10 +3550,6 @@ export default function Home() {
                 />
               )}
 
-              {/* PR R2 (Phase A refactor) — HOUSES tab extracted to
-                  tabs/HousesTab.tsx. Tab-local state (housesSubTab,
-                  cslSelectedHouse, showSigGrid) moved into the component.
-                  selectedHouse stays in parent (shared with ChartTab). */}
               {activeTab === "houses" && workspaceData && (
                 <HousesTab
                   workspaceData={workspaceData as WorkspaceData}
@@ -2629,17 +3558,6 @@ export default function Home() {
                 />
               )}
 
-              {/* ────────────────────────────────────────────────
-                   DASHA (Vimshottari) — PR19 wow pass.
-                   Serif page hero, 3-card "Currently running" hero
-                   with breathing MD card and progress bars, premium
-                   section headers for AD timeline + PAD list,
-                   polished PAD cards, Transit (PR18) at the bottom.
-                   Full i18n — no hardcoded Telugu.
-                   ──────────────────────────────────────────────── */}
-              {/* PR R3 (Phase A refactor) — DASHA tab extracted to
-                  tabs/DashaTab.tsx. Transit state (8 vars) bundled
-                  into transitState prop to keep the interface clean. */}
               {activeTab === "dasha" && workspaceData && (
                 <DashaTab
                   workspaceData={workspaceData as WorkspaceData}
@@ -2663,13 +3581,12 @@ export default function Home() {
                 />
               )}
 
-              {/* PANCHANGAM TAB */}
-              {/* PR R8 (Phase A refactor) — PANCHANG tab extracted. FINAL TAB. */}
               {activeTab === "panchang" && (
                 <PanchangTab
                   workspaceData={workspaceData}
                   apiUrl={API_URL}
                   liveLoc={liveLoc}
+                  searchPcCities={searchPcCities}
                   pcData={pcData} setPcData={setPcData}
                   pcLoading={pcLoading} setPcLoading={setPcLoading}
                   pcLocationName={pcLocationName} setPcLocationName={setPcLocationName}
@@ -2688,7 +3605,6 @@ export default function Home() {
                 />
               )}
 
-              {/* PR R7 (Phase A refactor) — MUHURTHA tab extracted */}
               {activeTab === "muhurtha" && (
                 <MuhurthaTab
                   workspaceData={workspaceData}
@@ -2721,6 +3637,8 @@ export default function Home() {
                   handleMEventLocSearch={handleMEventLocSearch}
                   handleMNewPDateChange={handleMNewPDateChange}
                   handleMNewPTimeChange={handleMNewPTimeChange}
+                  snapshotCurrentSession={snapshotCurrentSession}
+                  sessionToApiPerson={sessionToApiPerson}
                 />
               )}
 
@@ -2788,66 +3706,85 @@ export default function Home() {
                   setHoraryLoading={setHoraryLoading}
                 />
               )}
-
-              {/* ANALYSIS — chat bubble design + quick insights.
-                  Phase 11 / PR 28 — Analysis polish batch:
-                    - Topic chip strip is now sticky so users can switch
-                      topics without scrolling to top in long sessions (#A6)
-                    - Clear button asks for confirmation before wiping
-                      conversation history (#A8)
-                    - Topic grid expanded to 10 to match Horary canon (#A9)
-                    - AI bubbles capped to 80ch readable width (#A17)
-                    - Timestamps under each AI bubble (#A16) */}
-              {/* PR R4 (Phase A refactor) — ANALYSIS tab extracted to
-                  tabs/AnalysisTab.tsx. SACRED-ADJACENT per the AI Quality
-                  Preservation Protocol — all chat state stays in parent,
-                  passed as props; the AnalysisTab is pure rendering. */}
-              {activeTab === "analysis" && (
-                <AnalysisTab
-                  analysisMessages={analysisMessages as any}
-                  setAnalysisMessages={setAnalysisMessages as any}
-                  analysisLoading={analysisLoading}
-                  setAnalysisLoading={setAnalysisLoading}
-                  activeTopic={activeTopic}
-                  setActiveTopic={setActiveTopic}
-                  analysisLang={analysisLang}
-                  setAnalysisLang={setAnalysisLang}
-                  setChatQ={setChatQ}
-                  handleTopicAnalysis={handleTopicAnalysis}
-                  askStreamAbortRef={askStreamAbortRef}
-                  analyzeStreamAbortRef={analyzeStreamAbortRef}
-                  chatEndRef={chatEndRef}
-                />
-              )}
             </div>
 
-            {/* Chat input (workspace-level — visible on every tab except
-                Horary, Panchang, Muhurtha, where it would either route
-                to Analysis AI which doesn't know about those tabs' data,
-                or duplicate the tab's own dedicated Ask strip.
-                PR A1.1b hid it on Horary, PR A1.2b extends to Panchang.
-                Phase 4 / PR 10 (#22) extends to Muhurtha — the AI
-                Muhurtha Analysis card has its own Ask + suggestion
-                chips, so showing this strip below it was strict noise. */}
+            {/* Workspace Ask Bar */}
             {activeTab !== "horary" && activeTab !== "panchang" && activeTab !== "muhurtha" && (
-            <div style={{ borderTop: "0.5px solid var(--border)", padding: "0.75rem 1.25rem", background: "var(--surface)", display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
-              <input
-                value={chatQ}
-                onChange={e => setChatQ(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") handleWorkspaceChat(); }}
-                placeholder={t("Ask a deeper question…", "లోతైన విశ్లేషణ కోసం అడగండి…")}
-                style={{ flex: 1, background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 8, padding: "9px 14px", fontSize: 13, color: "var(--text)", outline: "none", fontFamily: "inherit" }}
-              />
-              <button onClick={handleWorkspaceChat} disabled={analysisLoading || !chatQ.trim()}
-                style={{ background: chatQ.trim() ? "var(--accent)" : "var(--surface2)", color: chatQ.trim() ? "#09090f" : "var(--muted)", border: "none", borderRadius: 8, padding: "9px 18px", fontSize: 13, cursor: chatQ.trim() ? "pointer" : "default", fontWeight: 500, fontFamily: "inherit" }}>
-                {t("Ask", "అడగు")}
-              </button>
-            </div>
+              <div style={{ borderTop: "0.5px solid var(--border)", padding: "0.75rem 1.25rem", background: "var(--surface)", display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+                <input
+                  value={chatQ}
+                  onChange={e => setChatQ(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") handleWorkspaceChat(); }}
+                  placeholder={t("Ask a deeper question…", "లోతైన విశ్లేషణ కోసం అడగండి…")}
+                  style={{ flex: 1, background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 8, padding: "9px 14px", fontSize: 13, color: "var(--text)", outline: "none", fontFamily: "inherit" }}
+                />
+                <button onClick={handleWorkspaceChat} disabled={analysisLoading || !chatQ.trim()}
+                  style={{ background: chatQ.trim() ? "var(--accent)" : "var(--surface2)", color: chatQ.trim() ? "#09090f" : "var(--muted)", border: "none", borderRadius: 8, padding: "9px 18px", fontSize: 13, cursor: chatQ.trim() ? "pointer" : "default", fontWeight: 500, fontFamily: "inherit" }}>
+                  {t("Ask", "అడగు")}
+                </button>
+              </div>
             )}
           </div>
-        </div>
-        </div>
-      )}
+
+          {/* RIGHT panel: Collapsible AI Companion Sidebar */}
+          {sidebarOpen && !aiMaximized && (
+            <div
+              className="desk-right-sidebar celestial-glass celestial-panel"
+              style={{
+                width: 340,
+                display: "flex",
+                flexDirection: "column",
+                height: "100%",
+                overflow: "hidden",
+                borderRadius: 12,
+              }}
+            >
+              {renderAiContent(false)}
+            </div>
+          )}
+
+        </div> {/* Closes astrologer-desk-grid */}
+
+        {/* Centered floating Notion-style AI companion */}
+        {sidebarOpen && aiMaximized && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 9999,
+              backgroundColor: "rgba(3, 3, 5, 0.55)",
+              backdropFilter: "blur(6px)",
+              WebkitBackdropFilter: "blur(6px)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "24px",
+            }}
+            onClick={() => {
+              setAiMaximized(false);
+            }}
+          >
+            <div
+              className="celestial-glass celestial-panel"
+              onClick={e => e.stopPropagation()}
+              style={{
+                width: "min(960px, 92vw)",
+                height: "85vh",
+                display: "flex",
+                flexDirection: "column",
+                borderRadius: 16,
+                border: "1px solid rgba(212, 175, 55, 0.35)",
+              }}
+            >
+              {renderAiContent(true)}
+            </div>
+          </div>
+        )}
+      </div> {/* Closes outer wrapper */}
+    </>
+  )
+)}
+
 
       {/* ── USER CHAT ── */}
       {/* PR A1.3-fix-15 — User-mode UI revamp.
@@ -2879,15 +3816,29 @@ export default function Home() {
           only after the chart is set up (no point showing nav during
           onboarding). Provides draggable tab access + power actions. */}
       {setupDone && isMobile && (
-        <CommandOrb
-          tabs={TABS}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          onNewChart={handleNewChart}
-          sessions={savedSessions}
-          currentSessionId={currentSessionId}
-          onSwitchSession={handleSwitchSession}
-        />
+        <>
+          <MobileChartSheet
+            isOpen={mobileChartSheetOpen}
+            onClose={() => setMobileChartSheetOpen(false)}
+            planets={workspaceData?.planets || []}
+            cusps={workspaceData?.cusps || []}
+            onHouseClick={setSelectedHouse}
+            selectedHouse={selectedHouse}
+          />
+
+          {!selectedHouse && !mobileChartSheetOpen && (
+            <CommandOrb
+              tabs={TABS}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              onNewChart={handleNewChart}
+              sessions={savedSessions}
+              currentSessionId={currentSessionId}
+              onSwitchSession={handleSwitchSession}
+              onShowChartOverlay={() => setMobileChartSheetOpen(true)}
+            />
+          )}
+        </>
       )}
 
       {/* Phase 13.2 — on-screen Anthropic call counter. Always visible

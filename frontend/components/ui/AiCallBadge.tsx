@@ -13,16 +13,23 @@
 
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAiAuditLog, clearAiAuditLog, type AiAuditEntry } from "@/lib/aiAudit";
 
 const fmtTime = (ts: number) =>
   new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
 export function AiCallBadge() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const log = useAiAuditLog();
   const [open, setOpen] = useState(false);
   const count = log.length;
+
+  if (!mounted) return null;
 
   return (
     <div

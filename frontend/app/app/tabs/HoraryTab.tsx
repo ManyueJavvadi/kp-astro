@@ -133,9 +133,9 @@ export function HoraryTab({
           {!horaryResult ? (
             <>
               {/* Hero question card */}
-              <div style={{ background: "var(--surface2)", border: "0.5px solid rgba(201,169,110,0.25)", borderRadius: 14, padding: "20px 20px 16px", position: "relative" as const, overflow: "hidden" }}>
+              <div className="celestial-glass celestial-panel" style={{ border: "1px solid rgba(212, 175, 55, 0.25)", borderRadius: 14, padding: "20px 20px 16px", position: "relative" as const, overflow: "hidden" }}>
                 <div style={{ position: "absolute" as const, top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, transparent, rgba(201,169,110,0.4), transparent)" }} />
-                <div style={{ fontSize: 11, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <div className="celestial-serif" style={{ fontSize: 11, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6 }}>
                   <Sparkles size={12} strokeWidth={1.8} />
                   {t("Your question", "మీ ప్రశ్న")}
                 </div>
@@ -187,8 +187,8 @@ export function HoraryTab({
                   Big serif digit with breathing gold glow, radial halo
                   behind it, Random rolls an animated counter, steppers
                   are circular and feel tactile. */}
-              <div style={{ background: "var(--surface2)", border: "0.5px solid rgba(201,169,110,0.18)", borderRadius: 14, padding: "28px 24px", textAlign: "center" as const }}>
-                <div style={{ fontSize: 11, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6, fontWeight: 600 }}>
+              <div className="celestial-glass celestial-panel" style={{ border: "1px solid rgba(212, 175, 55, 0.2)", borderRadius: 14, padding: "28px 24px", textAlign: "center" as const }}>
+                <div className="celestial-serif" style={{ fontSize: 11, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6, fontWeight: 600 }}>
                   {t("Pick a number", "సంఖ్య ఎంచుకోండి")}
                 </div>
                 <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 24, maxWidth: 380, margin: "0 auto 24px" }}>
@@ -297,10 +297,20 @@ export function HoraryTab({
                         if (tick >= steps) {
                           if (horaryRollRef.current) clearInterval(horaryRollRef.current);
                           horaryRollRef.current = null;
+                          try {
+                            if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+                              navigator.vibrate([12, 35, 12]);
+                            }
+                          } catch { /* ignore */ }
                           setHoraryNumber(finalN);
                           setTimeout(() => setHoraryDiceSpin(false), 200);
                           return;
                         }
+                        try {
+                          if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+                            navigator.vibrate(8);
+                          }
+                        } catch { /* ignore */ }
                         setHoraryNumber(Math.floor(Math.random() * 249) + 1);
                       }, 65);
                     }}
@@ -414,9 +424,9 @@ export function HoraryTab({
               </div>
 
               {/* How KP Horary works — explainer card (ported from developv2) */}
-              <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 14, padding: "18px 20px" }}>
-                <div style={{ fontSize: 11, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 8, fontWeight: 600 }}>
-                  {t("How KP Horary works", "KP హోరరీ ఎలా పనిచేస్తుంది")}
+              <div className="celestial-glass celestial-panel" style={{ border: "1px solid rgba(212, 175, 55, 0.15)", borderRadius: 14, padding: "18px 20px" }}>
+                <div className="celestial-serif" style={{ fontSize: 11, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 8, fontWeight: 600 }}>
+                  {t("How KP Horary works", "KP హోరరీ ఎలా㴌నిచేస్తుంది")}
                 </div>
                 <div style={{ fontSize: 13, color: "var(--text)", lineHeight: 1.65, opacity: 0.88 }}>
                   {t(
@@ -441,32 +451,35 @@ export function HoraryTab({
                 </button>
 
                 {/* Question recap */}
-                <div style={{ padding: "10px 14px", background: "rgba(201,169,110,0.06)", border: "0.5px solid rgba(201,169,110,0.2)", borderRadius: 8, fontSize: 12, color: "var(--muted)", fontStyle: "italic" }}>
-                  "{horaryQuestion}" <span style={{ color: "var(--accent)", fontStyle: "normal" }}>#{r.prashna_number}</span>
+                <div className="celestial-mono" style={{ padding: "10px 14px", background: "rgba(201,169,110,0.06)", border: "0.5px solid rgba(201,169,110,0.2)", borderRadius: 8, fontSize: 12, color: "var(--muted)", fontStyle: "italic" }}>
+                  "{horaryQuestion}" <span className="celestial-serif" style={{ color: "var(--accent)", fontStyle: "normal" }}>#{r.prashna_number}</span>
                 </div>
 
                 {/* Verdict hero — serif word, fade+scale entrance, radial glow.
                     This is the moment of the whole tab. */}
                 <div
-                  className="horary-verdict-card"
+                  className="horary-verdict-card celestial-glass celestial-panel"
                   style={{
                     textAlign: "center" as const,
                     padding: "36px 20px 28px",
-                    background: `radial-gradient(ellipse at 50% 0%, ${verdictColor}22 0%, transparent 70%), var(--surface2)`,
-                    border: `1px solid ${verdictColor}40`,
+                    background: `radial-gradient(ellipse at 50% 0%, ${verdictColor}18 0%, rgba(20,20,30,0.6) 80%), rgba(10,10,15,0.4)`,
+                    border: `1px solid rgba(212, 175, 55, 0.35)`,
                     borderRadius: 16,
                     position: "relative" as const,
-                    boxShadow: `0 30px 60px -30px ${verdictColor}40, 0 0 0 1px ${verdictColor}10 inset`,
+                    boxShadow: `0 30px 60px -30px ${verdictColor}30, 0 0 12px 2px rgba(212,175,55,0.08)`,
                     overflow: "hidden" as const,
                   }}
                 >
                   <div style={{ display: "inline-flex", alignItems: "center", gap: 20, lineHeight: 1 }}>
                     <VerdictIcon size={52} strokeWidth={1.6} color={verdictColor} />
                     <div
-                      className="horary-verdict-word"
+                      className="horary-verdict-word celestial-serif"
                       style={{
                         color: verdictColor,
                         textShadow: `0 0 48px ${verdictColor}60, 0 0 96px ${verdictColor}30`,
+                        fontSize: "3.5rem",
+                        fontWeight: "bold",
+                        letterSpacing: "0.08em",
                       }}
                     >
                       {v.verdict || "MAYBE"}

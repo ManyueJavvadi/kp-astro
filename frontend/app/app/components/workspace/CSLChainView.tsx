@@ -2,124 +2,231 @@
 import React, { useState } from "react";
 import { PLANET_COLORS } from "../constants";
 import { CSLChain, HOUSE_TOPICS } from "../../types/workspace";
+import { ChevronRight, Award, AlertCircle, Sparkles } from "lucide-react";
 
 interface CSLChainViewProps {
   houseNum: number;
   chain: CSLChain;
 }
 
-function PlanetTag({ name, house, rules }: { name: string; house: number; rules: number[] }) {
-  const color = PLANET_COLORS[name] ?? "#c9a96e";
-  return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-      <span style={{ color, fontWeight: 600 }}>{name}</span>
-      <span style={{
-        fontSize: 9, color: "#888899", background: "rgba(255,255,255,0.06)",
-        border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 4, padding: "1px 4px",
-      }}>
-        H{house}
-      </span>
-      {rules.length > 0 && (
-        <span style={{ fontSize: 10, color: "#666677" }}>
-          owns {rules.map(r => `H${r}`).join(", ")}
-        </span>
-      )}
-    </span>
-  );
-}
-
 export default function CSLChainView({ houseNum, chain }: CSLChainViewProps) {
   const [expanded, setExpanded] = useState(true);
   const topic = HOUSE_TOPICS[houseNum] ?? "";
-
   const isSignified = chain.all_significations.includes(houseNum);
 
+  // Define house groups for visual favorability / denial colors (traditional KP significations)
+  // E.g., Career (H10) is favored by H2, H6, H10, H11, denied by H5, H8, H12.
+  // Marriage (H7) is favored by H2, H7, H11, denied by H1, H6, H10.
+  // We can color code based on these rules dynamically!
+  const getHouseRole = (h: number) => {
+    if (houseNum === 7) {
+      if ([2, 7, 11].includes(h)) return "favorable";
+      if ([1, 6, 10].includes(h)) return "denial";
+    } else if (houseNum === 10) {
+      if ([2, 6, 10, 11].includes(h)) return "favorable";
+      if ([5, 8, 12].includes(h)) return "denial";
+    } else if (houseNum === 11) {
+      if ([2, 11].includes(h)) return "favorable";
+      if ([8, 12].includes(h)) return "denial";
+    }
+    return "neutral";
+  };
+
+  const getPlanetColor = (name: string) => PLANET_COLORS[name] ?? "#c9a96e";
+
   return (
-    <div style={{
-      background: "var(--elevated)",
-      border: "0.5px solid rgba(201,169,110,0.2)",
-      borderRadius: 12,
-      padding: "12px 14px",
+    <div className="celestial-panel" style={{
+      borderRadius: 14,
+      padding: "16px 18px",
       fontSize: 13,
+      marginBottom: 12,
+      background: "rgba(18, 18, 28, 0.45)",
+      border: "0.5px solid rgba(201, 169, 110, 0.15)",
     }}>
       {/* Header */}
       <div
         style={{
           display: "flex", justifyContent: "space-between", alignItems: "center",
-          cursor: "pointer", marginBottom: expanded ? 10 : 0,
+          cursor: "pointer", marginBottom: expanded ? 14 : 0,
         }}
         onClick={() => setExpanded(e => !e)}
       >
-        <div>
-          <span style={{ fontWeight: 700, color: "#c9a96e" }}>H{houseNum}</span>
-          {topic && (
-            <span style={{ fontSize: 11, color: "#666677", marginLeft: 8 }}>
-              — {topic}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{
+            width: 24, height: 24, borderRadius: 6,
+            background: "rgba(201, 169, 110, 0.12)",
+            border: "1px solid rgba(201, 169, 110, 0.35)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 11, fontWeight: 700, color: "#c9a96e"
+          }}>
+            H{houseNum}
+          </div>
+          <div>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--accent)" }}>
+              {topic || `House ${houseNum}`}
             </span>
-          )}
+            <span style={{ fontSize: 10, color: "var(--muted)", marginLeft: 6 }}>
+              CSL Chain
+            </span>
+          </div>
         </div>
         <span style={{ color: "#666677", fontSize: 11 }}>{expanded ? "▲" : "▼"}</span>
       </div>
 
       {expanded && (
         <div className="fade-in">
-          {/* Divider */}
-          <div style={{ height: 1, background: "rgba(255,255,255,0.06)", marginBottom: 10 }} />
+          {/* 4-Step CSL Chain Flowchart */}
+          <div style={{ overflowX: "auto", paddingBottom: 10, margin: "10px 0" }}>
+            <div className="csl-node-row" style={{ minWidth: 460 }}>
+              
+              {/* Step 1: CSL Planet */}
+              <div className="csl-node-box is-active-cusp">
+                <span className="csl-node-title">Step 1: CSL</span>
+                <span className="csl-node-value" style={{ color: getPlanetColor(chain.csl) }}>
+                  {chain.csl}
+                </span>
+                <span className="csl-node-sub">
+                  Pos: H{chain.csl_house}
+                </span>
+                {chain.csl_rules.length > 0 && (
+                  <span style={{ fontSize: 8, color: "var(--muted)", marginTop: 2 }}>
+                    Owns: {chain.csl_rules.map(r => `H${r}`).join(",")}
+                  </span>
+                )}
+              </div>
 
-          {/* CSL Level 1 */}
-          <div style={{ marginBottom: 8 }}>
-            <span style={{ fontSize: 10, color: "#888899", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              CSL (Sub-Lord)
-            </span>
-            <div style={{ marginTop: 4, fontSize: 12 }}>
-              <PlanetTag name={chain.csl} house={chain.csl_house} rules={chain.csl_rules} />
+              <ChevronRight size={14} className="csl-node-arrow" />
+
+              {/* Step 2: Star Lord */}
+              <div className="csl-node-box">
+                <span className="csl-node-title">Step 2: Star Lord</span>
+                <span className="csl-node-value" style={{ color: getPlanetColor(chain.csl_star_lord) }}>
+                  {chain.csl_star_lord}
+                </span>
+                <span className="csl-node-sub">
+                  Pos: H{chain.csl_star_lord_house}
+                </span>
+                {chain.csl_star_lord_rules.length > 0 && (
+                  <span style={{ fontSize: 8, color: "var(--muted)", marginTop: 2 }}>
+                    Owns: {chain.csl_star_lord_rules.map(r => `H${r}`).join(",")}
+                  </span>
+                )}
+              </div>
+
+              <ChevronRight size={14} className="csl-node-arrow" />
+
+              {/* Step 3: Sub Lord */}
+              <div className="csl-node-box">
+                <span className="csl-node-title">Step 3: Sub Lord</span>
+                <span className="csl-node-value" style={{ color: getPlanetColor(chain.csl_sub_lord) }}>
+                  {chain.csl_sub_lord}
+                </span>
+                <span className="csl-node-sub">
+                  Pos: H{chain.csl_sub_lord_house}
+                </span>
+                {chain.csl_sub_lord_rules.length > 0 && (
+                  <span style={{ fontSize: 8, color: "var(--muted)", marginTop: 2 }}>
+                    Owns: {chain.csl_sub_lord_rules.map(r => `H${r}`).join(",")}
+                  </span>
+                )}
+              </div>
+
+              <ChevronRight size={14} className="csl-node-arrow" />
+
+              {/* Step 4: CSL Verdict */}
+              <div className={`csl-node-box ${isSignified ? "is-favorable" : "is-denial"}`}>
+                <span className="csl-node-title">Step 4: Verdict</span>
+                <span className="csl-node-value" style={{ 
+                  color: isSignified ? "#10B981" : "#F59E0B",
+                  fontSize: 12,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 3,
+                  marginTop: 4
+                }}>
+                  {isSignified ? <Sparkles size={12} /> : <AlertCircle size={12} />}
+                  {isSignified ? "Promised" : "Weak"}
+                </span>
+                <span className="csl-node-sub" style={{ opacity: 0.8, color: isSignified ? "#34d399" : "#f87171" }}>
+                  {isSignified ? "CSL connects H" + houseNum : "No direct link"}
+                </span>
+              </div>
+
             </div>
           </div>
 
-          {/* Star Lord (level 2) */}
-          <div style={{ marginBottom: 8, paddingLeft: 14, borderLeft: "2px solid rgba(255,255,255,0.06)" }}>
-            <span style={{ fontSize: 10, color: "#666677" }}>↳ Star Lord</span>
-            <div style={{ marginTop: 4, fontSize: 12 }}>
-              <PlanetTag
-                name={chain.csl_star_lord}
-                house={chain.csl_star_lord_house}
-                rules={chain.csl_star_lord_rules}
-              />
+          {/* All significations with favorable/denial highlights */}
+          <div style={{ marginTop: 14, padding: "10px 12px", background: "rgba(255,255,255,0.02)", borderRadius: 10, border: "0.5px solid rgba(255,255,255,0.04)" }}>
+            <div style={{ fontSize: 10, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>
+              All Activated Houses via CSL
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {chain.all_significations.sort((a, b) => a - b).map(h => {
+                const role = getHouseRole(h);
+                let badgeStyle: React.CSSProperties = {
+                  fontSize: 11,
+                  padding: "3px 8px",
+                  borderRadius: 6,
+                  background: "rgba(255,255,255,0.04)",
+                  border: "0.5px solid rgba(255,255,255,0.08)",
+                  color: "var(--text)",
+                };
+                if (role === "favorable") {
+                  badgeStyle = {
+                    ...badgeStyle,
+                    background: "rgba(16, 185, 129, 0.12)",
+                    border: "0.5px solid rgba(16, 185, 129, 0.4)",
+                    color: "#34d399",
+                    fontWeight: 600,
+                  };
+                } else if (role === "denial") {
+                  badgeStyle = {
+                    ...badgeStyle,
+                    background: "rgba(239, 68, 68, 0.12)",
+                    border: "0.5px solid rgba(239, 68, 68, 0.4)",
+                    color: "#f87171",
+                    fontWeight: 600,
+                  };
+                }
+                return (
+                  <span key={h} style={badgeStyle} title={role !== "neutral" ? `${role} house for H${houseNum}` : ""}>
+                    H{h}
+                  </span>
+                );
+              })}
             </div>
           </div>
 
-          {/* Sub Lord (level 3) */}
-          <div style={{ marginBottom: 10, paddingLeft: 28, borderLeft: "2px solid rgba(255,255,255,0.04)" }}>
-            <span style={{ fontSize: 10, color: "#555566" }}>↳ Sub Lord</span>
-            <div style={{ marginTop: 4, fontSize: 12 }}>
-              <PlanetTag
-                name={chain.csl_sub_lord}
-                house={chain.csl_sub_lord_house}
-                rules={chain.csl_sub_lord_rules}
-              />
-            </div>
-          </div>
-
-          {/* All significations */}
-          <div style={{ marginBottom: 10 }}>
-            <span style={{ fontSize: 10, color: "#888899" }}>All Significations: </span>
-            <span style={{ fontSize: 11, color: "#b0b0c0" }}>
-              {chain.all_significations.sort((a, b) => a - b).map(h => `H${h}`).join(", ")}
-            </span>
-          </div>
-
-          {/* Verdict */}
-          <div style={{
-            display: "inline-flex", alignItems: "center", gap: 6,
-            padding: "4px 10px", borderRadius: 8,
-            background: isSignified ? "rgba(52,211,153,0.1)" : "rgba(248,113,113,0.1)",
-            border: `0.5px solid ${isSignified ? "rgba(52,211,153,0.3)" : "rgba(248,113,113,0.3)"}`,
+          {/* Verdict description text */}
+          <div style={{ 
+            marginTop: 12, 
+            display: "flex", 
+            gap: 8, 
+            alignItems: "flex-start",
+            padding: "8px 10px", 
+            borderRadius: 8, 
+            background: isSignified ? "rgba(52,211,153,0.05)" : "rgba(245,158,11,0.05)",
+            border: `0.5px solid ${isSignified ? "rgba(52,211,153,0.15)" : "rgba(245,158,11,0.15)"}`,
+            fontSize: 11,
+            color: "var(--text)"
           }}>
-            <span style={{ fontSize: 13 }}>{isSignified ? "✓" : "✗"}</span>
-            <span style={{ fontSize: 11, color: isSignified ? "#34d399" : "#f87171", fontWeight: 600 }}>
-              H{houseNum} {isSignified ? "SIGNIFIED" : "NOT SIGNIFIED"}
-            </span>
+            {isSignified ? (
+              <>
+                <Award size={14} style={{ color: "#34d399", flexShrink: 0, marginTop: 1 }} />
+                <span>
+                  <b>Strong Promise:</b> CSL {chain.csl} is connected to H{houseNum} via Star Lord {chain.csl_star_lord}. This guarantees positive events related to {topic.toLowerCase()} during favorable dasha periods.
+                </span>
+              </>
+            ) : (
+              <>
+                <AlertCircle size={14} style={{ color: "#f87171", flexShrink: 0, marginTop: 1 }} />
+                <span>
+                  <b>Weak/Conditional:</b> CSL does not directly signify H{houseNum} through its star lord. Any promise for {topic.toLowerCase()} is conditional and requires strong transits or secondary RPs to activate.
+                </span>
+              </>
+            )}
           </div>
+
         </div>
       )}
     </div>

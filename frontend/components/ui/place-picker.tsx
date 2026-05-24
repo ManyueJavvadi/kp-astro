@@ -72,7 +72,6 @@ export function PlacePicker({
             addressdetails: 1,
             "accept-language": "en",
           },
-          headers: { "User-Agent": "DevAstroAI/1.0" },
         }
       );
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

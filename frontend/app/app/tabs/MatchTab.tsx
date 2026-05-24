@@ -1152,329 +1152,343 @@ export function MatchTab(props: MatchTabProps) {
 
             {/* ══════ OVERALL pane (Ashtakoota score anchor) ══════ */}
             {matchSubTab === "overall" && (
-            <div className="match-subtab-pane">
+            <div className="match-subtab-pane" style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))",
+              gap: "1.25rem",
+              width: "100%",
+              alignItems: "start",
+            }}>
 
-            {/* PR A1.5 — Why this verdict (KP-strict reasoning) */}
-            {kp?.kp_verdict_reasoning && (
-              <div className="match-section" style={{ background: "rgba(201,169,110,0.04)", border: "1px solid rgba(201,169,110,0.15)" }}>
-                <div className="match-section-title">
-                  <Sparkles size={12} strokeWidth={1.8} />
-                  {t("Why this verdict", "ఈ తీర్పుకు కారణం")}
-                </div>
-                <div style={{ fontSize: 12.5, lineHeight: 1.6, color: "var(--text)" }}>
-                  {kp.kp_verdict_reasoning}
-                </div>
-                {/* PR A1.6 — natal-vs-timing disambiguation note */}
-                <div style={{ fontSize: 10.5, color: "var(--muted)", marginTop: 8, fontStyle: "italic", lineHeight: 1.5 }}>
-                  {t(
-                    "Note: this verdict is the NATAL structural reading (does the chart promise marriage at all in this lifetime?). Timing-specific predictions live in the Timing tab and the AI analysis — both are based on current dasha + Ruling Planets.",
-                    "గమనిక: ఇది జనన చార్ట్ నిర్మాణ తీర్పు. ప్రస్తుత సమయపు తీర్పులకు Timing ట్యాబ్ + AI విశ్లేషణ చూడండి."
-                  )}
-                </div>
-                {/* Promise tier per person */}
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" as const, marginTop: 12 }}>
-                  {[
-                    { p: kp?.chart1_promise, name: r.person1?.name },
-                    { p: kp?.chart2_promise, name: r.person2?.name },
-                  ].map((it, i) => it.p && (
-                    <div key={i} style={{ flex: "1 1 240px", padding: "10px 12px", background: "var(--surface)", border: "0.5px solid var(--border)", borderRadius: 8 }}>
-                      <div style={{ fontSize: 10, color: "var(--muted)", textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 4 }}>{it.name}</div>
-                      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" as const }}>
-                        <span style={{
-                          fontSize: 10,
-                          fontWeight: 700,
-                          padding: "2px 8px",
-                          borderRadius: 999,
-                          background: it.p.promise_tier === "Full" ? "rgba(74,222,128,0.15)"
-                                    : it.p.promise_tier === "Partial" ? "rgba(251,191,36,0.15)"
-                                    : it.p.promise_tier === "Weak" ? "rgba(251,191,36,0.10)"
-                                    : "rgba(248,113,113,0.15)",
-                          color: it.p.promise_tier === "Full" ? "#4ade80"
-                               : it.p.promise_tier === "Partial" ? "#fbbf24"
-                               : it.p.promise_tier === "Weak" ? "#fbbf24"
-                               : "#f87171",
-                          letterSpacing: "0.04em",
-                        }}>{it.p.promise_tier?.toUpperCase() || "—"}</span>
-                        {/* PR A1.7 — KSK Reader V 5-tier verdict + A/B/C/D level */}
-                        {it.p.five_tier_verdict && (
-                          <span style={{
-                            fontSize: 10,
-                            fontWeight: 700,
-                            padding: "2px 8px",
-                            borderRadius: 999,
-                            background: it.p.five_tier_verdict === "STRONGLY PROMISED" ? "rgba(74,222,128,0.20)"
-                                      : it.p.five_tier_verdict === "PROMISED" ? "rgba(74,222,128,0.10)"
-                                      : it.p.five_tier_verdict === "CONDITIONAL" ? "rgba(251,191,36,0.15)"
-                                      : it.p.five_tier_verdict === "WEAKLY PROMISED" ? "rgba(251,191,36,0.10)"
-                                      : "rgba(248,113,113,0.15)",
-                            color: it.p.five_tier_verdict === "STRONGLY PROMISED" ? "#4ade80"
-                                 : it.p.five_tier_verdict === "PROMISED" ? "#4ade80"
-                                 : it.p.five_tier_verdict === "CONDITIONAL" ? "#fbbf24"
-                                 : it.p.five_tier_verdict === "WEAKLY PROMISED" ? "#fbbf24"
-                                 : "#f87171",
-                            letterSpacing: "0.04em",
-                          }} title={t("KSK Reader V 5-tier verdict — uses A/B/C/D significator strength",
-                                      "KSK Reader V 5-అంచెల తీర్పు")}>
-                            {it.p.five_tier_verdict}
-                          </span>
-                        )}
-                        {it.p.strongest_marriage_level && (
-                          <span style={{
-                            fontSize: 10,
-                            fontWeight: 700,
-                            padding: "2px 6px",
-                            borderRadius: 4,
-                            background: it.p.strongest_marriage_level === "A" ? "rgba(74,222,128,0.20)"
-                                      : it.p.strongest_marriage_level === "B" ? "rgba(74,222,128,0.12)"
-                                      : it.p.strongest_marriage_level === "C" ? "rgba(251,191,36,0.12)"
-                                      : "rgba(251,191,36,0.08)",
-                            color: it.p.strongest_marriage_level === "A" ? "#4ade80"
-                                 : it.p.strongest_marriage_level === "B" ? "#4ade80"
-                                 : "#fbbf24",
-                            border: "0.5px solid currentColor",
-                          }} title={t(
-                            "KSK significator strength: A=star of occupant (100%), B=occupant (75%), C=star of owner (50%), D=owner (25%)",
-                            "KSK సూచక బలం: A=నివాస నక్షత్రం (100%), B=నివాస (75%), C=అధిపతి నక్షత్రం (50%), D=అధిపతి (25%)"
-                          )}>
-                            {it.p.strongest_marriage_level}-level
-                          </span>
-                        )}
-                        <span style={{ fontSize: 12, color: "var(--text)" }}>
-                          H7 CSL <strong>{it.p.sub_lord}</strong> → H{(it.p.signified_houses || []).join(", H") || "—"}
-                        </span>
-                      </div>
-                      {it.p.has_denial && (
-                        <div style={{ fontSize: 10, color: "#f87171", marginTop: 4 }}>
-                          ⚠ {t("Denial houses hit", "నిరాకరణ భావాలు")}: H{(it.p.denial_houses_hit || []).join(", H")}
-                        </div>
-                      )}
-                      {it.p.csl_in_retrograde_star && (
-                        <div style={{ fontSize: 10, color: "#fbbf24", marginTop: 4 }}>
-                          ⚠ {t("H7 CSL in retrograde star — delay/non-fructification", "H7 CSL వక్ర నక్షత్రంలో — ఆలస్యం")}
-                        </div>
+              {/* Column 1: Detailed Astrological Verdicts & KP Promise Synthesis */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                {/* PR A1.5 — Why this verdict (KP-strict reasoning) */}
+                {kp?.kp_verdict_reasoning && (
+                  <div className="match-section celestial-glass celestial-panel" style={{ background: "rgba(201,169,110,0.04)", border: "1px solid rgba(212,175,55,0.25)" }}>
+                    <div className="match-section-title">
+                      <Sparkles size={12} strokeWidth={1.8} />
+                      {t("Why this verdict", "ఈ తీర్పుకు కారణం")}
+                    </div>
+                    <div style={{ fontSize: 13, lineHeight: 1.6, color: "var(--text)" }}>
+                      {kp.kp_verdict_reasoning}
+                    </div>
+                    {/* PR A1.6 — natal-vs-timing disambiguation note */}
+                    <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 10, fontStyle: "italic", lineHeight: 1.5 }}>
+                      {t(
+                        "Note: this verdict is the NATAL structural reading (does the chart promise marriage at all in this lifetime?). Timing-specific predictions live in the Timing tab and the AI analysis — both are based on current dasha + Ruling Planets.",
+                        "గమనిక: ఇది జనన చార్ట్ నిర్మాణ తీర్పు. ప్రస్తుత సమయపు తీర్పులకు Timing ట్యాబ్ + AI విశ్లేషణ చూడండి."
                       )}
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* PR A1.5 — Vargottama chips (high-quality marriage signal) */}
-            {(r.vargottama_chart1?.venus_vargottama || r.vargottama_chart1?.seventh_lord_vargottama
-              || r.vargottama_chart2?.venus_vargottama || r.vargottama_chart2?.seventh_lord_vargottama) && (
-              <div className="match-section" style={{ padding: "12px 14px" }}>
-                <div className="match-section-title">
-                  <Sparkles size={12} strokeWidth={1.8} />
-                  {t("Vargottama (D1 = D9)", "వర్గోత్తమ (D1 = D9)")}
-                </div>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const }}>
-                  {[
-                    { v: r.vargottama_chart1, name: r.person1?.name },
-                    { v: r.vargottama_chart2, name: r.person2?.name },
-                  ].map((it, i) => it.v && (it.v.venus_vargottama || it.v.seventh_lord_vargottama) && (
-                    <div key={i} style={{ flex: "1 1 240px", padding: "8px 12px", background: "rgba(74,222,128,0.06)", border: "0.5px solid rgba(74,222,128,0.25)", borderRadius: 8 }}>
-                      <div style={{ fontSize: 10, color: "var(--muted)", textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 3 }}>{it.name}</div>
-                      {it.v.venus_vargottama && (
-                        <div style={{ fontSize: 12, color: "#4ade80" }}>
-                          ✓ {t("Venus Vargottama", "శుక్ర వర్గోత్తమ")} ({it.v.venus_d1_sign})
+                    {/* Promise tier per person */}
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
+                      {[
+                        { p: kp?.chart1_promise, name: r.person1?.name },
+                        { p: kp?.chart2_promise, name: r.person2?.name },
+                      ].map((it, i) => it.p && (
+                        <div key={i} style={{ flex: "1 1 240px", padding: "10px 12px", background: "var(--surface)", border: "0.5px solid var(--border)", borderRadius: 8 }}>
+                          <div style={{ fontSize: 10, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>{it.name}</div>
+                          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                            <span style={{
+                              fontSize: 10,
+                              fontWeight: 700,
+                              padding: "2px 8px",
+                              borderRadius: 999,
+                              background: it.p.promise_tier === "Full" ? "rgba(74,222,128,0.15)"
+                                        : it.p.promise_tier === "Partial" ? "rgba(251,191,36,0.15)"
+                                        : it.p.promise_tier === "Weak" ? "rgba(251,191,36,0.10)"
+                                        : "rgba(248,113,113,0.15)",
+                              color: it.p.promise_tier === "Full" ? "#4ade80"
+                                   : it.p.promise_tier === "Partial" ? "#fbbf24"
+                                   : it.p.promise_tier === "Weak" ? "#fbbf24"
+                                   : "#f87171",
+                              letterSpacing: "0.04em",
+                            }}>{it.p.promise_tier?.toUpperCase() || "—"}</span>
+                            {/* PR A1.7 — KSK Reader V 5-tier verdict + A/B/C/D level */}
+                            {it.p.five_tier_verdict && (
+                              <span style={{
+                                fontSize: 10,
+                                fontWeight: 700,
+                                padding: "2px 8px",
+                                borderRadius: 999,
+                                background: it.p.five_tier_verdict === "STRONGLY PROMISED" ? "rgba(74,222,128,0.20)"
+                                          : it.p.five_tier_verdict === "PROMISED" ? "rgba(74,222,128,0.10)"
+                                          : it.p.five_tier_verdict === "CONDITIONAL" ? "rgba(251,191,36,0.15)"
+                                          : it.p.five_tier_verdict === "WEAKLY PROMISED" ? "rgba(251,191,36,0.10)"
+                                          : "rgba(248,113,113,0.15)",
+                                color: it.p.five_tier_verdict === "STRONGLY PROMISED" ? "#4ade80"
+                                     : it.p.five_tier_verdict === "PROMISED" ? "#4ade80"
+                                     : it.p.five_tier_verdict === "CONDITIONAL" ? "#fbbf24"
+                                     : it.p.five_tier_verdict === "WEAKLY PROMISED" ? "#fbbf24"
+                                     : "#f87171",
+                                letterSpacing: "0.04em",
+                              }} title={t("KSK Reader V 5-tier verdict — uses A/B/C/D significator strength",
+                                          "KSK Reader V 5-అంచెల తీర్పు")}>
+                                {it.p.five_tier_verdict}
+                              </span>
+                            )}
+                            {it.p.strongest_marriage_level && (
+                              <span style={{
+                                fontSize: 10,
+                                fontWeight: 700,
+                                padding: "2px 6px",
+                                borderRadius: 4,
+                                background: it.p.strongest_marriage_level === "A" ? "rgba(74,222,128,0.20)"
+                                          : it.p.strongest_marriage_level === "B" ? "rgba(74,222,128,0.12)"
+                                          : it.p.strongest_marriage_level === "C" ? "rgba(251,191,36,0.12)"
+                                          : "rgba(251,191,36,0.08)",
+                                color: it.p.strongest_marriage_level === "A" ? "#4ade80"
+                                     : it.p.strongest_marriage_level === "B" ? "#4ade80"
+                                     : "#fbbf24",
+                                border: "0.5px solid currentColor",
+                              }} title={t(
+                                "KSK significator strength: A=star of occupant (100%), B=occupant (75%), C=star of owner (50%), D=owner (25%)",
+                                "KSK సూచక బలం: A=నివాస నక్షత్రం (100%), B=నివాస (75%), C=అధిపతి నక్షత్రం (50%), D=అధిపతి (25%)"
+                              )}>
+                                {it.p.strongest_marriage_level}-level
+                              </span>
+                            )}
+                            <span style={{ fontSize: 12, color: "var(--text)" }}>
+                              H7 CSL <strong>{it.p.sub_lord}</strong> → H{(it.p.signified_houses || []).join(", H") || "—"}
+                            </span>
+                          </div>
+                          {it.p.has_denial && (
+                            <div style={{ fontSize: 10, color: "#f87171", marginTop: 4 }}>
+                              ⚠ {t("Denial houses hit", "నిరాకరణ భావాలు")}: H{(it.p.denial_houses_hit || []).join(", H")}
+                            </div>
+                          )}
+                          {it.p.csl_in_retrograde_star && (
+                            <div style={{ fontSize: 10, color: "#fbbf24", marginTop: 4 }}>
+                              ⚠ {t("H7 CSL in retrograde star — delay/non-fructification", "H7 CSL వక్ర నక్షత్రంలో — ఆలస్యం")}
+                            </div>
+                          )}
                         </div>
-                      )}
-                      {it.v.seventh_lord_vargottama && (
-                        <div style={{ fontSize: 12, color: "#4ade80" }}>
-                          ✓ {t(`7th Lord ${it.v.seventh_lord} Vargottama`, `7-అధిపతి ${it.v.seventh_lord} వర్గోత్తమ`)} ({it.v.seventh_lord_d1_sign})
-                        </div>
-                      )}
-                      <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 3 }}>{it.v.note}</div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                  </div>
+                )}
 
-            {/* PR A1.5 — Extended Dashakoota (Mahendra / Stree Deergha / Rajju) */}
-            {r.extended_koots && (
-              <div className="match-section">
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                  <div className="match-section-title" style={{ marginBottom: 0 }}>
-                    <Target size={12} strokeWidth={1.8} />
-                    {t("Extended Koots · Longevity & Progeny", "విస్తరించిన కూటాలు · దీర్ఘాయుష్షు & సంతానం")}
-                  </div>
-                  <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 18, lineHeight: 1, color: r.extended_koots.total_score >= 6 ? "#4ade80" : r.extended_koots.total_score >= 4 ? "var(--accent)" : "#f87171" }}>
-                    {r.extended_koots.total_score}<span style={{ fontSize: 12, color: "var(--muted)" }}>/{r.extended_koots.max_score}</span>
-                  </div>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column" as const, gap: 6 }}>
-                  {(r.extended_koots.koots || []).map((k: any, i: number) => {
-                    const pct = k.max > 0 ? (k.score / k.max) * 100 : 0;
-                    const barColor = k.score === 0 ? "#f87171" : k.score >= k.max * 0.6 ? "#4ade80" : "var(--accent)";
-                    return (
-                      <div key={i} title={k.note || ""} className={`match-ashta-row${k.score === 0 ? " is-zero" : ""}`}>
-                        <div className="match-ashta-label">{k.kuta}</div>
-                        <div className="match-ashta-bar-wrap">
-                          <div className="match-ashta-bar-fill" style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${barColor}80 0%, ${barColor} 100%)`, boxShadow: k.score >= k.max * 0.6 ? `0 0 8px ${barColor}50` : "none" }} />
+                {/* PR A1.6 — If marriage happens, will it last + be happy? */}
+                {(r.quality_outlook_chart1 || r.quality_outlook_chart2) && (
+                  <div className="match-section celestial-glass celestial-panel">
+                    <div className="match-section-title">
+                      <HandHeart size={12} strokeWidth={1.8} />
+                      {t("If it happens · Will it last & be happy?", "జరిగితే · దీర్ఘకాలికమా & ఆనందమా?")}
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 10 }}>
+                      {t("Outlook for marital longevity + harmony assuming marriage occurs. H8 (sustenance), 7th lord placement, malefics on H7.",
+                         "వివాహం జరిగితే దీర్ఘకాలికత + సామరస్యం. H8 (నిర్వహణ), 7వ అధిపతి, H7పై మాలెఫిక్‌లు.")}
+                    </div>
+                    <div className="match-section-grid" style={{ gridTemplateColumns: "1fr" }}>
+                      {[
+                        { q: r.quality_outlook_chart1, name: r.person1?.name },
+                        { q: r.quality_outlook_chart2, name: r.person2?.name },
+                      ].map((it, i) => it.q && (
+                        <div key={i} className="match-tile" style={{ background: "rgba(255,255,255,0.01)" }}>
+                          <div className="match-tile-name">{it.name}</div>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: it.q.score >= 6 ? "#4ade80" : it.q.score >= 4 ? "var(--accent)" : "#f87171" }}>
+                              {it.q.outlook}
+                            </div>
+                            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 16, color: it.q.score >= 6 ? "#4ade80" : it.q.score >= 4 ? "var(--accent)" : "#f87171", fontWeight: "bold" }}>
+                              {it.q.score}<span style={{ fontSize: 11, color: "var(--muted)" }}>/10</span>
+                            </div>
+                          </div>
+                          <div style={{ marginTop: 6, fontSize: 11, color: "var(--muted)" }}>
+                            H8 CSL <strong style={{ color: "var(--text)" }}>{it.q.h8_csl}</strong> sigs H{(it.q.h8_signified_houses || []).join(", H") || "—"}
+                          </div>
+                          <div style={{ fontSize: 11, color: "var(--muted)" }}>
+                            7th Lord <strong style={{ color: "var(--text)" }}>{it.q.h7_lord}</strong> in H{it.q.h7_lord_house}
+                            {it.q.h7_lord_in_dussthana && <span style={{ color: "#f87171" }}> (dussthana)</span>}
+                          </div>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 10px", marginTop: 6 }}>
+                            {(it.q.positives || []).map((p: string, j: number) => (
+                              <div key={`+${j}`} style={{ fontSize: 11, color: "#4ade80" }}>+ {p}</div>
+                            ))}
+                            {(it.q.negatives || []).map((n: string, j: number) => (
+                              <div key={`-${j}`} style={{ fontSize: 11, color: "#f87171" }}>− {n}</div>
+                            ))}
+                          </div>
                         </div>
-                        <div className="match-ashta-score" style={{ color: barColor }}>{k.score}/{k.max}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-                {r.extended_koots.has_rajju_dosha && (
-                  <div style={{ marginTop: 10, padding: "6px 10px", background: "rgba(248,113,113,0.08)", border: "0.5px solid rgba(248,113,113,0.25)", borderRadius: 8, fontSize: 11, color: "#f87171" }}>
-                    ⚠ {t("Rajju Dosha — same body region. Classical longevity concern.", "రజ్జు దోషం — ఒకే శరీర భాగం. దీర్ఘాయుష్షు సంబంధ ఆందోళన.")}
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* PR A1.6 — Children prospects (joint) */}
+                {r.children_match && (
+                  <div className="match-section celestial-glass celestial-panel">
+                    <div className="match-section-title">
+                      <Sparkles size={12} strokeWidth={1.8} />
+                      {t("Children prospects", "సంతాన అవకాశాలు")}
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: r.children_match.joint_verdict?.startsWith("Strong") ? "#4ade80"
+                        : r.children_match.joint_verdict?.startsWith("Good") ? "var(--accent)"
+                        : r.children_match.joint_verdict?.startsWith("Concerning") ? "#f87171" : "var(--accent)", marginBottom: 10 }}>
+                      {r.children_match.joint_verdict}
+                    </div>
+                    <div className="match-section-grid" style={{ gridTemplateColumns: "1fr" }}>
+                      {[
+                        { c: r.children_match.chart1, name: r.person1?.name },
+                        { c: r.children_match.chart2, name: r.person2?.name },
+                      ].map((it, i) => it.c && (
+                        <div key={i} className="match-tile" style={{ background: "rgba(255,255,255,0.01)" }}>
+                          <div className="match-tile-name">{it.name}</div>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                            <div style={{ fontSize: 12, color: it.c.verdict === "Promised" ? "#4ade80" : it.c.verdict === "Likely" ? "var(--accent)" : it.c.verdict?.startsWith("Difficult") ? "#f87171" : "var(--muted)" }}>
+                              H5 CSL <strong>{it.c.h5_csl}</strong> → {it.c.verdict}
+                            </div>
+                            <span style={{ fontSize: 11, color: "var(--muted)" }}>
+                              Signifies: H{(it.c.h5_signified_houses || []).join(", H") || "—"}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
+                            5L <strong style={{ color: "var(--text)" }}>{it.c.fifth_lord}</strong> in H{it.c.fifth_lord_house} | Jupiter H{it.c.jupiter_house}
+                            {it.c.jupiter_in_dussthana && <span style={{ color: "#f87171" }}> (dussthana)</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
-            )}
 
-            {/* PR A1.6 — If marriage happens, will it last + be happy? */}
-            {(r.quality_outlook_chart1 || r.quality_outlook_chart2) && (
-              <div className="match-section">
-                <div className="match-section-title">
-                  <HandHeart size={12} strokeWidth={1.8} />
-                  {t("If it happens · Will it last & be happy?", "జరిగితే · దీర్ఘకాలికమా & ఆనందమా?")}
-                </div>
-                <div style={{ fontSize: 10.5, color: "var(--muted)", marginBottom: 10 }}>
-                  {t("Outlook for marital longevity + harmony assuming marriage occurs. H8 (sustenance), 7th lord placement, malefics on H7.",
-                     "వివాహం జరిగితే దీర్ఘకాలికత + సామరస్యం. H8 (నిర్వహణ), 7వ అధిపతి, H7పై మాలెఫిక్‌లు.")}
-                </div>
-                <div className="match-section-grid">
-                  {[
-                    { q: r.quality_outlook_chart1, name: r.person1?.name },
-                    { q: r.quality_outlook_chart2, name: r.person2?.name },
-                  ].map((it, i) => it.q && (
-                    <div key={i} className="match-tile">
-                      <div className="match-tile-name">{it.name}</div>
-                      <div style={{ marginTop: 4, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: it.q.score >= 6 ? "#4ade80" : it.q.score >= 4 ? "var(--accent)" : "#f87171" }}>
-                          {it.q.outlook}
-                        </div>
-                        <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 16, color: it.q.score >= 6 ? "#4ade80" : it.q.score >= 4 ? "var(--accent)" : "#f87171" }}>
-                          {it.q.score}<span style={{ fontSize: 11, color: "var(--muted)" }}>/10</span>
-                        </div>
-                      </div>
-                      <div style={{ marginTop: 6, fontSize: 11, color: "var(--muted)" }}>
-                        H8 CSL <strong style={{ color: "var(--text)" }}>{it.q.h8_csl}</strong> sigs H{(it.q.h8_signified_houses || []).join(", H") || "—"}
-                      </div>
-                      <div style={{ fontSize: 11, color: "var(--muted)" }}>
-                        7th Lord <strong style={{ color: "var(--text)" }}>{it.q.h7_lord}</strong> in H{it.q.h7_lord_house}
-                        {it.q.h7_lord_in_dussthana && <span style={{ color: "#f87171" }}> (dussthana)</span>}
-                      </div>
-                      {(it.q.positives || []).map((p: string, j: number) => (
-                        <div key={`+${j}`} style={{ fontSize: 10.5, color: "#4ade80", marginTop: 3 }}>+ {p}</div>
-                      ))}
-                      {(it.q.negatives || []).map((n: string, j: number) => (
-                        <div key={`-${j}`} style={{ fontSize: 10.5, color: "#f87171", marginTop: 3 }}>− {n}</div>
-                      ))}
+              {/* Column 2: Quantitative Scores & Warnings */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                {/* ═══ ASHTAKOOTA — 36 Gun ═══ */}
+                <div className="match-section celestial-glass celestial-panel" style={{ border: "1px solid rgba(212,175,55,0.25)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                    <div className="match-section-title" style={{ marginBottom: 0 }}>
+                      <Sparkles size={12} strokeWidth={1.8} />
+                      {t("Ashtakoota · 36 Gun", "అష్టకూట · 36 గుణ")}
                     </div>
-                  ))}
+                    <div style={{ fontFamily: "'Cinzel', serif", fontSize: 24, lineHeight: 1, color: ast?.total_score >= 25 ? "var(--accent)" : ast?.total_score >= 18 ? "#4ade80" : "#f87171", letterSpacing: "-0.02em", fontWeight: "bold" }}>
+                      {ast?.total_score}<span style={{ fontSize: 14, color: "var(--muted)", marginLeft: 2 }}>/{ast?.max_score}</span>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {(ast?.kutas || []).map((k: any, i: number) => {
+                      const pct = k.max > 0 ? (k.score / k.max) * 100 : 0;
+                      const barColor = k.score === 0 ? "#f87171" : k.score >= k.max * 0.6 ? "#4ade80" : "var(--accent)";
+                      return (
+                        <div key={i} title={k.note || ""} className={`match-ashta-row${k.score === 0 ? " is-zero" : ""}`}>
+                          <div className="match-ashta-label" style={{ fontSize: 11 }}>{k.kuta}</div>
+                          <div className="match-ashta-bar-wrap" style={{ height: 6 }}>
+                            <div className="match-ashta-bar-fill" style={{ width: `${pct}%`, height: "100%", background: `linear-gradient(90deg, ${barColor}80 0%, ${barColor} 100%)`, boxShadow: k.score >= k.max * 0.6 ? `0 0 8px ${barColor}50` : "none" }} />
+                          </div>
+                          <div className="match-ashta-score" style={{ color: barColor, fontSize: 11, fontWeight: "bold" }}>{k.score}/{k.max}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 14 }}>
+                    {(() => {
+                      const nadiKuta = (ast?.kutas || []).find((k: any) => k.kuta?.toLowerCase().includes("nadi"));
+                      const hasNadiDosha = nadiKuta?.score === 0;
+                      return <span className={`match-dosha-chip ${hasNadiDosha ? "bad" : "good"}`}>{hasNadiDosha ? t("Nadi Dosha", "నాడి దోష") : t("Nadi OK", "నాడి సరే")}</span>;
+                    })()}
+                    {(() => {
+                      const ganaKuta = (ast?.kutas || []).find((k: any) => k.kuta?.toLowerCase().includes("gana"));
+                      const hasGanaDosha = ganaKuta?.score === 0;
+                      return <span className={`match-dosha-chip ${hasGanaDosha ? "bad" : "good"}`}>{hasGanaDosha ? t("Gana Mismatch", "గణ మిస్‌మ్యాచ్") : t("Gana OK", "గణ సరే")}</span>;
+                    })()}
+                    {kuja && (
+                      <span className={`match-dosha-chip ${kuja?.person1?.has_dosha || kuja?.person2?.has_dosha ? "bad" : "good"}`}>
+                        {kuja?.person1?.has_dosha || kuja?.person2?.has_dosha ? t("Manglik", "మాంగ్లిక్") : t("No Manglik", "మాంగ్లిక్ లేదు")}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
 
-            {/* PR A1.6 — Children prospects (joint) */}
-            {r.children_match && (
-              <div className="match-section">
-                <div className="match-section-title">
-                  <Sparkles size={12} strokeWidth={1.8} />
-                  {t("Children prospects", "సంతాన అవకాశాలు")}
-                </div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: r.children_match.joint_verdict?.startsWith("Strong") ? "#4ade80"
-                    : r.children_match.joint_verdict?.startsWith("Good") ? "var(--accent)"
-                    : r.children_match.joint_verdict?.startsWith("Concerning") ? "#f87171" : "var(--accent)", marginBottom: 10 }}>
-                  {r.children_match.joint_verdict}
-                </div>
-                <div className="match-section-grid">
-                  {[
-                    { c: r.children_match.chart1, name: r.person1?.name },
-                    { c: r.children_match.chart2, name: r.person2?.name },
-                  ].map((it, i) => it.c && (
-                    <div key={i} className="match-tile">
-                      <div className="match-tile-name">{it.name}</div>
-                      <div style={{ marginTop: 4, fontSize: 12, color: it.c.verdict === "Promised" ? "#4ade80" : it.c.verdict === "Likely" ? "var(--accent)" : it.c.verdict?.startsWith("Difficult") ? "#f87171" : "var(--muted)" }}>
-                        H5 CSL <strong>{it.c.h5_csl}</strong> → {it.c.verdict}
+                {/* PR A1.5 — Extended Dashakoota (Mahendra / Stree Deergha / Rajju) */}
+                {r.extended_koots && (
+                  <div className="match-section celestial-glass celestial-panel">
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                      <div className="match-section-title" style={{ marginBottom: 0 }}>
+                        <Target size={12} strokeWidth={1.8} />
+                        {t("Extended Koots · Progeny & Longevity", "విస్తరించిన కూటాలు · సంతానం & దీర్ఘాయుష్షు")}
                       </div>
-                      <div style={{ marginTop: 4, fontSize: 11, color: "var(--muted)" }}>
-                        Signifies: H{(it.c.h5_signified_houses || []).join(", H") || "—"}
-                      </div>
-                      <div style={{ fontSize: 11, color: "var(--muted)" }}>
-                        5L <strong style={{ color: "var(--text)" }}>{it.c.fifth_lord}</strong> in H{it.c.fifth_lord_house} | Jupiter H{it.c.jupiter_house}
-                        {it.c.jupiter_in_dussthana && <span style={{ color: "#f87171" }}> (dussthana)</span>}
+                      <div style={{ fontFamily: "'Cinzel', serif", fontSize: 20, lineHeight: 1, color: r.extended_koots.total_score >= 6 ? "#4ade80" : r.extended_koots.total_score >= 4 ? "var(--accent)" : "#f87171", fontWeight: "bold" }}>
+                        {r.extended_koots.total_score}<span style={{ fontSize: 12, color: "var(--muted)" }}>/{r.extended_koots.max_score}</span>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {(r.extended_koots.koots || []).map((k: any, i: number) => {
+                        const pct = k.max > 0 ? (k.score / k.max) * 100 : 0;
+                        const barColor = k.score === 0 ? "#f87171" : k.score >= k.max * 0.6 ? "#4ade80" : "var(--accent)";
+                        return (
+                          <div key={i} title={k.note || ""} className={`match-ashta-row${k.score === 0 ? " is-zero" : ""}`}>
+                            <div className="match-ashta-label" style={{ fontSize: 11 }}>{k.kuta}</div>
+                            <div className="match-ashta-bar-wrap" style={{ height: 6 }}>
+                              <div className="match-ashta-bar-fill" style={{ width: `${pct}%`, height: "100%", background: `linear-gradient(90deg, ${barColor}80 0%, ${barColor} 100%)`, boxShadow: k.score >= k.max * 0.6 ? `0 0 8px ${barColor}50` : "none" }} />
+                            </div>
+                            <div className="match-ashta-score" style={{ color: barColor, fontSize: 11, fontWeight: "bold" }}>{k.score}/{k.max}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {r.extended_koots.has_rajju_dosha && (
+                      <div style={{ marginTop: 10, padding: "6px 10px", background: "rgba(248,113,113,0.08)", border: "0.5px solid rgba(248,113,113,0.25)", borderRadius: 8, fontSize: 11, color: "#f87171" }}>
+                        ⚠ {t("Rajju Dosha — same body region. Classical longevity concern.", "రజ్జు దోషం — ఒకే శరీర భాగం. దీర్ఘాయుష్షు సంబంధ ఆందోళన.")}
+                      </div>
+                    )}
+                  </div>
+                )}
 
-            {/* PR A1.6 — In-laws health flag */}
-            {(r.in_laws_chart1?.flagged || r.in_laws_chart2?.flagged) && (
-              <div className="match-section" style={{ background: "rgba(251,191,36,0.04)", border: "1px solid rgba(251,191,36,0.18)" }}>
-                <div className="match-section-title">
-                  <TriangleAlert size={12} strokeWidth={1.8} />
-                  {t("Parental / in-laws health signals", "తల్లిదండ్రులు / అత్త-మామల ఆరోగ్య సంకేతాలు")}
-                </div>
-                {[r.in_laws_chart1, r.in_laws_chart2].map((il: any, i: number) => il?.flagged && (
-                  <div key={i} style={{ marginBottom: 6 }}>
-                    {(il.concerns || []).map((c: string, j: number) => (
-                      <div key={j} style={{ fontSize: 11.5, color: "var(--text)", marginTop: 2 }}>· {c}</div>
+                {/* PR A1.5 — Vargottama chips (high-quality marriage signal) */}
+                {(r.vargottama_chart1?.venus_vargottama || r.vargottama_chart1?.seventh_lord_vargottama
+                  || r.vargottama_chart2?.venus_vargottama || r.vargottama_chart2?.seventh_lord_vargottama) && (
+                  <div className="match-section celestial-glass celestial-panel" style={{ padding: "12px 14px" }}>
+                    <div className="match-section-title">
+                      <Sparkles size={12} strokeWidth={1.8} />
+                      {t("Vargottama (D1 = D9)", "వర్గోత్తమ (D1 = D9)")}
+                    </div>
+                    <div style={{ display: "flex", gap: 8, flexDirection: "column" }}>
+                      {[
+                        { v: r.vargottama_chart1, name: r.person1?.name },
+                        { v: r.vargottama_chart2, name: r.person2?.name },
+                      ].map((it, i) => it.v && (it.v.venus_vargottama || it.v.seventh_lord_vargottama) && (
+                        <div key={i} style={{ padding: "8px 12px", background: "rgba(74,222,128,0.06)", border: "0.5px solid rgba(74,222,128,0.25)", borderRadius: 8 }}>
+                          <div style={{ fontSize: 10, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 3 }}>{it.name}</div>
+                          {it.v.venus_vargottama && (
+                            <div style={{ fontSize: 12, color: "#4ade80", fontWeight: 600 }}>
+                              ✓ {t("Venus Vargottama", "శుక్ర వర్గోత్తమ")} ({it.v.venus_d1_sign})
+                            </div>
+                          )}
+                          {it.v.seventh_lord_vargottama && (
+                            <div style={{ fontSize: 12, color: "#4ade80", fontWeight: 600 }}>
+                              ✓ {t(`7th Lord ${it.v.seventh_lord} Vargottama`, `7-అధిపతి ${it.v.seventh_lord} వర్గోత్తమ`)} ({it.v.seventh_lord_d1_sign})
+                            </div>
+                          )}
+                          <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 3 }}>{it.v.note}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* PR A1.6 — Parental / in-laws health flag */}
+                {(r.in_laws_chart1?.flagged || r.in_laws_chart2?.flagged) && (
+                  <div className="match-section celestial-glass celestial-panel" style={{ background: "rgba(251,191,36,0.04)", border: "1px solid rgba(251,191,36,0.18)" }}>
+                    <div className="match-section-title">
+                      <TriangleAlert size={12} strokeWidth={1.8} />
+                      {t("Parental / in-laws health signals", "తల్లిదండ్రులు / అత్త-మామల ఆరోగ్య సంకేతాలు")}
+                    </div>
+                    {[r.in_laws_chart1, r.in_laws_chart2].map((il: any, i: number) => il?.flagged && (
+                      <div key={i} style={{ marginBottom: 6 }}>
+                        {(il.concerns || []).map((c: string, j: number) => (
+                          <div key={j} style={{ fontSize: 11.5, color: "var(--text)", marginTop: 2 }}>· {c}</div>
+                        ))}
+                      </div>
                     ))}
-                  </div>
-                ))}
-                <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 4, fontStyle: "italic" }}>
-                  {t("Stress signal, NOT a prediction of harm. Classical caution — folk overstatements (\"marriage causes parent death\") are not KP.",
-                     "ఒత్తిడి సంకేతం మాత్రమే, హాని ప్రమాదం కాదు. క్లాసికల్ హెచ్చరిక మాత్రమే.")}
-                </div>
-              </div>
-            )}
-
-            {/* ═══ ASHTAKOOTA — 36 Gun ═══ */}
-            <div className="match-section">
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                <div className="match-section-title" style={{ marginBottom: 0 }}>
-                  <Sparkles size={12} strokeWidth={1.8} />
-                  {t("Ashtakoota · 36 Gun", "అష్టకూట · 36 గుణ")}
-                </div>
-                <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 22, lineHeight: 1, color: ast?.total_score >= 25 ? "var(--accent)" : ast?.total_score >= 18 ? "#4ade80" : "#f87171", letterSpacing: "-0.02em" }}>
-                  {ast?.total_score}<span style={{ fontSize: 14, color: "var(--muted)", marginLeft: 2 }}>/{ast?.max_score}</span>
-                </div>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column" as const, gap: 6 }}>
-                {(ast?.kutas || []).map((k: any, i: number) => {
-                  const pct = k.max > 0 ? (k.score / k.max) * 100 : 0;
-                  const barColor = k.score === 0 ? "#f87171" : k.score >= k.max * 0.6 ? "#4ade80" : "var(--accent)";
-                  return (
-                    <div key={i} title={k.note || ""} className={`match-ashta-row${k.score === 0 ? " is-zero" : ""}`}>
-                      <div className="match-ashta-label">{k.kuta}</div>
-                      <div className="match-ashta-bar-wrap">
-                        <div className="match-ashta-bar-fill" style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${barColor}80 0%, ${barColor} 100%)`, boxShadow: k.score >= k.max * 0.6 ? `0 0 8px ${barColor}50` : "none" }} />
-                      </div>
-                      <div className="match-ashta-score" style={{ color: barColor }}>{k.score}/{k.max}</div>
+                    <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 4, fontStyle: "italic" }}>
+                      {t("Stress signal, NOT a prediction of harm. Classical caution — folk overstatements ('marriage causes parent death') are not KP.",
+                         "ఒత్తిడి సంకేతం మాత్రమే, హాని ప్రమాదం కాదు. క్లాసికల్ హెచ్చరిక మాత్రమే.")}
                     </div>
-                  );
-                })}
-              </div>
-              <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 6, marginTop: 14 }}>
-                {(() => {
-                  const nadiKuta = (ast?.kutas || []).find((k: any) => k.kuta?.toLowerCase().includes("nadi"));
-                  const hasNadiDosha = nadiKuta?.score === 0;
-                  return <span className={`match-dosha-chip ${hasNadiDosha ? "bad" : "good"}`}>{hasNadiDosha ? t("Nadi Dosha", "నాడి దోష") : t("Nadi OK", "నాడి సరే")}</span>;
-                })()}
-                {(() => {
-                  const ganaKuta = (ast?.kutas || []).find((k: any) => k.kuta?.toLowerCase().includes("gana"));
-                  const hasGanaDosha = ganaKuta?.score === 0;
-                  return <span className={`match-dosha-chip ${hasGanaDosha ? "bad" : "good"}`}>{hasGanaDosha ? t("Gana Mismatch", "గణ మిస్‌మ్యాచ్") : t("Gana OK", "గణ సరే")}</span>;
-                })()}
-                {kuja && (
-                  <span className={`match-dosha-chip ${kuja?.person1?.has_dosha || kuja?.person2?.has_dosha ? "bad" : "good"}`}>
-                    {kuja?.person1?.has_dosha || kuja?.person2?.has_dosha ? t("Manglik", "మాంగ్లిక్") : t("No Manglik", "మాంగ్లిక్ లేదు")}
-                  </span>
+                  </div>
                 )}
               </div>
             </div>
-
-            </div>
             )}
-
             {/* ══════ AI pane ══════ */}
             {matchSubTab === "ai" && (
             <div className="match-subtab-pane">

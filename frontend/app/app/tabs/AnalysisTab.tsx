@@ -46,6 +46,32 @@ import { useLanguage } from "@/lib/i18n";
 import { PageHero } from "@/components/ui/PageHero";
 import { StaggerChildren, StaggerItem } from "@/components/motion";
 import { TOPICS, TOPIC_EMOJI } from "../lib/topics";
+import {
+  HeartPulse,
+  Briefcase,
+  Stethoscope,
+  Globe,
+  Baby,
+  BookOpen,
+  Home as HomeIcon,
+  Wallet,
+  TrendingUp,
+  Scale,
+  HelpCircle
+} from "lucide-react";
+
+const TOPIC_ICONS: Record<string, React.ComponentType<{ size?: number; style?: React.CSSProperties }>> = {
+  marriage: HeartPulse,
+  job: Briefcase,
+  health: Stethoscope,
+  foreign_travel: Globe,
+  children: Baby,
+  education: BookOpen,
+  property: HomeIcon,
+  wealth: Wallet,
+  finance: TrendingUp,
+  legal: Scale,
+};
 
 // Loose Message shape — matches the runtime structure from page.tsx.
 // Pre-R4 page.tsx typed analysisMessages as Message[] from ./types
@@ -185,7 +211,14 @@ export function AnalysisTab({
                   style={{ width: "100%", padding: "10px 6px", borderRadius: 10, border: `0.5px solid ${activeTopic === tp.id ? "var(--accent)" : "var(--border2)"}`, background: activeTopic === tp.id ? "rgba(201,169,110,0.15)" : "var(--card)", cursor: analysisLoading ? "default" : "pointer", fontFamily: "inherit", textAlign: "center", transition: "all 0.2s" }}
                   onMouseEnter={e => { if (activeTopic !== tp.id) (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(201,169,110,0.4)"; }}
                   onMouseLeave={e => { if (activeTopic !== tp.id) (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border2)"; }}>
-                  <div style={{ fontSize: 22, marginBottom: 4 }}>{TOPIC_EMOJI[tp.id]}</div>
+                  {(() => {
+                    const TopicIcon = TOPIC_ICONS[tp.id] || HelpCircle;
+                    return (
+                      <div style={{ color: activeTopic === tp.id ? "var(--accent)" : "var(--muted)", marginBottom: 4, display: "flex", justifyContent: "center" }}>
+                        <TopicIcon size={20} />
+                      </div>
+                    );
+                  })()}
                   <div style={{ fontSize: 11, color: activeTopic === tp.id ? "var(--accent)" : "var(--text)", fontWeight: activeTopic === tp.id ? 500 : 400 }}>{lang === "en" ? tp.en : tp.te}</div>
                 </button>
               </StaggerItem>
@@ -194,13 +227,17 @@ export function AnalysisTab({
         ) : (
           // Once chat is active: compact horizontal topic strip
           <div className="topic-strip">
-            {TOPICS.map(tp => (
-              <button key={tp.id} onClick={() => handleTopicAnalysis(tp.id)} disabled={analysisLoading}
-                className={`topic-chip ${activeTopic === tp.id ? "active" : ""}`}>
-                <span style={{ fontSize: 14 }}>{TOPIC_EMOJI[tp.id]}</span>
-                <span>{lang === "en" ? tp.en : tp.te}</span>
-              </button>
-            ))}
+            {TOPICS.map(tp => {
+              const ChipIcon = TOPIC_ICONS[tp.id] || HelpCircle;
+              return (
+                <button key={tp.id} onClick={() => handleTopicAnalysis(tp.id)} disabled={analysisLoading}
+                  className={`topic-chip ${activeTopic === tp.id ? "active" : ""}`}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  <ChipIcon size={12} style={{ color: activeTopic === tp.id ? "var(--accent)" : "var(--muted)" }} />
+                  <span>{lang === "en" ? tp.en : tp.te}</span>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
@@ -246,26 +283,39 @@ export function AnalysisTab({
         )}
         {analysisMessages.map((msg, i) => (
           <div key={i} style={{ marginBottom: "1.25rem" }} className="fade-in" id={`analysis-msg-${msg.id ?? i}`}>
-            {/* User question bubble — right aligned */}
-            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
-              <div className="chat-bubble-user" style={{ padding: "8px 14px", maxWidth: "72%", fontSize: 12, color: "#d0d0d8", lineHeight: 1.5 }}>
-                {msg.isTopic && <span style={{ fontSize: 9, color: "var(--accent)", display: "block", marginBottom: 2 }}>◈ {t("Topic Analysis", "అంశ విశ్లేషణ")}</span>}
-                {msg.q}
+            {/* User question quote block */}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12, width: "100%" }}>
+              <div
+                style={{
+                  padding: "8px 16px",
+                  fontSize: 13,
+                  color: "var(--accent)",
+                  maxWidth: "100%",
+                  width: "100%",
+                  borderRadius: 4,
+                  background: "rgba(201, 169, 110, 0.03)",
+                  borderLeft: "3px solid var(--accent)",
+                  fontStyle: "italic",
+                  fontWeight: 500,
+                  fontFamily: "inherit"
+                }}
+              >
+                {msg.isTopic && <span style={{ fontSize: 9, color: "var(--accent)", display: "block", marginBottom: 4, fontStyle: "normal", letterSpacing: "0.05em", textTransform: "uppercase" }}>◈ {t("Topic Analysis", "అంశ విశ్లేషణ")}</span>}
+                "{msg.q}"
               </div>
             </div>
-            {/* AI answer bubble — left aligned, with avatar dot + copy button.
-                Phase 11 / PR 28 — capped readable width (#A17) so long answers
-                don't stretch to ~120ch on wide monitors. 78ch ≈ classic
-                book-column readability. The bubble keeps `flex: 1` so on
-                narrow viewports it still fills available space. */}
-            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-              <div className="chat-ai-dot" title="DevAstroAI">D</div>
+            {/* AI answer block — left aligned, with avatar dot + copy button. */}
+            <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 16 }}>
+              <div className="chat-ai-dot" title="DevAstroAI" style={{ border: "1px solid rgba(201, 169, 110, 0.3)", background: "rgba(201, 169, 110, 0.08)", color: "var(--accent)" }}>D</div>
               <div
-                className="chat-bubble-ai md-body"
+                className="md-body"
                 style={{
-                  padding: "1rem 1.25rem",
+                  padding: "1.25rem 1.5rem",
                   maxWidth: "min(78ch, calc(94% - 34px))",
                   flex: 1,
+                  background: "rgba(255, 255, 255, 0.01)",
+                  border: "1px solid rgba(255, 255, 255, 0.04)",
+                  borderRadius: 8,
                 }}
               >
                 <button
@@ -442,7 +492,7 @@ export function AnalysisTab({
                   msg.q.startsWith((lang === "en" ? tp.en : tp.te))
                 )
               : undefined;
-            const emoji = topic ? TOPIC_EMOJI[topic.id] : "·";
+            const TopicIcon = topic ? TOPIC_ICONS[topic.id] : undefined;
             const preview = isTopic
               ? (topic ? (lang === "en" ? topic.en : topic.te) : msg.q)
               : msg.q.length > 38 ? `${msg.q.slice(0, 38)}…` : msg.q;
@@ -456,7 +506,11 @@ export function AnalysisTab({
                   if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
                 }}
               >
-                {isTopic && <span className="analysis-toc-emoji">{emoji}</span>}
+                {isTopic && (
+                  <span className="analysis-toc-emoji" style={{ display: "inline-flex", alignItems: "center", marginRight: 6 }}>
+                    {TopicIcon ? <TopicIcon size={12} style={{ color: "var(--accent)" }} /> : "◈"}
+                  </span>
+                )}
                 {preview}
               </button>
             );

@@ -44,6 +44,7 @@ interface CommandOrbProps {
   sessions?: ChartSession[];
   currentSessionId?: string;
   onSwitchSession?: (s: ChartSession) => void;
+  onShowChartOverlay?: () => void;
 }
 
 const STORAGE_KEY_POS   = "kp_orb_position_v1";       // { side: "left" | "right", yPct: 0-100 }
@@ -82,6 +83,7 @@ export default function CommandOrb({
   sessions = [],
   currentSessionId,
   onSwitchSession,
+  onShowChartOverlay,
 }: CommandOrbProps) {
   const { lang, setLang, t } = useLanguage();
   const [open, setOpen] = useState(false);
@@ -454,6 +456,15 @@ export default function CommandOrb({
                 <span className="command-action-icon"><Plus size={16} strokeWidth={2} /></span>
                 <span className="command-action-label">{t("New chart", "కొత్త చార్ట్")}</span>
               </button>
+              {onShowChartOverlay && (
+                <button
+                  className="command-action"
+                  onClick={() => { setOpen(false); onShowChartOverlay(); }}
+                >
+                  <span className="command-action-icon"><Globe2 size={16} strokeWidth={1.8} style={{ color: "var(--accent)" }} /></span>
+                  <span className="command-action-label">{t("Chart Overlay", "చార్ట్ ఓవర్లే")}</span>
+                </button>
+              )}
               <button
                 className="command-action"
                 onClick={nextLang}

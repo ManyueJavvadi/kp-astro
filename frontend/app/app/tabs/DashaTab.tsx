@@ -34,6 +34,7 @@ import { useLanguage } from "@/lib/i18n";
 import { PageHero } from "@/components/ui/PageHero";
 import DashaStrip from "../components/workspace/DashaStrip";
 import DashaTimeline from "../components/DashaTimeline";
+import MobileDashaStories from "../components/mobile/MobileDashaStories";
 import { PLANET_COLORS } from "../components/constants";
 import { formatDate } from "@/lib/format";
 import type { WorkspaceData } from "../types/workspace";
@@ -62,6 +63,7 @@ interface DashaTabProps {
   liveLoc: { location: { latitude?: number; longitude?: number; timezone_offset?: number } | null };
   timezoneOffset: number;
   apiUrl: string;
+  isMobile?: boolean;
 }
 
 export function DashaTab({
@@ -70,6 +72,7 @@ export function DashaTab({
   liveLoc,
   timezoneOffset,
   apiUrl,
+  isMobile,
 }: DashaTabProps) {
   const { t, lang } = useLanguage();
 
@@ -137,32 +140,32 @@ export function DashaTab({
       {md && (
         <div className="dasha-now-grid">
           <div
-            className="dasha-now-card is-md"
+            className="dasha-now-card is-md celestial-glass celestial-panel"
             style={{ ["--planet-color" as any]: PLANET_COLORS[md.lord_en] ?? "var(--accent)" }}
           >
-            <div className="dasha-now-stage">{t("Mahadasha", "మహాదశ")}</div>
-            <div className="dasha-now-planet">{mdLord ?? "—"}</div>
-            <div className="dasha-now-dates">{fmt(md.start)} → {fmt(md.end)}</div>
+            <div className="dasha-now-stage celestial-sub-serif">{t("Mahadasha", "మహాదశ")}</div>
+            <div className="dasha-now-planet celestial-serif">{mdLord ?? "—"}</div>
+            <div className="dasha-now-dates celestial-mono">{fmt(md.start)} → {fmt(md.end)}</div>
             <div className="dasha-now-progress">
-              <div className="dasha-now-progress-fill" style={{ width: `${mdProg.pct}%` }} />
+              <div className="dasha-now-progress-fill" style={{ width: `${mdProg.pct}%`, boxShadow: `0 0 8px ${PLANET_COLORS[md.lord_en] ?? "var(--accent)"}` }} />
             </div>
-            <div className="dasha-now-elapsed">
+            <div className="dasha-now-elapsed celestial-mono">
               <b>{mdProg.elapsedY}y</b> / {mdProg.totalY}y · {mdProg.pct}% {t("elapsed", "పూర్తయింది")}
             </div>
           </div>
 
           {ad && (
             <div
-              className="dasha-now-card"
+              className="dasha-now-card celestial-glass celestial-panel"
               style={{ ["--planet-color" as any]: PLANET_COLORS[ad.lord_en] ?? "var(--accent)" }}
             >
-              <div className="dasha-now-stage">{t("Antardasha", "అంతర్దశ")}</div>
-              <div className="dasha-now-planet">{adLord ?? "—"}</div>
-              <div className="dasha-now-dates">{fmt(ad.start)} → {fmt(ad.end)}</div>
+              <div className="dasha-now-stage celestial-sub-serif">{t("Antardasha", "అంతర్దశ")}</div>
+              <div className="dasha-now-planet celestial-serif">{adLord ?? "—"}</div>
+              <div className="dasha-now-dates celestial-mono">{fmt(ad.start)} → {fmt(ad.end)}</div>
               <div className="dasha-now-progress">
-                <div className="dasha-now-progress-fill" style={{ width: `${adProg.pct}%` }} />
+                <div className="dasha-now-progress-fill" style={{ width: `${adProg.pct}%`, boxShadow: `0 0 8px ${PLANET_COLORS[ad.lord_en] ?? "var(--accent)"}` }} />
               </div>
-              <div className="dasha-now-elapsed">
+              <div className="dasha-now-elapsed celestial-mono">
                 <b>{adProg.elapsedY}y</b> / {adProg.totalY}y · {adProg.pct}% {t("elapsed", "పూర్తయింది")}
               </div>
             </div>
@@ -170,16 +173,16 @@ export function DashaTab({
 
           {pad && (
             <div
-              className="dasha-now-card"
+              className="dasha-now-card celestial-glass celestial-panel"
               style={{ ["--planet-color" as any]: PLANET_COLORS[pad.lord_en] ?? "var(--accent)" }}
             >
-              <div className="dasha-now-stage">{t("Pratyantardasha", "ప్రత్యంతర్దశ")}</div>
-              <div className="dasha-now-planet">{padLord ?? "—"}</div>
-              <div className="dasha-now-dates">{fmt(pad.start)} → {fmt(pad.end)}</div>
+              <div className="dasha-now-stage celestial-sub-serif">{t("Pratyantardasha", "ప్రత్యంతర్దశ")}</div>
+              <div className="dasha-now-planet celestial-serif">{padLord ?? "—"}</div>
+              <div className="dasha-now-dates celestial-mono">{fmt(pad.start)} → {fmt(pad.end)}</div>
               <div className="dasha-now-progress">
-                <div className="dasha-now-progress-fill" style={{ width: `${padProg.pct}%` }} />
+                <div className="dasha-now-progress-fill" style={{ width: `${padProg.pct}%`, boxShadow: `0 0 8px ${PLANET_COLORS[pad.lord_en] ?? "var(--accent)"}` }} />
               </div>
-              <div className="dasha-now-elapsed">
+              <div className="dasha-now-elapsed celestial-mono">
                 <b>{padProg.pct}%</b> {t("elapsed", "పూర్తయింది")}
               </div>
             </div>
@@ -201,12 +204,12 @@ export function DashaTab({
 
       {/* Antardasha timeline section */}
       {wd.antardashas && wd.antardashas.length > 0 && (
-        <div className="dasha-section">
+        <div className="dasha-section celestial-glass celestial-panel" style={{ padding: "24px", borderRadius: "12px" }}>
           <div className="dasha-section-header">
-            <div className="dasha-section-eyebrow">
+            <div className="dasha-section-eyebrow celestial-sub-serif">
               {t("Antardasha · sub-period", "అంతర్దశ · ఉప-కాలం")}
             </div>
-            <div className="dasha-section-title">
+            <div className="dasha-section-title celestial-serif" style={{ color: "var(--accent)", fontSize: "1.25rem", margin: "4px 0 8px" }}>
               {t(`Antardashas in ${mdLord ?? ""} Mahadasha`, `${mdLord ?? ""} మహాదశలో అంతర్దశలు`)}
             </div>
             <div className="dasha-section-sub">
@@ -216,58 +219,15 @@ export function DashaTab({
               )}
             </div>
           </div>
-          <DashaTimeline mahadasha={wd.mahadasha} antardashas={wd.antardashas} />
+          {isMobile ? (
+            <MobileDashaStories mahadasha={wd.mahadasha} antardashas={wd.antardashas} workspaceData={workspaceData} />
+          ) : (
+            <DashaTimeline mahadasha={wd.mahadasha} antardashas={wd.antardashas} workspaceData={workspaceData} />
+          )}
         </div>
       )}
 
-      {/* Pratyantardasha section — polished cards */}
-      {wd.pratyantardashas && wd.pratyantardashas.length > 0 && wd.current_antardasha && (
-        <div className="dasha-section">
-          <div className="dasha-section-header">
-            <div className="dasha-section-eyebrow">
-              {t("Pratyantardasha · fine timing", "ప్రత్యంతర్దశ · సూక్ష్మ సమయం")}
-            </div>
-            <div className="dasha-section-title">
-              {t(
-                `Pratyantardashas in ${adLord ?? ""} Antardasha`,
-                `${adLord ?? ""} అంతర్దశలో ప్రత్యంతర్దశలు`
-              )}
-            </div>
-            <div className="dasha-section-sub">
-              {t(
-                "Sub-sub periods that deliver day- and week-level timing within the current Antardasha.",
-                "ప్రస్తుత అంతర్దశలో రోజు మరియు వారపు స్థాయి సమయాన్ని అందించే ఉప-ఉప కాలాలు."
-              )}
-            </div>
-          </div>
-          <div className="dasha-pad-list">
-            {wd.pratyantardashas.map((padItem: any, i: number) => {
-              const today = new Date();
-              const isPast = new Date(padItem.end) < today;
-              const lordLabel = lang === "en" ? padItem.lord_en : (padItem.lord_te || padItem.lord_en);
-              const cls = [
-                "dasha-pad-card",
-                padItem.is_current ? "is-current" : "",
-                (!padItem.is_current && isPast) ? "is-past" : "",
-              ].filter(Boolean).join(" ");
-              return (
-                <div
-                  key={i}
-                  className={cls}
-                  style={{ ["--planet-color" as any]: PLANET_COLORS[padItem.lord_en] ?? "var(--accent)" }}
-                >
-                  <span className="dasha-pad-dot" />
-                  <span className="dasha-pad-lord">{lordLabel}</span>
-                  <span className="dasha-pad-dates">{fmt(padItem.start)} → {fmt(padItem.end)}</span>
-                  {padItem.is_current && (
-                    <span className="dasha-pad-now">{t("Now", "ప్రస్తుతం")}</span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+
 
       {/* ────────────────────────────────────────────────
            TRANSIT (Gochar) — PR18 wow-pass.

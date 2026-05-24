@@ -34,6 +34,7 @@ interface PanchangTabProps {
   workspaceData: any;
   apiUrl: string;
   liveLoc: any;
+  searchPcCities: any;
   // pc state — all panchang state from parent
   pcData: any; setPcData: any;
   pcLoading: any; setPcLoading: any;
@@ -56,7 +57,7 @@ interface PanchangTabProps {
 export function PanchangTab(props: PanchangTabProps) {
   const { t, lang } = useLanguage();
   const {
-    workspaceData, apiUrl, liveLoc,
+    workspaceData, apiUrl, liveLoc, searchPcCities,
     pcData, setPcData, pcLoading, setPcLoading,
     pcLocationName, setPcLocationName,
     pcDetectedCoords, setPcDetectedCoords,
@@ -114,8 +115,7 @@ export function PanchangTab(props: PanchangTabProps) {
           // Reverse geocode for display name
           try {
             const geo = await axios.get("https://nominatim.openstreetmap.org/reverse", {
-              params: { lat, lon, format: "json", addressdetails: 1, "accept-language": "en" },
-              headers: { "User-Agent": "DevAstroAI/1.0" }
+              params: { lat, lon, format: "json", addressdetails: 1, "accept-language": "en" }
             });
             const addr = geo.data?.address || {};
             const city = addr.neighbourhood || addr.suburb || addr.city_district
