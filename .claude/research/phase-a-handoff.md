@@ -1,10 +1,30 @@
 # Phase A Refactor — Mid-Sprint Handoff
 
+> ## ✅ COMPLETE — 2026-05-24
+>
+> All Phase A refactor work shipped. All 8 tabs are now extracted into
+> `frontend/app/app/tabs/` (ChartTab, HousesTab, DashaTab, AnalysisTab,
+> HoraryTab, MatchTab, MuhurthaTab, PanchangTab). page.tsx is down from
+> 8,589 → 3,889 lines (−54.7%).
+>
+> The umbrella v2 plan that motivated Phase A is **CANCELLED** as of
+> 2026-05-24 — see `world-first-vision.md` CANCELLED banner. The tab-
+> extraction work shipped on its own merits (modularity, easier
+> per-tab iteration, clearer ownership).
+>
+> **DO NOT use this doc as plan-of-record.** The canonical direction is
+> in `CLAUDE.md`. This file is preserved as a historical record of the
+> Phase A execution recipe and the alias-trap lesson — useful if a
+> future refactor needs the same patterns.
+
+---
+
 **Date**: 2026-05-20
-**Purpose**: Compaction-proof handoff so any future Claude session can
-pick up exactly where this one left off. The locked v2 plan
-(`.claude/research/world-first-vision.md`) is the strategic context;
-this doc is the tactical state-of-play.
+**Status**: ✅ COMPLETE 2026-05-24
+**Purpose** (historical): Compaction-proof handoff so any future Claude session can
+pick up exactly where this one left off. The (now CANCELLED) v2 plan
+(`.claude/research/world-first-vision.md`) was the strategic context;
+this doc was the tactical state-of-play.
 
 ---
 

@@ -1,10 +1,26 @@
 # DevAstroAI — World-First KP Astrology Platform Vision
 
+> ## ⚠️ CANCELLED — 2026-05-24
+>
+> This plan (8-workspace model + inquiry-driven canvas replacing the 8-tab
+> UI) is **no longer the direction**. User confirmed 2026-05-24:
+> "current UI is perfect, if we do anything we do on top of it."
+>
+> **The canonical direction now lives in `CLAUDE.md` § "🔒 CURRENT DIRECTION":**
+> polish-and-add on top of the existing 8-tab UI, not a redesign.
+>
+> This doc is preserved as a historical record of considered direction.
+> Phase A's tactical execution (extract all 8 tabs from page.tsx) still
+> shipped successfully — see `phase-a-handoff.md` for that part.
+>
+> **DO NOT use this doc as plan-of-record. Read CLAUDE.md instead.**
+
+---
+
 **Date**: 2026-05-20
 **Author**: Claude
-**Status**: 🔒 **PLAN LOCKED** — user confirmed direction on 2026-05-20. This is the
-canonical roadmap. The earlier `v2-roadmap.md` is REPLACED by this — that one was
-derivative of an old worktree.
+**Status**: 🛑 **CANCELLED 2026-05-24** (was 🔒 LOCKED 2026-05-20). The earlier `v2-roadmap.md` is
+also SUPERSEDED. Strategic plan now lives in CLAUDE.md, not here.
 
 **Critical guard rail**: §15 below documents the AI Analysis Quality Preservation
 Protocol. **Any work that touches the AI prompt / engines / KB MUST pass the

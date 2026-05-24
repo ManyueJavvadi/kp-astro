@@ -10,44 +10,45 @@ queue, business model, Option A stance) and `.claude/DAILY_LOG.md`
 
 ---
 
-## 🔒 LOCKED v2 PLAN — read BEFORE planning any UX/architecture work
+## 🔒 CURRENT DIRECTION (as of 2026-05-24) — current UI IS the target
 
-As of **2026-05-20**, the v2 roadmap is locked. The canonical doc is:
+**The v2 inquiry-driven-canvas + workspace-model plan is CANCELLED.** User
+direction 2026-05-24: "current UI is perfect, if we do anything we do on
+top of it." No architecture pivot pending. Future work is **polish-and-add
+on top of the existing 8-tab UI**, not a redesign.
 
-**`.claude/research/world-first-vision.md`** — read it fully before
-proposing UX/architecture changes.
+Historical reference docs (DO NOT use as plan-of-record):
+- `.claude/research/world-first-vision.md` — **CANCELLED**. 8-workspace
+  + inquiry-bar model. Killed because the current UI is already where the
+  product wants to be. Kept as a historical record of considered direction.
+- `.claude/research/v2-roadmap.md` — **SUPERSEDED** (earlier still).
+- `.claude/research/phase-a-handoff.md` — **COMPLETE**. The Phase A
+  refactor it described (extract all 8 tabs from page.tsx) shipped.
 
-**Phase A foundation is IN PROGRESS.** Tactical state-of-play (current
-PR queue, refactor recipe, alias-trap lesson) is in:
+### Phase A refactor — COMPLETE ✅
 
-**`.claude/research/phase-a-handoff.md`** — read FIRST if continuing
-Phase A refactor work. Includes step-by-step refactor recipe and R4
-specifics for AnalysisTab.
+All 8 tabs are extracted to `frontend/app/app/tabs/`:
+ChartTab, HousesTab, DashaTab, AnalysisTab, HoraryTab, MatchTab,
+MuhurthaTab, PanchangTab.
 
-Phase A scoreboard (as of 2026-05-20):
-  - F2 (deep /health + frontend down-detection) ✅
-  - R1 (ChartTab extracted) ✅ + R1-hotfix (alias trap caught) ✅
-  - R2 (HousesTab extracted) ✅
-  - R3 (DashaTab extracted) ✅
-  - R4 (AnalysisTab — sacred-adjacent) — NEXT
-  - R5 HoraryTab, R6 MatchTab, R7 MuhurthaTab, R8 PanchangTab — queued
-  - page.tsx: 8,589 → 7,572 lines (-11.8% so far)
-  - Target: page.tsx ≤ 3,500 lines after R4-R8
+page.tsx: 8,589 → 3,889 lines (−54.7%). Holds the workspace shell,
+onboarding, modals, sidebar, mobile orb, and routing logic — tab content
+itself lives in `tabs/`. The original ≤3,500 target was a Phase-A-prep
+goal tied to v2; with v2 cancelled the line count is effectively where
+it needs to be.
 
-Headline architecture:
-- **Astrologer mode**: 5 workspaces (Active Consult / My Practice / Quick Tools /
-  Knowledge & Notes / Community)
-- **Consumer mode**: 3 workspaces (Today / Ask / My Life)
-- **Default landing per client**: Chart Briefing (7-zone home state) →
-  astrologer clicks suggested chip OR types inquiry → Inquiry View loads
-  composed cards
-- **Inquiry-driven canvas** replaces 8-tab navigation. Tabs become "Classic
-  View" toggle for users who prefer the old model.
-- **Phased rollout**: A (Foundation) → B (Inquiry Bar MVP) → C (Workspaces) →
-  D (Killer features) → E (Community + payments)
+### What "polish on top of the current UI" means in practice
 
-The earlier `.claude/research/v2-roadmap.md` is **SUPERSEDED** — do not use
-it as reference. The world-first-vision.md doc replaces it.
+- Component-level enhancements that build on the existing tabs (e.g.
+  visual 4-step CSL chain diagram inside HousePanel, concentric dual-ring
+  Transit, intercepted-sign highlight on the chart) — YES.
+- Mobile UX iterations on top of the orb + responsive shell pattern
+  (e.g. the 2026-05-24 twinkling starfield + dice haptic + responsive
+  grid commit `66aba57`) — YES.
+- Sacred backend regions (Analysis prompts, KB files, KP engines) —
+  same rules as always; see next section.
+- Whole-app re-layouts (3-panel grids, AI as side-sheet, replacing the
+  tab system with a canvas) — **NO**. Cancelled.
 
 ---
 
@@ -62,9 +63,14 @@ NOT acceptable.
   `format_chart_for_llm`, `format_match_for_llm`, multi-model routing
 - `backend/app/services/compatibility_engine.py` — `_five_signal_classification`,
   `_h7_sublord_promise`, `_planet_significations_tiered`, `_canonical_cross_match`
-- `backend/knowledge/*` — all 29 KB files (esp. marriage.txt, general.txt,
+- `backend/knowledge/*` — all 55 KB files (esp. marriage.txt, general.txt,
   house_combinations_canonical.md, pattern_library.md, kp_csl_theory.txt,
-  timing_confirmation.txt)
+  timing_confirmation.txt, plus the 22 batch-expansion files shipped
+  2026-05-22: child_health, longevity, mental_health, hospitalization,
+  occult, missing_person, business, money_recovery, litigation, wealth
+  expansion, education, property expansion, pilgrimage, spirituality,
+  second_marriage, adoption, fame_politics_sports, addiction, pregnancy,
+  vehicle, compound_topics, worked_examples_library)
 - `backend/app/services/chart_engine.py` — planet/cusp/sub-lord/dasha core
 
 **Audit doc**: `.claude/research/analysis-deep-audit.md` (PR A1.9) — every
@@ -80,14 +86,17 @@ Phase A PR F1):
 **Hard rule**: any PR that breaks AI quality must be REVERTED, not patched
 forward.
 
-**For v2 work (Phases A-D)**:
-- Phase A: zero AI impact (pure refactor + auth + monitoring)
-- Phase B (Inquiry Bar): new Haiku call for inquiry detection — ADDITIVE,
-  does not modify Analysis prompts
-- Phase C (Workspaces): routing/layout only — does not touch AI engines
-- Phase D: Prediction Ledger, AI Apprenticeship, Chart Briefing AI — these
-  ADD new AI calls but must NOT modify existing Analysis prompts. Each
-  needs its own isolated system prompt.
+**For any new AI work** (with v2 cancelled, "new AI work" means anything
+ADDITIVE to the current Analysis tab — not a redesign of it):
+- Pure refactor / layout / mobile polish → zero AI impact, no regression
+  suite required, just `tsc + next build + 88/88 backend tests`.
+- New ADDITIVE AI calls (e.g. a future quick-summary card or chart-
+  briefing helper) → must use their OWN isolated system prompt and KB
+  selection. NEVER edit `get_system_prompt()` or `format_chart_for_llm`
+  in service of a new feature.
+- Any backend KP-engine fix (accuracy hotfix like A1.12) → must include
+  a smoke-test against Manyue / Ramya / Vineetha / Sreeja fixtures and
+  a "no surprise verdict flips" check on the Analysis output.
 
 **The Analysis tab is the product. Everything else is scaffolding.**
 
@@ -104,9 +113,18 @@ forward.
 
 - **Frontend**: `frontend/` — Next.js 16 App Router + React 18 + TypeScript.
   - `frontend/app/page.tsx` — polished landing page (PR2 era, stable)
-  - `frontend/app/app/page.tsx` — **the main app (~6100 lines)**. All
-    tabs live here.
+  - `frontend/app/app/page.tsx` — **the main app (~3,889 lines)**.
+    Workspace shell, onboarding, modals, sidebar, mobile orb, routing.
+    Tab content itself lives in `tabs/` (Phase A refactor complete).
+  - `frontend/app/app/tabs/` — extracted tab components: `ChartTab`,
+    `HousesTab`, `DashaTab`, `AnalysisTab`, `HoraryTab`, `MatchTab`,
+    `MuhurthaTab`, `PanchangTab`. Each tab is self-contained — work
+    on a tab without re-reading page.tsx.
   - `frontend/app/app/components/` — component library for the app page
+  - `frontend/app/app/components/mobile/` — mobile-specific surfaces
+    (`MobileChartSheet`, `MobileDashaStories` — added 2026-05-24)
+  - `frontend/app/app/components/workspace/` — workspace primitives
+    (`CSLChainView`, `PlanetList`, `TransitWheel`, etc.)
   - `frontend/app/app/lib/` — small local helpers (e.g. `maskedInput.ts`)
   - `frontend/app/globals.css` — **single CSS file**, scoped per feature
     (`.horary-*`, `.muhurtha-*`, `.pc2-*`, `.match-*`, `.transit-*`,
@@ -344,11 +362,23 @@ Track A is **closed** as of 2026-04-20. The active track is **A.1 — KP engine 
 - Astrologer mode: `setupDone` + `mode === "astrologer"` unlocks the
   chart-thumbs sidebar (`workspace-sidebar`) with `savedSessions` list.
 
-## Analysis tab — DO NOT TOUCH
+## Analysis tab — DO NOT TOUCH (the prompts / logic)
 
-The Analysis tab (`activeTab === "analysis"`, line ~5716) is production-
+The Analysis tab lives at `frontend/app/app/tabs/AnalysisTab.tsx`
+(extracted from page.tsx — was line ~5716 pre-Phase-A). It is production-
 stable AI chat. **The user has said "Analysis tab is perfect, don't touch".**
-Any AI-chat work happens outside that tab.
+
+What "don't touch" means precisely:
+- **Backend prompts + LLM call shape + KB selection** — sacred. Locked.
+- **Streaming handler in AnalysisTab.tsx** — locked. The SSE consumer
+  that posts to `/astrologer/analyze-stream` and renders chunks should
+  not be modified.
+- **Visual polish (icons, bubble styling, TOC chips, etc.)** — OK, this
+  has been iterated on safely (see e.g. the 2026-05-24 emoji→lucide
+  conversion in `66aba57`).
+
+Any NEW AI feature happens as an ADDITIVE call with its own prompt —
+never by editing the Analysis tab's existing flow.
 
 ## Language system (`frontend/lib/i18n.tsx`)
 

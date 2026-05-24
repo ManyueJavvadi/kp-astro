@@ -603,3 +603,119 @@ correct across two independent swisseph invocations on the same chart.
 - Smoke-tested: both PDF engines raise ValueError on missing lat/lon;
   check_promise returns 3-tier verdict with backward-compat fields
   intact on Manyue's chart across job/marriage/wealth topics.
+
+---
+
+## 2026-05-24 (Sunday) — v2 plan cancellation + doc refresh + post-66aba57 audit
+
+### Strategic decision: v2 plan CANCELLED ✅
+User direction 2026-05-24: *"current UI is perfect, if we do anything we
+do on top of it."*
+
+The world-first-vision.md plan (8-workspace astrologer-mode + 3-workspace
+consumer-mode + inquiry-driven canvas replacing the 8-tab UI) is **dead**.
+Future work is **polish-and-add on top of the existing 8-tab UI**, not
+a redesign. There is no architecture pivot pending.
+
+- `CLAUDE.md` — the top "🔒 LOCKED v2 PLAN" section was replaced with
+  "🔒 CURRENT DIRECTION (as of 2026-05-24) — current UI IS the target."
+  Repo layout updated (page.tsx 3,889 lines, /tabs/ dir documented).
+  Sacred-region KB count updated 29 → 55. Analysis-tab section updated
+  to point at `tabs/AnalysisTab.tsx` instead of "line ~5716 of page.tsx."
+- `research/world-first-vision.md` — CANCELLED banner added at top.
+  Kept as historical record of considered direction.
+- `research/phase-a-handoff.md` — COMPLETE banner added. The Phase A
+  refactor it described shipped successfully on its own merits (R1-R8
+  all done). page.tsx: 8,589 → 3,889 lines (−54.7%).
+- `research/v2-roadmap.md` — was already marked SUPERSEDED (predated
+  world-first-vision). Untouched.
+
+### Phase A refactor status: COMPLETE
+All 8 tabs extracted to `frontend/app/app/tabs/`:
+ChartTab, HousesTab, DashaTab, AnalysisTab, HoraryTab, MatchTab,
+MuhurthaTab, PanchangTab.
+
+The ≤3,500-line page.tsx target was internal to v2 prep; with v2
+cancelled the line count (3,889) is effectively at target.
+
+### Frontend shipped today via `66aba57` (user's own push, not Claude)
+**Commit**: feat(mobile): visual twinkling starfield and tactile dice
+roll haptic mobile UI/UX elevations, Z-index alignment, and responsive
+grid refactoring.
+
+~4,000 lines added/changed across 20 frontend files. **Zero backend
+files touched.** Highlights:
+- 3 new components: `workspace/TransitWheel.tsx` (concentric dual-ring
+  transit chart), `mobile/MobileChartSheet.tsx`, `mobile/MobileDashaStories.tsx`
+- Significant reskins: MatchTab (604), DashaTimeline (346), CSLChainView
+  (267), MuhurthaTab (200), PlanetList (155), AnalysisTab (102 — all
+  visual: emoji→lucide icons, quote-block user bubble, cleaner AI card)
+- globals.css +480 lines (mobile twinkling starfield, dice haptic
+  styling, z-index alignment, responsive grid)
+- AnalysisTab logic untouched (only visual changes — sacred boundary
+  intact, streaming flow + LLM call unchanged)
+
+### Post-66aba57 verification audit
+Comprehensive sweep run after the commit landed. Findings:
+- 88/88 backend tests pass (no regressions vs A1.13 baseline)
+- `npx tsc --noEmit` clean, `npx next build` clean
+- End-to-end smoke of `/astrologer/workspace`, `/chart/generate`,
+  `/compatibility/match` — all return expected shapes with correct
+  values on Manyue's chart
+- Sacred regions ALL untouched: llm_service.py, compatibility_engine.py,
+  all 55 KB files, chart_engine.py core (verified via `git diff --name-only`)
+- API contracts ALL unchanged: workspace POST body, chart POST body,
+  match POST body — same field set as before
+- New components confirmed presentation-only: TransitWheel, MobileChartSheet,
+  MobileDashaStories all have zero axios/fetch calls (props-driven)
+- AnalysisTab streaming endpoint untouched (only a comment was edited)
+
+### Gemini Antigravity audit (codebase_audit_report.md) — review + action
+External audit ran on Manyue's chart + codebase. Reviewed via grep-
+verification: 1 finding stale (Venus override — already removed in
+compatibility_engine.py), 3 real. All 3 real findings shipped as PR
+A1.13 (see prior entry).
+
+High-value cross-validation: Gemini independently ran pyswisseph and got
+mathematically identical chart positions to our engine (lagna 234.6693°,
+moon 272.4035°, H10 CSL Rahu — all match). Career verdict converged
+across three independent analyses (Gemini, production AI, manual read).
+Math layer is verified correct across two independent swisseph
+invocations.
+
+### Gemini Antigravity audit (implementation_plan.md) — ARCHITECTURE REJECTED
+Same external tool proposed a "complete UI/UX redesign" with 3-panel
+layout (chart left / active tab center / AI side-sheet right),
+glassmorphism overhaul, AI demoted to side-sheet, embedded everywhere.
+
+**Rejected as architecture proposal.** Reasons documented in chat:
+- Directly contradicts the (now-cancelled) v2 inquiry-canvas direction
+  AND the current "polish on top of current UI" direction
+- Demotes Analysis tab to a side-sheet (violates sacred-region rule)
+- Glassmorphism with `backdrop-filter: blur(16px)` is a Safari iOS
+  perf trap
+- Ignores mobile strategy (CommandOrb + 820px breakpoint)
+- Re-proposes Phase 15 cosmic-craft work that's already shipped (worse)
+
+**Cherry-picked 5 component-level ideas for future polish backlog** (not
+shipped yet, just captured):
+1. Visual 4-step CSL chain flowchart (with denial/promise color coding —
+   pairs perfectly with the A1.13 3-tier check_promise output)
+2. Color-coded favorable/denial house badges (emerald/amber/crimson)
+3. Concentric dual-ring transit chart (the real "wow" feature) —
+   **NOTE**: TransitWheel.tsx component just landed in 66aba57, so this
+   may already be done. Check before re-proposing.
+4. Intercepted-sign highlight in South Indian Chart
+5. Ruling Planets pulse on chart glyphs
+
+### Notes for future Claude
+- **NEVER mention "v2 plan" or "world-first-vision" or "Phase B/C/D/E"
+  as if they're upcoming.** They're cancelled. Read CLAUDE.md's
+  "🔒 CURRENT DIRECTION" section instead.
+- **The 8-tab UI is the target.** Polish + add on top. Don't propose
+  re-architectures.
+- **Component ideas from the Gemini implementation_plan are in this
+  log entry above — they're a CANDIDATE list, not commitments.** User
+  picks if/when any get worked on.
+- **TransitWheel.tsx exists now** (added in 66aba57) — verify what
+  state it's in before proposing "add a transit wheel."
