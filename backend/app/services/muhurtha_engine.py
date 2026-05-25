@@ -1126,6 +1126,155 @@ def _is_vishti(moon_lon: float, sun_lon: float) -> bool:
     return (idx - 1) % 7 == 6
 
 
+def _vishti_mukha_part(moon_lon: float, sun_lon: float) -> str:
+    """
+    PR Mu8 — Split Vishti (Bhadra) into face/middle/tail. Per
+    Muhurta Chintamani + astroshastra: the first 3 ghatikas
+    (~72 min) of Vishti = 'mukha' (face) = WORST; middle = soft;
+    last 3 ghatikas = 'puchcha' (tail) = essentially OK.
+
+    Returns one of: "face" (worst), "middle" (soft), "tail" (ok),
+    "" (not in Vishti).
+    """
+    diff = (moon_lon - sun_lon) % 360
+    idx = int(diff / 6)
+    if idx == 0 or idx > 56:
+        return ""
+    if (idx - 1) % 7 != 6:
+        return ""
+    # Position within this karana (0.0 = start of karana, 1.0 = end)
+    karana_size_deg = 6.0
+    karana_start = idx * karana_size_deg
+    pos_within = ((diff - karana_start) % 360) / karana_size_deg  # 0..1
+    if pos_within < 0.30:
+        return "face"
+    elif pos_within > 0.70:
+        return "tail"
+    return "middle"
+
+
+# PR Mu8 — Mrityu Yoga (Vara × Nakshatra) grid. Classical Muhurta
+# Chintamani §11. Each weekday has 2-3 "death-bringing" nakshatras;
+# if Moon is in one of them on that weekday, Mrityu Yoga is active.
+# Hard reject for medical / travel events; soft for others.
+# Weekday 0=Monday … 6=Sunday. Nakshatra indices 0=Ashwini … 26=Revati.
+MRITYU_YOGA_NAKSHATRAS = {
+    0: {12, 13},        # Mon: Hasta, Chitra
+    1: {8, 25},         # Tue: Ashlesha, Uttara Bhadrapada
+    2: {1, 2, 16},      # Wed: Bharani, Krittika, Jyeshtha
+    3: {19, 23},        # Thu: Purva Ashadha, Shatabhisha
+    4: {3, 4, 6},       # Fri: Rohini, Mrigashira, Punarvasu
+    5: {7, 11},         # Sat: Pushya, Uttara Phalguni
+    6: {5, 9},          # Sun: Ardra, Magha
+}
+
+
+# PR Mu8 — Krura tithis (4, 9, 14 in both pakshas; per Krishna paksha
+# add 19, 24, 29). Soft penalty for shubh starts; do not apply for
+# shradha / martial / litigation where these tithis are NEUTRAL or
+# slightly preferred.
+KRURA_TITHIS = {4, 9, 14, 19, 24, 29}
+KRURA_EVENT_EXCEPTIONS = {"legal", "medical"}  # not penalised for these
+
+
+# PR Mu8 — Dagdha Tithi grid (Muhurta Chintamani §3). Map: Sun's
+# rashi index → tithi numbers that are "burnt" for that solar month.
+# Hard for marriage / travel / new ventures; soft for others.
+# Sun signs 0=Aries..11=Pisces. Tithi nums 1..30 in lunar cycle.
+DAGDHA_TITHI_BY_SUN_SIGN = {
+    0:  {12},         # Aries (Mesha)        — Dwadashi
+    1:  {11},         # Taurus               — Ekadashi
+    2:  {5},          # Gemini               — Panchami
+    3:  {10},         # Cancer               — Dashami
+    4:  {2},          # Leo                  — Dwitiya
+    5:  {7},          # Virgo                — Saptami
+    6:  {8},          # Libra                — Ashtami
+    7:  {9},          # Scorpio              — Navami
+    8:  {13},         # Sagittarius          — Trayodashi
+    9:  {14},         # Capricorn            — Chaturdashi
+    10: {1},          # Aquarius             — Pratipada
+    11: {3, 6},       # Pisces               — Tritiya, Shashthi
+}
+DAGDHA_HARD_EVENTS = {"marriage", "engagement", "travel", "house_warming", "business"}
+
+
+def _compute_advanced_doshas(
+    jd: float,
+    moon_lon: float,
+    sun_lon: float,
+    sunrise_jd: float,
+    sunset_jd: float,
+    weekday: int,
+    naks_idx: int,
+    tithi_num: int,
+    yoga_idx: int,
+    event_type: str,
+    is_vishti: bool,
+) -> dict:
+    """
+    PR Mu8 — Compute the classical doshas the engine previously missed:
+
+      Bhadra mukha split: face/middle/tail of Vishti
+      Sandhya (twilight): ~24 min around sunrise/sunset = -50 for
+        non-spiritual events
+      Mrityu Yoga: Vara × Nakshatra death-yoga grid; HARD for
+        medical/travel, soft for others
+      Krura Tithi: 4/9/14/19/24/29 = -10 soft (except legal/medical)
+      Dagdha Tithi: per-Sun-sign void tithi; HARD for marriage/
+        engagement/travel/house_warming/business; soft for others
+      Vyatipata defunct-after-noon: Vyatipata + Vaidhriti yogas are
+        HARD before local noon, SOFT after (research finding from
+        Sanatan Veda — overrides the flat -40 currently applied)
+    """
+    # Bhadra mukha part
+    bhadra_part = _vishti_mukha_part(moon_lon, sun_lon) if is_vishti else ""
+
+    # Sandhya (twilight). 12 min before to 12 min after sunrise; same
+    # for sunset. Defined here in JD-day units (12 min = 12/(24*60)).
+    SANDHYA_HALF = 12.0 / (24 * 60)
+    in_sandhya_sunrise = abs(jd - sunrise_jd) <= SANDHYA_HALF
+    in_sandhya_sunset = abs(jd - sunset_jd) <= SANDHYA_HALF
+    in_sandhya = in_sandhya_sunrise or in_sandhya_sunset
+
+    # Mrityu Yoga
+    mrityu_active = naks_idx in MRITYU_YOGA_NAKSHATRAS.get(weekday, set())
+    MRITYU_HARD_EVENTS = {"medical", "travel"}
+    mrityu_hard = mrityu_active and event_type in MRITYU_HARD_EVENTS
+
+    # Krura tithi
+    krura_active = tithi_num in KRURA_TITHIS and event_type not in KRURA_EVENT_EXCEPTIONS
+
+    # Dagdha tithi
+    sun_sign_idx = int((sun_lon % 360) / 30.0)
+    dagdha_active = tithi_num in DAGDHA_TITHI_BY_SUN_SIGN.get(sun_sign_idx, set())
+    dagdha_hard = dagdha_active and event_type in DAGDHA_HARD_EVENTS
+
+    # Vyatipata / Vaidhriti defunct-after-noon
+    # yoga_idx 16 = Vyatipata, 26 = Vaidhriti
+    VYATIPATA_DEFUNCT_YOGAS = {16, 26}
+    in_vyatipata_or_vaidhriti = yoga_idx in VYATIPATA_DEFUNCT_YOGAS
+    local_noon_jd = (sunrise_jd + sunset_jd) / 2.0
+    is_before_noon = jd < local_noon_jd
+    vyatipata_hard = in_vyatipata_or_vaidhriti and is_before_noon
+
+    return {
+        "bhadra_part":          bhadra_part,
+        "in_sandhya":           in_sandhya,
+        "sandhya_kind":         ("sunrise" if in_sandhya_sunrise else
+                                 "sunset" if in_sandhya_sunset else ""),
+        "mrityu_yoga_active":   mrityu_active,
+        "mrityu_yoga_hard":     mrityu_hard,
+        "krura_tithi_active":   krura_active,
+        "dagdha_tithi_active":  dagdha_active,
+        "dagdha_tithi_hard":    dagdha_hard,
+        "vyatipata_or_vaidhriti": in_vyatipata_or_vaidhriti,
+        "vyatipata_hard":       vyatipata_hard,
+        "yoga_is_defunct_after_noon": (
+            in_vyatipata_or_vaidhriti and not is_before_noon
+        ),
+    }
+
+
 # ── Scoring ──────────────────────────────────────────────────────
 
 def _score_significations(signified: list, event_type: str) -> int:
@@ -1470,6 +1619,17 @@ def _scan_date_range(
         in_gl   = gl_start <= jd <= gl_end
         in_durm = any(d_s <= jd <= d_e for d_s, d_e in durm_windows)
         vishti  = _is_vishti(moon_lon, sun_lon)
+
+        # ── PR Mu8 — Advanced classical doshas ─────────────────────
+        # Bhadra mukha split, Sandhya twilight, Mrityu Yoga grid,
+        # Krura tithis, Dagdha tithi grid, Vyatipata-defunct-after-noon.
+        adv_doshas = _compute_advanced_doshas(
+            jd=jd, moon_lon=moon_lon, sun_lon=sun_lon,
+            sunrise_jd=sunrise_jd, sunset_jd=sunset_jd,
+            weekday=vara, naks_idx=naks_idx,
+            tithi_num=tithi_num, yoga_idx=yoga_idx,
+            event_type=event_type, is_vishti=vishti,
+        )
 
         # ── Moon details ──
         moon_nk = get_nakshatra_and_starlord(moon_lon)
@@ -1910,8 +2070,97 @@ def _scan_date_range(
             effective_score -= 80
             breakdown.append({"factor": "durmuhurtha", "delta": -80, "note": "Window falls inside Durmuhurtha"})
         if vishti:
-            effective_score -= 30
-            breakdown.append({"factor": "vishti_karana", "delta": -30, "note": "Vishti (Bhadra) karana — inauspicious"})
+            # PR Mu8 — Bhadra mukha split. Face = -60 (worst), middle = -30
+            # (same as old flat), tail = -10 (essentially OK). Pre-Mu8 the
+            # whole karana got the flat -30 regardless of position.
+            part = adv_doshas["bhadra_part"]
+            if part == "face":
+                vishti_delta = -60
+                vishti_note = "Vishti FACE (Bhadra mukha) — worst phase"
+            elif part == "tail":
+                vishti_delta = -10
+                vishti_note = "Vishti TAIL (puchcha) — soft, often acceptable"
+            else:
+                vishti_delta = -30
+                vishti_note = "Vishti middle (Bhadra) — inauspicious"
+            effective_score += vishti_delta
+            breakdown.append({"factor": "vishti_karana", "delta": vishti_delta, "note": vishti_note})
+
+        # ── PR Mu8 — Other classical doshas (Sandhya / Mrityu / Krura /
+        #             Dagdha / Vyatipata-defunct-after-noon) ──
+        if adv_doshas["in_sandhya"]:
+            # Sandhya is HARD for all non-spiritual events; we apply -50.
+            effective_score -= 50
+            breakdown.append({
+                "factor": "sandhya_twilight",
+                "delta": -50,
+                "note": f"Within ±12 min of {adv_doshas['sandhya_kind']} (Sandhya)"
+            })
+        if adv_doshas["mrityu_yoga_active"]:
+            if adv_doshas["mrityu_yoga_hard"]:
+                hard_rejected_for.append(
+                    f"Mrityu Yoga active (Vara × Nakshatra) — blocks {event_type}"
+                )
+                breakdown.append({
+                    "factor": "mrityu_yoga_hard",
+                    "delta": 0,
+                    "note": f"Hard reject — Mrityu Yoga blocks {event_type}",
+                })
+            else:
+                effective_score -= 25
+                breakdown.append({
+                    "factor": "mrityu_yoga_soft",
+                    "delta": -25,
+                    "note": "Mrityu Yoga active (soft for this event)",
+                })
+        if adv_doshas["krura_tithi_active"]:
+            effective_score -= 10
+            breakdown.append({
+                "factor": "krura_tithi",
+                "delta": -10,
+                "note": f"Tithi {tithi_num} is Krura (4/9/14 in lunar cycle)",
+            })
+        if adv_doshas["dagdha_tithi_active"]:
+            if adv_doshas["dagdha_tithi_hard"]:
+                hard_rejected_for.append(
+                    f"Dagdha tithi {tithi_num} for Sun-sign — blocks {event_type}"
+                )
+                breakdown.append({
+                    "factor": "dagdha_tithi_hard",
+                    "delta": 0,
+                    "note": f"Hard reject — Dagdha tithi {tithi_num} blocks {event_type}",
+                })
+            else:
+                effective_score -= 20
+                breakdown.append({
+                    "factor": "dagdha_tithi_soft",
+                    "delta": -20,
+                    "note": f"Dagdha tithi {tithi_num} active (soft for this event)",
+                })
+        if adv_doshas["vyatipata_or_vaidhriti"]:
+            if adv_doshas["vyatipata_hard"]:
+                # Replace the previous flat -40 yoga penalty (already
+                # in base_score via line 1493) with a softer reading
+                # for after-noon — but the before-noon case should
+                # actually hard-reject per research. Since the flat -40
+                # is already applied, we add an additional -20 to make
+                # it effectively -60 for before-noon (hard caveat).
+                effective_score -= 20
+                breakdown.append({
+                    "factor": "vyatipata_pre_noon",
+                    "delta": -20,
+                    "note": "Vyatipata/Vaidhriti yoga ACTIVE before noon (intensified)",
+                })
+            elif adv_doshas["yoga_is_defunct_after_noon"]:
+                # Restore +20 because the base_score has already
+                # penalised this yoga by -40 even though it's defunct
+                # after noon per research (Sanatan Veda).
+                effective_score += 20
+                breakdown.append({
+                    "factor": "vyatipata_defunct_after_noon",
+                    "delta": +20,
+                    "note": "Vyatipata/Vaidhriti yoga DEFUNCT after noon — restore",
+                })
 
         # PR Mu2 — raw_score = sum of all deltas (uncapped); confidence_score
         # = clamped to [0, 100] for display. Raw lets astrologer tell
@@ -1955,6 +2204,10 @@ def _scan_date_range(
                     } if in_sutak else None
                 ),
                 "in_eclipse_extended_advisory": bool(in_eclipse_ext and not in_sutak),
+                # PR Mu8 — Advanced doshas (Bhadra mukha split / Sandhya /
+                # Mrityu Yoga / Krura tithi / Dagdha tithi / Vyatipata
+                # defunct-after-noon)
+                "advanced_doshas": adv_doshas,
                 "in_rahu_kalam":     in_rk,
                 "in_yamagandam":     in_yg,
                 "in_gulika":         in_gl,

@@ -1025,6 +1025,65 @@ def test_mu7_windows_inside_sutak_are_soft_flagged():
             )
 
 
+def test_mu8_advanced_doshas_present_on_every_window():
+    """Every window must carry advanced_doshas with the documented keys."""
+    r = find_muhurtha_windows(
+        date_start="2026-05-01", date_end="2026-05-02",
+        event_type="general", **TENALI,
+        nearby_days=0, participants=[],
+    )
+    all_w = (r.get("windows") or []) + (r.get("soft_flagged_windows") or [])
+    assert all_w
+    for w in all_w[:5]:
+        adv = w.get("advanced_doshas")
+        assert isinstance(adv, dict)
+        for key in ("bhadra_part", "in_sandhya", "mrityu_yoga_active",
+                    "krura_tithi_active", "dagdha_tithi_active",
+                    "vyatipata_or_vaidhriti"):
+            assert key in adv, f"advanced_doshas missing {key}"
+
+
+def test_mu8_bhadra_face_penalty_harsher_than_tail():
+    """When a window is inside Vishti FACE the penalty is -60;
+    inside TAIL it's -10. Search for Vishti windows in a wider range
+    so we exercise both."""
+    r = find_muhurtha_windows(
+        date_start="2026-05-01", date_end="2026-05-15",
+        event_type="general", **TENALI,
+        nearby_days=0, participants=[],
+    )
+    all_w = (r.get("windows") or []) + (r.get("soft_flagged_windows") or [])
+    for w in all_w:
+        if not w.get("is_vishti"):
+            continue
+        part = (w.get("advanced_doshas") or {}).get("bhadra_part")
+        ledger = {b["factor"]: b["delta"] for b in (w.get("confidence_breakdown") or [])}
+        delta = ledger.get("vishti_karana")
+        if part == "face":
+            assert delta == -60, f"FACE expected -60, got {delta}"
+        elif part == "tail":
+            assert delta == -10, f"TAIL expected -10, got {delta}"
+        elif part == "middle":
+            assert delta == -30, f"MIDDLE expected -30, got {delta}"
+
+
+def test_mu8_sandhya_window_gets_penalty():
+    """Windows within 12 min of sunrise / sunset get -50 for Sandhya."""
+    r = find_muhurtha_windows(
+        date_start="2026-05-01", date_end="2026-05-01",
+        event_type="general", **TENALI,
+        nearby_days=0, participants=[],
+    )
+    all_w = (r.get("windows") or []) + (r.get("soft_flagged_windows") or [])
+    for w in all_w:
+        if (w.get("advanced_doshas") or {}).get("in_sandhya"):
+            ledger = {b["factor"]: b["delta"] for b in (w.get("confidence_breakdown") or [])}
+            assert ledger.get("sandhya_twilight") == -50, (
+                f"Sandhya window must have -50 ledger entry, got {ledger.get('sandhya_twilight')}"
+            )
+            break
+
+
 def test_mu0g_antardasha_cache_is_used():
     """_AD_CACHE accumulates entries as scans run; we verify by clearing
     it, running a small scan with a participant, and asserting at least
