@@ -1214,6 +1214,51 @@ def test_mu11_per_event_hora_scoring_overrides_global():
             )
 
 
+def test_mu12_28_event_types_present_in_engine():
+    """EVENT_HOUSE_GROUPS has 28 entries (11 pre-Mu12 incl. `general`
+    + 17 Mu12 new). Pre-Mu12 count was 11 not 10 — PR title said "27"
+    but the math was 11+17=28; locked here."""
+    assert len(EVENT_HOUSE_GROUPS) == 28, (
+        f"Expected 28 event types post-Mu12, got {len(EVENT_HOUSE_GROUPS)}"
+    )
+
+
+def test_mu12_classify_event_routes_new_keywords():
+    """The 17 new event types each route via at least one keyword."""
+    expectations = {
+        "engagement of my son":            "engagement",
+        "naming ceremony for baby":        "namakarana",
+        "annaprashana ritual":             "annaprashana",
+        "upanayanam thread ceremony":      "upanayanam",
+        "vidyarambham start":              "vidyarambham",
+        "mundan ceremony":                 "mundan",
+        "karna vedha for daughter":        "karna_vedha",
+        "buy gold this akshaya tritiya":   "gold_buying",
+        "contract signing meeting":        "contract",
+        "court hearing next week":         "court_hearing",
+        "election filing nomination":      "election_filing",
+        "deeksha from guru":               "deeksha",
+        "start medication for BP":         "medication_start",
+        "joining new job tomorrow":        "job_joining",
+        "lease signing for apartment":     "lease_signing",
+        "planting rice this season":       "planting",
+        "property purchase registration":  "property_purchase",
+        "loan disbursement date":          "loan_disbursement",
+    }
+    for text, expected in expectations.items():
+        got = classify_event(text)
+        assert got == expected, f"{text!r} → got {got!r}, expected {expected!r}"
+
+
+def test_mu12_court_hearing_prefers_tue_sat():
+    """Court hearing per audit Mu11/Mu12: Tue (Mars) and Sat (Saturn)
+    are PREFERRED — the universal rule used to penalise both."""
+    from app.services.muhurtha_findings import EVENT_PREFERRED_VARAS
+    assert EVENT_PREFERRED_VARAS["court_hearing"] == {1, 5}, (
+        "Court hearing preferred varas must be {Tue, Sat}"
+    )
+
+
 def test_mu0g_antardasha_cache_is_used():
     """_AD_CACHE accumulates entries as scans run; we verify by clearing
     it, running a small scan with a participant, and asserting at least

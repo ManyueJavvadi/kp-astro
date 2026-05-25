@@ -75,12 +75,77 @@ EVENT_HOUSE_GROUPS = {
     "legal":         {"primary": 6,  "supporting": [11, 3],     "denial": [5, 12]},
     "investment":    {"primary": 2,  "supporting": [5, 11],     "denial": [8, 12]},
     "general":       {"primary": 1,  "supporting": [2, 11],     "denial": [6, 8, 12]},
+    # ─── PR Mu12 — 17 new event types (10 → 27) ─────────────────
+    # Sourced from KB §2 + web research expansion. Each is a real
+    # muhurtha request type that astrologers commonly receive. House
+    # assignments per classical primary-karaka rules.
+    "engagement":         {"primary": 7,  "supporting": [5, 11],     "denial": [6, 8, 12]},
+    "namakarana":         {"primary": 5,  "supporting": [2, 9],      "denial": [6, 8, 12]},
+    "annaprashana":       {"primary": 5,  "supporting": [2, 6],      "denial": [8, 12]},
+    "upanayanam":         {"primary": 5,  "supporting": [9, 2],      "denial": [6, 8, 12]},
+    "vidyarambham":       {"primary": 5,  "supporting": [2, 4, 9],   "denial": [3, 12]},
+    "mundan":             {"primary": 5,  "supporting": [1, 3],      "denial": [6, 8]},
+    "karna_vedha":        {"primary": 5,  "supporting": [3],         "denial": [6, 8]},
+    "gold_buying":        {"primary": 2,  "supporting": [11, 5],     "denial": [6, 8, 12]},
+    "contract":           {"primary": 3,  "supporting": [10, 11],    "denial": [6, 12]},
+    "court_hearing":      {"primary": 6,  "supporting": [1, 11],     "denial": [5, 8, 12]},
+    "election_filing":    {"primary": 10, "supporting": [11, 6],     "denial": [5, 8, 12]},
+    "deeksha":            {"primary": 9,  "supporting": [5, 12],     "denial": [6, 8]},
+    "medication_start":   {"primary": 6,  "supporting": [1, 8],      "denial": [12]},
+    "job_joining":        {"primary": 10, "supporting": [6, 2],      "denial": [5, 8, 12]},
+    "lease_signing":      {"primary": 4,  "supporting": [11, 7],     "denial": [6, 8, 12]},
+    "planting":           {"primary": 4,  "supporting": [2, 6],      "denial": [8, 12]},
+    "property_purchase":  {"primary": 4,  "supporting": [2, 11],     "denial": [6, 8, 12]},
+    "loan_disbursement":  {"primary": 6,  "supporting": [2, 11],     "denial": [8, 12]},
 }
 
 
 def classify_event(event_text: str) -> str:
-    """Map free-form event description to a known event key."""
+    """Map free-form event description to a known event key.
+
+    PR Mu12 \u2014 expanded from 10 to 27 event types. Order of checks
+    matters: more-specific patterns first so "engagement" doesn't
+    match the looser "marriage" keyword set, etc.
+    """
     text = event_text.lower()
+    # \u2500\u2500\u2500 PR Mu12 \u2014 specific-first dispatch for the 17 new types \u2500
+    if any(w in text for w in ["engagement", "sagai", "betrothal", "\u0c28\u0c3f\u0c36\u0c4d\u0c1a\u0c3f\u0c24\u0c3e\u0c30\u0c4d\u0c25\u0c02"]):
+        return "engagement"
+    if any(w in text for w in ["namakar", "naming ceremony", "barsa", "\u0c28\u0c3e\u0c2e\u0c15\u0c30\u0c23"]):
+        return "namakarana"
+    if any(w in text for w in ["annaprash", "first solid food", "rice ceremony"]):
+        return "annaprashana"
+    if any(w in text for w in ["upanay", "sacred thread", "thread ceremony", "\u0c09\u0c2a\u0c28\u0c2f\u0c28\u0c02"]):
+        return "upanayanam"
+    if any(w in text for w in ["vidyarambh", "first writing", "start of learning", "\u0c05\u0c15\u0c4d\u0c37\u0c30\u0c3e\u0c2d\u0c4d\u0c2f\u0c3e\u0c38"]):
+        return "vidyarambham"
+    if any(w in text for w in ["mundan", "first hair", "head shaving", "tonsure", "\u0c2e\u0c41\u0c02\u0c21\u0c28"]):
+        return "mundan"
+    if any(w in text for w in ["karna vedh", "ear pierc", "ear-piercing"]):
+        return "karna_vedha"
+    if any(w in text for w in ["gold buy", "buy gold", "akshaya tritiya", "dhanteras", "\u0c2c\u0c02\u0c17\u0c3e\u0c30\u0c02"]):
+        return "gold_buying"
+    if any(w in text for w in ["contract", "agreement sign", "mou", "deal sign", "\u0c12\u0c2a\u0c4d\u0c2a\u0c02\u0c26\u0c02"]):
+        return "contract"
+    if any(w in text for w in ["court hearing", "hearing date", "trial date"]):
+        return "court_hearing"
+    if any(w in text for w in ["election filing", "nomination", "file nomination"]):
+        return "election_filing"
+    if any(w in text for w in ["deeksha", "initiation", "spiritual init", "guru pradan", "\u0c26\u0c40\u0c15\u0c4d\u0c37"]):
+        return "deeksha"
+    if any(w in text for w in ["medication start", "start medication", "begin treatment"]):
+        return "medication_start"
+    if any(w in text for w in ["join job", "joining date", "first day work", "new job", "joining duty"]):
+        return "job_joining"
+    if any(w in text for w in ["lease sign", "rent agreement", "signing lease", "rental contract"]):
+        return "lease_signing"
+    if any(w in text for w in ["plant", "sow", "planting", "sowing"]):
+        return "planting"
+    if any(w in text for w in ["property purchase", "buy property", "register property", "land registration"]):
+        return "property_purchase"
+    if any(w in text for w in ["loan disburs", "loan release", "disburse loan"]):
+        return "loan_disbursement"
+    # \u2500\u2500\u2500 Pre-Mu12 events \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
     if any(w in text for w in ["marriage", "wedding", "vivah", "\u0c2a\u0c46\u0c33\u0c4d\u0c33\u0c3f", "\u0c35\u0c3f\u0c35\u0c3e\u0c39", "kalyanam"]):
         return "marriage"
     if any(w in text for w in ["vehicle", "car", "bike", "auto", "scooter", "vahana",
@@ -104,7 +169,7 @@ def classify_event(event_text: str) -> str:
     if any(w in text for w in ["legal", "court", "case", "lawsuit", "vyajyam", "\u0c35\u0c4d\u0c2f\u0c3e\u0c1c\u0c4d\u0c2f",
                                 "\u0c15\u0c4b\u0c30\u0c4d\u0c1f\u0c41"]):
         return "legal"
-    if any(w in text for w in ["invest", "stock", "fund", "property buy", "land", "gold",
+    if any(w in text for w in ["invest", "stock", "fund", "land", "gold",
                                 "\u0c2a\u0c46\u0c1f\u0c4d\u0c1f\u0c41\u0c2c\u0c21\u0c3f"]):
         return "investment"
     return "general"

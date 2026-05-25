@@ -106,6 +106,25 @@ EVENT_PREFERRED_VARAS = {
     "investment":    {2, 3},                     # Wed/Thu
     "legal":         {1, 5},                     # Tue (Mars), Sat (Saturn)
     "general":       {0, 2, 3, 4},
+    # PR Mu12 — 17 new event preferences
+    "engagement":         {0, 2, 3, 4},          # same as marriage but lighter
+    "namakarana":         {0, 2, 3, 4},          # Mon/Wed/Thu/Fri for child rites
+    "annaprashana":       {2, 3, 4},             # Wed/Thu/Fri (Mercury for digestion)
+    "upanayanam":         {0, 2, 3, 4},
+    "vidyarambham":       {2, 3},                # Wed/Thu (Mercury, Jupiter)
+    "mundan":             {0, 2, 3, 4},
+    "karna_vedha":        {0, 2, 3, 4},
+    "gold_buying":        {0, 3, 4},             # Mon/Thu/Fri (Moon, Jup, Ven)
+    "contract":           {2, 3},                # Wed/Thu (clear-headed signing)
+    "court_hearing":      {1, 5},                # Tue/Sat — assertion/victory
+    "election_filing":    {2, 3},                # Wed/Thu
+    "deeksha":            {0, 3, 4},             # Mon/Thu/Fri
+    "medication_start":   {2, 3, 4},             # Wed/Thu/Fri
+    "job_joining":        {2, 3, 4},
+    "lease_signing":      {2, 3, 4},
+    "planting":           {0, 2, 3},             # Mon/Wed/Thu (Moon for water)
+    "property_purchase":  {2, 3, 4},
+    "loan_disbursement":  {2, 3},
 }
 
 # Weekdays to AVOID per event (direct opposition)
@@ -120,6 +139,25 @@ EVENT_AVOID_VARAS = {
     "investment":    {5},
     "legal":         {2},                        # Wed slippery for legal
     "general":       {1, 5},
+    # PR Mu12 — 17 new event avoidances
+    "engagement":         {1, 5, 6},
+    "namakarana":         {1, 5},
+    "annaprashana":       {1, 5, 6},
+    "upanayanam":         {1, 5},
+    "vidyarambham":       {5},                   # Saturn slows learning
+    "mundan":             {1, 5, 6},
+    "karna_vedha":        {1, 5, 6},
+    "gold_buying":        {1, 5},
+    "contract":           {1, 5, 6},
+    "court_hearing":      {2},                   # Wed slippery (was for legal)
+    "election_filing":    {1, 5, 6},
+    "deeksha":            {1, 5},
+    "medication_start":   {5},                   # Saturday slow recovery
+    "job_joining":        {1, 5},
+    "lease_signing":      {1, 5, 6},
+    "planting":           {1, 5},
+    "property_purchase":  {1, 5, 6},
+    "loan_disbursement":  {5},                   # Sat = debt-binding
 }
 
 # Lagna type preferences by event (KB §5.1)
