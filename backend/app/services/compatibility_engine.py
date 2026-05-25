@@ -1996,6 +1996,152 @@ def _h7_csl_borderline_flag(chart: dict) -> dict:
     }
 
 
+def _resolve_match_sensitivity_tier(
+    pattern_d2_p1: dict | None,
+    pattern_d2_p2: dict | None,
+    promise_p1: dict | None,
+    promise_p2: dict | None,
+    multi_p1: dict | None,
+    multi_p2: dict | None,
+    combust_p1: dict | None,
+    combust_p2: dict | None,
+    border_p1: dict | None,
+    border_p2: dict | None,
+    h7_star_sub_p1: dict | None,
+    h7_star_sub_p2: dict | None,
+    user_concerns: str | None = None,
+) -> dict:
+    """
+    PR M9 — Sensitivity tier resolver for Match readings.
+
+    Base tier for Match = 2 (life-impact, per Horary topic map: "marriage" → tier 2).
+
+    Auto-escalators to Tier 3 from already-computed STRUCTURAL signals:
+      • D2 STRONG either partner (offer-then-withdrawn at H7) — wedding
+        cancellation / engagement-broken risk
+      • Either H7 promise DENIED + multi-marriage signature → second-
+        marriage / divorce framing required
+      • Both partners' H7 carrying TENSION or DENIED in star-sub harmony
+        + multi-marriage either side → divorce-risk framing required
+      • Either H7 CSL fully combust + denial → hidden-relationship +
+        denial → potential abandonment framing
+
+    Auto-escalators from optional `user_concerns` free text (when the
+    astrologer types a free-text note like "client suicidal about this
+    match" — reuse Horary _TIER3_ESCALATORS phrases). Empty/None passes
+    through with base tier 2.
+
+    The tier governs the FRAMING NOTE that frontend prepends to the
+    Overall tab and the model receives. It does NOT alter the verdict.
+    """
+    base_tier = 2  # marriage is inherently life-impact
+    escalators: list[str] = []
+
+    # Structural escalators
+    if pattern_d2_p1 and pattern_d2_p1.get("severity") == "STRONG":
+        escalators.append("D2_STRONG_partner1")
+    if pattern_d2_p2 and pattern_d2_p2.get("severity") == "STRONG":
+        escalators.append("D2_STRONG_partner2")
+
+    p1_denied = bool(promise_p1 and promise_p1.get("has_denial"))
+    p2_denied = bool(promise_p2 and promise_p2.get("has_denial"))
+    p1_multi = bool(multi_p1 and multi_p1.get("signature_present"))
+    p2_multi = bool(multi_p2 and multi_p2.get("signature_present"))
+
+    if p1_denied and p1_multi:
+        escalators.append("denied_plus_multi_partner1")
+    if p2_denied and p2_multi:
+        escalators.append("denied_plus_multi_partner2")
+
+    p1_tension = (h7_star_sub_p1 or {}).get("harmony") in ("TENSION", "DENIED")
+    p2_tension = (h7_star_sub_p2 or {}).get("harmony") in ("TENSION", "DENIED")
+    if p1_tension and p2_tension and (p1_multi or p2_multi):
+        escalators.append("bilateral_h7_tension_plus_multi")
+
+    p1_combust = bool(combust_p1 and combust_p1.get("is_combust"))
+    p2_combust = bool(combust_p2 and combust_p2.get("is_combust"))
+    if p1_combust and p1_denied:
+        escalators.append("combust_plus_denial_partner1")
+    if p2_combust and p2_denied:
+        escalators.append("combust_plus_denial_partner2")
+
+    # Free-text concerns (optional)
+    concerns_lower = (user_concerns or "").lower()
+    crisis_phrases = (
+        "suicide", "suicidal", "kill myself", "end my life", "self-harm",
+        "self harm", "no reason to live", "divorce inevitable",
+        "abandonment", "abusive",
+    )
+    for phrase in crisis_phrases:
+        if phrase in concerns_lower:
+            escalators.append(f"concern_phrase:{phrase}")
+
+    effective_tier = 3 if escalators else base_tier
+
+    # Caveat ledger — accumulate borderline / combust notes so frontend
+    # has a single place to render the "soft caveats" line.
+    caveats_en: list[str] = []
+    caveats_te: list[str] = []
+    if border_p1 and border_p1.get("is_borderline"):
+        caveats_en.append(border_p1.get("label_en", "P1 borderline"))
+        caveats_te.append(border_p1.get("label_te", "P1 సరిహద్దు"))
+    if border_p2 and border_p2.get("is_borderline"):
+        caveats_en.append(border_p2.get("label_en", "P2 borderline"))
+        caveats_te.append(border_p2.get("label_te", "P2 సరిహద్దు"))
+    if combust_p1 and combust_p1.get("borderline") and not p1_combust:
+        caveats_en.append("P1 H7 CSL near combustion")
+    if combust_p2 and combust_p2.get("borderline") and not p2_combust:
+        caveats_en.append("P2 H7 CSL near combustion")
+
+    # Build framing notes
+    framing_en = ""
+    framing_te = ""
+    if effective_tier == 3:
+        framing_en = (
+            "TIER 3 reading. The chart shows structural risk signals — "
+            "D2 cancellation pattern, denial + multi-marriage signature, "
+            "bilateral H7 tension, or user-flagged crisis concern. KP "
+            "describes STRUCTURAL TENDENCIES only; the actual outcome "
+            "depends on both partners' free will, counselling, family "
+            "support, and (where relevant) professional mental-health or "
+            "legal help. Do NOT use this reading as a verdict for or "
+            "against the match — use it as one input alongside lived "
+            "compatibility and counsel."
+        )
+        framing_te = (
+            "టైర్ 3 ఫలితం. చార్ట్ నిర్మాణాత్మక రిస్క్ సూచనలు చూపిస్తోంది — "
+            "D2 రద్దు నమూనా, నిరాకరణ + అనేక-వివాహ సంకేతం, రెండు H7 ఒత్తిడి, "
+            "లేదా వినియోగదారు సూచించిన సంక్షోభం. KP నిర్మాణాత్మక ధోరణులు "
+            "మాత్రమే వివరిస్తుంది; చివరి ఫలితం ఇరువురి స్వేచ్ఛా సంకల్పం, "
+            "కౌన్సెలింగ్, కుటుంబ మద్దతుపై ఆధారపడుతుంది. ఈ ఫలితాన్ని "
+            "నిర్ధారణగా కాకుండా ఒక ఇన్‌పుట్‌గా మాత్రమే ఉపయోగించండి."
+        )
+    elif effective_tier == 2:
+        framing_en = (
+            "Life-impact reading. KP shows structural tendencies; both "
+            "partners' free will, communication, and shared dasha "
+            "alignment shape the actual outcome. The chart's promise is "
+            "one input; the running dasha is another — both must align "
+            "for a wedding to fructify."
+        )
+        framing_te = (
+            "జీవిత-ప్రభావ ఫలితం. KP నిర్మాణాత్మక ధోరణులు చూపిస్తుంది; "
+            "ఇరువురి స్వేచ్ఛా సంకల్పం, సంభాషణ, దశ సమన్వయం చివరి ఫలితాన్ని "
+            "రూపొందిస్తాయి. చార్ట్ ప్రమాణం + దశ రెండూ సరిపోతేనే వివాహం జరుగుతుంది."
+        )
+
+    return {
+        "tier": effective_tier,
+        "base_tier": base_tier,
+        "escalators_triggered": escalators,
+        "framing_required": True,
+        "framing_note_en": framing_en,
+        "framing_note_te": framing_te,
+        "caveats_en": caveats_en,
+        "caveats_te": caveats_te,
+    }
+
+
 def _h7_star_sub_harmony(chart: dict) -> dict:
     """
     PR M4 — Star-Sub Harmony layered reading for each partner's H7 CSL.
@@ -3929,10 +4075,12 @@ def _compute_couple_confidence(
     return score, contributions
 
 
-def compute_compatibility(person1: dict, person2: dict) -> dict:
+def compute_compatibility(person1: dict, person2: dict, user_concerns: str | None = None) -> dict:
     """
     Main function: compute full KP + Ashtakoota + Dosha compatibility.
     person1/person2 must have: name, date, time, latitude, longitude, timezone_offset, gender
+    user_concerns (optional): free-text note from astrologer used by PR M9
+        sensitivity tier resolver to escalate Tier 2 → Tier 3 on crisis phrases.
     """
     swe.set_sid_mode(swe.SIDM_KRISHNAMURTI_VP291)
 
@@ -4077,6 +4225,26 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
     # rectified birth time before committing.
     h7_csl_borderline_p1 = _h7_csl_borderline_flag(chart1)
     h7_csl_borderline_p2 = _h7_csl_borderline_flag(chart2)
+
+    # PR M9 — Sensitivity tier framing + structural auto-escalators.
+    # Base tier 2 (marriage = life-impact). Escalates to Tier 3 when
+    # D2/denial+multi/bilateral-tension/combust+denial structural signals
+    # fire, OR when user_concerns text matches crisis phrases.
+    sensitivity = _resolve_match_sensitivity_tier(
+        pattern_d2_p1=pattern_d2_p1,
+        pattern_d2_p2=pattern_d2_p2,
+        promise_p1=kp.get("chart1_promise") if isinstance(kp, dict) else None,
+        promise_p2=kp.get("chart2_promise") if isinstance(kp, dict) else None,
+        multi_p1=multi_marriage_p1,
+        multi_p2=multi_marriage_p2,
+        combust_p1=h7_csl_combust_p1,
+        combust_p2=h7_csl_combust_p2,
+        border_p1=h7_csl_borderline_p1,
+        border_p2=h7_csl_borderline_p2,
+        h7_star_sub_p1=h7_star_sub_p1,
+        h7_star_sub_p2=h7_star_sub_p2,
+        user_concerns=user_concerns,
+    )
 
     # PR M3 — Pattern detection per partner (M1/M2/M3/M5) + cross-couple
     # (T1/T2). Pattern naming is what distinguishes a deep KSK reading
@@ -4364,6 +4532,8 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
         # PR M8 — Borderline H7 CSL caveat per partner
         "h7_csl_borderline_chart1": h7_csl_borderline_p1,
         "h7_csl_borderline_chart2": h7_csl_borderline_p2,
+        # PR M9 — Sensitivity tier framing + auto-escalators
+        "sensitivity": sensitivity,
         "summary": {
             "kp_verdict": kp["kp_verdict"],
             "ashtakoota_score": f"{ashtakoota['total_score']}/{ashtakoota['max_score']}",

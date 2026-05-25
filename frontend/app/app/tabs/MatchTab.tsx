@@ -559,6 +559,53 @@ export function MatchTab(props: MatchTabProps) {
               </div>
             </div>
 
+            {/* PR M9 — Sensitivity tier framing banner. Tier 2 = standard
+                life-impact framing; Tier 3 fires when D2 / denial+multi /
+                bilateral H7 tension / combust+denial structural risk
+                signals appear. The astrologer must read this BEFORE
+                committing to a marriage verdict. */}
+            {r.sensitivity?.framing_required && (
+              <div
+                style={{
+                  marginTop: 10,
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  background: r.sensitivity.tier === 3
+                    ? "rgba(248,113,113,0.06)"
+                    : "rgba(201,169,110,0.05)",
+                  border: r.sensitivity.tier === 3
+                    ? "0.5px solid rgba(248,113,113,0.35)"
+                    : "0.5px solid rgba(201,169,110,0.30)",
+                  color: r.sensitivity.tier === 3 ? "#f87171" : "var(--accent)",
+                  fontSize: 11,
+                  lineHeight: 1.6,
+                }}
+              >
+                <div style={{ fontWeight: 700, letterSpacing: "0.06em", fontSize: 10, textTransform: "uppercase", marginBottom: 6 }}>
+                  {r.sensitivity.tier === 3
+                    ? t("⚠ Tier 3 — life-impact + structural risk",
+                        "⚠ టైర్ 3 — జీవిత-ప్రభావ + నిర్మాణాత్మక రిస్క్")
+                    : t("Tier 2 — life-impact framing",
+                        "టైర్ 2 — జీవిత-ప్రభావ ఫ్రేమింగ్")}
+                </div>
+                <div style={{ color: "var(--text)", opacity: 0.85 }}>
+                  {lang === "te" ? r.sensitivity.framing_note_te : r.sensitivity.framing_note_en}
+                </div>
+                {r.sensitivity.tier === 3 && r.sensitivity.escalators_triggered?.length > 0 && (
+                  <div style={{ marginTop: 6, fontSize: 10, color: "var(--muted)", fontStyle: "italic" }}>
+                    {t("Triggered by:", "ట్రిగ్గర్:")}{" "}
+                    {r.sensitivity.escalators_triggered.map((e: string) => e.replace(/_/g, " ")).join(" · ")}
+                  </div>
+                )}
+                {r.sensitivity.caveats_en?.length > 0 && (
+                  <div style={{ marginTop: 6, fontSize: 10, color: "#93c5fd" }}>
+                    {t("Caveats:", "హెచ్చరికలు:")}{" "}
+                    {(lang === "te" ? r.sensitivity.caveats_te : r.sensitivity.caveats_en).join(" · ")}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* PR M3 — Canonical KP pattern chips (M1/M2/M3/M5 per partner +
                 T1/T2 couple-wide). Pattern naming distinguishes a deep KSK
                 reading from a generic significator scan (RULE 19). */}
