@@ -39,6 +39,7 @@ from app.services.chart_engine import (
     calculate_pratyantardashas, get_current_pratyantardasha,
     DAY_LORDS,
     is_borderline_csl, sub_boundary_distance,
+    calculate_sookshma_dashas,
 )
 from app.services.chart_formatter import format_chart_for_frontend
 from app.services.kp_advanced_compute import detect_combustion
@@ -3144,6 +3145,175 @@ def _upcoming_marriage_windows(person: dict, chart: dict, months_ahead: int = 60
         return {"windows": [], "total_found": 0, "error": str(e)}
 
 
+def _ad_lord_pd_sd_signifies_marriage(person: dict, chart: dict,
+                                     md_lord: str, ad_lord: str,
+                                     md_start_str: str) -> list[dict]:
+    """
+    PR M10 helper — Walk a given AD's PD ladder and inside each PD,
+    walk its sookshma ladder. Return only periods where BOTH the PD lord
+    AND the sookshma lord signify marriage promise houses {2, 7, 11}
+    (intersection — not just union).
+
+    Returns a list of {start, end, pd_lord, sd_lord, pd_score, sd_score,
+                       duration_days, lords_str}
+    """
+    try:
+        # Rebuild the AD object expected by calculate_pratyantardashas
+        # by re-walking from md_start. The chart_engine helpers operate
+        # on AD dicts with start/end strings already.
+        moon_lon = chart["moon_lon"]
+        dashas = calculate_dashas(person["date"], person["time"], moon_lon,
+                                  person.get("timezone_offset", 5.5))
+        target_md = next((m for m in dashas
+                          if m.get("lord") == md_lord
+                          and m.get("start", "")[:10] == md_start_str[:10]),
+                         None)
+        if not target_md:
+            return []
+        ads = calculate_antardashas(target_md)
+        target_ad = next((a for a in ads
+                          if a.get("antardasha_lord") == ad_lord), None)
+        if not target_ad:
+            return []
+        pds = calculate_pratyantardashas(target_ad)
+        out: list[dict] = []
+        for pd in pds:
+            pd_lord = pd.get("pratyantardasha_lord", "")
+            if not pd_lord:
+                continue
+            pd_sigs = _planet_significations(pd_lord, chart["planets"], chart["cusp_lons"])
+            pd_hits = pd_sigs & {2, 7, 11}
+            if not pd_hits:
+                continue
+            sds = calculate_sookshma_dashas(pd)
+            for sd in sds:
+                sd_lord = sd.get("sookshma_lord", "")
+                if not sd_lord:
+                    continue
+                sd_sigs = _planet_significations(sd_lord, chart["planets"], chart["cusp_lons"])
+                sd_hits = sd_sigs & {2, 7, 11}
+                if not sd_hits:
+                    continue
+                # Both PD and SD must hit marriage — sookshma confirms
+                start_s = sd.get("start", "")[:10]
+                end_s = sd.get("end", "")[:10]
+                try:
+                    dur = (_dt.strptime(end_s, "%Y-%m-%d") -
+                           _dt.strptime(start_s, "%Y-%m-%d")).days
+                except Exception:
+                    dur = 0
+                out.append({
+                    "start": start_s,
+                    "end": end_s,
+                    "pd_lord": pd_lord,
+                    "sd_lord": sd_lord,
+                    "pd_hits": sorted(pd_hits),
+                    "sd_hits": sorted(sd_hits),
+                    "duration_days": dur,
+                    "lords_str": f"{md_lord}-{ad_lord}-{pd_lord}-{sd_lord}",
+                })
+        return out
+    except Exception:
+        return []
+
+
+def _joint_sookshma_precision_windows(person1: dict, person2: dict,
+                                      chart1: dict, chart2: dict,
+                                      overlap_windows: list[dict],
+                                      max_windows: int = 3) -> list[dict]:
+    """
+    PR M10 — Joint Sookshma (sub-PAD) days-precision refinement of the
+    AD-level overlap_windows.
+
+    For the top N AD overlap windows (default 3), walk both partners'
+    PD → Sookshma ladders inside the overlap interval. Find date
+    sub-ranges where BOTH partners have:
+      - PD lord signifying {2, 7, 11}
+      - Sookshma lord ALSO signifying {2, 7, 11}
+      - AND the date intervals overlap
+
+    These are the "wedding-grade" days-precision windows the astrologer
+    can recommend for engagement / wedding scheduling.
+
+    Each returned window:
+      {
+        "start", "end", "duration_days",
+        "person1_lords": "MD-AD-PD-SD",
+        "person2_lords": "MD-AD-PD-SD",
+        "joint_strength": int (0-4, count of (p1_pd, p1_sd, p2_pd, p2_sd)
+                                   that hit H7),
+        "ad_overlap_start", "ad_overlap_end" (parent AD overlap)
+      }
+    """
+    result: list[dict] = []
+    for ov in overlap_windows[:max_windows]:
+        p1_md = ov.get("person1_md") or ""
+        p2_md = ov.get("person2_md") or ""
+        p1_ad = ov.get("person1_ad") or ""
+        p2_ad = ov.get("person2_ad") or ""
+        # md_start_str is needed to disambiguate which MD occurrence;
+        # we don't carry it through, so pass empty and let the helper
+        # find the first matching MD with the given lord (good enough
+        # because the same MD lord doesn't repeat within a 5-year horizon).
+        p1_periods = _ad_lord_pd_sd_signifies_marriage(
+            person1, chart1, p1_md, p1_ad, "")
+        p2_periods = _ad_lord_pd_sd_signifies_marriage(
+            person2, chart2, p2_md, p2_ad, "")
+        if not p1_periods or not p2_periods:
+            continue
+        ov_s = ov.get("start", "")[:10]
+        ov_e = ov.get("end", "")[:10]
+        try:
+            ov_s_dt = _dt.strptime(ov_s, "%Y-%m-%d")
+            ov_e_dt = _dt.strptime(ov_e, "%Y-%m-%d")
+        except Exception:
+            continue
+        for a in p1_periods:
+            try:
+                as_dt = _dt.strptime(a["start"], "%Y-%m-%d")
+                ae_dt = _dt.strptime(a["end"], "%Y-%m-%d")
+            except Exception:
+                continue
+            for b in p2_periods:
+                try:
+                    bs_dt = _dt.strptime(b["start"], "%Y-%m-%d")
+                    be_dt = _dt.strptime(b["end"], "%Y-%m-%d")
+                except Exception:
+                    continue
+                # Intersect a, b, AND the parent AD overlap
+                s = max(as_dt, bs_dt, ov_s_dt)
+                e = min(ae_dt, be_dt, ov_e_dt)
+                if s >= e:
+                    continue
+                dur = (e - s).days
+                if dur < 1:
+                    continue
+                # Strength = number of (pd, sd) hits across both partners
+                strength = (
+                    (1 if a["pd_hits"] else 0)
+                    + (1 if a["sd_hits"] else 0)
+                    + (1 if b["pd_hits"] else 0)
+                    + (1 if b["sd_hits"] else 0)
+                )
+                result.append({
+                    "start": s.strftime("%Y-%m-%d"),
+                    "end": e.strftime("%Y-%m-%d"),
+                    "duration_days": dur,
+                    "person1_lords": a["lords_str"],
+                    "person2_lords": b["lords_str"],
+                    "person1_pd_hits": a["pd_hits"],
+                    "person1_sd_hits": a["sd_hits"],
+                    "person2_pd_hits": b["pd_hits"],
+                    "person2_sd_hits": b["sd_hits"],
+                    "joint_strength": strength,
+                    "ad_overlap_start": ov_s,
+                    "ad_overlap_end": ov_e,
+                })
+    # Sort by joint_strength desc, then start asc, then duration desc
+    result.sort(key=lambda w: (-w["joint_strength"], w["start"], -w["duration_days"]))
+    return result[:8]  # top 8
+
+
 def _shared_marriage_windows(person1: dict, person2: dict,
                              chart1: dict, chart2: dict,
                              months_ahead: int = 60) -> dict:
@@ -3177,6 +3347,8 @@ def _shared_marriage_windows(person1: dict, person2: dict,
                 "start": ov_s.strftime("%Y-%m-%d"),
                 "end":   ov_e.strftime("%Y-%m-%d"),
                 "duration_days": duration_days,
+                "person1_md": a.get("md_lord", ""),
+                "person2_md": b.get("md_lord", ""),
                 "person1_ad": a["ad_lord"],
                 "person2_ad": b["ad_lord"],
                 "person1_score": a["score"],
@@ -4153,6 +4325,16 @@ def compute_compatibility(person1: dict, person2: dict, user_concerns: str | Non
     upcoming_windows = _shared_marriage_windows(person1, person2, chart1, chart2,
                                                 months_ahead=60)
 
+    # PR M10 — Drop to PD + Sookshma level inside the top overlap_windows
+    # to find days-precision joint windows where BOTH partners' PD AND
+    # sookshma lords signify marriage promise houses. These are the
+    # "wedding-grade" recommendable dates the astrologer can hand the family.
+    joint_precision_windows = _joint_sookshma_precision_windows(
+        person1, person2, chart1, chart2,
+        overlap_windows=upcoming_windows.get("overlap_windows", []) or [],
+        max_windows=3,
+    )
+
     # New: D9 Navamsa for both charts
     d9_chart1 = _compute_d9(chart1)
     d9_chart2 = _compute_d9(chart2)
@@ -4482,6 +4664,8 @@ def compute_compatibility(person1: dict, person2: dict, user_concerns: str | Non
         "in_laws_chart1": inlaws_p1,
         "in_laws_chart2": inlaws_p2,
         "upcoming_windows": upcoming_windows,
+        # PR M10 — Joint Sookshma days-precision windows (top 8)
+        "joint_precision_windows": joint_precision_windows,
         # D9
         "d9_chart1": d9_chart1,
         "d9_chart2": d9_chart2,

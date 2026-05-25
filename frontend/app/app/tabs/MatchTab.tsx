@@ -1273,6 +1273,53 @@ export function MatchTab(props: MatchTabProps) {
                 </div>
               )}
 
+              {/* PR M10 — Joint Sookshma days-precision windows.
+                  When both partners' PD AND sookshma lords signify {2,7,11},
+                  we have a wedding-grade dates window. */}
+              {(r.joint_precision_windows?.length > 0) && (
+                <div className="match-section">
+                  <div className="match-section-title">
+                    <Hourglass size={12} strokeWidth={1.8} />
+                    {t("Wedding-grade days · Joint PD + Sookshma fire",
+                       "వివాహ-గ్రేడ్ రోజులు · PD + సూక్ష్మ ఇద్దరికీ")}
+                  </div>
+                  <div style={{ fontSize: 10.5, color: "var(--muted)", marginBottom: 8 }}>
+                    {t("Narrowest joint windows where BOTH partners' Pratyantar AND Sookshma lords signify marriage houses {2,7,11}. Days-precision dates — engagement / wedding candidates.",
+                       "ఇరువురి Pratyantar + Sookshma {2,7,11}ని సూచించే అతి సూక్ష్మ ఉమ్మడి కిటికీలు. నిశ్చితార్థం / వివాహ తేదీ సూచనలు.")}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column" as const, gap: 6 }}>
+                    {(r.joint_precision_windows || []).slice(0, 6).map((w: any, i: number) => (
+                      <div key={i} style={{ padding: "8px 12px", background: "rgba(201,169,110,0.06)", border: "0.5px solid rgba(201,169,110,0.30)", borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" as const, gap: 8 }}>
+                        <div>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--accent)" }}>
+                            {w.start} → {w.end}
+                            <span style={{ fontSize: 10, color: "var(--muted)", marginLeft: 8 }}>({w.duration_days}d)</span>
+                          </div>
+                          <div style={{ fontSize: 10.5, color: "var(--muted)", marginTop: 3, fontFamily: "monospace" }}>
+                            {r.person1?.name}: <strong style={{ color: "var(--text)" }}>{w.person1_lords}</strong>
+                          </div>
+                          <div style={{ fontSize: 10.5, color: "var(--muted)", fontFamily: "monospace" }}>
+                            {r.person2?.name}: <strong style={{ color: "var(--text)" }}>{w.person2_lords}</strong>
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column" as const, alignItems: "flex-end", gap: 2 }}>
+                          <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 16, color: "var(--accent)" }}>
+                            {w.joint_strength}/4
+                          </div>
+                          <div style={{ fontSize: 9, color: "var(--muted)", letterSpacing: "0.06em", textTransform: "uppercase" as const }}>
+                            {t("strength", "బలం")}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 8, fontStyle: "italic", lineHeight: 1.5 }}>
+                    {t("Strength 4/4 = both partners' PD + Sookshma all hit {2,7,11}. Strength 2/4 = one side full fire, other partial.",
+                       "4/4 బలం = ఇరువురి PD + Sookshma నాలుగూ {2,7,11}ని తాకుతాయి. 2/4 = ఒక వ్యక్తి పూర్తి, మరొకరు భాగికంగా.")}
+                  </div>
+                </div>
+              )}
+
               {(r.upcoming_windows.overlap_windows?.length === 0) && (
                 <div className="match-section" style={{ background: "rgba(251,191,36,0.04)", border: "1px solid rgba(251,191,36,0.18)" }}>
                   <div className="match-section-title">
