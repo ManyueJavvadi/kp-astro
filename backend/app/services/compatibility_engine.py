@@ -3029,6 +3029,139 @@ def _check_kuja_dosha(chart: dict) -> dict:
 
 # ── Public API ────────────────────────────────────────────────
 
+def _compute_couple_confidence(
+    *,
+    p1_promise_tier: str,
+    p2_promise_tier: str,
+    p1_denial: bool,
+    p2_denial: bool,
+    overlap_window_count: int,
+    ashtakoota_score: int,
+    ashtakoota_max: int,
+    pattern_d2_fire: bool,
+    rajju_dosha: bool,
+    sep_risk_high_either: bool,
+    sublord_friendship_red: bool,
+    ksk_stricter_exceptional: bool,
+) -> tuple[int, list[dict]]:
+    """
+    PR M1 — Numeric couple confidence 0-100 with audit trail.
+
+    Brings Match into parity with Horary (PR H3) + Analysis tab
+    (RULE 18 engine_confidence). Same shape: 0-100 score + a list of
+    {label, delta, note} contributions the astrologer can audit.
+
+    Weighting (max 100):
+
+      Per-partner promise:
+        Full      +30 each (max +60 if both)
+        Strong    +20 each
+        Conditional +10 each
+        None       0
+      Denial flag on either partner with non-Full promise: −5 each
+
+      Joint dasha overlap:
+        ≥1 overlap window in next 60mo: +10
+        ≥3 overlap windows:             +15 (cap)
+
+      Ashtakoota:
+        ≥27/36: +10
+        18-26:  +5
+        ≤14:    0
+
+      KSK Reader IV exceptional cross-match (PR M1.4): +5
+
+      Penalties:
+        Pattern D2 fire on either side: −10
+        Rajju dosha (longevity):        −15
+        Sep-risk High on either:        −10
+        Sublord friendship RED (enemy): −5
+
+    Clamped to [0, 100].
+
+    Returns (score, contributions) where contributions is a list of
+    {label, delta, note} for the audit trail (matches Horary H3 shape).
+    """
+    contributions: list[dict] = []
+    score = 0
+
+    # Promise tier per partner — uses the actual PROMISE_* constants
+    # defined in this module (Full/Partial/Weak/None).
+    tier_pts = {PROMISE_FULL: 30, PROMISE_PARTIAL: 20, PROMISE_WEAK: 10, PROMISE_NONE: 0}
+    for label_idx, tier in enumerate((p1_promise_tier, p2_promise_tier), start=1):
+        pts = tier_pts.get(tier, 0)
+        score += pts
+        contributions.append({
+            "label": f"Person {label_idx} promise tier: {tier}",
+            "delta": pts,
+            "note": "Per partner H7 CSL promise (KSK Reader)" if pts > 0 else "No promise → no contribution",
+        })
+
+    # Denial penalty (only when promise is not Full)
+    for label_idx, (denial, tier) in enumerate([(p1_denial, p1_promise_tier), (p2_denial, p2_promise_tier)], start=1):
+        if denial and tier != PROMISE_FULL:
+            score -= 5
+            contributions.append({
+                "label": f"Person {label_idx} denial-houses-hit (non-Full promise)",
+                "delta": -5,
+                "note": "H7 CSL touches denial set {1,6,10,12} per KSK",
+            })
+
+    # Joint dasha overlap
+    if overlap_window_count >= 3:
+        score += 15
+        contributions.append({"label": f"Joint dasha overlap (≥3 windows in 60mo)",
+                              "delta": 15, "note": "Multiple shared favorable windows ahead"})
+    elif overlap_window_count >= 1:
+        score += 10
+        contributions.append({"label": f"Joint dasha overlap ({overlap_window_count} window)",
+                              "delta": 10, "note": "Shared favorable window within 60mo"})
+    else:
+        contributions.append({"label": "Joint dasha overlap (none in 60mo)",
+                              "delta": 0, "note": "Marriage timing may stretch beyond horizon"})
+
+    # Ashtakoota
+    if ashtakoota_score >= 27:
+        score += 10
+        contributions.append({"label": f"Ashtakoota {ashtakoota_score}/{ashtakoota_max} (≥27)",
+                              "delta": 10, "note": "Strong traditional gun-milan"})
+    elif ashtakoota_score >= 18:
+        score += 5
+        contributions.append({"label": f"Ashtakoota {ashtakoota_score}/{ashtakoota_max}",
+                              "delta": 5, "note": "Moderate traditional gun-milan"})
+    else:
+        contributions.append({"label": f"Ashtakoota {ashtakoota_score}/{ashtakoota_max} (≤14)",
+                              "delta": 0, "note": "Low gun-milan — KP-strict still primary"})
+
+    # KSK Reader IV exceptional cross-match
+    if ksk_stricter_exceptional:
+        score += 5
+        contributions.append({"label": "KSK Reader IV exceptional cross-match",
+                              "delta": 5, "note": "Rare high-signal H7 triple ↔ partner RPs"})
+
+    # Penalties
+    if pattern_d2_fire:
+        score -= 10
+        contributions.append({"label": "Pattern D2 fire (engagement-broken / wedding-cancelled risk)",
+                              "delta": -10, "note": "Step 4 partial denier on either partner's H7 chain"})
+    if rajju_dosha:
+        score -= 15
+        contributions.append({"label": "Rajju dosha (longevity concern)",
+                              "delta": -15, "note": "Same body-region rajju in extended Dashakoota"})
+    if sep_risk_high_either:
+        score -= 10
+        contributions.append({"label": "High separation risk on either side",
+                              "delta": -10, "note": "Per _separation_risk computation"})
+    if sublord_friendship_red:
+        score -= 5
+        contributions.append({"label": "Asc + H7 sublord friendship RED (enemy)",
+                              "delta": -5, "note": "PR M1.3 structural-friction signal"})
+
+    # Clamp
+    score = max(0, min(100, score))
+    return score, contributions
+
+
 def compute_compatibility(person1: dict, person2: dict) -> dict:
     """
     Main function: compute full KP + Ashtakoota + Dosha compatibility.
@@ -3278,6 +3411,28 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
     # If KP says Conditional but Ashtakoota and canonical strongly support,
     # we do NOT upgrade — KP-strict mode means KP verdict is authoritative.
 
+    # PR M1 — Numeric couple confidence 0-100 with audit trail.
+    # Computed AFTER all engine values are available so all signals can
+    # contribute. Brings Match into parity with Horary (H3) + Analysis
+    # tab (RULE 18 engine_confidence).
+    couple_confidence_score, couple_confidence_breakdown = _compute_couple_confidence(
+        p1_promise_tier=p1_tier,
+        p2_promise_tier=p2_tier,
+        p1_denial=p1_denial,
+        p2_denial=p2_denial,
+        overlap_window_count=len(upcoming_windows.get("overlap_windows", []) or []),
+        ashtakoota_score=ashtakoota["total_score"],
+        ashtakoota_max=ashtakoota["max_score"],
+        pattern_d2_fire=bool(
+            (pattern_d2_p1 and pattern_d2_p1.get("severity") == "STRONG")
+            or (pattern_d2_p2 and pattern_d2_p2.get("severity") == "STRONG")
+        ),
+        rajju_dosha=bool(extended_koots.get("has_rajju_dosha")),
+        sep_risk_high_either=("High" in (sr1_level, sr2_level)),
+        sublord_friendship_red=(sublord_friendship.get("overall") == "RED"),
+        ksk_stricter_exceptional=bool(ksk_stricter.get("exceptional_cross_match")),
+    )
+
     # Nadi dosha — only flag as serious-concern if also same nakshatra.
     # (Cancellation exception per classical rules — see audit §C6.)
     nadi_serious = ("Nadi" in ashtakoota.get("critical_doshas", []))
@@ -3351,6 +3506,9 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
         "chart1_data": chart1_frontend,
         "chart2_data": chart2_frontend,
         "overall_verdict": overall,
+        # PR M1 — numeric couple confidence 0-100 + audit trail
+        "couple_confidence_score": couple_confidence_score,
+        "couple_confidence_breakdown": couple_confidence_breakdown,
         "summary": {
             "kp_verdict": kp["kp_verdict"],
             "ashtakoota_score": f"{ashtakoota['total_score']}/{ashtakoota['max_score']}",

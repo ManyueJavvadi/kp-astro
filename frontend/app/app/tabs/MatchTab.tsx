@@ -515,9 +515,32 @@ export function MatchTab(props: MatchTabProps) {
                 <div className="match-verdict-word" style={{ color: verdictColor }}>
                   {r.overall_verdict}
                 </div>
-                <div style={{ display: "inline-flex", gap: 6, alignItems: "center", fontSize: 10, color: "var(--muted)", letterSpacing: "0.06em", textTransform: "uppercase" as const }}>
+                {/* PR M1 — numeric couple confidence 0-100 (audit trail in
+                    couple_confidence_breakdown). Brings Match into parity with
+                    Horary H3 + Analysis tab RULE 18 engine_confidence. */}
+                <div style={{ display: "inline-flex", gap: 6, alignItems: "center", fontSize: 10, color: "var(--muted)", letterSpacing: "0.06em", textTransform: "uppercase" as const, flexWrap: "wrap" as const, justifyContent: "center" }}>
                   <span>KP</span>
                   <span style={{ color: verdictColor, fontWeight: 600, textTransform: "none" as const, letterSpacing: "0.02em" }}>{kp?.kp_verdict}</span>
+                  {typeof r.couple_confidence_score === "number" && (
+                    <span
+                      title={t("Engine couple confidence (0–100). Audit trail in the Reasoning section.",
+                               "జంట విశ్వాస సంఖ్య (0–100). ఆడిట్ ట్రెయిల్ Reasoning విభాగంలో.")}
+                      style={{
+                        marginLeft: 4,
+                        padding: "2px 10px",
+                        borderRadius: 999,
+                        background: `${verdictColor}18`,
+                        border: `0.5px solid ${verdictColor}44`,
+                        color: verdictColor,
+                        fontWeight: 700,
+                        letterSpacing: "0.04em",
+                        textTransform: "none" as const,
+                        fontSize: 11,
+                      }}
+                    >
+                      {r.couple_confidence_score}/100
+                    </span>
+                  )}
                   {r.kuja_dosha?.mutual_cancellation && (
                     <span className="match-dosha-chip good" style={{ marginLeft: 4 }}>
                       <CheckCircle size={10} strokeWidth={2} /> {t("Mangal Dosha cancelled", "కుజ దోష రద్దు")}
