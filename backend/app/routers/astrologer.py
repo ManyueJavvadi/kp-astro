@@ -43,6 +43,9 @@ class WorkspaceRequest(BaseModel):
     longitude: float = Field(..., ge=-180, le=180)
     timezone_offset: float = Field(5.5, ge=-14, le=14)
     gender: str = Field("", max_length=20)  # PR A1.3a — frontend now sends gender so AI doesn't guess from name
+    live_latitude: float | None = Field(None, ge=-90, le=90)
+    live_longitude: float | None = Field(None, ge=-180, le=180)
+    live_timezone_offset: float | None = Field(None, ge=-14, le=14)
 
 class AnalysisRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=120)
@@ -62,6 +65,9 @@ class AnalysisRequest(BaseModel):
     # via heuristic if not provided. See _resolve_question_type in
     # llm_service.py.
     question_type: str = Field("auto", max_length=20)
+    live_latitude: float | None = Field(None, ge=-90, le=90)
+    live_longitude: float | None = Field(None, ge=-180, le=180)
+    live_timezone_offset: float | None = Field(None, ge=-14, le=14)
 
 
 # PR A1.3-fix-20 / fix-21 — helper to compute Tara Chakra + Chandra Bala
@@ -364,15 +370,12 @@ def get_workspace(request: WorkspaceRequest):
     pratyantardashas = calculate_pratyantardashas(current_ad)
     current_pad = get_current_pratyantardasha(pratyantardashas)
     all_significators = get_all_house_significators(chart["planets"], chart["cusps"])
-    # PR A1.1: RPs now require the CHART's lat/lon/tz — previously this
-    # silently used lat=0 lon=0 (middle of the Atlantic). The change lets
-    # Analysis compute RPs against the native chart's context instead of
-    # a fictional neutral ocean point. For live-moment RPs (current time
-    # + astrologer's actual location), use the Horary router which passes
-    # real geolocation.
-    ruling_planets = get_ruling_planets(
-        request.latitude, request.longitude, tz_offset,
-    )
+    # Determine coordinates to calculate ruling planets at live query moment
+    rp_lat = request.live_latitude if request.live_latitude is not None else request.latitude
+    rp_lon = request.live_longitude if request.live_longitude is not None else request.longitude
+    rp_tz  = request.live_timezone_offset if request.live_timezone_offset is not None else tz_offset
+
+    ruling_planets = get_ruling_planets(rp_lat, rp_lon, rp_tz)
 
     cusp_longitudes = [data.get("cusp_longitude", 0) for data in chart["cusps"].values()]
 
@@ -556,6 +559,9 @@ def analyze_topic(request: AnalysisRequest):
         timezone_offset=request.timezone_offset,
         gender=request.gender,
         topic=topic,
+        live_latitude=request.live_latitude,
+        live_longitude=request.live_longitude,
+        live_timezone_offset=request.live_timezone_offset,
     )
     # Strip internal-only keys (raw chart + moon_long) — not consumed by
     # get_prediction or the response payload.
@@ -647,6 +653,9 @@ async def analyze_topic_stream(request: AnalysisRequest):
         timezone_offset=request.timezone_offset,
         gender=request.gender,
         topic=topic,
+        live_latitude=request.live_latitude,
+        live_longitude=request.live_longitude,
+        live_timezone_offset=request.live_timezone_offset,
     )
     chart_data.pop("_chart_raw", None)
     chart_data.pop("_moon_longitude", None)

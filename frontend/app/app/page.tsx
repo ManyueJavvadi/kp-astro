@@ -151,7 +151,10 @@ export default function Home() {
         latitude: updatedBirthDetails.latitude,
         longitude: updatedBirthDetails.longitude,
         timezone_offset: timezoneOffset,
-        gender: updatedBirthDetails.gender || ""
+        gender: updatedBirthDetails.gender || "",
+        live_latitude: liveLoc.location?.latitude ?? null,
+        live_longitude: liveLoc.location?.longitude ?? null,
+        live_timezone_offset: liveLoc.location?.timezone_offset ?? null,
       });
       
       setWorkspaceData(res.data);
@@ -206,6 +209,7 @@ export default function Home() {
   // New-chart floating modal: kept separate from the initial `!setupDone`
   // onboarding so the workspace stays mounted (and visibly blurred) behind.
   const [newChartModalOpen, setNewChartModalOpen] = useState(false);
+  const [isEditingChart, setIsEditingChart] = useState(false);
   const [mobileChartSheetOpen, setMobileChartSheetOpen] = useState(false);
   const [aiMaximized, setAiMaximized] = useState(false);
   const [prevBirthDetailsStash, setPrevBirthDetailsStash] = useState<BirthDetails | null>(null);
@@ -823,12 +827,29 @@ export default function Home() {
 
     setChartLoading(true);
     try {
+      let resultData = null;
       if (mode === "astrologer") {
-        const res = await axios.post(`${API_URL}/astrologer/workspace`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: timezoneOffset, gender: birthDetails.gender || "" });
+        const res = await axios.post(`${API_URL}/astrologer/workspace`, {
+          name: birthDetails.name, date: formattedDate, time: getTime24(),
+          latitude: birthDetails.latitude, longitude: birthDetails.longitude,
+          timezone_offset: timezoneOffset, gender: birthDetails.gender || "",
+          live_latitude: liveLoc.location?.latitude ?? null,
+          live_longitude: liveLoc.location?.longitude ?? null,
+          live_timezone_offset: liveLoc.location?.timezone_offset ?? null,
+        });
         setWorkspaceData(res.data);
+        resultData = res.data;
       } else {
-        const res = await axios.post(`${API_URL}/chart/generate`, { name: birthDetails.name, date: formattedDate, time: getTime24(), latitude: birthDetails.latitude, longitude: birthDetails.longitude, timezone_offset: timezoneOffset });
+        const res = await axios.post(`${API_URL}/chart/generate`, {
+          name: birthDetails.name, date: formattedDate, time: getTime24(),
+          latitude: birthDetails.latitude, longitude: birthDetails.longitude,
+          timezone_offset: timezoneOffset,
+          live_latitude: liveLoc.location?.latitude ?? null,
+          live_longitude: liveLoc.location?.longitude ?? null,
+          live_timezone_offset: liveLoc.location?.timezone_offset ?? null,
+        });
         setChartData(res.data);
+        resultData = res.data;
       }
       setSetupDone(true);
       // Phase 16 — Moment #1: 3.5-second cinematic chart reveal ceremony.
@@ -844,6 +865,7 @@ export default function Home() {
       // it right after chart generation interrupts the chart viewing
       // flow. See the useEffect below that shows it on first Analysis
       // tab entry instead.
+      return resultData;
     } catch (err: any) {
       // PR A1.3-fix-25 + PR F2 — differentiates common backend statuses.
       // PR F2: when network/CORS error fires (most common case when Railway
@@ -1058,6 +1080,9 @@ export default function Home() {
           timezone_offset: timezoneOffset, gender: birthDetails.gender || "",
           topic, question, history, language: backendLang(),
           question_type: questionType,
+          live_latitude: liveLoc.location?.latitude ?? null,
+          live_longitude: liveLoc.location?.longitude ?? null,
+          live_timezone_offset: liveLoc.location?.timezone_offset ?? null,
         }),
         signal: ac.signal,
       });
@@ -1300,21 +1325,53 @@ export default function Home() {
     setPrevBirthDetailsStash(null);
     setPrevTimezoneStash(null);
     setNewChartModalOpen(false);
+    setIsEditingChart(false);
+  };
+
+  const handleEditChart = () => {
+    if (!setupDone || !workspaceData) return;
+    setPrevBirthDetailsStash({ ...birthDetails });
+    setPrevTimezoneStash({ offset: timezoneOffset, label: timezoneLabel });
+    setIsEditingChart(true);
+    setNewChartModalOpen(true);
   };
 
   const handleSubmitNewChartModal = async () => {
-    // `handleSetup` reads birthDetails/timezoneOffset, POSTs to the backend,
-    // and updates workspaceData on success. Close the modal regardless; on
-    // validation failure the user sees an alert and can reopen via + New.
-    await handleSetup();
+    const data = await handleSetup();
+    if (data) {
+      if (isEditingChart) {
+        const oldSessionId = currentSessionId;
+        setSavedSessions(prev =>
+          prev.map(s => {
+            if (s.id === oldSessionId) {
+              return {
+                ...s,
+                name: birthDetails.name,
+                birthDetails: { ...birthDetails, timezone_offset: timezoneOffset },
+                workspaceData: data,
+                analysisMessages: [],
+                activeTopic: "",
+                selectedHouse: null,
+                chatQ: "",
+                analysisLang: "english",
+                activeTab: "chart",
+              };
+            }
+            return s;
+          })
+        );
+        setIsEditingChart(false);
+      } else {
+        setCurrentSessionId(Date.now().toString());
+        setActiveTab("chart");
+        setSelectedHouse(null);
+        setAnalysisMessages([]);
+        setActiveTopic("");
+        setChatQ("");
+      }
+    }
     setPrevBirthDetailsStash(null);
     setPrevTimezoneStash(null);
-    setCurrentSessionId(Date.now().toString());
-    setActiveTab("chart");
-    setSelectedHouse(null);
-    setAnalysisMessages([]);
-    setActiveTopic("");
-    setChatQ("");
     setNewChartModalOpen(false);
   };
 
@@ -1365,7 +1422,10 @@ export default function Home() {
           latitude: target.birthDetails.latitude,
           longitude: target.birthDetails.longitude,
           timezone_offset: target.birthDetails.timezone_offset ?? timezoneOffset,
-          gender: target.birthDetails.gender || ""
+          gender: target.birthDetails.gender || "",
+          live_latitude: liveLoc.location?.latitude ?? null,
+          live_longitude: liveLoc.location?.longitude ?? null,
+          live_timezone_offset: liveLoc.location?.timezone_offset ?? null,
         });
         wsData = res.data;
         target.workspaceData = wsData;
@@ -2632,18 +2692,19 @@ export default function Home() {
                 <div style={{
                   display: "inline-flex", alignItems: "center", gap: 6,
                   padding: "4px 10px", borderRadius: 999,
-                  background: "rgba(0,200,255,0.08)", border: "1px solid rgba(0,200,255,0.2)",
-                  color: "#00C8FF", fontSize: 10, fontWeight: 500,
+                  background: isEditingChart ? "rgba(201,169,110,0.08)" : "rgba(0,200,255,0.08)",
+                  border: isEditingChart ? "1px solid rgba(201,169,110,0.2)" : "1px solid rgba(0,200,255,0.2)",
+                  color: isEditingChart ? "#c9a96e" : "#00C8FF", fontSize: 10, fontWeight: 500,
                   letterSpacing: "0.08em", textTransform: "uppercase",
                   marginBottom: 10,
                 }}>
-                  <Sparkles size={11} /> {t("New KP chart", "కొత్త KP చార్ట్")}
+                  <Sparkles size={11} /> {isEditingChart ? t("Edit Chart", "చార్ట్ సవరించు") : t("New KP chart", "కొత్త KP చార్ట్")}
                 </div>
                 <div id="new-chart-modal-title" style={{ fontFamily: "'DM Serif Display', serif", fontSize: 20, color: theme.text.primary, lineHeight: 1.2 }}>
-                  {t("Add a new chart", "కొత్త చార్ట్ జోడించండి")}
+                  {isEditingChart ? t("Edit Chart Details", "చార్ట్ వివరాలు సవరించండి") : t("Add a new chart", "కొత్త చార్ట్ జోడించండి")}
                 </div>
                 <div style={{ fontSize: 12, color: theme.text.muted, marginTop: 4 }}>
-                  {t("Your current chart stays open in the background.", "మీ ప్రస్తుత చార్ట్ వెనుక తెరిచి ఉంటుంది.")}
+                  {isEditingChart ? t("Modifying birth details will recompute the entire workspace.", "పుట్టిన వివరాలను మార్చడం వల్ల మొత్తం వర్క్‌స్పేస్ మళ్లీ లెక్కించబడుతుంది.") : t("Your current chart stays open in the background.", "మీ ప్రస్తుత చార్ట్ వెనుక తెరిచి ఉంటుంది.")}
                 </div>
               </div>
               <button
@@ -2845,7 +2906,15 @@ export default function Home() {
                     </>
                   ) : (
                     <>
-                      {t("Generate chart", "చార్ట్ రూపొందించు")} <ArrowRight size={16} />
+                      {isEditingChart ? (
+                        <>
+                          {t("Update & Recompute", "నవీకరించు")} <CheckCircle size={16} style={{ marginLeft: 6 }} />
+                        </>
+                      ) : (
+                        <>
+                          {t("Generate chart", "చార్ట్ రూపొందించు")} <ArrowRight size={16} style={{ marginLeft: 6 }} />
+                        </>
+                      )}
                     </>
                   )}
                 </button>
@@ -2872,6 +2941,7 @@ export default function Home() {
         workspaceData={workspaceData as WorkspaceData}
         birthDetails={birthDetails}
         onNewChart={handleNewChart}
+        onEditChart={handleEditChart}
         onPdf={async () => {
           if (!workspaceData || pdfLoading) return;
           setPdfLoading(true); setPdfError("");
@@ -3289,6 +3359,7 @@ export default function Home() {
           workspaceData={workspaceData as WorkspaceData}
           birthDetails={birthDetails}
           onNewChart={handleNewChart}
+          onEditChart={handleEditChart}
           onPdf={async () => {
             if (!workspaceData || pdfLoading) return;
             setPdfLoading(true); setPdfError("");

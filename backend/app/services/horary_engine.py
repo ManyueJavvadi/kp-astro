@@ -622,11 +622,9 @@ def _compute_ruling_planets(
     _, ascmc = swe.houses_ex(jd_utc, latitude, longitude, b'P', swe.FLG_SIDEREAL)
     actual_lagna_lon = ascmc[0] % 360
 
-    # Local weekday. Build local datetime from JD.
-    utc_dt = datetime(2000, 1, 1, 12, 0, 0, tzinfo=dt_tz.utc) + \
-             timedelta(days=(jd_utc - 2451545.0))
-    local_dt = utc_dt + timedelta(hours=timezone_offset)
-    day_lord = WEEKDAY_LORDS[local_dt.weekday()]
+    # Local weekday. Build local datetime from JD, corrected at sunrise.
+    from app.services.chart_engine import get_vedic_day_lord
+    day_lord = get_vedic_day_lord(jd_utc, latitude, longitude, timezone_offset)
 
     # Slot derivations
     asc_sign_lord = SIGN_LORDS.get(get_sign(actual_lagna_lon), "")

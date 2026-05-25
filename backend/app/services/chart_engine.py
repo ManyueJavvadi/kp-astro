@@ -454,6 +454,56 @@ DAY_LORDS = {
 }
 
 
+def get_vedic_day_lord(jd: float, latitude: float, longitude: float, timezone_offset: float) -> str:
+    """
+    Calculate the correct Vedic day lord for a given Julian Day, latitude,
+    longitude, and timezone offset.
+    A Vedic day begins at local sunrise at the given coordinates, not at midnight.
+    """
+    import swisseph as swe
+    from datetime import datetime, timedelta, timezone as dt_tz
+    
+    # 1. Convert Julian Day (UT) to local datetime
+    unix_seconds = (jd - 2440588.5) * 86400
+    dt_utc = datetime(1970, 1, 1, tzinfo=dt_tz.utc) + timedelta(seconds=unix_seconds)
+    local_now = dt_utc + timedelta(hours=timezone_offset)
+    
+    # 2. Compute sunrise of the local civil date
+    try:
+        from astral import LocationInfo
+        from astral.sun import sun as astral_sun
+        loc = LocationInfo(latitude=latitude, longitude=longitude)
+        s = astral_sun(loc.observer, date=local_now.date())
+        sr = s["sunrise"]
+        sr_utc = sr.astimezone(dt_tz.utc).replace(tzinfo=None)
+        sr_h = sr_utc.hour + sr_utc.minute / 60.0 + sr_utc.second / 3600.0
+        sunrise_jd = swe.julday(sr_utc.year, sr_utc.month, sr_utc.day, sr_h)
+    except Exception:
+        # Fallback to swisseph rise_trans
+        local_midnight = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+        utc_midnight = local_midnight - timedelta(hours=timezone_offset)
+        jd_midnight = swe.julday(
+            utc_midnight.year, utc_midnight.month, utc_midnight.day,
+            utc_midnight.hour + utc_midnight.minute / 60.0 + utc_midnight.second / 3600.0
+        )
+        geopos = (longitude, latitude, 0.0)
+        try:
+            _, tret = swe.rise_trans(jd_midnight, swe.SUN, b"", 0, 1, geopos, 1013.25, 10.0)
+            sunrise_jd = tret[0]
+        except Exception:
+            # Absolute fallback: 6:00 AM local time
+            sr_utc = utc_midnight + timedelta(hours=6.0)
+            sunrise_jd = swe.julday(sr_utc.year, sr_utc.month, sr_utc.day, sr_utc.hour + sr_utc.minute / 60.0)
+
+    # 3. If local time of query is strictly before sunrise, day lord is previous civil day
+    if jd < sunrise_jd:
+        vedic_dt = local_now - timedelta(days=1)
+    else:
+        vedic_dt = local_now
+
+    return DAY_LORDS[vedic_dt.weekday()]
+
+
 def get_ruling_planets(
     latitude: float,
     longitude: float,
@@ -500,8 +550,8 @@ def get_ruling_planets(
 
     swe.set_sid_mode(swe.SIDM_KRISHNAMURTI_VP291)
 
-    # 1. Day lord — local weekday
-    day_lord = DAY_LORDS[local_now.weekday()]
+    # 1. Day lord — Vedic location-aware sunrise check
+    day_lord = get_vedic_day_lord(jd_now, latitude, longitude, timezone_offset)
 
     # 2-4. Actual ascendant at astrologer's lat/lon — Placidus, sidereal
     _, ascmc = swe.houses_ex(jd_now, latitude, longitude, b'P', swe.FLG_SIDEREAL)

@@ -58,6 +58,9 @@ class PredictionRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=4000)
     history: List[HistoryItem] = Field(default_factory=list, max_length=20)
     mode: str = Field("user", max_length=20)
+    live_latitude: float | None = Field(None, ge=-90, le=90)
+    live_longitude: float | None = Field(None, ge=-180, le=180)
+    live_timezone_offset: float | None = Field(None, ge=-14, le=14)
 
 
 @router.post("/ask")
@@ -82,6 +85,9 @@ def ask_prediction(request: PredictionRequest):
         timezone_offset=request.timezone_offset,
         gender=request.gender,
         topic=topic,
+        live_latitude=request.live_latitude,
+        live_longitude=request.live_longitude,
+        live_timezone_offset=request.live_timezone_offset,
     )
 
     # Strip internal-only keys before passing to LLM formatter / response.
@@ -174,6 +180,9 @@ async def ask_prediction_stream(request: PredictionRequest):
         timezone_offset=request.timezone_offset,
         gender=request.gender,
         topic=topic,
+        live_latitude=request.live_latitude,
+        live_longitude=request.live_longitude,
+        live_timezone_offset=request.live_timezone_offset,
     )
     chart_raw = chart_data.pop("_chart_raw")
     chart_data.pop("_moon_longitude", None)

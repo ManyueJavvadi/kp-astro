@@ -349,8 +349,13 @@ def _build_chart(person: dict) -> dict:
     # time. The DAY_LORDS dict in chart_engine maps Python weekday()
     # (0=Mon..6=Sun) → planet.
     try:
-        date_obj = _dt.strptime(person["date"], "%Y-%m-%d")
-        day_lord = DAY_LORDS[date_obj.weekday()]
+        from app.services.chart_engine import get_vedic_day_lord
+        day_lord = get_vedic_day_lord(
+            jd,
+            person["latitude"],
+            person["longitude"],
+            person.get("timezone_offset", 5.5),
+        )
     except Exception:
         day_lord = ""
 

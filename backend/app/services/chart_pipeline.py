@@ -107,6 +107,9 @@ def build_full_chart_data(
     timezone_offset: float,
     gender: str,
     topic: str,
+    live_latitude: float | None = None,
+    live_longitude: float | None = None,
+    live_timezone_offset: float | None = None,
 ) -> dict[str, Any]:
     """
     Run the full KP compute pipeline and return a chart_data dict
@@ -202,7 +205,11 @@ def build_full_chart_data(
     )
 
     # ── 5. RP + full significators + planet houses ──────────────────
-    ruling_planets = get_ruling_planets(latitude, longitude, timezone_offset)
+    rp_lat = live_latitude if live_latitude is not None else latitude
+    rp_lon = live_longitude if live_longitude is not None else longitude
+    rp_tz  = live_timezone_offset if live_timezone_offset is not None else timezone_offset
+
+    ruling_planets = get_ruling_planets(rp_lat, rp_lon, rp_tz)
     all_significators = get_all_house_significators(chart["planets"], chart["cusps"])
     planet_positions = get_planet_house_positions(chart["planets"], chart["cusps"])
 

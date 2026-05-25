@@ -33,11 +33,13 @@ interface PersonHeroBannerProps {
   savedSessions: ChartSession[];
   onSwitchSession: (s: ChartSession) => void;
   astrologerMode?: boolean;
+  onEditChart?: () => void;
 }
 
 export default function PersonHeroBanner({
   birthDetails, onNewChart, onPdf, pdfLoading,
   savedSessions, onSwitchSession, astrologerMode,
+  onEditChart,
 }: PersonHeroBannerProps) {
   const { t } = useLanguage();
   const [showSwitch, setShowSwitch] = useState(false);
@@ -122,6 +124,36 @@ export default function PersonHeroBanner({
           </span>
           {genderSym && (
             <span style={{ fontSize: 11, color: "#888899" }}>{genderSym}</span>
+          )}
+          {onEditChart && (
+            <button
+              onClick={onEditChart}
+              title={t("Edit Details", "వివరాలు సవరించండి")}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                background: "transparent",
+                border: "1px solid rgba(201, 169, 110, 0.4)",
+                color: "#c9a96e",
+                padding: "2px 6px",
+                borderRadius: 4,
+                fontSize: 9.5,
+                fontWeight: 600,
+                cursor: "pointer",
+                marginLeft: 8,
+                transition: "all 0.15s ease",
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = "rgba(201, 169, 110, 0.12)";
+                e.currentTarget.style.borderColor = "rgba(201, 169, 110, 0.8)";
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.borderColor = "rgba(201, 169, 110, 0.4)";
+              }}
+            >
+              ✏️ {t("Edit", "సవరించు")}
+            </button>
           )}
         </div>
         <div style={{ fontSize: 10.5, color: "#666677", marginTop: 1, lineHeight: 1.4 }}>

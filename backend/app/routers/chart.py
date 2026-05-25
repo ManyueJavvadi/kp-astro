@@ -19,6 +19,9 @@ class ChartRequest(BaseModel):
     latitude: float = Field(..., ge=-90, le=90)
     longitude: float = Field(..., ge=-180, le=180)
     timezone_offset: float = Field(5.5, ge=-14, le=14)
+    live_latitude: float | None = Field(None, ge=-90, le=90)
+    live_longitude: float | None = Field(None, ge=-180, le=180)
+    live_timezone_offset: float | None = Field(None, ge=-14, le=14)
 
 
 @router.post("/generate")
@@ -46,10 +49,12 @@ def get_chart(request: ChartRequest):
     antardashas = calculate_antardashas(current_md)
     current_ad = get_current_antardasha(antardashas)
     all_significators = get_all_house_significators(chart["planets"], chart["cusps"])
-    # PR A1.1: lat/lon/tz now required for correct RPs.
-    ruling_planets = get_ruling_planets(
-        request.latitude, request.longitude, tz_offset,
-    )
+    # Determine coordinates to calculate ruling planets at live query moment
+    rp_lat = request.live_latitude if request.live_latitude is not None else request.latitude
+    rp_lon = request.live_longitude if request.live_longitude is not None else request.longitude
+    rp_tz  = request.live_timezone_offset if request.live_timezone_offset is not None else tz_offset
+
+    ruling_planets = get_ruling_planets(rp_lat, rp_lon, rp_tz)
 
     return {
         "name": request.name,
@@ -73,6 +78,9 @@ class TopicRequest(BaseModel):
     longitude: float = Field(..., ge=-180, le=180)
     timezone_offset: float = Field(5.5, ge=-14, le=14)
     topic: str = Field(..., min_length=1, max_length=60)
+    live_latitude: float | None = Field(None, ge=-90, le=90)
+    live_longitude: float | None = Field(None, ge=-180, le=180)
+    live_timezone_offset: float | None = Field(None, ge=-14, le=14)
 
 @router.post("/analyze")
 def analyze_topic(request: TopicRequest):
@@ -104,10 +112,12 @@ def analyze_topic(request: TopicRequest):
         request.topic, current_md, current_ad,
         chart["planets"], chart["cusps"]
     )
-    # PR A1.1: lat/lon/tz now required for correct RPs.
-    ruling_planets = get_ruling_planets(
-        request.latitude, request.longitude, tz_offset,
-    )
+    # Determine coordinates to calculate ruling planets at live query moment
+    rp_lat = request.live_latitude if request.live_latitude is not None else request.latitude
+    rp_lon = request.live_longitude if request.live_longitude is not None else request.longitude
+    rp_tz  = request.live_timezone_offset if request.live_timezone_offset is not None else tz_offset
+
+    ruling_planets = get_ruling_planets(rp_lat, rp_lon, rp_tz)
 
     return {
         "name": request.name,
