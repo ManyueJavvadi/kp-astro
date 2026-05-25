@@ -43,6 +43,7 @@ const SouthIndianChart = RasiChart;
 import HousePanel from "../components/HousePanel";
 import PlanetList from "../components/workspace/PlanetList";
 import MatchPatternChips from "../components/MatchPatternChips";  // PR M3
+import MatchStarSubHarmonyStrip from "../components/MatchStarSubHarmonyStrip";  // PR M4
 import type { ChartSession } from "../types";
 
 // Verbose prop bag — match flow has many cross-cutting state slots.
@@ -723,6 +724,17 @@ export function MatchTab(props: MatchTabProps) {
                 ))}
               </div>
             </div>
+
+            {/* PR M4 — Star ↔ Sub Harmony layered reading per partner H7 CSL.
+                KSK strict (RULE 16): KP is TENSION between two layers — STAR
+                declares nature, SUB decides fructification. Exposes which
+                layer carries the yes signal (or denial) — naive UNION hides this. */}
+            <MatchStarSubHarmonyStrip
+              p1Harmony={r.h7_star_sub_chart1}
+              p2Harmony={r.h7_star_sub_chart2}
+              p1Name={r.person1?.name}
+              p2Name={r.person2?.name}
+            />
 
             {/* PR A1.4 — Canonical Cross-Match (kpastrologylearning Rule 5) */}
             {kp?.canonical_cross_match && (

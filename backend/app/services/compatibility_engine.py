@@ -1703,6 +1703,123 @@ def _detect_couple_patterns(
     return patterns
 
 
+def _h7_star_sub_harmony(chart: dict) -> dict:
+    """
+    PR M4 — Star-Sub Harmony layered reading for each partner's H7 CSL.
+
+    KSK strict (RULE 16, general.txt §2.5): KP is NOT a flat 4-step UNION
+    operation — it's a TENSION between two layers. The STAR LORD declares
+    the NATURE of the matter (the "what"), and the SUB LORD decides
+    WHETHER it fructifies (the "gate").
+
+    LAYER SPLIT for H7 CSL (marriage primary):
+      STAR layer = H7 CSL's star lord (occupied + owned houses)
+                 + H7 CSL's own occupied + owned houses
+                 (the "what kind of matter does this position promote")
+      SUB layer  = H7 CSL's sub lord (occupied + owned)
+                 (the "is it permitted" — the deciding gate)
+
+    Marriage relevant: {2, 7, 11}
+    Marriage denial:   {1, 6, 10, 12}
+
+    Harmony verdicts:
+      HARMONY (++)  : Both layers point to relevant → STRONGLY PROMISED
+      ALIGNED (+)   : Sub points to relevant, Star is neutral/mixed → PROMISED
+      TENSION (−)   : Star points to relevant, Sub points to denial → BLOCK
+      CONTRA (±)    : Star points to denial, Sub points to relevant → fires WITH FRICTION
+      DENIED (−−)   : Both layers point to denial → DENIED
+      NEUTRAL       : Neither layer touches topic
+
+    The naive UNION reading used by _h7_sublord_promise tells you which
+    houses the CSL chain touches; this split tells you WHICH layer carries
+    the yes signal — KSK strict requires the latter for accurate verdict.
+    """
+    yes_houses = {2, 7, 11}
+    no_houses = {1, 6, 10, 12}
+    planets = chart["planets"]
+    cusp_lons = chart["cusp_lons"]
+    h7_csl, _ = _get_cusp_sub_lord_sigs(7, chart)
+
+    if h7_csl not in planets:
+        return {
+            "csl": h7_csl, "harmony": "NEUTRAL",
+            "star_lord": "", "sub_lord": "",
+            "star_houses": [], "sub_houses": [],
+            "star_relevant": [], "star_denial": [],
+            "sub_relevant": [], "sub_denial": [],
+            "note": "H7 CSL not in planet positions",
+        }
+
+    csl_lon = planets[h7_csl]["longitude"]
+    star_lord = get_nakshatra_and_starlord(csl_lon).get("star_lord", "")
+    sub_lord_planet = get_sub_lord(csl_lon)
+
+    # Local helper: houses whose cusp's sign is ruled by this planet.
+    def _owns(planet: str) -> set[int]:
+        return {
+            i + 1 for i in range(12)
+            if SIGN_LORDS.get(get_sign(cusp_lons[i] % 360)) == planet
+        }
+
+    # STAR layer = CSL's own occupied/owned + star lord's occupied/owned
+    star_houses: set[int] = set()
+    star_houses.add(_get_planet_house(csl_lon, cusp_lons))
+    star_houses.update(_owns(h7_csl))
+    if star_lord and star_lord in planets:
+        star_houses.add(_get_planet_house(planets[star_lord]["longitude"], cusp_lons))
+        star_houses.update(_owns(star_lord))
+    star_houses = {h for h in star_houses if 1 <= h <= 12}
+
+    # SUB layer = sub lord's occupied + owned
+    sub_houses: set[int] = set()
+    if sub_lord_planet and sub_lord_planet in planets:
+        sub_houses.add(_get_planet_house(planets[sub_lord_planet]["longitude"], cusp_lons))
+        sub_houses.update(_owns(sub_lord_planet))
+    sub_houses = {h for h in sub_houses if 1 <= h <= 12}
+
+    star_relevant = star_houses & yes_houses
+    star_denial = star_houses & no_houses
+    sub_relevant = sub_houses & yes_houses
+    sub_denial = sub_houses & no_houses
+
+    # Harmony classification
+    if star_relevant and not star_denial and sub_relevant and not sub_denial:
+        harmony = "HARMONY"
+        note = "Both layers point to marriage relevant houses — STRONGLY PROMISED. Smooth fructification."
+    elif sub_relevant and not sub_denial and not (star_denial and not star_relevant):
+        harmony = "ALIGNED"
+        note = "Sub layer (deciding gate) clean for relevant; star layer permits. PROMISED."
+    elif star_relevant and sub_denial and not sub_relevant:
+        harmony = "TENSION"
+        note = "Star promises marriage but sub (deciding gate) signifies denial — block dominates."
+    elif star_denial and sub_relevant:
+        harmony = "CONTRA"
+        note = "Star carries denial flavour but sub permits — marriage fires WITH friction."
+    elif star_denial and sub_denial and not (star_relevant or sub_relevant):
+        harmony = "DENIED"
+        note = "Both layers point to denial — structurally blocked."
+    elif star_relevant or sub_relevant:
+        harmony = "ALIGNED"
+        note = "Partial alignment — at least one layer carries relevant signification."
+    else:
+        harmony = "NEUTRAL"
+        note = "Neither layer touches the topic's houses — no clear marriage signal."
+
+    return {
+        "csl": h7_csl,
+        "star_lord": star_lord,
+        "sub_lord": sub_lord_planet,
+        "star_houses": sorted(star_houses),
+        "sub_houses": sorted(sub_houses),
+        "star_relevant": sorted(star_relevant),
+        "star_denial": sorted(star_denial),
+        "sub_relevant": sorted(sub_relevant),
+        "sub_denial": sorted(sub_denial),
+        "harmony": harmony,
+        "note": note,
+    }
+
+
 def _compute_multi_cusp_tier(chart: dict) -> dict:
     """
     PR M2 — Multi-cusp confirmation TIER 0/1/2/3/-1 per partner.
@@ -3642,6 +3759,13 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
     multi_cusp_tier_p1 = _compute_multi_cusp_tier(chart1)
     multi_cusp_tier_p2 = _compute_multi_cusp_tier(chart2)
 
+    # PR M4 — Star-Sub Harmony layered reading per partner.
+    # KSK strict (RULE 16): KP is TENSION between two layers (STAR vs SUB).
+    # The naive UNION used by _h7_sublord_promise hides which layer carries
+    # the yes signal. This split exposes HARMONY/TENSION/CONTRA verdicts.
+    h7_star_sub_p1 = _h7_star_sub_harmony(chart1)
+    h7_star_sub_p2 = _h7_star_sub_harmony(chart2)
+
     # PR M3 — Pattern detection per partner (M1/M2/M3/M5) + cross-couple
     # (T1/T2). Pattern naming is what distinguishes a deep KSK reading
     # from a generic significator scan (RULE 19).
@@ -3888,6 +4012,9 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
         "patterns_chart1": patterns_p1,
         "patterns_chart2": patterns_p2,
         "patterns_couple": patterns_couple,
+        # PR M4 — Star-Sub Harmony layered reading per partner H7 CSL
+        "h7_star_sub_chart1": h7_star_sub_p1,
+        "h7_star_sub_chart2": h7_star_sub_p2,
         "summary": {
             "kp_verdict": kp["kp_verdict"],
             "ashtakoota_score": f"{ashtakoota['total_score']}/{ashtakoota['max_score']}",
