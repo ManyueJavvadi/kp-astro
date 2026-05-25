@@ -1071,6 +1071,90 @@ export function MatchTab(props: MatchTabProps) {
               </div>
             )}
 
+            {/* PR M13 — Spouse profile card per partner.
+                Surfaces backend-computed direction / age band / profession
+                hint / appearance hint + classical H7 sub-lord traits.
+                Structural tendencies — astrologer interprets in context. */}
+            {(r.spouse_profile_chart1 || r.spouse_profile_chart2) && (
+              <div className="match-section">
+                <div className="match-section-title">
+                  <Heart size={12} strokeWidth={1.8} />
+                  {t("Spouse profile · KP structural tendencies",
+                     "భాగస్వామి రూపరేఖ · KP నిర్మాణ ధోరణులు")}
+                </div>
+                <div className="match-section-grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  {[
+                    { sp: r.spouse_profile_chart1, name: r.person1?.name, accent: "var(--accent)" },
+                    { sp: r.spouse_profile_chart2, name: r.person2?.name, accent: "#93c5fd" },
+                  ].map((it, i) => it.sp && (
+                    <div key={i} style={{ padding: "12px 14px", background: "rgba(255,255,255,0.01)", border: "0.5px solid var(--border2)", borderRadius: 10 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: it.accent, marginBottom: 8, letterSpacing: "0.04em" }}>
+                        {it.name} · {t("for spouse", "భాగస్వామి కోసం")}
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column" as const, gap: 6, fontSize: 11.5, color: "var(--text)" }}>
+                        <div>
+                          <span style={{ color: "var(--muted)", fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase" as const, marginRight: 6 }}>
+                            {t("Direction", "దిశ")}
+                          </span>
+                          <strong>{lang === "te" ? it.sp.direction_te : it.sp.direction_en}</strong>
+                          <span style={{ color: "var(--muted)", marginLeft: 6, fontSize: 10 }}>· H7 in {it.sp.h7_sign}</span>
+                        </div>
+                        <div>
+                          <span style={{ color: "var(--muted)", fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase" as const, marginRight: 6 }}>
+                            {t("Age band", "వయోశ్రేణి")}
+                          </span>
+                          {lang === "te" ? it.sp.age_band_te : it.sp.age_band_en}
+                        </div>
+                        {it.sp.spouse_nature && (
+                          <div>
+                            <span style={{ color: "var(--muted)", fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase" as const, marginRight: 6 }}>
+                              {t("Nature", "స్వభావం")}
+                            </span>
+                            {it.sp.spouse_nature}
+                          </div>
+                        )}
+                        {it.sp.appearance_hint_en && (
+                          <div>
+                            <span style={{ color: "var(--muted)", fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase" as const, marginRight: 6 }}>
+                              {t("Appearance", "రూపం")}
+                            </span>
+                            {lang === "te" ? it.sp.appearance_hint_te : it.sp.appearance_hint_en}
+                          </div>
+                        )}
+                        {it.sp.profession_hint_en && (
+                          <div>
+                            <span style={{ color: "var(--muted)", fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase" as const, marginRight: 6 }}>
+                              {t("Profession hint", "వృత్తి సూచన")}
+                            </span>
+                            {lang === "te" ? it.sp.profession_hint_te : it.sp.profession_hint_en}
+                          </div>
+                        )}
+                        {it.sp.marriage_style && (
+                          <div>
+                            <span style={{ color: "var(--muted)", fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase" as const, marginRight: 6 }}>
+                              {t("Style", "శైలి")}
+                            </span>
+                            {it.sp.marriage_style}
+                          </div>
+                        )}
+                        {it.sp.caution && (
+                          <div style={{ fontSize: 11, color: "#fbbf24", fontStyle: "italic" }}>
+                            ⚠ {it.sp.caution}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginTop: 8, fontSize: 10, color: "var(--muted)", fontStyle: "italic", lineHeight: 1.5 }}>
+                  {t(
+                    "Direction = H7 sign direction. Profession = classical Krishnamurti attribution of H7 sub-lord. Appearance = H7 sign element. All are structural tendencies — astrologer interprets in context.",
+                    "దిశ = H7 రాశి దిశ. వృత్తి = H7 సబ్ లార్డ్ క్రిష్ణమూర్తి అట్రిబ్యూషన్. రూపం = H7 రాశి తత్వం. అన్నీ నిర్మాణ ధోరణులు."
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* ═══ SUPPORTING CUSPS — H2 & H11 ═══ */}
             <div className="match-section">
               <div className="match-section-title">
@@ -1513,6 +1597,63 @@ export function MatchTab(props: MatchTabProps) {
               width: "100%",
               alignItems: "start",
             }}>
+
+              {/* PR M14 — Best wedding window hero card.
+                  Pick the strongest joint precision window (PD+Sookshma);
+                  if none, fall back to the strongest AD overlap. Promoted
+                  to the top of the Overall pane so the astrologer sees the
+                  recommendable date range BEFORE reading the verdict body. */}
+              {(() => {
+                const best = r.joint_precision_windows?.[0] || null;
+                const bestAD = r.upcoming_windows?.overlap_windows?.[0] || null;
+                if (!best && !bestAD) return null;
+                const isPrecision = !!best;
+                const w = best || bestAD;
+                return (
+                  <div
+                    style={{
+                      gridColumn: "1 / -1",
+                      padding: "16px 20px",
+                      background: "linear-gradient(135deg, rgba(74,222,128,0.10) 0%, rgba(74,222,128,0.04) 100%)",
+                      border: "1px solid rgba(74,222,128,0.40)",
+                      borderRadius: 12,
+                      display: "flex",
+                      flexWrap: "wrap" as const,
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 14,
+                      position: "relative" as const,
+                      overflow: "hidden" as const,
+                    }}
+                  >
+                    <div style={{ position: "absolute" as const, inset: 0, background: "radial-gradient(circle at 0% 50%, rgba(74,222,128,0.10) 0%, transparent 60%)", pointerEvents: "none" as const }} />
+                    <div style={{ position: "relative" as const }}>
+                      <div style={{ fontSize: 10, color: "#4ade80", letterSpacing: "0.14em", textTransform: "uppercase" as const, fontWeight: 700, marginBottom: 4 }}>
+                        {isPrecision
+                          ? t("Best wedding window · joint PD + Sookshma fire", "ఉత్తమ వివాహ సమయం · ఉమ్మడి PD + Sookshma")
+                          : t("Best wedding window · joint AD overlap", "ఉత్తమ వివాహ సమయం · ఉమ్మడి AD")}
+                      </div>
+                      <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 26, lineHeight: 1.15, color: "var(--text)" }}>
+                        {w.start} → {w.end}
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
+                        {w.duration_days}{t(" days · ", " రోజులు · ")}
+                        {isPrecision
+                          ? <span>{r.person1?.name}: <strong style={{ color: "var(--text)" }}>{w.person1_lords}</strong> · {r.person2?.name}: <strong style={{ color: "var(--text)" }}>{w.person2_lords}</strong></span>
+                          : <span>{r.person1?.name} AD <strong style={{ color: "var(--text)" }}>{w.person1_ad}</strong> · {r.person2?.name} AD <strong style={{ color: "var(--text)" }}>{w.person2_ad}</strong></span>}
+                      </div>
+                    </div>
+                    <div style={{ position: "relative" as const, display: "flex", flexDirection: "column" as const, alignItems: "center" as const, gap: 2 }}>
+                      <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 36, lineHeight: 1, color: "#4ade80" }}>
+                        {isPrecision ? `${w.joint_strength}/4` : w.combined_score}
+                      </div>
+                      <div style={{ fontSize: 9, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" as const, fontWeight: 600 }}>
+                        {isPrecision ? t("strength", "బలం") : t("score", "స్కోర్")}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Column 1: Detailed Astrological Verdicts & KP Promise Synthesis */}
               <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>

@@ -1808,6 +1808,126 @@ def _multiple_marriages_check(chart: dict) -> dict:
     }
 
 
+def _spouse_profile(chart: dict) -> dict:
+    """
+    PR M13 — Synthesize a partner / spouse profile card from
+    backend-computed KP fields. Combines:
+      - H7 sign → spouse direction (KP standard)
+      - H7 sign lord + sub-lord nature → personality traits
+      - Saturn-vs-Jupiter weight on H7 chain → age band hint
+      - H7 sub-lord planet → profession hint (per Krishnamurti
+        classical attribution table)
+      - H7 ruler sign element → appearance hint
+
+    All hints are STRUCTURAL TENDENCIES — astrologer interprets in
+    context. No promises that a spouse exactly matches these fields.
+    """
+    SIGN_DIRECTION_EN = {
+        "Aries": "East", "Leo": "East", "Sagittarius": "East",
+        "Taurus": "South", "Virgo": "South", "Capricorn": "South",
+        "Gemini": "West", "Libra": "West", "Aquarius": "West",
+        "Cancer": "North", "Scorpio": "North", "Pisces": "North",
+    }
+    SIGN_DIRECTION_TE = {
+        "East": "తూర్పు", "South": "దక్షిణం",
+        "West": "పడమర", "North": "ఉత్తరం",
+    }
+    PROFESSION_HINT_EN = {
+        "Sun":     "Government, leadership, medicine, public office",
+        "Moon":    "Public-facing service, hospitality, dairy, nursing",
+        "Mars":    "Engineering, defence, surgery, sports, real-estate",
+        "Mercury": "Communications, accounting, IT, education, trading",
+        "Jupiter": "Teaching, law, finance, religion, counselling",
+        "Venus":   "Arts, design, luxury, entertainment, hospitality",
+        "Saturn":  "Mining, civil construction, labour, longevity-track careers",
+        "Rahu":    "Foreign / unconventional / digital / pharma / aviation",
+        "Ketu":    "Spirituality, research, occult, isolated/specialised crafts",
+    }
+    PROFESSION_HINT_TE = {
+        "Sun":     "ప్రభుత్వం, నాయకత్వం, వైద్యం, ప్రభుత్వ ఉద్యోగం",
+        "Moon":    "ప్రజా-సేవ, ఆతిథ్యం, పాడి, నర్సింగ్",
+        "Mars":    "ఇంజినీరింగ్, రక్షణ, శస్త్రచికిత్స, క్రీడలు, రియల్ ఎస్టేట్",
+        "Mercury": "కమ్యూనికేషన్, అకౌంటింగ్, IT, విద్య, వ్యాపారం",
+        "Jupiter": "బోధన, న్యాయం, ఆర్థికం, మతం, కౌన్సెలింగ్",
+        "Venus":   "కళలు, డిజైన్, లగ్జరీ, వినోదం, ఆతిథ్యం",
+        "Saturn":  "మైనింగ్, నిర్మాణం, శ్రామిక, దీర్ఘాయుష్ వృత్తులు",
+        "Rahu":    "విదేశీ / అసంప్రదాయ / డిజిటల్ / ఫార్మా / విమాన",
+        "Ketu":    "ఆధ్యాత్మికత, పరిశోధన, మంత్రశాస్త్రం, ప్రత్యేక నైపుణ్యం",
+    }
+    APPEARANCE_HINT_EN = {
+        "Fire":  "Athletic / energetic / commanding presence",
+        "Earth": "Solid / grounded / sensual physique",
+        "Air":   "Slender / refined / cerebral demeanour",
+        "Water": "Soft / emotive / dreamy features",
+    }
+    APPEARANCE_HINT_TE = {
+        "Fire":  "క్రీడాశీలి / శక్తివంతం / ఆజ్ఞాపూర్వక ఉనికి",
+        "Earth": "దృఢ / స్థిర / ఇంద్రియమైన శరీరం",
+        "Air":   "సన్నగా / శుద్ధ / మేధో రూపం",
+        "Water": "మృదు / భావోద్వేగ / కలాత్మక",
+    }
+    SIGN_ELEMENT = {
+        "Aries": "Fire", "Leo": "Fire", "Sagittarius": "Fire",
+        "Taurus": "Earth", "Virgo": "Earth", "Capricorn": "Earth",
+        "Gemini": "Air", "Libra": "Air", "Aquarius": "Air",
+        "Cancer": "Water", "Scorpio": "Water", "Pisces": "Water",
+    }
+
+    h7_lon = chart["cusp_lons"][6] % 360
+    h7_sign = get_sign(h7_lon)
+    h7_sub = chart.get("h7_sub_lord", "") or ""
+
+    # Age band hint: Saturn-weight (older) vs Jupiter/Mars/Venus (younger/peer)
+    age_band_en = "Similar age range"
+    age_band_te = "సమాన వయస్సు"
+    if h7_sub == "Saturn":
+        age_band_en = "Significantly older spouse (5+ years)"
+        age_band_te = "గణనీయంగా పెద్ద భాగస్వామి (5+ సం)"
+    elif h7_sub == "Sun":
+        age_band_en = "Slightly older or peer spouse"
+        age_band_te = "కొంచెం పెద్ద లేదా సమవయస్సు"
+    elif h7_sub == "Jupiter":
+        age_band_en = "Mature spouse, possibly older"
+        age_band_te = "పరిపక్వత గల భాగస్వామి, పెద్ద కావచ్చు"
+    elif h7_sub == "Mars":
+        age_band_en = "Younger or same-age spouse, lively"
+        age_band_te = "చిన్న లేదా సమవయస్సు, జీవంతం"
+    elif h7_sub == "Venus":
+        age_band_en = "Peer or slightly younger spouse"
+        age_band_te = "సమవయస్సు లేదా కొద్దిగా చిన్న"
+    elif h7_sub == "Mercury":
+        age_band_en = "Youthful, similar age range"
+        age_band_te = "యువ, సమవయస్సు"
+    elif h7_sub in ("Rahu", "Ketu"):
+        age_band_en = "Age gap can be unusual / unconventional"
+        age_band_te = "వయోభేదం అసాధారణం కావచ్చు"
+
+    direction_en = SIGN_DIRECTION_EN.get(h7_sign, "Unknown")
+    direction_te = SIGN_DIRECTION_TE.get(direction_en, direction_en)
+    element = SIGN_ELEMENT.get(h7_sign, "Air")
+    appearance_en = APPEARANCE_HINT_EN.get(element, "")
+    appearance_te = APPEARANCE_HINT_TE.get(element, "")
+    profession_en = PROFESSION_HINT_EN.get(h7_sub, "")
+    profession_te = PROFESSION_HINT_TE.get(h7_sub, "")
+    traits = H7_SUBLORD_TRAITS.get(h7_sub, {})
+
+    return {
+        "h7_sign": h7_sign,
+        "h7_sub": h7_sub,
+        "direction_en": direction_en,
+        "direction_te": direction_te,
+        "spouse_nature": traits.get("spouse_nature", ""),
+        "age_band_en": age_band_en,
+        "age_band_te": age_band_te,
+        "profession_hint_en": profession_en,
+        "profession_hint_te": profession_te,
+        "appearance_hint_en": appearance_en,
+        "appearance_hint_te": appearance_te,
+        "marriage_style": traits.get("marriage_type", ""),
+        "caution": traits.get("caution", ""),
+    }
+
+
 def _h7_csl_combust_flag(chart: dict) -> dict:
     """
     PR M7 — Combust H7 CSL clinical flag.
@@ -4515,6 +4635,11 @@ def compute_compatibility(person1: dict, person2: dict, user_concerns: str | Non
     h7_csl_combust_p1 = _h7_csl_combust_flag(chart1)
     h7_csl_combust_p2 = _h7_csl_combust_flag(chart2)
 
+    # PR M13 — Spouse profile per partner (direction + age band +
+    # profession hint + appearance hint + classical H7 sub-lord traits).
+    spouse_profile_p1 = _spouse_profile(chart1)
+    spouse_profile_p2 = _spouse_profile(chart2)
+
     # PR M8 — Borderline H7 CSL caveat per partner.
     # When H7 cusp sits within 0.3° of a sub-lord boundary, a small
     # birth-time error can flip the verdict — astrologer should request
@@ -4844,6 +4969,9 @@ def compute_compatibility(person1: dict, person2: dict, user_concerns: str | Non
         # when user_concerns mentions a relative)
         "bhavat_bhavam_chart1": bhavat_bhavam_p1,
         "bhavat_bhavam_chart2": bhavat_bhavam_p2,
+        # PR M13 — Spouse profile per partner
+        "spouse_profile_chart1": spouse_profile_p1,
+        "spouse_profile_chart2": spouse_profile_p2,
         "summary": {
             "kp_verdict": kp["kp_verdict"],
             "ashtakoota_score": f"{ashtakoota['total_score']}/{ashtakoota['max_score']}",
