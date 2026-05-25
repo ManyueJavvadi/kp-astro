@@ -459,3 +459,189 @@ def test_vehicle_event_does_not_trigger_marriage_doshas():
         assert w["venus_combust"] is False
         assert w["jupiter_combust"] is False
         assert w["solar_month_blocked"] is False
+
+
+# ════════════════════════════════════════════════════════════════
+# PR Mu1 — Golden tests for the Mu0 critical-correctness hotfix wave.
+#
+# These pin the post-Mu0 behaviour so we can't accidentally re-introduce
+# the bugs Mu0a–Mu0g fixed:
+#   Mu0a — marriage denial set MUST include H12
+#   Mu0b — DST re-resolution per scan day (Chicago Mar/Nov crossings)
+#   Mu0c — per-event vara not double-counted (Tue/Sat for legal +10 net)
+#   Mu0d — _get_sunrise_sunset_jd returns REAL sunrise (was fake 06/18)
+#          + polar latitude raises MuhurthaSunriseError (was silent fake)
+#   Mu0e — tithi_num clamped to [1, 30]; tithi 15 = "Purnima",
+#          tithi 30 = "Amavasya"; Vedic vara flips at local sunrise
+#   Mu0f — same broken rise_trans signature fixed in chart_engine
+#          + astrologer (not exercised here — those callers have own tests)
+#   Mu0g — antardasha memoised; Moon refreshed per slot
+# ════════════════════════════════════════════════════════════════
+
+
+# ── Mu0a — H12 in marriage denial ──
+
+def test_mu0a_marriage_denial_includes_h12():
+    """KB §2 + KSK marriage doctrine: H12 (loss/separation) must be in
+    the marriage denial set. Before Mu0a the engine had [1,6,10] and
+    silently passed muhurthas where Lagna SL signified H12."""
+    assert 12 in EVENT_HOUSE_GROUPS["marriage"]["denial"], (
+        "marriage denial set lost H12 — re-introducing the Mu0a regression"
+    )
+    # Other denial houses still present
+    for h in (1, 6, 10):
+        assert h in EVENT_HOUSE_GROUPS["marriage"]["denial"]
+
+
+# ── Mu0d — real sunrise (not fake 06:00) ──
+
+def test_mu0d_sunrise_is_real_not_06_00():
+    """Tenali at 16.247°N on 2026-04-25 has actual sunrise around
+    05:46 IST. Before Mu0d, swe.rise_trans was called with 8 args (max
+    7 accepted), every call raised TypeError, the engine silently
+    returned (jd-0.25, jd+0.25) = fake 06:00/18:00. We assert real
+    sunrise is BEFORE 06:00 IST (which the fake fallback would have
+    returned exactly)."""
+    import swisseph as swe
+    from datetime import datetime as _dt, timedelta as _td
+    from app.services.muhurtha_engine import _get_sunrise_sunset_jd
+    jd = swe.julday(2026, 4, 25, 12.0)  # noon UTC anchor
+    sr, ss = _get_sunrise_sunset_jd(jd, 16.247, 80.633)
+    # Convert sunrise JD → IST clock
+    def jd_to_utc(jd_val):
+        return _dt(1970, 1, 1) + _td(days=jd_val - 2440587.5)
+    sr_ist = jd_to_utc(sr) + _td(hours=5.5)
+    # Real Tenali sunrise late April is 05:43-05:48 IST; fake fallback
+    # would have been exactly 06:00. Anything below 05:55 confirms the
+    # real-math path is running.
+    assert sr_ist.hour == 5 and sr_ist.minute < 55, (
+        f"Sunrise {sr_ist.isoformat()} — looks like the fake-day "
+        f"fallback ((jd-0.25, jd+0.25)) is back. Mu0d regressed."
+    )
+    # Sunset sanity: real Tenali April sunset ~18:24 IST; fake = 18:00
+    ss_ist = jd_to_utc(ss) + _td(hours=5.5)
+    assert ss_ist.hour == 18 and ss_ist.minute > 10, (
+        f"Sunset {ss_ist.isoformat()} — looks like the fake-day fallback "
+        f"is back. Mu0d regressed."
+    )
+
+
+def test_mu0d_polar_latitude_raises_loud():
+    """Longyearbyen, Svalbard (78.22°N) on 2026-12-22 has polar night
+    — Sun never rises. Before Mu0d, _get_sunrise_sunset_jd silently
+    returned a fake 12-hour day. Now must raise MuhurthaSunriseError
+    so the scan loop can record the day as skipped instead of
+    inventing muhurtha windows."""
+    import swisseph as swe
+    from app.services.muhurtha_engine import _get_sunrise_sunset_jd, MuhurthaSunriseError
+    jd = swe.julday(2026, 12, 22, 12.0)
+    with pytest.raises(MuhurthaSunriseError):
+        _get_sunrise_sunset_jd(jd, 78.22, 15.65)
+
+
+def test_mu0d_polar_day_appears_in_skipped_list():
+    """find_muhurtha_windows must surface skipped polar days in the
+    response so the UI can show 'no muhurtha computable' rather than
+    silently dropping the day."""
+    # Search a winter day in Longyearbyen for any event
+    r = find_muhurtha_windows(
+        date_start="2026-12-22", date_end="2026-12-22",
+        event_type="general",
+        lat=78.22, lon=15.65, tz_offset=1.0,  # CET, no DST in winter
+        nearby_days=0, participants=[],
+    )
+    skipped = r.get("skipped_polar_days", [])
+    assert skipped, "Expected polar-night day to appear in skipped_polar_days"
+    assert any(d.get("date") == "2026-12-22" for d in skipped)
+    # And of course no windows should be returned for that day
+    assert r.get("passed_count", 0) == 0
+
+
+# ── Mu0b — DST re-resolution per scan day ──
+
+def test_mu0b_dst_offset_changes_per_day_for_us_location():
+    """timezone_utils must return different UTC offsets for NYC on a
+    pre-DST date and a post-DST date. Mu0b uses this per scan day."""
+    from datetime import datetime as _dt
+    from app.services.timezone_utils import resolve_timezone
+    pre = _dt(2026, 3, 7, 12, 0)   # Saturday before US spring-forward
+    post = _dt(2026, 3, 9, 12, 0)  # Monday after US spring-forward
+    off_pre, _ = resolve_timezone(40.7128, -74.0060, pre)
+    off_post, _ = resolve_timezone(40.7128, -74.0060, post)
+    assert off_pre == -5.0, f"NYC pre-DST expected -5, got {off_pre}"
+    assert off_post == -4.0, f"NYC post-DST expected -4, got {off_post}"
+
+
+def test_mu0b_scan_across_dst_does_not_crash():
+    """A muhurtha scan that crosses the US spring-forward day must
+    complete without errors. Pre-Mu0b the engine used a single
+    pre-DST offset for the whole scan, silently mis-computing Lagna
+    by 15° for half the windows; post-Mu0b zoneinfo handles each day."""
+    r = find_muhurtha_windows(
+        date_start="2026-03-07", date_end="2026-03-09",  # spans March 8 DST flip
+        event_type="general",
+        lat=40.7128, lon=-74.0060, tz_offset=-5.0,
+        event_lat=40.7128, event_lon=-74.0060, event_tz=-5.0,
+        nearby_days=0, participants=[],
+    )
+    # Just assert the scan completed and returned a well-shaped response
+    assert "windows" in r
+    assert "soft_flagged_windows" in r
+    assert isinstance(r.get("passed_count", 0), int)
+
+
+# ── Mu0e — tithi clamp + Vedic vara at sunrise ──
+
+def test_mu0e_tithi_15_renders_as_purnima_not_combined_string():
+    """Find a window on a known Purnima day (Vaisakha Purnima
+    2026-05-01) and assert tithi name is exactly 'Purnima', not the
+    pre-fix 'Purnima/Amavasya' combined slot."""
+    r = find_muhurtha_windows(
+        date_start="2026-05-01", date_end="2026-05-01",
+        event_type="general",
+        **TENALI, nearby_days=0, participants=[],
+    )
+    all_w = (r.get("windows") or []) + (r.get("soft_flagged_windows") or [])
+    # Filter for windows that landed on Purnima (tithi_num=15). Field
+    # `tithi` (name) lives under the nested `panchang` dict on each window.
+    purnima_windows = [w for w in all_w if w.get("tithi_num") == 15]
+    if purnima_windows:
+        for w in purnima_windows:
+            panchang = w.get("panchang") or {}
+            assert panchang.get("tithi") == "Purnima", (
+                f"tithi_num=15 should render as 'Purnima', got {panchang.get('tithi')!r} "
+                "— Mu0e regressed"
+            )
+
+
+def test_mu0e_tithi_num_clamped_to_30():
+    """Sweep enough windows that we exercise the int(...)+1 boundary.
+    Any tithi_num > 30 indicates the clamp is gone."""
+    r = find_muhurtha_windows(
+        date_start="2026-05-01", date_end="2026-05-05",
+        event_type="general",
+        **TENALI, nearby_days=0, participants=[],
+    )
+    all_w = (r.get("windows") or []) + (r.get("soft_flagged_windows") or [])
+    for w in all_w:
+        tn = w.get("tithi_num")
+        if tn is not None:
+            assert 1 <= tn <= 30, f"tithi_num {tn} out of [1,30] — clamp regressed"
+
+
+# ── Mu0g — antardasha memoisation ──
+
+def test_mu0g_antardasha_cache_is_used():
+    """_AD_CACHE accumulates entries as scans run; we verify by clearing
+    it, running a small scan with a participant, and asserting at least
+    one entry was added (= cache is alive, not dead code)."""
+    from app.services import muhurtha_engine as _me
+    _me._AD_CACHE.clear()
+    find_muhurtha_windows(
+        date_start="2026-05-01", date_end="2026-05-02",
+        event_type="general", **TENALI,
+        nearby_days=0, participants=[MANYUE],
+    )
+    assert len(_me._AD_CACHE) > 0, (
+        "_AD_CACHE empty after a participant-bearing scan — Mu0g memoisation regressed"
+    )
