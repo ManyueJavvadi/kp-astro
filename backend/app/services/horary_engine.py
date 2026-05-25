@@ -746,6 +746,186 @@ def _compute_clinical_flags(
     return flags
 
 
+def _detect_patterns(
+    *,
+    topic: str,
+    query_csl: str,
+    lagna_csl: str,
+    planet_lons: dict,
+    cusp_lons: list,
+    ruling_planets: list[str],
+    rp_context: dict,
+    yes_houses: set[int],
+    no_houses: set[int],
+    layer2_significations: list[int],
+) -> list[dict]:
+    """
+    PR H4 — Detect named KP patterns from pattern_library.md and surface
+    them on the verdict card. Pattern naming is what distinguishes a
+    deep KSK reading from a generic significator scan (RULE 19).
+
+    Patterns implemented (canonical from pattern_library.md):
+      T1 — Joint Period Principle (multiple period layers signify)
+      T2 — RP Amplifier (significator that is also a Ruling Planet)
+      T3 — Self-significator concentration (planet in own star)
+      T4 — Sookshma day-precision (deferred — requires native dasha context;
+           added later when H9 timing window lands)
+      M5 — AD-lord = supporting-cusp-sub-lord (deferred — same reason)
+      D2 — Step 4 partial denier (offer-then-withdrawn)
+
+    Returns list of {id, name, evidence, tone} where tone is "gold" for
+    positive patterns and "amber" for friction patterns like D2.
+    """
+    patterns: list[dict] = []
+    rp_set = set(ruling_planets)
+
+    # ── T2 — RP Amplifier ─────────────────────────────────────────
+    # When a significator of the topic is ALSO currently a Ruling Planet.
+    # KSK: such a planet carries 2-3× the timing weight of a non-RP
+    # significator. The strongest variant fires when the primary CSL
+    # itself is in RPs.
+    if query_csl in rp_set:
+        freq = len(rp_context.get("planet_slots", {}).get(query_csl, []))
+        slots = rp_context.get("planet_slots", {}).get(query_csl, [])
+        patterns.append({
+            "id": "T2",
+            "name": "RP Amplifier — Primary CSL is Ruling Planet",
+            "name_te": "RP వర్ధకం — ప్రాథమిక CSL నియమ గ్రహం",
+            "evidence": (
+                f"{query_csl} is both the primary-house CSL AND a Ruling Planet "
+                f"({freq}/7 slots: {', '.join(slots)}). Per KSK, this is the "
+                f"strongest timing confirmation KP offers — the moment is ripe."
+            ),
+            "evidence_te": (
+                f"{query_csl} ప్రాథమిక CSL మరియు నియమ గ్రహం "
+                f"({freq}/7 స్థానాలు). KSK ప్రకారం, ఇది బలమైన సమయ నిర్ధారణ."
+            ),
+            "tone": "gold",
+        })
+    # T2 also fires when ANY topic significator is among the strongest RPs (>=2 slots)
+    else:
+        strongest = rp_context.get("strongest", [])
+        for sp in strongest:
+            sigs = set(_planet_significations(sp, planet_lons, cusp_lons))
+            if sigs & yes_houses:
+                hit_houses = sorted(sigs & yes_houses)
+                patterns.append({
+                    "id": "T2",
+                    "name": f"RP Amplifier — Strongest RP {sp} signifies topic",
+                    "name_te": f"RP వర్ధకం — బలమైన RP {sp} టాపిక్‌ను సూచిస్తుంది",
+                    "evidence": (
+                        f"{sp} fills 2+ RP slots AND signifies relevant houses "
+                        f"{hit_houses} for {topic}. Its dasha/bhukti carries "
+                        f"strongest timing weight per KSK."
+                    ),
+                    "evidence_te": (
+                        f"{sp} 2+ RP స్థానాల్లో + {topic}కు {hit_houses} సూచిస్తుంది. "
+                        f"దీని దశ/భుక్తి బలమైన సమయం."
+                    ),
+                    "tone": "gold",
+                })
+                break  # only flag the strongest once
+
+    # ── T3 — Self-significator concentration ──────────────────────
+    # When the primary CSL is placed in its own nakshatra, it directly
+    # signifies its own houses without expressing through a star lord.
+    # KSK: such a planet's results arrive concentrated and pure.
+    if query_csl in planet_lons:
+        csl_lon = planet_lons[query_csl]
+        csl_star_lord = get_nakshatra_and_starlord(csl_lon).get("star_lord", "")
+        if csl_star_lord == query_csl:
+            patterns.append({
+                "id": "T3",
+                "name": f"Self-significator — {query_csl} in own star",
+                "name_te": f"స్వీయ-సూచకం — {query_csl} సొంత నక్షత్రంలో",
+                "evidence": (
+                    f"{query_csl} sits in its own nakshatra — its results arrive "
+                    f"directly without colouring through a star lord. KSK: pure, "
+                    f"concentrated effects; the planet's themes manifest cleanly "
+                    f"in its dasha/bhukti."
+                ),
+                "evidence_te": (
+                    f"{query_csl} సొంత నక్షత్రంలో — ఫలితాలు నేరుగా, స్వచ్ఛంగా, "
+                    f"దాని దశ/భుక్తిలో శుద్ధంగా వ్యక్తమవుతాయి."
+                ),
+                "tone": "gold",
+            })
+
+    # ── T1 — Joint Period (within horary moment) ──────────────────
+    # In horary, the equivalent of joint period is: Lagna CSL + Primary
+    # CSL + at least one RP ALL signify the relevant house group.
+    # When all three align in horary, the matter is structurally fired
+    # at this moment — strongest YES signal horary can produce.
+    lagna_sigs = set(_planet_significations(lagna_csl, planet_lons, cusp_lons))
+    csl_sigs = set(layer2_significations)
+    lagna_hits = bool(lagna_sigs & yes_houses)
+    csl_hits = bool(csl_sigs & yes_houses)
+    rp_topic_hit = any(
+        set(_planet_significations(rp, planet_lons, cusp_lons)) & yes_houses
+        for rp in ruling_planets
+    )
+    if lagna_hits and csl_hits and rp_topic_hit:
+        patterns.append({
+            "id": "T1",
+            "name": "Joint Period — all 3 horary layers signify",
+            "name_te": "ఉమ్మడి కాలం — మూడు హోరారీ స్థాయిలు సూచిస్తాయి",
+            "evidence": (
+                f"Lagna CSL ({lagna_csl}) signifies topic ✓ | Primary CSL "
+                f"({query_csl}) signifies topic ✓ | At least one RP signifies "
+                f"topic ✓ — all three horary layers converge. KSK Reader V: "
+                f"events fire only at joint periods. Strongest YES horary signal."
+            ),
+            "evidence_te": (
+                f"లగ్న CSL ({lagna_csl}), ప్రాథమిక CSL ({query_csl}), "
+                f"నియమ గ్రహాలు — మూడూ టాపిక్‌ను సూచిస్తాయి. బలమైన YES సంకేతం."
+            ),
+            "tone": "gold",
+        })
+
+    # ── D2 — Step 4 partial denier (offer-then-withdrawn) ─────────
+    # When primary CSL signifies relevant houses (promise present) BUT
+    # the deepest chain layer (star lord of CSL's sub lord) signifies
+    # ONLY denial houses, the event is offered then withdrawn / cancelled
+    # at the last moment.
+    if query_csl in planet_lons:
+        csl_lon = planet_lons[query_csl]
+        csl_sub = get_sub_lord(csl_lon)
+        if csl_sub in planet_lons:
+            csl_sub_lon = planet_lons[csl_sub]
+            step4_lord = get_nakshatra_and_starlord(csl_sub_lon).get("star_lord", "")
+            if step4_lord and step4_lord in planet_lons:
+                step4_houses = set(_planet_significations(step4_lord, planet_lons, cusp_lons))
+                step4_in_yes = step4_houses & yes_houses
+                step4_in_no = step4_houses & no_houses
+                # Fires only when (a) Steps 1-2 show promise (CSL hits yes)
+                # AND (b) Step 4 hits ONLY denial houses (not mixed).
+                if csl_hits and step4_in_no and not step4_in_yes:
+                    patterns.append({
+                        "id": "D2",
+                        "name": f"Step 4 Partial Denier — {step4_lord} (offer-then-withdrawn risk)",
+                        "name_te": f"4వ స్థాయి నిరాకరణ — {step4_lord} (ఆఫర్-తర్వాత-తొలగింపు)",
+                        "evidence": (
+                            f"Primary CSL {query_csl} promises (signifies topic houses "
+                            f"{sorted(csl_sigs & yes_houses)}) but Step 4 of the chain "
+                            f"({step4_lord} — star lord of CSL's sub lord) signifies "
+                            f"ONLY denial houses {sorted(step4_in_no)}. Per pattern "
+                            f"library D2: the matter may be offered then withdrawn at "
+                            f"the last stage (interview cleared but offer rescinded, "
+                            f"engagement broken before marriage, contract issued but "
+                            f"cancelled). Distinct from outright denial — the promise "
+                            f"is real, the last-mile fails."
+                        ),
+                        "evidence_te": (
+                            f"ప్రాథమిక CSL {query_csl} వాగ్దానం ఇస్తుంది, కానీ చైన్ "
+                            f"4వ స్థాయి ({step4_lord}) కేవలం నిరాకరణ భావాలను సూచిస్తుంది. "
+                            f"ఆఫర్ వస్తుంది కానీ చివరి దశలో తొలగించబడవచ్చు."
+                        ),
+                        "tone": "amber",
+                    })
+
+    return patterns
+
+
 def _compute_numeric_confidence(
     *,
     layer1_pass: bool,
@@ -1147,6 +1327,22 @@ def analyze_horary(
 
     t_houses = TOPIC_HOUSES.get(topic.lower(), TOPIC_HOUSES["general"])
 
+    # PR H4 — Pattern detection. Names canonical KP patterns from
+    # pattern_library.md (T1/T2/T3/D2). Pattern naming distinguishes
+    # a deep KSK reading from a generic significator scan (RULE 19).
+    patterns_fired = _detect_patterns(
+        topic=topic,
+        query_csl=verdict.get("query_csl", ""),
+        lagna_csl=lagna_sub,
+        planet_lons=planet_lons,
+        cusp_lons=cusp_lons,
+        ruling_planets=ruling_planets,
+        rp_context=rp_context,
+        yes_houses=set(t_houses["yes"]),
+        no_houses=set(t_houses["no"]),
+        layer2_significations=verdict.get("query_csl_significations", []),
+    )
+
     # PR A1.1d — clinical-indicator set; purely presentational, does NOT
     # modify verdict. Engine stays as a truth-reporter; clinical judgement
     # is a separate decision-support layer alongside it.
@@ -1210,6 +1406,7 @@ def analyze_horary(
         "primary_house": primary_house,
         "primary_house_significators": primary_house_significators,
         "clinical_flags": clinical_flags,  # NEW PR A1.1d
+        "patterns_fired": patterns_fired,   # PR H4 — canonical KP patterns
         "planets": planet_details,
         "cusps": cusp_details,
         "house_themes": HOUSE_THEMES,

@@ -41,6 +41,7 @@ import HoraryFourLevelAccordion from "../components/HoraryFourLevelAccordion";
 import ClinicalFlagsStrip from "../components/ClinicalFlagsStrip";
 import RPContextStrip from "../components/RPContextStrip";
 import HoraryValidityCard from "../components/HoraryValidityCard";  // PR H1
+import HoraryPatternChips from "../components/HoraryPatternChips";  // PR H4
 import { PLANET_COLORS } from "../components/constants";
 // PR R1-hotfix lesson — SouthIndianChart in page.tsx is an alias for the
 // modern RasiChart (not the legacy 56-line file). Reproduce the alias.
@@ -635,6 +636,12 @@ export function HoraryTab({
                       </div>
                     </div>
                   )}
+
+                  {/* PR H4 — Canonical KP patterns (T1/T2/T3/D2 from
+                      pattern_library.md). Gold chips for positive timing
+                      patterns; amber for D2 friction. Tooltip on each chip
+                      shows the full evidence trail. */}
+                  <HoraryPatternChips patterns={r.patterns_fired} />
                 </div>
 
                 {/* 3-Layer Analysis — visual journey.
