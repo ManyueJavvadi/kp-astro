@@ -661,8 +661,8 @@ export function MatchTab(props: MatchTabProps) {
               </div>
               <div className="match-section-grid">
                 {[
-                  {p: kp?.chart1_promise, name: r.person1?.name, tier: r.multi_cusp_tier_chart1, multi: r.multi_marriage_chart1},
-                  {p: kp?.chart2_promise, name: r.person2?.name, tier: r.multi_cusp_tier_chart2, multi: r.multi_marriage_chart2},
+                  {p: kp?.chart1_promise, name: r.person1?.name, tier: r.multi_cusp_tier_chart1, multi: r.multi_marriage_chart1, combust: r.h7_csl_combust_chart1},
+                  {p: kp?.chart2_promise, name: r.person2?.name, tier: r.multi_cusp_tier_chart2, multi: r.multi_marriage_chart2, combust: r.h7_csl_combust_chart2},
                 ].map((item, i) => item.p && (
                   <div key={i} className="match-tile" style={{ borderColor: item.p.has_promise && !item.p.has_denial ? "rgba(74,222,128,0.3)" : item.p.has_denial ? "rgba(248,113,113,0.3)" : "var(--border)" }}>
                     <div className="match-tile-name">{item.name}</div>
@@ -730,6 +730,37 @@ export function MatchTab(props: MatchTabProps) {
                       >
                         {t("Multi-marriage signature", "అనేక-వివాహ సూచన")}
                         <span style={{ opacity: 0.7, fontSize: 9 }}>· {item.multi.basis.replace(/_/g, " ")}</span>
+                      </div>
+                    )}
+                    {/* PR M7 — Combust H7 CSL clinical flag.
+                        Combust sub-lord => marriage promise fructifies hidden
+                        / private. Borderline => mild eclipse / delay. */}
+                    {item.combust && (item.combust.is_combust || item.combust.borderline) && (
+                      <div
+                        title={lang === "te" ? item.combust.detail_te : item.combust.detail_en}
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: "3px 8px",
+                          marginTop: 4,
+                          marginBottom: 4,
+                          borderRadius: 999,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                          cursor: "help",
+                          background: item.combust.is_combust ? "rgba(248,113,113,0.10)" : "rgba(251,191,36,0.10)",
+                          color: item.combust.is_combust ? "#f87171" : "#fbbf24",
+                          border: item.combust.is_combust ? "0.5px solid rgba(248,113,113,0.45)" : "0.5px solid rgba(251,191,36,0.45)",
+                          letterSpacing: "0.04em",
+                        }}
+                      >
+                        {lang === "te" ? item.combust.label_te : item.combust.label_en}
+                        {item.combust.distance_from_sun_deg != null && (
+                          <span style={{ opacity: 0.7, fontSize: 9 }}>
+                            · {item.combust.distance_from_sun_deg}° {t("from Sun", "సూర్యం నుండి")}
+                          </span>
+                        )}
                       </div>
                     )}
                     <div className="match-tile-row">

@@ -40,6 +40,7 @@ from app.services.chart_engine import (
     DAY_LORDS,
 )
 from app.services.chart_formatter import format_chart_for_frontend
+from app.services.kp_advanced_compute import detect_combustion
 
 # ── Planet sign lordships ─────────────────────────────────────
 
@@ -1802,6 +1803,107 @@ def _multiple_marriages_check(chart: dict) -> dict:
     return {
         "signature_present": False, "basis": "", "h7_csl": h7_csl,
         "details": "", "details_te": "",
+    }
+
+
+def _h7_csl_combust_flag(chart: dict) -> dict:
+    """
+    PR M7 — Combust H7 CSL clinical flag.
+
+    Per KP doctrine: a sub-lord 'combust' (within Sun's combustion orb) is
+    burnt — its significations are weakened / hidden, even if the chain
+    looks structurally clean on paper. For the marriage primary (H7 CSL)
+    this surfaces as:
+
+      • Hidden / secret marriage (chain promises, but world doesn't see it)
+      • Spouse personality eclipsed by self (ego dominates the union)
+      • Public/announced relationships fall through, but a quiet alliance
+        may still occur
+
+    Astrologer must frame: "promise present BUT obscured — expect non-
+    obvious / private fructification".
+
+    Sun, Rahu, Ketu never combust (Sun *is* the source; nodes are shadow
+    bodies). Borderline = within ±1° of the threshold per Phase-A fix.
+    """
+    h7_csl, _ = _get_cusp_sub_lord_sigs(7, chart)
+    planets = chart["planets"]
+
+    if not h7_csl or h7_csl in ("Sun", "Rahu", "Ketu") or h7_csl not in planets:
+        return {
+            "is_combust": False,
+            "borderline": False,
+            "h7_csl": h7_csl,
+            "distance_from_sun_deg": None,
+            "threshold_deg": None,
+            "label_en": "",
+            "label_te": "",
+            "detail_en": "",
+            "detail_te": "",
+        }
+
+    combust_map = detect_combustion(planets)
+    info = combust_map.get(h7_csl)
+    if not info:
+        return {
+            "is_combust": False,
+            "borderline": False,
+            "h7_csl": h7_csl,
+            "distance_from_sun_deg": None,
+            "threshold_deg": None,
+            "label_en": "",
+            "label_te": "",
+            "detail_en": "",
+            "detail_te": "",
+        }
+
+    is_combust = bool(info.get("is_combust"))
+    borderline = bool(info.get("borderline"))
+    dist = info.get("distance_from_sun_deg")
+    thr = info.get("threshold_deg")
+
+    if is_combust:
+        label_en = "H7 CSL combust"
+        label_te = "H7 CSL సూర్యతేజ దగ్ధం"
+        detail_en = (
+            f"H7 CSL {h7_csl} is combust ({dist}° from Sun, threshold {thr}°). "
+            f"Marriage promise — if present — fructifies in a hidden / non-public "
+            f"form: quiet alliance, secret marriage, or spouse personality "
+            f"eclipsed. Public/announced relationships tend to fall through."
+        )
+        detail_te = (
+            f"H7 CSL {h7_csl} సూర్యదగ్ధం ({dist}°, థ్రెషోల్డ్ {thr}°). "
+            f"వివాహ సూచన ఉంటే రహస్యంగా / తక్కువ ప్రచారంతో జరుగుతుంది; "
+            f"ప్రకటిత సంబంధాలు ఆగే అవకాశం."
+        )
+    elif borderline:
+        label_en = "H7 CSL near combustion"
+        label_te = "H7 CSL దగ్ధ సమీపంలో"
+        detail_en = (
+            f"H7 CSL {h7_csl} is in the combustion borderline ({dist}° from "
+            f"Sun, threshold {thr}°). Mild eclipsing of the marriage signal — "
+            f"watch for delays or low-visibility fructification."
+        )
+        detail_te = (
+            f"H7 CSL {h7_csl} దగ్ధ సరిహద్దులో ({dist}°). కొంత ఆలస్యం "
+            f"లేదా తక్కువ ప్రకటిత ఫలితం సాధ్యం."
+        )
+    else:
+        label_en = ""
+        label_te = ""
+        detail_en = ""
+        detail_te = ""
+
+    return {
+        "is_combust": is_combust,
+        "borderline": borderline,
+        "h7_csl": h7_csl,
+        "distance_from_sun_deg": dist,
+        "threshold_deg": thr,
+        "label_en": label_en,
+        "label_te": label_te,
+        "detail_en": detail_en,
+        "detail_te": detail_te,
     }
 
 
@@ -3874,6 +3976,12 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
     multi_marriage_p1 = _multiple_marriages_check(chart1)
     multi_marriage_p2 = _multiple_marriages_check(chart2)
 
+    # PR M7 — Combust H7 CSL clinical flag per partner.
+    # When the H7 sub-lord is within Sun's combustion orb, marriage
+    # promise (if present) tends to fructify hidden / private / non-public.
+    h7_csl_combust_p1 = _h7_csl_combust_flag(chart1)
+    h7_csl_combust_p2 = _h7_csl_combust_flag(chart2)
+
     # PR M3 — Pattern detection per partner (M1/M2/M3/M5) + cross-couple
     # (T1/T2). Pattern naming is what distinguishes a deep KSK reading
     # from a generic significator scan (RULE 19).
@@ -4154,6 +4262,9 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
         # PR M5 — Multi-marriages KSK signature per partner
         "multi_marriage_chart1": multi_marriage_p1,
         "multi_marriage_chart2": multi_marriage_p2,
+        # PR M7 — Combust H7 CSL clinical flag per partner
+        "h7_csl_combust_chart1": h7_csl_combust_p1,
+        "h7_csl_combust_chart2": h7_csl_combust_p2,
         "summary": {
             "kp_verdict": kp["kp_verdict"],
             "ashtakoota_score": f"{ashtakoota['total_score']}/{ashtakoota['max_score']}",
