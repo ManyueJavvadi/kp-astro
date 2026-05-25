@@ -189,19 +189,81 @@ BAD_VARA  = {1, 5}          # Tue, Sat
 
 # ── Sunrise helpers ─────────────────────────────────────────────
 
+
+class MuhurthaSunriseError(Exception):
+    """
+    PR Mu0d — Raised when sunrise cannot be computed for a given
+    date+location. Most common cause: high-latitude (polar / near-polar)
+    locations where the Sun doesn't rise above / set below the horizon
+    on this day (midnight sun or polar night). The previous behaviour
+    was to silently return a fake 12-hour day (`date_jd ± 0.25`), which
+    then made Rahu Kalam / hora / durmuhurtha / Abhijit all compute
+    against a phantom sun — producing meaningless muhurtha "windows".
+
+    The scan loop must catch this and record the day as skipped with a
+    user-facing reason instead of pretending muhurthas exist.
+    """
+
+
 def _get_sunrise_sunset_jd(date_jd: float, lat: float, lon: float) -> Tuple[float, float]:
-    """Get sunrise/sunset JD using upper limb (true observed sunrise)."""
+    """Get sunrise/sunset JD using upper limb (true observed sunrise).
+
+    Raises MuhurthaSunriseError if sunrise/sunset cannot be resolved
+    (polar latitudes during midnight-sun / polar-night periods, or any
+    Swisseph computation failure). Caller must catch and skip the day.
+
+    PR Mu0d — bug discovery: prior version called
+        swe.rise_trans(jd, swe.SUN, b"", 0, swe.CALC_RISE, geopos, 1013.25, 10.0)
+    which passes 8 positional args to a function that takes at most 7 in
+    pyswisseph 2.10+ (signature: tjdut, body, rsmi, geopos, atpress=0,
+    attemp=0, flags). That call raised TypeError on every invocation,
+    swallowed by an `except Exception` clause that returned
+    `(date_jd - 0.25, date_jd + 0.25)` — a fake 6 AM / 6 PM day. So the
+    ENTIRE Muhurtha engine was running on synthetic sunrise/sunset for
+    every location, every date. This broke Rahu Kalam, Yamagandam,
+    Gulika Kalam, Durmuhurtha, Abhijit, hora lord, and day-slot scoring
+    — every classical muhurtha factor silently. Fixed by using the
+    correct modern signature.
+    """
     geopos = (lon, lat, 0.0)
     try:
-        _, tr = swe.rise_trans(date_jd - 0.5, swe.SUN, b"", 0,
-                               swe.CALC_RISE, geopos, 1013.25, 10.0)
-        sunrise = tr[1]
-        _, ts = swe.rise_trans(sunrise, swe.SUN, b"", 0,
-                               swe.CALC_SET, geopos, 1013.25, 10.0)
-        sunset = ts[1]
+        rflag, tr = swe.rise_trans(
+            date_jd - 0.5, swe.SUN, swe.CALC_RISE, geopos, 1013.25, 10.0
+        )
+        # rise_trans returns -2 when the body never rises/sets on the
+        # search window (polar conditions). swisseph signals via the
+        # flag, not always via raising.
+        if rflag < 0 or tr is None or len(tr) < 1:
+            raise MuhurthaSunriseError(
+                f"Sun does not rise on JD {date_jd:.3f} at "
+                f"lat={lat:.4f}, lon={lon:.4f} (likely polar latitude)"
+            )
+        sunrise = tr[0]
+        sflag, ts = swe.rise_trans(
+            sunrise, swe.SUN, swe.CALC_SET, geopos, 1013.25, 10.0
+        )
+        if sflag < 0 or ts is None or len(ts) < 1:
+            raise MuhurthaSunriseError(
+                f"Sun does not set on JD {date_jd:.3f} at "
+                f"lat={lat:.4f}, lon={lon:.4f} (likely polar latitude)"
+            )
+        sunset = ts[0]
+        if sunset <= sunrise or (sunset - sunrise) > 1.0:
+            # Sanity guard: a single day must have sunset > sunrise and
+            # less than 24 hours between them. Anything else is the
+            # polar-day / sunrise-found-but-no-sunset case.
+            raise MuhurthaSunriseError(
+                f"Anomalous sunrise/sunset for JD {date_jd:.3f} at "
+                f"lat={lat:.4f}, lon={lon:.4f} (day length out of range)"
+            )
         return sunrise, sunset
-    except Exception:
-        return date_jd - 0.25, date_jd + 0.25
+    except MuhurthaSunriseError:
+        raise
+    except Exception as e:
+        raise MuhurthaSunriseError(
+            f"Sunrise computation failed for JD {date_jd:.3f} at "
+            f"lat={lat:.4f}, lon={lon:.4f}: {e}"
+        )
 
 
 # ── Tara Bala & Chandrabala ─────────────────────────────────────
@@ -659,6 +721,10 @@ def _scan_date_range(
     raw_windows = []
     planet_cache: dict = {}
     slot_cache: dict = {}
+    # PR Mu0d — track polar / sunrise-resolution failures per day so the
+    # response can surface "no muhurtha computable on Dec 22 at this
+    # latitude" instead of silently falling back to a fake 12-hour day.
+    _skipped_polar_days: list = []
     # PR Mu0b — per-day event-tz cache. The router resolves event_tz ONCE
     # using the date_start of the scan; for a 60-day search that crosses a
     # DST transition (e.g. US spring-forward in March, fall-back in
@@ -697,9 +763,23 @@ def _scan_date_range(
 
         if day_key not in slot_cache:
             date_jd = swe.julday(current.year, current.month, current.day, 12.0 - day_event_tz)
-            sr, ss = _get_sunrise_sunset_jd(date_jd, event_lat, event_lon)
-            slot_cache[day_key] = _get_day_slots(sr, ss, current.weekday())
+            try:
+                sr, ss = _get_sunrise_sunset_jd(date_jd, event_lat, event_lon)
+                slot_cache[day_key] = _get_day_slots(sr, ss, current.weekday())
+            except MuhurthaSunriseError as _e:
+                # PR Mu0d — record the day as skipped so the response can
+                # surface it to the UI (e.g. "Stockholm Dec 22 — polar
+                # night, no muhurtha computable").
+                _skipped_polar_days.append({
+                    "date":   current.strftime("%Y-%m-%d"),
+                    "reason": str(_e),
+                })
+                slot_cache[day_key] = None
         slots = slot_cache[day_key]
+        if slots is None:
+            # Skip the rest of this day's 4-min slots quickly
+            current += timedelta(hours=24 - current.hour, minutes=-current.minute)
+            continue
 
         rk_start, rk_end = slots["rk"]
         yg_start, yg_end = slots["yg"]
@@ -1154,7 +1234,9 @@ def _scan_date_range(
 
         current += timedelta(minutes=4)
 
-    return raw_windows
+    # PR Mu0d — return both windows and any polar-day skips so
+    # find_muhurtha_windows can surface skipped days in the response.
+    return raw_windows, _skipped_polar_days
 
 
 def _merge_windows(raw: list) -> list:
@@ -1291,7 +1373,7 @@ def find_muhurtha_windows(
             dashas = _natal_dasha_list(p)
             participant_natal_dashas.append((p_name, dashas))
 
-    selected_raw = _scan_date_range(
+    selected_raw, _selected_skipped = _scan_date_range(
         start_dt, end_dt, classified_event,
         e_lat, e_lon, e_tz,
         participant_rps, participant_natal_moon,
@@ -1343,10 +1425,12 @@ def find_muhurtha_windows(
     best_selected_score = selected_windows[0]["score"] if selected_windows else 0
 
     nearby_better = None
+    _nearby_skipped: list = []
+    _extend_skipped: list = []
     if nearby_days > 0:
         nearby_start = start_dt - timedelta(days=nearby_days)
         nearby_end   = end_dt   + timedelta(days=nearby_days)
-        nearby_raw = _scan_date_range(
+        nearby_raw, _nearby_skipped = _scan_date_range(
             nearby_start, nearby_end, classified_event,
             e_lat, e_lon, e_tz,
             participant_rps, participant_natal_moon,
@@ -1382,7 +1466,7 @@ def find_muhurtha_windows(
     if not selected_windows:
         extend_start = end_dt + timedelta(days=1)
         extend_end = end_dt + timedelta(days=30)
-        extend_raw = _scan_date_range(
+        extend_raw, _extend_skipped = _scan_date_range(
             extend_start, extend_end, classified_event,
             e_lat, e_lon, e_tz,
             participant_rps, participant_natal_moon,
@@ -1424,6 +1508,12 @@ def find_muhurtha_windows(
         # "3 top windows, 12 below threshold (astrologer review)".
         "passed_count":         len(selected_windows),
         "soft_flagged_count":   len(soft_flagged_windows),
+        # PR Mu0d — polar / sunrise-resolution failures collected across
+        # the primary scan + nearby + extend ranges. Frontend surfaces
+        # these so the astrologer knows e.g. "Dec 22 in Reykjavik —
+        # polar night, no muhurtha computable" instead of silently
+        # missing days from the leaderboard.
+        "skipped_polar_days":   (_selected_skipped or []) + (_nearby_skipped or []) + (_extend_skipped or []),
     }
 
 
