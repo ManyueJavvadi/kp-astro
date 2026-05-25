@@ -40,7 +40,8 @@ from typing import Optional, Tuple
 
 from app.services.chart_engine import (
     get_sub_lord, get_nakshatra_and_starlord, get_sign, get_planet_positions,
-    date_time_to_julian
+    date_time_to_julian,
+    DAY_LORDS,  # PR Mu3 — for vara-lord in moment RPs
 )
 
 # PR A2.2b — consume the findings-module lookup tables (per-event KB rules)
@@ -451,6 +452,8 @@ def _evaluate_participant(
     natal_bm: dict = None,   # from _natal_badhakesh_marakesh
     dashas: list = None,     # from _natal_dasha_list
     target_date_str: str = None,
+    moment_rps: set = None,         # PR Mu3 — the moment's 5 KP RPs
+    natal_event_sigs: set = None,   # PR Mu3 — planets that signify event in natal
 ) -> dict:
     """Compute per-participant findings for a single candidate moment.
 
@@ -515,6 +518,17 @@ def _evaluate_participant(
                     f"{name}: Marakesh {hit} active ({which})"
                 )
 
+    # PR Mu3 — moment RPs × natal event-house significators.
+    # KP-doctrine-correct multi-chart test: take this moment's universal
+    # 5 RPs and check how many of them ALSO signify the event houses in
+    # this participant's natal chart. The intersection = "the universe
+    # is naming the same planets that this person's natal chart names
+    # for this matter" — the strongest agreement signal in KP.
+    moment_rps_set = moment_rps or set()
+    natal_sigs_set = natal_event_sigs or set()
+    rp_x_natal = sorted(moment_rps_set & natal_sigs_set)
+    rp_x_natal_count = len(rp_x_natal)
+
     return {
         "name": name,
         "chandrashtamam": chandrashtamam,
@@ -532,6 +546,11 @@ def _evaluate_participant(
         "badhakesh": (natal_bm or {}).get("badhakesh"),
         "badhakesh_active": badhakesh_active,
         "marakesh_active": marakesh_active,
+        # PR Mu3 — moment-RPs × natal-event-significators intersection
+        "moment_rps":                sorted(moment_rps_set),
+        "natal_event_significators": sorted(natal_sigs_set),
+        "rp_x_natal_overlap":        rp_x_natal,
+        "rp_x_natal_count":          rp_x_natal_count,
     }
 
 
@@ -581,6 +600,72 @@ def _get_hora_lord(jd: float, sunrise_jd: float, sunset_jd: float, weekday: int)
 
 
 # ── Natal RPs ────────────────────────────────────────────────────
+
+def _compute_moment_rps(planets: dict, cusp_lons: list, weekday: int) -> set:
+    """
+    PR Mu3 — The 5 classical KP Ruling Planets at the muhurtha moment.
+
+    Per K. S. Krishnamurti + Kanak Bosmia KPDP:
+      1. Vara lord (planet ruling the weekday at the moment)
+      2. Moon sign lord (rashi adhipati of the Moon at the moment)
+      3. Moon star lord (nakshatra adhipati of the Moon at the moment)
+      4. Lagna sign lord (rashi adhipati of the rising sign at the moment)
+      5. Lagna star lord (nakshatra adhipati of the rising sign at the moment)
+
+    Returns a set of planet names. Pre-Mu3 the engine used participant
+    NATAL RPs (computed once at birth) and asked "is moment Lagna SL one
+    of these 4?" — which is doctrine-inverted. The correct test is the
+    OTHER direction: take the moment's 5 RPs and intersect with each
+    participant's natal SIGNIFICATORS of the event house group.
+    """
+    moon_lon = planets.get("Moon", {}).get("longitude", 0)
+    lagna_lon = cusp_lons[0] % 360
+    vara_lord = DAY_LORDS.get(weekday, "") if isinstance(DAY_LORDS, dict) else (
+        DAY_LORDS[weekday] if 0 <= weekday < len(DAY_LORDS) else ""
+    )
+    rps = {
+        vara_lord,
+        SIGN_LORDS.get(get_sign(moon_lon % 360), ""),
+        get_nakshatra_and_starlord(moon_lon)["star_lord"],
+        SIGN_LORDS.get(get_sign(lagna_lon), ""),
+        get_nakshatra_and_starlord(lagna_lon)["star_lord"],
+    }
+    rps.discard("")
+    return rps
+
+
+def _natal_event_significators(participant: dict, event_houses: set) -> set:
+    """
+    PR Mu3 — For a participant, return the set of planet names that
+    signify ANY of the event's house group {primary + supporting} in
+    their NATAL chart.
+
+    Uses the same 4-step signification rule as _sublord_significations:
+    occupied house + ruled houses + star-lord's house. The intersection
+    with moment-RPs then tells us "this moment's universal indicators
+    are activating the event houses in this person's natal chart" —
+    the KP-doctrine-correct multi-chart test.
+    """
+    swe.set_sid_mode(swe.SIDM_KRISHNAMURTI_VP291)
+    try:
+        jd = date_time_to_julian(
+            participant["date"], participant["time"],
+            participant.get("timezone_offset", 5.5)
+        )
+        planets = get_planet_positions(jd)
+        lat = participant["latitude"]
+        lon = participant["longitude"]
+        cusps, _ = swe.houses_ex(jd, lat, lon, b'P', swe.FLG_SIDEREAL)
+        cusp_lons = list(cusps[:12])
+        sigs: set = set()
+        for pname in planets:
+            houses = set(_sublord_significations(pname, planets, cusp_lons))
+            if houses & event_houses:
+                sigs.add(pname)
+        return sigs
+    except Exception:
+        return set()
+
 
 def _get_natal_rps(participant: dict) -> set:
     """Get natal Ruling Planets for a participant."""
@@ -724,6 +809,7 @@ def _scan_date_range(
     participant_natal_moon: list = None,    # list of (name, {moon_nakshatra_idx, moon_sign_idx})
     participant_natal_bm: list = None,      # PR A2.2c.2 — (name, {badhakesh, marakesh, ...})
     participant_natal_dashas: list = None,  # PR A2.2c.2 — (name, [full dasha list])
+    participant_natal_event_sigs: list = None,  # PR Mu3 — (name, set of planets signifying event in natal)
 ) -> list:
     """Scan a date range every 4 minutes, return raw scored windows."""
     swe.set_sid_mode(swe.SIDM_KRISHNAMURTI_VP291)
@@ -731,9 +817,11 @@ def _scan_date_range(
     participant_natal_moon = participant_natal_moon or []
     participant_natal_bm = participant_natal_bm or []
     participant_natal_dashas = participant_natal_dashas or []
+    participant_natal_event_sigs = participant_natal_event_sigs or []
     # Build name → natal data lookups for O(1) access inside the hot loop
     _bm_by_name = {name: data for name, data in participant_natal_bm}
     _dashas_by_name = {name: data for name, data in participant_natal_dashas}
+    _event_sigs_by_name = {name: data for name, data in participant_natal_event_sigs}
 
     raw_windows = []
     planet_cache: dict = {}
@@ -921,15 +1009,23 @@ def _scan_date_range(
         # PR A2.2c.2 — target date string for the DBA check (same
         # calendar day as the candidate window)
         _target_date_str = current.strftime("%Y-%m-%d")
+        # PR Mu3 — moment's 5 KP Ruling Planets at THIS slot. Computed
+        # once per slot, passed to every participant evaluation so we
+        # can do the doctrine-correct multi-chart test.
+        moment_rps = _compute_moment_rps(planets, cusp_lons, vara)
+        rp_x_natal_total = 0  # sum across participants for ledger
         for name, natal_data in participant_natal_moon:
             p_eval = _evaluate_participant(
                 name, natal_data, moon_lon,
                 natal_bm=_bm_by_name.get(name),
                 dashas=_dashas_by_name.get(name),
                 target_date_str=_target_date_str,
+                moment_rps=moment_rps,
+                natal_event_sigs=_event_sigs_by_name.get(name, set()),
             )
             per_participant.append(p_eval)
             participant_soft_total += p_eval["soft_score"]
+            rp_x_natal_total += p_eval.get("rp_x_natal_count", 0)
             if p_eval["hard_rejected_for"]:
                 participant_hard_rejects.extend(p_eval["hard_rejected_for"])
 
@@ -1216,9 +1312,23 @@ def _scan_date_range(
         ]
         if participant_bonus:
             breakdown.append({
-                "factor": "participant_resonance",
+                "factor": "participant_resonance_legacy",
                 "delta": int(participant_bonus),
-                "note": f"+10 per participant whose natal RPs include Lagna SL ({len(resonating_with)} hits)"})
+                "note": f"[legacy] +10 per participant whose natal RPs include Lagna SL ({len(resonating_with)} hits)"})
+        # PR Mu3 — moment-RPs × natal-event-significators (doctrine-correct).
+        # Worth +5 per match per participant — gentle weighting; Mu4 will
+        # reweight as part of the proper aggregation rewrite. Keeps the
+        # legacy participant_bonus for back-compat until Mu4.
+        if rp_x_natal_total:
+            mu3_delta = rp_x_natal_total * 5
+            breakdown.append({
+                "factor": "moment_rps_x_natal_event_sigs",
+                "delta": int(mu3_delta),
+                "note": (
+                    f"+5 per moment-RP that signifies the event house group in "
+                    f"a participant's natal chart ({rp_x_natal_total} hits across "
+                    f"{len(per_participant)} participant(s))"
+                )})
         if badhaka_penalty:
             breakdown.append({
                 "factor": "badhakesh_marakesh",
@@ -1283,6 +1393,7 @@ def _scan_date_range(
         effective_score = (
             base_score
             + participant_bonus
+            + (rp_x_natal_total * 5)   # PR Mu3 — doctrine-correct multi-chart
             + badhaka_penalty
             + event_cusp_bonus
             + h11_bonus
@@ -1534,6 +1645,15 @@ def find_muhurtha_windows(
     # 60-day sweep doesn't recompute them ~20,000 times.
     participant_natal_bm = []
     participant_natal_dashas = []
+    # PR Mu3 — natal event-house significators per participant.
+    # Same logic: compute once at startup, not per slot. Set of planets
+    # in each participant's natal chart that signify any of the event's
+    # primary + supporting houses.
+    participant_natal_event_sigs: list = []
+    event_house_group = EVENT_HOUSE_GROUPS.get(
+        classified_event, EVENT_HOUSE_GROUPS["general"]
+    )
+    event_house_set = {event_house_group["primary"]} | set(event_house_group.get("supporting", []))
     if participants:
         for p in participants:
             p_name = p.get("name", "")
@@ -1546,12 +1666,16 @@ def find_muhurtha_windows(
             participant_natal_bm.append((p_name, bm))
             dashas = _natal_dasha_list(p)
             participant_natal_dashas.append((p_name, dashas))
+            # PR Mu3 — natal event-house significators
+            sigs = _natal_event_significators(p, event_house_set)
+            participant_natal_event_sigs.append((p_name, sigs))
 
     selected_raw, _selected_skipped = _scan_date_range(
         start_dt, end_dt, classified_event,
         e_lat, e_lon, e_tz,
         participant_rps, participant_natal_moon,
         participant_natal_bm, participant_natal_dashas,
+        participant_natal_event_sigs,
     )
     all_merged = _merge_windows(selected_raw)
     all_merged.sort(key=lambda w: w["score"], reverse=True)
@@ -1609,6 +1733,7 @@ def find_muhurtha_windows(
             e_lat, e_lon, e_tz,
             participant_rps, participant_natal_moon,
             participant_natal_bm, participant_natal_dashas,
+            participant_natal_event_sigs,
         )
         nearby_merged = _merge_windows(nearby_raw)
         nearby_merged.sort(key=lambda w: w["score"], reverse=True)
@@ -1645,6 +1770,7 @@ def find_muhurtha_windows(
             e_lat, e_lon, e_tz,
             participant_rps, participant_natal_moon,
             participant_natal_bm, participant_natal_dashas,
+            participant_natal_event_sigs,
         )
         extend_merged = _merge_windows(extend_raw)
         extend_passed = [w for w in extend_merged if not w.get("hard_rejected_for")]

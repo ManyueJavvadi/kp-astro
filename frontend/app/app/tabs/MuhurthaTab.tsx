@@ -1250,6 +1250,39 @@ export function MuhurthaTab(props: MuhurthaTabProps) {
                                         {p.soft_score >= 0 ? "+" : ""}{p.soft_score}
                                       </span>
                                     </div>
+                                    {/* PR Mu3 — moment RPs × natal event significators
+                                        (doctrine-correct multi-chart test). Shows
+                                        which moment RPs ALSO signify the event
+                                        houses in this person's natal chart. */}
+                                    {Array.isArray(p.moment_rps) && p.moment_rps.length > 0 && (
+                                      <>
+                                        <div className="muhurtha-detail-row">
+                                          <span>{t("Moment RPs", "మూమెంట్ RPs")}</span>
+                                          <span style={{ color: "var(--muted)", fontSize: 10.5 }}>
+                                            {p.moment_rps.join(", ")}
+                                          </span>
+                                        </div>
+                                        <div className="muhurtha-detail-row">
+                                          <span>{t("Natal event significators", "నేటల్ ఈవెంట్ సూచకులు")}</span>
+                                          <span style={{ color: "var(--muted)", fontSize: 10.5 }}>
+                                            {(p.natal_event_significators || []).join(", ") || "—"}
+                                          </span>
+                                        </div>
+                                        <div className="muhurtha-detail-row" title={t(
+                                            "Moment RPs ∩ natal event significators. KP-doctrine-correct multi-chart agreement signal.",
+                                            "మూమెంట్ RPs ∩ నేటల్ ఈవెంట్ సూచకులు. KP సిద్ధాంత ప్రకారం బహుళ-చార్ట్ ఒప్పుదల.")}>
+                                          <span style={{ fontWeight: 600 }}>{t("RP ∩ natal sigs", "RP ∩ నేటల్")}</span>
+                                          <span className={p.rp_x_natal_count > 0 ? "muhurtha-pass" : "muhurtha-neutral"} style={{ fontWeight: 600 }}>
+                                            {p.rp_x_natal_count || 0}/{p.moment_rps.length}
+                                            {p.rp_x_natal_overlap && p.rp_x_natal_overlap.length > 0 && (
+                                              <span style={{ marginLeft: 6, color: "var(--accent2)", fontWeight: 400, fontSize: 10 }}>
+                                                ({p.rp_x_natal_overlap.join(", ")})
+                                              </span>
+                                            )}
+                                          </span>
+                                        </div>
+                                      </>
+                                    )}
                                   </div>
                                 );
                               })}

@@ -670,6 +670,71 @@ def test_mu2_breakdown_entries_have_required_shape():
             assert isinstance(b.get("note"), str), "note missing"
 
 
+def test_mu3_moment_rps_present_per_participant():
+    """Every per_participant entry must have moment_rps (the 5 KP RPs
+    at the moment) and natal_event_significators (planets that signify
+    the event in the participant's natal chart)."""
+    r = find_muhurtha_windows(
+        date_start="2026-05-01", date_end="2026-05-01",
+        event_type="marriage", **TENALI,
+        nearby_days=0, participants=[MANYUE],
+    )
+    all_w = (r.get("windows") or []) + (r.get("soft_flagged_windows") or [])
+    assert all_w
+    for w in all_w[:3]:
+        for p in (w.get("per_participant") or []):
+            assert "moment_rps" in p
+            assert "natal_event_significators" in p
+            assert "rp_x_natal_overlap" in p
+            assert "rp_x_natal_count" in p
+            assert isinstance(p["moment_rps"], list)
+            assert isinstance(p["rp_x_natal_count"], int)
+            assert 0 <= p["rp_x_natal_count"] <= 5
+
+
+def test_mu3_moment_rps_have_5_or_fewer_planets():
+    """Moment RPs is a set — max 5 entries (may collapse if vara lord
+    happens to == another RP). Each entry must be a known planet name."""
+    PLANETS = {"Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus",
+               "Saturn", "Rahu", "Ketu"}
+    r = find_muhurtha_windows(
+        date_start="2026-05-01", date_end="2026-05-01",
+        event_type="general", **TENALI,
+        nearby_days=0, participants=[MANYUE],
+    )
+    all_w = (r.get("windows") or []) + (r.get("soft_flagged_windows") or [])
+    for w in all_w[:3]:
+        for p in (w.get("per_participant") or []):
+            mrps = p.get("moment_rps") or []
+            assert 0 < len(mrps) <= 5, f"moment_rps len {len(mrps)} out of bounds"
+            for planet in mrps:
+                assert planet in PLANETS, f"Unknown planet {planet!r} in moment_rps"
+
+
+def test_mu3_rp_x_natal_ledger_entry_when_overlap_exists():
+    """When at least one participant has rp_x_natal_count > 0, the
+    confidence_breakdown must include a `moment_rps_x_natal_event_sigs`
+    entry — proves the doctrine-correct signal contributes to score."""
+    r = find_muhurtha_windows(
+        date_start="2026-05-01", date_end="2026-05-05",
+        event_type="general", **TENALI,
+        nearby_days=0, participants=[MANYUE],
+    )
+    all_w = (r.get("windows") or []) + (r.get("soft_flagged_windows") or [])
+    found_with_overlap = False
+    for w in all_w:
+        total = sum((p.get("rp_x_natal_count") or 0) for p in (w.get("per_participant") or []))
+        if total > 0:
+            found_with_overlap = True
+            factors = {b["factor"] for b in (w.get("confidence_breakdown") or [])}
+            assert "moment_rps_x_natal_event_sigs" in factors, (
+                "Per-window overlap exists but ledger entry missing — Mu3 wiring broken"
+            )
+    # Don't fail if no overlap found in this date range — just be sure
+    # we actually exercised at least one window
+    assert all_w, "Expected at least one window in the range"
+
+
 def test_mu0g_antardasha_cache_is_used():
     """_AD_CACHE accumulates entries as scans run; we verify by clearing
     it, running a small scan with a participant, and asserting at least
