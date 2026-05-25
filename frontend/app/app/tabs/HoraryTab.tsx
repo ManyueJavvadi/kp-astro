@@ -42,6 +42,7 @@ import ClinicalFlagsStrip from "../components/ClinicalFlagsStrip";
 import RPContextStrip from "../components/RPContextStrip";
 import HoraryValidityCard from "../components/HoraryValidityCard";  // PR H1
 import HoraryPatternChips from "../components/HoraryPatternChips";  // PR H4
+import HoraryBhavatBhavamCard from "../components/HoraryBhavatBhavamCard";  // PR H7
 import { PLANET_COLORS } from "../components/constants";
 // PR R1-hotfix lesson — SouthIndianChart in page.tsx is an alias for the
 // modern RasiChart (not the legacy 56-line file). Reproduce the alias.
@@ -476,6 +477,12 @@ export function HoraryTab({
                     the structural-readiness caveat BEFORE the verdict hero so the
                     astrologer weighs ripened/premature/expired status first. */}
                 <HoraryValidityCard validity={r.lagna_validity} />
+
+                {/* PR H7 — Bhavat Bhavam relative-detection. When question is
+                    about a relative (mother/father/spouse/child/sibling/in-law/
+                    boss), engine rotates topic houses via house-from-house.
+                    This card tells the astrologer the translation happened. */}
+                <HoraryBhavatBhavamCard ctx={r.bhavat_bhavam} />
 
                 {/* Verdict hero — serif word, fade+scale entrance, radial glow.
                     This is the moment of the whole tab. */}

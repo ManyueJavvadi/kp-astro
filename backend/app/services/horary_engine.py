@@ -174,6 +174,145 @@ def _resolve_topic(topic: str) -> str:
     return "general"
 
 
+# PR H7 — Bhavat Bhavam relative-detection.
+# When the horary question references a person OTHER than the native (mother,
+# father, spouse, child, sibling, in-law, boss), we cannot apply the native's
+# house list directly. We must translate the topic houses through Bhavat
+# Bhavam ("house from house"): the relative's H1 becomes a specific house
+# in the native's chart, and all other houses rotate accordingly.
+#
+# Source: knowledge/bhavat_bhavam.md, RULE 13.
+# Accuracy: ~70% via Bhavat Bhavam from native's chart alone;
+#           ~85-90% with relative's own birth chart.
+#
+# This map is intentionally conservative — only the most common relatives
+# with clear keyword detection. Future expansion: in-laws, boss/employee,
+# friends. For ambiguous cases (e.g. "him/her" without naming relative),
+# defer to native frame.
+
+_RELATIVE_KEYWORDS = {
+    # Mother
+    "mother":   ("mother", "mom", "mum", "amma", "ma", "mother's", "moms"),
+    # Father
+    "father":   ("father", "dad", "papa", "daddy", "naina", "father's", "dads"),
+    # Spouse — gender-neutral
+    "spouse":   ("husband", "wife", "spouse", "partner", "hubby", "hubsy",
+                 "spouses", "husbands", "wifes", "wives", "my man", "my woman"),
+    # Children
+    "child":    ("child", "son", "daughter", "kid", "kids", "children", "baby",
+                 "child's", "son's", "daughter's", "kids'"),
+    # Younger siblings
+    "sibling_younger": ("younger brother", "younger sister", "kid brother",
+                        "kid sister", "little brother", "little sister",
+                        "younger sibling", "tammudu", "chellelu"),
+    # Elder siblings
+    "sibling_elder":   ("elder brother", "elder sister", "older brother",
+                        "older sister", "big brother", "big sister",
+                        "elder sibling", "anna", "akka"),
+    # In-laws
+    "in_law":   ("mother-in-law", "father-in-law", "in-law", "in-laws",
+                 "brother-in-law", "sister-in-law", "mil", "fil", "saas",
+                 "sasur", "saala", "saali", "athha", "mama-gaaru"),
+    # Boss / employer
+    "boss":     ("boss", "manager", "employer", "supervisor", "ceo", "boss's"),
+}
+
+# Map relative type to the native's house that becomes the relative's H1
+# (i.e., "their body / self" in the native's chart frame).
+_RELATIVE_HOUSE = {
+    "mother":   4,
+    "father":   9,
+    "spouse":   7,
+    "child":    5,
+    "sibling_younger": 3,
+    "sibling_elder":   11,
+    "in_law":   7,   # spouse's H4 = native's H10; in-laws via H7 family axis
+    "boss":     10,
+}
+
+# Plain-english labels for UI display
+_RELATIVE_LABEL_EN = {
+    "mother": "mother",
+    "father": "father",
+    "spouse": "spouse",
+    "child": "child",
+    "sibling_younger": "younger sibling",
+    "sibling_elder": "elder sibling",
+    "in_law": "in-law",
+    "boss": "boss",
+}
+_RELATIVE_LABEL_TE = {
+    "mother": "తల్లి",
+    "father": "తండ్రి",
+    "spouse": "జీవిత భాగస్వామి",
+    "child": "సంతానం",
+    "sibling_younger": "తమ్ముడు/చెల్లెలు",
+    "sibling_elder": "అన్న/అక్క",
+    "in_law": "మామగారు/అత్తగారు",
+    "boss": "యజమాని",
+}
+
+
+def _detect_relative(question: str) -> str | None:
+    """Detect which relative the question is about, if any.
+    Returns one of the _RELATIVE_KEYWORDS keys or None.
+
+    Heuristic: scan lowercased question for keyword phrases. Longer
+    phrases checked first (e.g. 'mother-in-law' beats 'mother').
+    """
+    if not question:
+        return None
+    q = " " + question.lower() + " "  # bookend spaces for word-boundary
+
+    # In-laws first (compound keyword should win over 'mother')
+    for phrase in _RELATIVE_KEYWORDS["in_law"]:
+        if f" {phrase} " in q or f" {phrase}." in q or f" {phrase}," in q or f" {phrase}?" in q:
+            return "in_law"
+
+    # Then check the rest in priority order (siblings before parents because
+    # "younger brother" beats "father", etc.)
+    for rel_key in ("sibling_younger", "sibling_elder", "spouse", "mother",
+                    "father", "child", "boss"):
+        for phrase in _RELATIVE_KEYWORDS[rel_key]:
+            if f" {phrase} " in q or f" {phrase}." in q or f" {phrase}," in q or f" {phrase}?" in q:
+                return rel_key
+    return None
+
+
+def _translate_via_bhavat_bhavam(
+    relative: str, base_yes: list[int], base_no: list[int], base_primary: int,
+) -> dict:
+    """Translate topic houses from native frame to relative frame using
+    Bhavat Bhavam rotation. The relative's H1 = native's H{_RELATIVE_HOUSE[relative]}.
+
+    Example: mother's H5 (her wealth via family) = native's H{(4+5-1-1)%12+1} = H8.
+             mother's H10 (her career) = native's H{(4+10-1-1)%12+1} = H1.
+
+    Returns translated yes_houses + no_houses + primary_house.
+    """
+    rel_h1 = _RELATIVE_HOUSE.get(relative, 1)
+    offset = rel_h1 - 1  # how many houses to rotate forward
+
+    def rotate(house: int) -> int:
+        return ((house - 1 + offset) % 12) + 1
+
+    return {
+        "relative": relative,
+        "relative_label_en": _RELATIVE_LABEL_EN.get(relative, relative),
+        "relative_label_te": _RELATIVE_LABEL_TE.get(relative, relative),
+        "native_house_for_relative_h1": rel_h1,
+        "translated_yes": sorted({rotate(h) for h in base_yes}),
+        "translated_no": sorted({rotate(h) for h in base_no}),
+        "translated_primary": rotate(base_primary),
+        "accuracy_note": (
+            f"Bhavat Bhavam translation: the relative's H1 = native's H{rel_h1}. "
+            f"All topic houses rotated +{offset}. Accuracy ~70% from native's "
+            f"chart alone. For higher precision (~85-90%), use the {_RELATIVE_LABEL_EN.get(relative, relative)}'s "
+            f"own birth chart in the Analysis tab."
+        ),
+    }
+
+
 # ─────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────
@@ -1211,17 +1350,26 @@ def _kp_verdict(
     lagna_sub: str, topic: str, planet_lons: dict, cusp_lons: list,
     ruling_planets: list, moon_analysis: dict,
     planets_raw: dict | None = None,
+    # PR H7 — Bhavat Bhavam overrides for relative-questions. When provided,
+    # use these translated house sets instead of the canonical topic houses.
+    yes_houses_override: list[int] | None = None,
+    no_houses_override: list[int] | None = None,
+    primary_house_override: int | None = None,
 ) -> dict:
     # PR H6 — resolve through alias map first
     resolved_topic = _resolve_topic(topic)
     houses = TOPIC_HOUSES.get(resolved_topic, TOPIC_HOUSES["general"])
-    yes_houses = set(houses["yes"])
-    no_houses = set(houses["no"])
+    yes_houses = set(yes_houses_override if yes_houses_override is not None else houses["yes"])
+    no_houses = set(no_houses_override if no_houses_override is not None else houses["no"])
 
     layer1 = _csl_layer_analysis(lagna_sub, 1, yes_houses, no_houses, planet_lons, cusp_lons)
     lagna_fruitful = layer1["layer_verdict"] in ("YES", "MIXED")
 
-    primary_house = TOPIC_PRIMARY_HOUSE.get(resolved_topic, 1)
+    primary_house = (
+        primary_house_override
+        if primary_house_override is not None
+        else TOPIC_PRIMARY_HOUSE.get(resolved_topic, 1)
+    )
     if primary_house == 1:
         layer2 = layer1
         query_csl = lagna_sub
@@ -1471,7 +1619,28 @@ def analyze_horary(
     # level. The frontend uses this for the "Significator hierarchy" card.
     # PR H6 — resolve through alias map (e.g. 'employment' -> 'job')
     resolved_topic = _resolve_topic(topic)
-    primary_house = TOPIC_PRIMARY_HOUSE.get(resolved_topic, 1)
+    base_primary_house = TOPIC_PRIMARY_HOUSE.get(resolved_topic, 1)
+    base_houses = TOPIC_HOUSES.get(resolved_topic, TOPIC_HOUSES["general"])
+
+    # PR H7 — Detect relative-question and apply Bhavat Bhavam translation.
+    # When question is about mother/father/spouse/child/sibling/in-law/boss,
+    # native's house list cannot be applied directly — must rotate via
+    # Bhavat Bhavam. Without this, the verdict reads the WRONG houses.
+    relative_detected = _detect_relative(question)
+    bhavat_bhavam_context = None
+    primary_house = base_primary_house
+    if relative_detected:
+        bhavat_bhavam_context = _translate_via_bhavat_bhavam(
+            relative_detected,
+            base_houses["yes"],
+            base_houses["no"],
+            base_primary_house,
+        )
+        # Override the houses + primary used by downstream computation
+        primary_house = bhavat_bhavam_context["translated_primary"]
+        # We construct an override topic-houses dict that the verdict cascade
+        # will use. The original 'resolved_topic' label stays for routing
+        # patterns + sensitivity tiers; only the HOUSE NUMBERS rotate.
     primary_house_significators: list[dict] = []
     for p_name in planet_lons.keys():
         by_level = _planet_significations_by_level(p_name, planet_lons, cusp_lons)
@@ -1508,12 +1677,23 @@ def analyze_horary(
             "sub_lord_significations": _planet_significations(c_sub, planet_lons, cusp_lons),
         })
 
+    # H7 — pass Bhavat Bhavam translated houses if a relative was detected
     verdict = _kp_verdict(
         lagna_sub, topic, planet_lons, cusp_lons, ruling_planets, moon_analysis,
         planets_raw=planets_raw,  # H3 — for retrograde penalty computation
+        yes_houses_override=(bhavat_bhavam_context["translated_yes"] if bhavat_bhavam_context else None),
+        no_houses_override=(bhavat_bhavam_context["translated_no"] if bhavat_bhavam_context else None),
+        primary_house_override=(bhavat_bhavam_context["translated_primary"] if bhavat_bhavam_context else None),
     )
 
-    t_houses = TOPIC_HOUSES.get(resolved_topic, TOPIC_HOUSES["general"])
+    # H7 — t_houses now reflects the EFFECTIVE houses (translated if relative detected)
+    if bhavat_bhavam_context:
+        t_houses = {
+            "yes": bhavat_bhavam_context["translated_yes"],
+            "no": bhavat_bhavam_context["translated_no"],
+        }
+    else:
+        t_houses = TOPIC_HOUSES.get(resolved_topic, TOPIC_HOUSES["general"])
 
     # PR H4 — Pattern detection. Names canonical KP patterns from
     # pattern_library.md (T1/T2/T3/D2). Pattern naming distinguishes
@@ -1578,6 +1758,8 @@ def analyze_horary(
         # PR H6 — resolved canonical topic + framing (for UI display)
         "resolved_topic": resolved_topic,
         "topic_was_aliased": resolved_topic != (topic or "").strip().lower(),
+        # PR H7 — Bhavat Bhavam context if a relative was detected in question
+        "bhavat_bhavam": bhavat_bhavam_context,
         "chart_time": utc_dt.strftime("%Y-%m-%d %H:%M UTC"),
         "lagna": {
             "longitude": round(lagna_lon % 360, 4),
