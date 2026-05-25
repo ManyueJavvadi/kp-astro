@@ -46,6 +46,12 @@ class MuhurthaRequest(BaseModel):
     event_lon: Optional[float] = Field(None, ge=-180, le=180)
     event_tz:  Optional[float] = Field(None, ge=-14, le=14)
 
+    # PR Mu10 — opt-in advanced classical dosha check (Visha Ghatika,
+    # Lattaa, Mahapata). Default None → engine treats Tier-3 events
+    # (marriage, engagement, medical, surgery) as opt-in by default and
+    # other events as opt-out. Set True / False to override.
+    advanced_dosha_check: Optional[bool] = Field(None)
+
 
 class MuhurthaAnalyzeRequest(BaseModel):
     muhurtha_data: dict
@@ -94,6 +100,7 @@ def find_muhurtha(request: MuhurthaRequest):
         event_lat=event_lat,
         event_lon=event_lon,
         event_tz=_ev_off,
+        advanced_dosha_check=request.advanced_dosha_check,
     )
 
 

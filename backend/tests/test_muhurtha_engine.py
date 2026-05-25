@@ -1127,6 +1127,53 @@ def test_mu9_natal_bm_includes_dussthana_lords():
     assert len(bm["dussthana_lords"]) > 0
 
 
+def test_mu10_default_advanced_check_off_for_general():
+    """For event=general, advanced_dosha_check defaults to False."""
+    r = find_muhurtha_windows(
+        date_start="2026-05-01", date_end="2026-05-01",
+        event_type="general", **TENALI,
+        nearby_days=0, participants=[],
+    )
+    assert r.get("advanced_dosha_check_enabled") is False
+
+
+def test_mu10_default_advanced_check_on_for_marriage():
+    """For event=marriage, advanced_dosha_check defaults to True."""
+    r = find_muhurtha_windows(
+        date_start="2026-05-01", date_end="2026-05-01",
+        event_type="marriage", **TENALI,
+        nearby_days=0, participants=[],
+    )
+    assert r.get("advanced_dosha_check_enabled") is True
+
+
+def test_mu10_explicit_flag_overrides_default():
+    """Passing advanced_dosha_check=True for general event flips it on."""
+    r = find_muhurtha_windows(
+        date_start="2026-05-01", date_end="2026-05-01",
+        event_type="general", **TENALI,
+        nearby_days=0, participants=[],
+        advanced_dosha_check=True,
+    )
+    assert r.get("advanced_dosha_check_enabled") is True
+
+
+def test_mu10_mu10_doshas_field_present():
+    """Every window carries mu10_doshas dict (even when advanced check
+    is disabled — all flags False)."""
+    r = find_muhurtha_windows(
+        date_start="2026-05-01", date_end="2026-05-01",
+        event_type="general", **TENALI,
+        nearby_days=0, participants=[],
+    )
+    all_w = (r.get("windows") or []) + (r.get("soft_flagged_windows") or [])
+    for w in all_w[:3]:
+        m = w.get("mu10_doshas")
+        assert isinstance(m, dict)
+        for k in ("visha_ghatika_active", "lattaa_active", "mahapata_active"):
+            assert k in m
+
+
 def test_mu0g_antardasha_cache_is_used():
     """_AD_CACHE accumulates entries as scans run; we verify by clearing
     it, running a small scan with a participant, and asserting at least

@@ -1238,6 +1238,128 @@ DAGDHA_TITHI_BY_SUN_SIGN = {
 DAGDHA_HARD_EVENTS = {"marriage", "engagement", "travel", "house_warming", "business"}
 
 
+# PR Mu10 — Advanced (rarely-applied) classical doshas behind a flag.
+# These come from Muhurta Chintamani / Vidyamadhaviya texts; modern KP
+# practice often ignores them as over-rigorous, but Tier-3 events
+# (vivaha / surgery / new ventures) warrant the extra scrutiny. Default
+# enabled for marriage / medical / surgery; opt-in for others via the
+# `advanced_dosha_check: bool` request flag.
+
+# Visha Ghatika ("poison ghatika" = 24 min slot per nakshatra). Per
+# Vasishta Samhita §3, each nakshatra has a specific ghatika (1..60 of
+# the daily 60-ghatika clock from sunrise) that is "poison" for new
+# starts. Soft penalty -25.
+VISHA_GHATIKA_BY_NAK = {
+    0: 50,   # Ashwini
+    1: 24,   # Bharani
+    2: 30,   # Krittika
+    3: 40,   # Rohini
+    4: 14,   # Mrigashira
+    5: 21,   # Ardra
+    6: 30,   # Punarvasu
+    7: 20,   # Pushya
+    8: 32,   # Ashlesha
+    9: 30,   # Magha
+    10: 20,  # Purva Phalguni
+    11: 18,  # Uttara Phalguni
+    12: 21,  # Hasta
+    13: 20,  # Chitra
+    14: 14,  # Swati
+    15: 14,  # Vishakha
+    16: 10,  # Anuradha
+    17: 14,  # Jyeshtha
+    18: 56,  # Mula
+    19: 24,  # Purva Ashadha
+    20: 20,  # Uttara Ashadha
+    21: 10,  # Shravana
+    22: 10,  # Dhanishtha
+    23: 18,  # Shatabhisha
+    24: 16,  # Purva Bhadrapada
+    25: 15,  # Uttara Bhadrapada
+    26: 30,  # Revati
+}
+
+# Lattaa ("kick") nakshatras — specific planets "kick" specific
+# nakshatras when occupying them. Simplification: just expose the lookup,
+# don't fire by default (research-grade precision needs source verification).
+# Per Muhurta Chintamani §6: marriage / coronation / big-launch only.
+LATTAA_NAK_BY_PLANET = {
+    "Sun":     {12},   # Hasta
+    "Moon":    {21},   # Shravana
+    "Mars":    {2},    # Krittika
+    "Mercury": {6},    # Punarvasu
+    "Jupiter": {7},    # Pushya
+    "Venus":   {1},    # Bharani
+    "Saturn":  {17},   # Jyeshtha
+}
+
+
+def _compute_advanced_doshas_mu10(
+    jd: float,
+    sunrise_jd: float,
+    sunset_jd: float,
+    moon_nak_idx: int,
+    planets: dict,
+    event_type: str,
+) -> dict:
+    """
+    PR Mu10 — Visha Ghatika + Lattaa + Mahapata. Gated by
+    `advanced_dosha_check` request flag (default True for Tier-3
+    events: marriage / engagement / medical / surgery).
+
+    Returns dict with active flags + ledger-ready notes.
+    """
+    # Visha Ghatika — ghatika within day defined as 24 min = 1/60 of day
+    day_length = sunset_jd - sunrise_jd
+    if day_length <= 0:
+        return {
+            "visha_ghatika_active": False,
+            "lattaa_active": False,
+            "lattaa_planets": [],
+            "mahapata_active": False,
+        }
+    ghatika_dur = day_length / 60.0
+    elapsed = jd - sunrise_jd
+    ghatika_num = int(elapsed / ghatika_dur) + 1  # 1..60
+    visha_ghatika = VISHA_GHATIKA_BY_NAK.get(moon_nak_idx, 0)
+    visha_ghatika_active = (
+        ghatika_num == visha_ghatika
+        and 0 < ghatika_num <= 60
+    )
+
+    # Lattaa — any active classical planet (Sun..Sat) currently in a
+    # nakshatra that's its lattaa nakshatra
+    lattaa_planets: list = []
+    for pname, lattaa_naks in LATTAA_NAK_BY_PLANET.items():
+        pdata = planets.get(pname)
+        if not pdata:
+            continue
+        plon = pdata.get("longitude", 0)
+        p_nak_idx = int((plon % 360) / (360.0 / 27))
+        if p_nak_idx in lattaa_naks:
+            lattaa_planets.append(pname)
+    LATTAA_RELEVANT_EVENTS = {"marriage", "engagement"}
+    lattaa_active = bool(lattaa_planets) and event_type in LATTAA_RELEVANT_EVENTS
+
+    # Mahapata Yoga — when Vyatipata or Vaidhriti yoga is active AND
+    # specific Sun-Moon longitude conditions are met. Simplified:
+    # treat as a strong-yoga marker requiring both checks. Caller (scan
+    # loop) already has yoga_idx; we just expose a placeholder True
+    # only when called explicitly. Per audit Mu10: stays behind flag
+    # because the precise classical conditions need primary-source
+    # verification. False here by default.
+    mahapata_active = False
+
+    return {
+        "visha_ghatika_active": visha_ghatika_active,
+        "visha_ghatika_num":    visha_ghatika,
+        "ghatika_num":          ghatika_num,
+        "lattaa_active":        lattaa_active,
+        "lattaa_planets":       lattaa_planets,
+        "mahapata_active":      mahapata_active,
+    }
+
+
 def _compute_advanced_doshas(
     jd: float,
     moon_lon: float,
@@ -1353,6 +1475,7 @@ def _scan_date_range(
     participant_natal_dashas: list = None,  # PR A2.2c.2 — (name, [full dasha list])
     participant_natal_event_sigs: list = None,  # PR Mu3 — (name, set of planets signifying event in natal)
     primary_by_name: dict = None,  # PR Mu4 — explicit primary flag per participant name
+    advanced_dosha_check: bool = False,  # PR Mu10 — opt-in Visha Ghatika / Lattaa / Mahapata
 ) -> list:
     """Scan a date range every 4 minutes, return raw scored windows."""
     swe.set_sid_mode(swe.SIDM_KRISHNAMURTI_VP291)
@@ -1676,6 +1799,21 @@ def _scan_date_range(
             tithi_num=tithi_num, yoga_idx=yoga_idx,
             event_type=event_type, is_vishti=vishti,
         )
+
+        # ── PR Mu10 — Advanced classical doshas behind flag ───────
+        if advanced_dosha_check:
+            mu10_doshas = _compute_advanced_doshas_mu10(
+                jd=jd, sunrise_jd=sunrise_jd, sunset_jd=sunset_jd,
+                moon_nak_idx=naks_idx, planets=planets,
+                event_type=event_type,
+            )
+        else:
+            mu10_doshas = {
+                "visha_ghatika_active": False,
+                "lattaa_active": False,
+                "lattaa_planets": [],
+                "mahapata_active": False,
+            }
 
         # ── Moon details ──
         moon_nk = get_nakshatra_and_starlord(moon_lon)
@@ -2139,6 +2277,30 @@ def _scan_date_range(
                 "delta": 0,
                 "note": f"Hard reject — malefic(s) {', '.join(h8_malefics)} in H8"
             })
+        # PR Mu10 — advanced classical ledger entries (only when enabled)
+        if mu10_doshas["visha_ghatika_active"]:
+            breakdown.append({
+                "factor": "visha_ghatika",
+                "delta": -25,
+                "note": (
+                    f"Visha Ghatika {mu10_doshas['visha_ghatika_num']}/60 "
+                    f"active (Moon nakshatra poison-ghatika)"
+                )})
+        if mu10_doshas["lattaa_active"]:
+            breakdown.append({
+                "factor": "lattaa_dosha",
+                "delta": -20,
+                "note": (
+                    f"Lattaa active — planet(s) "
+                    f"{', '.join(mu10_doshas['lattaa_planets'])} in their "
+                    f"lattaa nakshatra"
+                )})
+        if mu10_doshas["mahapata_active"]:
+            breakdown.append({
+                "factor": "mahapata_yoga",
+                "delta": -40,
+                "note": "Mahapata Yoga active (intensified Vyatipata/Vaidhriti)"
+            })
 
         # PR Mu7 — Eclipse ledger entries (informational; hard reject
         # is applied via hard_rejected_for above so it doesn't double-count
@@ -2184,6 +2346,9 @@ def _scan_date_range(
             + (-10 if in_eclipse_ext and not in_sutak else 0)  # PR Mu7 soft
             + (dba_all_sig_count * 20)                # PR Mu9 — +20/participant when all DBA lords signify event
             + (dba_any_dussthana_count * -30)         # PR Mu9 — -30/participant when any DBA lord in Dussthana
+            + (-25 if mu10_doshas["visha_ghatika_active"] else 0)  # PR Mu10
+            + (-20 if mu10_doshas["lattaa_active"] else 0)         # PR Mu10
+            + (-40 if mu10_doshas["mahapata_active"] else 0)       # PR Mu10
         )
         # Hard time-window penalties — listed AFTER soft factors so
         # the breakdown reads as "would have been N, then inauspicious
@@ -2349,6 +2514,9 @@ def _scan_date_range(
                     "dussthana_count":        dba_any_dussthana_count,
                     "participants_total":     len(per_participant),
                 },
+                # PR Mu10 — Advanced opt-in classical doshas
+                "mu10_doshas":                     mu10_doshas,
+                "advanced_dosha_check_enabled":    bool(advanced_dosha_check),
                 "in_rahu_kalam":     in_rk,
                 "in_yamagandam":     in_yg,
                 "in_gulika":         in_gl,
@@ -2510,6 +2678,8 @@ def find_muhurtha_windows(
     event_lat: Optional[float] = None,
     event_lon: Optional[float] = None,
     event_tz: Optional[float] = None,
+    # PR Mu10 — opt-in advanced dosha pack
+    advanced_dosha_check: Optional[bool] = None,
 ) -> dict:
     """
     Find muhurtha windows in [date_start, date_end], plus +/-nearby_days.
@@ -2517,6 +2687,11 @@ def find_muhurtha_windows(
 
     event_lat/lon/tz: location where the event will happen.
     If not provided, uses birth location (lat/lon/tz_offset).
+
+    advanced_dosha_check (PR Mu10): True/False to force on/off Visha
+    Ghatika + Lattaa + Mahapata checks. Default None resolves to True
+    for Tier-3 events (marriage, engagement, medical, surgery), False
+    for others.
     """
     # Resolve event location (default to birth location)
     e_lat = event_lat if event_lat is not None else lat
@@ -2526,6 +2701,13 @@ def find_muhurtha_windows(
                                  (abs(event_lat - lat) > 0.01 or abs(event_lon - lon) > 0.01))
 
     classified_event = classify_event(event_type)
+
+    # PR Mu10 — Resolve advanced_dosha_check default
+    TIER3_EVENTS_DEFAULT_ADVANCED = {"marriage", "engagement", "medical"}
+    if advanced_dosha_check is None:
+        adv_check_resolved = classified_event in TIER3_EVENTS_DEFAULT_ADVANCED
+    else:
+        adv_check_resolved = bool(advanced_dosha_check)
 
     start_dt = datetime.strptime(date_start, "%Y-%m-%d")
     end_dt   = datetime.strptime(date_end,   "%Y-%m-%d")
@@ -2591,6 +2773,7 @@ def find_muhurtha_windows(
         participant_natal_bm, participant_natal_dashas,
         participant_natal_event_sigs,
         primary_by_name,
+        adv_check_resolved,
     )
     all_merged = _merge_windows(selected_raw)
     all_merged.sort(key=lambda w: w["score"], reverse=True)
@@ -2667,6 +2850,7 @@ def find_muhurtha_windows(
             participant_natal_bm, participant_natal_dashas,
             participant_natal_event_sigs,
             primary_by_name,
+            adv_check_resolved,
         )
         nearby_merged = _merge_windows(nearby_raw)
         nearby_merged.sort(key=lambda w: w["score"], reverse=True)
@@ -2710,6 +2894,7 @@ def find_muhurtha_windows(
             participant_natal_bm, participant_natal_dashas,
             participant_natal_event_sigs,
             primary_by_name,
+            adv_check_resolved,
         )
         extend_merged = _merge_windows(extend_raw)
         extend_passed = [w for w in extend_merged if not w.get("hard_rejected_for")]
@@ -2762,6 +2947,8 @@ def find_muhurtha_windows(
         # polar night, no muhurtha computable" instead of silently
         # missing days from the leaderboard.
         "skipped_polar_days":   (_selected_skipped or []) + (_nearby_skipped or []) + (_extend_skipped or []),
+        # PR Mu10 — Was the advanced-dosha pack enabled for this scan?
+        "advanced_dosha_check_enabled": bool(adv_check_resolved),
         # PR Mu7 — Eclipses that intersect the search range (incl.
         # nearby + extend). Frontend uses this to render a banner
         # like "⚠ Lunar eclipse on Sep 12 — affects windows Sep 11–14".
