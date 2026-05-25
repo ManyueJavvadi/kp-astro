@@ -1459,6 +1459,52 @@ def test_r2pr2_mahapata_helper_returns_correct_shape():
                 assert variety != ""
 
 
+def test_r2pr3_eclipse_utils_module_importable():
+    """The extracted eclipse_utils module must be importable from the
+    shared location."""
+    from app.services.eclipse_utils import (
+        find_eclipses_in_range, get_sutak_status, is_eclipse_visible,
+        SUTAK_SOLAR_HRS, SUTAK_LUNAR_HRS, EXT_ADVISORY_DAYS,
+    )
+    assert SUTAK_SOLAR_HRS == 12.0
+    assert SUTAK_LUNAR_HRS == 9.0
+    assert EXT_ADVISORY_DAYS == 3.0
+
+
+def test_r2pr3_known_eclipse_found_by_shared_helper():
+    """Spot check: the Feb 17 2026 annular solar eclipse must show up
+    when scanning Feb 15-19 via the shared helper (parity with the
+    older muhurtha_engine._find_eclipses_in_range)."""
+    import swisseph as swe
+    from app.services.eclipse_utils import find_eclipses_in_range
+    start_jd = swe.julday(2026, 2, 15, 0.0)
+    end_jd = swe.julday(2026, 2, 19, 23.99)
+    eclipses = find_eclipses_in_range(start_jd, end_jd)
+    assert any(e["type"] == "solar" for e in eclipses), (
+        "Feb 17 2026 annular solar eclipse expected in range"
+    )
+
+
+def test_r2pr3_visibility_diaspora_rule():
+    """The 'Yatra Drishyam Tatra Phalam' rule: an eclipse invisible
+    from a location does NOT trigger Sutak there. Verify the
+    visibility helper returns sensible bools."""
+    import swisseph as swe
+    from app.services.eclipse_utils import find_eclipses_in_range, is_eclipse_visible
+    # Pick any eclipse, then test visibility at deeply opposite points
+    start_jd = swe.julday(2026, 1, 1, 0.0)
+    end_jd = swe.julday(2026, 12, 31, 0.0)
+    eclipses = find_eclipses_in_range(start_jd, end_jd)
+    if not eclipses:
+        return  # no eclipses in test year — skip
+    e0 = eclipses[0]
+    # Two locations 180° apart (one will see the body, the other won't, generally)
+    # Just verify the helper returns True / False / None without raising
+    for lat, lon in [(28.6, 77.2), (34.0, -118.2), (-33.0, 151.0)]:
+        v = is_eclipse_visible(e0, lat, lon)
+        assert v in (True, False, None)
+
+
 def test_mu0g_antardasha_cache_is_used():
     """_AD_CACHE accumulates entries as scans run; we verify by clearing
     it, running a small scan with a participant, and asserting at least

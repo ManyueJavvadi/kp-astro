@@ -3559,7 +3559,67 @@ def _joint_sookshma_precision_windows(person1: dict, person2: dict,
                 })
     # Sort by joint_strength desc, then start asc, then duration desc
     result.sort(key=lambda w: (-w["joint_strength"], w["start"], -w["duration_days"]))
-    return result[:8]  # top 8
+    top = result[:8]
+
+    # PR R2-PR3 — Annotate each recommended window with Sutak status.
+    # Pre-R2 we'd hand the family "wedding-grade dates" without checking
+    # whether ANY of those days overlapped a solar/lunar eclipse Sutak.
+    # Now: for every returned window, check if any day falls inside Sutak
+    # at the event location (we don't have a separate event_loc here, so
+    # we use person1's location as the default wedding-place proxy — the
+    # router can override later). Visibility-filtered per "Yatra Drishyam
+    # Tatra Phalam" rule.
+    if top:
+        try:
+            from app.services.eclipse_utils import find_eclipses_in_range, get_sutak_status
+            from datetime import datetime as _dt
+            import swisseph as _swe
+            # Search for eclipses 5 days before first window through last
+            first_jd = _swe.julday(*_dt.strptime(top[0]["start"], "%Y-%m-%d").timetuple()[:3], 0.0) - 5
+            last_jd = _swe.julday(*_dt.strptime(top[-1]["end"], "%Y-%m-%d").timetuple()[:3], 0.0) + 5
+            _eclipses = find_eclipses_in_range(first_jd, last_jd)
+            ev_lat = person1.get("latitude")
+            ev_lon = person1.get("longitude")
+            for w in top:
+                # Check midpoint of the window day
+                try:
+                    s_dt = _dt.strptime(w["start"], "%Y-%m-%d")
+                    e_dt = _dt.strptime(w["end"], "%Y-%m-%d")
+                    mid_jd = _swe.julday(s_dt.year, s_dt.month, s_dt.day, 12.0)
+                    end_jd = _swe.julday(e_dt.year, e_dt.month, e_dt.day, 12.0)
+                except Exception:
+                    continue
+                # Window touches Sutak if ANY day in [start, end] is inside
+                # some Sutak interval at event location
+                sutak_hit = None
+                jd_step = mid_jd
+                while jd_step <= end_jd + 0.5:
+                    st = get_sutak_status(jd_step, _eclipses, lat=ev_lat, lon=ev_lon,
+                                          require_visibility=True)
+                    if st["in_sutak"]:
+                        sutak_hit = st["in_sutak"]
+                        break
+                    jd_step += 1.0
+                if sutak_hit:
+                    w["sutak_warning"] = True
+                    w["sutak_eclipse"] = {
+                        "type":         sutak_hit["type"],
+                        "eclipse_kind": sutak_hit["eclipse_kind"],
+                    }
+                    w["recommendation_note"] = (
+                        f"⚠ This window overlaps {sutak_hit['type']} eclipse "
+                        f"({sutak_hit['eclipse_kind']}) Sutak at the wedding "
+                        f"location. Classical doctrine: AVOID this window for "
+                        f"vivaha despite the favourable PD+Sookshma chain."
+                    )
+                else:
+                    w["sutak_warning"] = False
+        except Exception:
+            # Don't drop the windows if Sutak check fails; just leave
+            # them un-annotated so the existing UI keeps working.
+            pass
+
+    return top  # top 8 with Sutak annotations
 
 
 def _shared_marriage_windows(person1: dict, person2: dict,

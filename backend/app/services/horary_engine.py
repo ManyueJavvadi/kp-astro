@@ -1929,6 +1929,62 @@ def analyze_horary(
     # protective framing required by sensitivity_tiers.md + RULE 52.
     sensitivity = _resolve_sensitivity_tier(resolved_topic, question)
 
+    # PR R2-PR3 — Sutak (eclipse-impurity) check at the prashna moment.
+    # Per classical doctrine, a question asked during Sutak is "tainted"
+    # — the celestial signal is distorted by the eclipse. We flag it as
+    # a Tier-3 caveat (does NOT change the verdict — just adds the
+    # protective framing). Visibility-aware: only fires if the eclipsed
+    # body is above the horizon at the querent's location at peak
+    # ("Yatra Drishyam Tatra Phalam" — Sutak applies where eclipse is
+    # seen).
+    sutak_advisory = None
+    try:
+        from app.services.eclipse_utils import find_eclipses_in_range, get_sutak_status
+        # Look ±2 days around the prashna for relevant eclipses
+        _eclipses = find_eclipses_in_range(jd - 2.0, jd + 2.0)
+        _status = get_sutak_status(jd, _eclipses, lat=latitude, lon=longitude,
+                                   require_visibility=True)
+        if _status["in_sutak"]:
+            sutak_advisory = {
+                "active":        True,
+                "type":          _status["in_sutak"]["type"],
+                "eclipse_kind":  _status["in_sutak"]["eclipse_kind"],
+                "note":          (
+                    f"Prashna asked inside Sutak of {_status['in_sutak']['type']} "
+                    f"eclipse ({_status['in_sutak']['eclipse_kind']}). Classical "
+                    f"doctrine: the celestial signal is distorted; verdict still "
+                    f"computed but treat with Tier-3 caveat."
+                ),
+            }
+            # Escalate sensitivity to Tier 3
+            if sensitivity.get("tier", 1) < 3:
+                sensitivity["tier"] = 3
+                sensitivity["escalators_triggered"] = (
+                    sensitivity.get("escalators_triggered") or []
+                ) + ["prashna_inside_sutak"]
+                sensitivity["framing_required"] = True
+                if not sensitivity.get("framing_note_en"):
+                    sensitivity["framing_note_en"] = (
+                        "TIER 3 reading. This prashna was asked inside Sutak "
+                        "(eclipse impurity period). KP doctrine says the celestial "
+                        "signal is distorted during Sutak; the verdict is reported "
+                        "but the astrologer should weigh it against an out-of-Sutak "
+                        "re-asking before committing."
+                    )
+        elif _status["in_extended_advisory"]:
+            sutak_advisory = {
+                "active":       False,
+                "in_extended":  True,
+                "type":         _status["in_extended_advisory"]["type"],
+                "eclipse_kind": _status["in_extended_advisory"]["eclipse_kind"],
+                "note":         (
+                    f"Prashna within ±3 days of {_status['in_extended_advisory']['type']} "
+                    f"eclipse — soft caution."
+                ),
+            }
+    except Exception:
+        sutak_advisory = None
+
     # PR H4 — Pattern detection. Names canonical KP patterns from
     # pattern_library.md (T1/T2/T3/D2). Pattern naming distinguishes
     # a deep KSK reading from a generic significator scan (RULE 19).
@@ -1996,6 +2052,8 @@ def analyze_horary(
         "bhavat_bhavam": bhavat_bhavam_context,
         # PR H8 — sensitivity tier + protective framing requirements
         "sensitivity": sensitivity,
+        # PR R2-PR3 — Sutak (eclipse impurity) check at prashna moment
+        "sutak_advisory": sutak_advisory,
         "chart_time": utc_dt.strftime("%Y-%m-%d %H:%M UTC"),
         "lagna": {
             "longitude": round(lagna_lon % 360, 4),
