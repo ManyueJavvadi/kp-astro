@@ -295,17 +295,98 @@ SAURA_MASA_BY_SUN_SIGN = {
 # are obstructed for the day's activities. A common simplification:
 # vedha exists between Moon's nakshatra and the 19th nakshatra
 # counted from it (the "vinashanam" rule). Soft penalty per KB §4.8.
+# PR R2-PR2 — Real Saptashalaka Chakra Vedha pairs.
+# Replaces the Mu6 placeholder which always returned False.
+# Source: research agent confirmed against Findyourfate / BAVA /
+# AstroVed / Astrobix as the canonical 13-pair + Chitra-unpaired
+# Saptashalaka Chakra table from Muhurta Chintamani tradition.
+# Symmetric: if A is veiled by B, then B is veiled by A.
+NAKSHATRA_VEDHA_PAIRS = {
+    0:  {17},   # Ashwini   ↔ Jyeshtha
+    1:  {16},   # Bharani   ↔ Anuradha
+    2:  {15},   # Krittika  ↔ Vishakha
+    3:  {14},   # Rohini    ↔ Swati
+    4:  {22},   # Mrigashira ↔ Dhanishtha
+    5:  {21},   # Ardra     ↔ Shravana
+    6:  {20},   # Punarvasu ↔ Uttara Ashadha
+    7:  {19},   # Pushya    ↔ Purva Ashadha
+    8:  {18},   # Ashlesha  ↔ Mula
+    9:  {26},   # Magha     ↔ Revati
+    10: {25},   # P. Phalguni ↔ U. Bhadrapada
+    11: {24},   # U. Phalguni ↔ P. Bhadrapada
+    12: {23},   # Hasta     ↔ Shatabhisha
+    13: set(),  # Chitra — unpaired (no Vedha)
+    14: {3},  15: {2},  16: {1},  17: {0},  18: {8},  19: {7},  20: {6},
+    21: {5},  22: {4},  23: {12}, 24: {11}, 25: {10}, 26: {9},
+}
+
+# Per research: Vedha applies HARD to marriage matching (vivaha) and
+# SOFT-advisory to griha-pravesh / yatra. Surgery / contract / etc
+# don't traditionally apply Vedha — kept conservative to avoid noise.
+VEDHA_HARD_EVENTS = {"marriage", "engagement"}
+VEDHA_SOFT_EVENTS = {"house_warming", "travel", "vehicle"}
+
+
+def _nakshatra_vedha_signal(
+    moon_naks_num: int,
+    participant_natal_naks: list[int],
+    event_type: str,
+) -> dict:
+    """
+    PR R2-PR2 — Real Nakshatra Vedha check.
+
+    For marriage events: HARD penalty (-15) if the muhurtha moment's
+    Moon nakshatra is Vedha-paired with EITHER participant's janma
+    nakshatra (Vedha Porutham failure).
+    For griha-pravesh / yatra / vehicle: SOFT (-5) under same condition.
+    For other events: no Vedha penalty (not traditionally applied).
+
+    Returns:
+      {
+        active: bool,
+        moon_nakshatra_idx: int,
+        veiled_by: set[int],          # the Vedha pairs of moon nakshatra
+        affected_participants: list,  # who has natal naks in veiled_by
+        delta: int                    # ledger score contribution
+        note: str
+      }
+    """
+    veiled_by = NAKSHATRA_VEDHA_PAIRS.get(moon_naks_num, set())
+    if not veiled_by:
+        return {"active": False, "moon_nakshatra_idx": moon_naks_num,
+                "veiled_by": [], "affected_participants": [],
+                "delta": 0, "note": ""}
+    affected = [n for n in participant_natal_naks if n in veiled_by]
+    if not affected:
+        return {"active": False, "moon_nakshatra_idx": moon_naks_num,
+                "veiled_by": sorted(veiled_by), "affected_participants": [],
+                "delta": 0, "note": ""}
+    if event_type in VEDHA_HARD_EVENTS:
+        delta = -15
+        sev = "hard"
+    elif event_type in VEDHA_SOFT_EVENTS:
+        delta = -5
+        sev = "soft"
+    else:
+        return {"active": False, "moon_nakshatra_idx": moon_naks_num,
+                "veiled_by": sorted(veiled_by), "affected_participants": [],
+                "delta": 0, "note": ""}
+    return {
+        "active": True,
+        "moon_nakshatra_idx": moon_naks_num,
+        "veiled_by": sorted(veiled_by),
+        "affected_participants": affected,
+        "delta": delta,
+        "note": f"Saptashalaka Vedha {sev} — affected participant nakshatras {affected}",
+    }
+
+
 def _has_nakshatra_vedha(naks_num: int) -> bool:
-    """True if Moon's nakshatra has a classical vedha relationship
-    with another active sky body. Simplified to the most-cited rule:
-    Vedha between Moon's nakshatra and the 6th, 8th, 9th, 12th, 14th
-    from it. This is conservative — over-flags soft. Astrologer reads
-    detailed KP texts if precision matters."""
-    # PR Mu6 — placeholder. Real Nakshatra Vedha requires Sun's
-    # nakshatra + relevant counts; we mark a coarse signal so the
-    # ledger surfaces something for the astrologer to verify. Real
-    # implementation depends on the specific event (vedha sets differ
-    # for vivaha vs yatra vs medical). Track for refinement in Mu10.
+    """Backward-compat shim (Mu6 callers). Always returns False —
+    Vedha is meaningful only WITH a participant's natal nakshatra to
+    compare against, which the panchang_overlays scope doesn't have.
+    The real check has moved to _nakshatra_vedha_signal (participant-
+    aware), called inside the per-participant loop in the scan."""
     return False
 
 
@@ -1656,6 +1737,53 @@ def _compute_mu13_overlays(
     }
 
 
+def _is_mahapata_active(
+    jd: float,
+    nitya_yoga_idx: int,
+    tolerance_deg: float = 1.0,
+) -> tuple[bool, str]:
+    """
+    PR R2-PR2 — Real Mahapata Yoga check (replaces Mu10 placeholder).
+
+    Per research (Sūrya Siddhānta Ch. 11 + Praśna Mārga citing
+    Vidyasagar/Hocker synthesis): Mahapata fires when the Sun and Moon
+    have EQUAL ABSOLUTE DECLINATIONS (within ~1°), AND the prevailing
+    nitya yoga is Vyatipata (idx 16) or Vaidhriti (idx 26), AND the
+    sun-moon equator-side condition is satisfied per the specific
+    Mahapata variety.
+
+    Returns (active, variety) where variety ∈ {"vyatipata", "vaidhriti", ""}.
+
+    Severity: classical sources call this "more detrimental than an
+    eclipse" — HARD reject for all auspicious events. Frequency: ~28
+    times/year, alternating types fortnightly, never near solstices.
+
+    Note: classical sources differ on which side-condition (same vs
+    opposite equator side) attaches to which name. We follow Hocker's
+    Sūrya Siddhānta-based convention: Vyatipata = OPPOSITE sides,
+    Vaidhriti = SAME side. Wrapping in a helper so future research can
+    swap the convention via this single function.
+    """
+    if nitya_yoga_idx not in (16, 26):
+        return (False, "")
+    try:
+        flags = swe.FLG_SWIEPH | swe.FLG_EQUATORIAL
+        sun_eq, _ = swe.calc_ut(jd, swe.SUN, flags)
+        moon_eq, _ = swe.calc_ut(jd, swe.MOON, flags)
+        sun_decl = sun_eq[1]
+        moon_decl = moon_eq[1]
+    except Exception:
+        return (False, "")
+    if abs(abs(sun_decl) - abs(moon_decl)) > tolerance_deg:
+        return (False, "")
+    same_side = (sun_decl >= 0) == (moon_decl >= 0)
+    if nitya_yoga_idx == 16 and not same_side:
+        return (True, "vyatipata")
+    if nitya_yoga_idx == 26 and same_side:
+        return (True, "vaidhriti")
+    return (False, "")
+
+
 def _compute_advanced_doshas_mu10(
     jd: float,
     sunrise_jd: float,
@@ -1663,6 +1791,7 @@ def _compute_advanced_doshas_mu10(
     moon_nak_idx: int,
     planets: dict,
     event_type: str,
+    nitya_yoga_idx: int = -1,  # PR R2-PR2 — needed for real Mahapata
 ) -> dict:
     """
     PR Mu10 — Visha Ghatika + Lattaa + Mahapata. Gated by
@@ -1679,6 +1808,7 @@ def _compute_advanced_doshas_mu10(
             "lattaa_active": False,
             "lattaa_planets": [],
             "mahapata_active": False,
+            "mahapata_variety": "",
         }
     ghatika_dur = day_length / 60.0
     elapsed = jd - sunrise_jd
@@ -1703,14 +1833,8 @@ def _compute_advanced_doshas_mu10(
     LATTAA_RELEVANT_EVENTS = {"marriage", "engagement"}
     lattaa_active = bool(lattaa_planets) and event_type in LATTAA_RELEVANT_EVENTS
 
-    # Mahapata Yoga — when Vyatipata or Vaidhriti yoga is active AND
-    # specific Sun-Moon longitude conditions are met. Simplified:
-    # treat as a strong-yoga marker requiring both checks. Caller (scan
-    # loop) already has yoga_idx; we just expose a placeholder True
-    # only when called explicitly. Per audit Mu10: stays behind flag
-    # because the precise classical conditions need primary-source
-    # verification. False here by default.
-    mahapata_active = False
+    # PR R2-PR2 — Real Mahapata Yoga (replaces Mu10 placeholder).
+    mahapata_active, mahapata_variety = _is_mahapata_active(jd, nitya_yoga_idx)
 
     return {
         "visha_ghatika_active": visha_ghatika_active,
@@ -1719,6 +1843,7 @@ def _compute_advanced_doshas_mu10(
         "lattaa_active":        lattaa_active,
         "lattaa_planets":       lattaa_planets,
         "mahapata_active":      mahapata_active,
+        "mahapata_variety":     mahapata_variety,
     }
 
 
@@ -2095,6 +2220,22 @@ def _scan_date_range(
                                  if p.get("dba_all_signify_event"))
         dba_any_dussthana_count = sum(1 for p in per_participant
                                        if p.get("dba_any_in_natal_dussthana"))
+        # PR R2-PR2 — Participant-aware Nakshatra Vedha (real Saptashalaka
+        # Chakra check). Pre-R2 the Mu6 placeholder always reported False.
+        # Now we collect each participant's natal moon-nakshatra index
+        # and check whether the muhurtha moment's Moon nakshatra is in
+        # their Vedha-pair set. HARD for marriage/engagement, SOFT for
+        # griha-pravesh/yatra/vehicle, no penalty for other events.
+        participant_natal_naks_for_vedha = []
+        for name_p, natal_data in participant_natal_moon:
+            ni = natal_data.get("moon_nakshatra_idx")
+            if isinstance(ni, int):
+                participant_natal_naks_for_vedha.append(ni)
+        nakshatra_vedha = _nakshatra_vedha_signal(
+            moon_naks_num=naks_idx,
+            participant_natal_naks=participant_natal_naks_for_vedha,
+            event_type=event_type,
+        )
         # PR Mu4 — apply doctrine-correct aggregation across participants
         if per_participant:
             agg = _aggregate_participant_evaluations(per_participant, event_type)
@@ -2207,6 +2348,7 @@ def _scan_date_range(
                 jd=jd, sunrise_jd=sunrise_jd, sunset_jd=sunset_jd,
                 moon_nak_idx=naks_idx, planets=planets,
                 event_type=event_type,
+                nitya_yoga_idx=yoga_idx,   # PR R2-PR2 — for real Mahapata
             )
         else:
             mu10_doshas = {
@@ -2522,7 +2664,16 @@ def _scan_date_range(
         amrit_bonus = 20 if panchang_overlays["amrit_active"] else 0
         panchaka_penalty = -60 if panchang_overlays["panchaka_blocks_event"] else 0
         tithi_shunya_penalty = -25 if panchang_overlays["tithi_shunya_active"] else 0
-        vedha_penalty = -15 if panchang_overlays["nakshatra_vedha_active"] else 0
+        # PR R2-PR2 — `panchang_overlays.nakshatra_vedha_active` always
+        # returns False (it's the legacy Mu6 placeholder; Vedha requires
+        # participant natal data to be meaningful). Real participant-
+        # aware vedha scoring uses `nakshatra_vedha.delta` computed
+        # above. The penalty is event-keyed:
+        #   marriage/engagement: -15 if any participant's natal nakshatra
+        #                          is in the moment-moon's Vedha pair
+        #   griha-pravesh/yatra/vehicle: -5 same condition
+        #   other events: 0 (Vedha not traditionally applied)
+        vedha_penalty = int(nakshatra_vedha.get("delta", 0))
 
         # ── PR A2.2b: assemble effective_score with all new signals ──
         # ── PR Mu2: also build a confidence_breakdown ledger so the
@@ -2643,7 +2794,8 @@ def _scan_date_range(
             breakdown.append({
                 "factor": "nakshatra_vedha",
                 "delta": int(vedha_penalty),
-                "note": "Moon nakshatra has classical vedha relationship"})
+                "note": nakshatra_vedha.get("note") or
+                       "Saptashalaka Vedha — moon nakshatra paired with participant natal"})
         # PR Mu9 — DBA-at-moment ledger entries
         if dba_all_sig_count:
             breakdown.append({
@@ -2696,11 +2848,24 @@ def _scan_date_range(
                     f"{', '.join(mu10_doshas['lattaa_planets'])} in their "
                     f"lattaa nakshatra"
                 )})
+        # PR R2-PR2 — Mahapata is now a HARD reject (was -40 soft). Per
+        # classical sources (Praśna Mārga, Sūrya Siddhānta), Mahapata
+        # effects are "more detrimental than an eclipse" — strongest
+        # avoid signal in muhurta. The declination-equal condition fires
+        # only ~28 times/year so the hard-reject cost is bounded.
         if mu10_doshas["mahapata_active"]:
+            variety = mu10_doshas.get("mahapata_variety", "?")
+            hard_rejected_for.append(
+                f"Mahapata Yoga ({variety}) active — "
+                f"declination-equal Sun-Moon (classical hard reject)"
+            )
             breakdown.append({
                 "factor": "mahapata_yoga",
-                "delta": -40,
-                "note": "Mahapata Yoga active (intensified Vyatipata/Vaidhriti)"
+                "delta": 0,  # already hard-rejected; ledger entry informational
+                "note": (
+                    f"Hard reject — Mahapata Yoga ({variety}): Sun + Moon "
+                    f"declination-equal, classical 'more detrimental than eclipse'"
+                ),
             })
         # PR Mu13 — Disha Shula + Kalapurusha ledger (hard rejects
         # already in hard_rejected_for; ledger entry is informational
@@ -2771,7 +2936,10 @@ def _scan_date_range(
             + (dba_any_dussthana_count * -30)         # PR Mu9 — -30/participant when any DBA lord in Dussthana
             + (-25 if mu10_doshas["visha_ghatika_active"] else 0)  # PR Mu10
             + (-20 if mu10_doshas["lattaa_active"] else 0)         # PR Mu10
-            + (-40 if mu10_doshas["mahapata_active"] else 0)       # PR Mu10
+            # PR R2-PR2 — Mahapata moved to hard_rejected_for; no
+            # additional score delta here (the hard reject drops the
+            # window from passed tier already).
+            + 0
         )
         # Hard time-window penalties — listed AFTER soft factors so
         # the breakdown reads as "would have been N, then inauspicious
@@ -2982,6 +3150,8 @@ def _scan_date_range(
                 "participant_soft_concerns": participant_soft_concerns_all,
                 # PR Mu6 — Panchang overlays (varjyam/amrit/panchaka/tithi-shunya/vedha)
                 "panchang_overlays":     panchang_overlays,
+                # PR R2-PR2 — Real participant-aware Saptashalaka Vedha
+                "nakshatra_vedha":       nakshatra_vedha,
                 # PR Mu7 — eclipse / sutak status
                 "in_sutak":              bool(in_sutak),
                 "sutak_eclipse":         (

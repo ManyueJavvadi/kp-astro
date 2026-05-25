@@ -351,6 +351,16 @@ def _build_chart(person: dict) -> dict:
     # Parse the input date "YYYY-MM-DD" and compute its weekday in LOCAL
     # time. The DAY_LORDS dict in chart_engine maps Python weekday()
     # (0=Mon..6=Sun) → planet.
+    # PR R2-PR1 — explicit signal when day_lord cannot be computed.
+    # Pre-fix this silently swallowed any exception → day_lord = "" →
+    # the natal 7-slot RP set was missing slot #1 (Vara Lord) with
+    # NO indicator. Downstream code that intersects against current-
+    # moment RPs would silently lose accuracy. Fix: keep the
+    # try/except for safety (resolve_timezone path can hit edge
+    # cases at deep ocean / Antarctica coords) but flag the chart
+    # explicitly so the response surface can show e.g. "RPs partial —
+    # day_lord unavailable for this birth location."
+    day_lord_missing = False
     try:
         from app.services.chart_engine import get_vedic_day_lord
         day_lord = get_vedic_day_lord(
@@ -359,8 +369,11 @@ def _build_chart(person: dict) -> dict:
             person["longitude"],
             person.get("timezone_offset", 5.5),
         )
+        if not day_lord:
+            day_lord_missing = True
     except Exception:
         day_lord = ""
+        day_lord_missing = True
 
     return {
         "jd": jd,
@@ -375,6 +388,7 @@ def _build_chart(person: dict) -> dict:
         "lagna_sign": lagna_sign,
         "h7_sub_lord": h7_sl,
         "day_lord": day_lord,
+        "day_lord_missing": day_lord_missing,  # PR R2-PR1 — explicit signal
     }
 
 

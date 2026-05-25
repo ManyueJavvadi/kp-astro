@@ -53,8 +53,9 @@ SIGN_LORDS = {
     "Capricorn": "Saturn", "Aquarius": "Saturn", "Pisces": "Jupiter",
 }
 
-# Python datetime.weekday() → KP day lord (Monday = 0)
-WEEKDAY_LORDS = ["Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn", "Sun"]
+# PR R2-PR1 — removed dead `WEEKDAY_LORDS` (single self-reference).
+# All vara-lord lookups in horary now go through
+# chart_engine.get_vedic_day_lord() which is sunrise-aware (Mu0e).
 
 HOUSE_THEMES = {
     1: "Self, health, longevity, personality",
@@ -1800,8 +1801,9 @@ def analyze_horary(
     # cusps at lat/lon and then OFFSET all cusps so that cusp[0] = Prashna
     # Lagna, preserving the relative proportional spans that depend on
     # the astrologer's latitude.
-    _, ascmc_at_loc = swe.houses_ex(jd, latitude, longitude, b'P', swe.FLG_SIDEREAL)
-    cusps_at_loc, _ = swe.houses_ex(jd, latitude, longitude, b'P', swe.FLG_SIDEREAL)
+    # PR R2-PR1 — was calling swe.houses_ex TWICE for identical inputs
+    # and discarding half each call. Single call, unpack both.
+    cusps_at_loc, ascmc_at_loc = swe.houses_ex(jd, latitude, longitude, b'P', swe.FLG_SIDEREAL)
     actual_lagna = ascmc_at_loc[0] % 360
     # Rotate each cusp so cusps[0] aligns with Prashna Lagna while keeping
     # the Placidus proportional spans from the astrologer's latitude.

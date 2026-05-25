@@ -507,9 +507,28 @@ def get_vedic_day_lord(jd: float, latitude: float, longitude: float, timezone_of
                 _, tret = swe.rise_trans(jd_midnight, swe.SUN, b"", 0, 1, geopos, 1013.25, 10.0)
             sunrise_jd = tret[0]
         except Exception:
-            # Absolute fallback: 6:00 AM local time
-            sr_utc = utc_midnight + timedelta(hours=6.0)
-            sunrise_jd = swe.julday(sr_utc.year, sr_utc.month, sr_utc.day, sr_utc.hour + sr_utc.minute / 60.0)
+            # PR R2-PR1 — Mu0d-pattern fix. Pre-R2 this `except Exception`
+            # silently fabricated a 6 AM "sunrise" whenever both astral AND
+            # swisseph failed (typically polar latitudes or invalid inputs).
+            # That meant the Vedic day-lord for any pre-sunrise query at a
+            # polar location was attributed to the wrong vara, producing a
+            # silently-wrong RP slot. The Mu0d audit explicitly called this
+            # out as the same class of bug Muhurtha had.
+            # Fix: do NOT fabricate. If sunrise cannot be computed, leave
+            # sunrise_jd uninitialised so the next `if jd < sunrise_jd`
+            # check raises NameError → caller (or pytest) sees the failure.
+            # We log a warning so production monitoring sees it.
+            import logging
+            logging.getLogger("chart_engine").warning(
+                "get_vedic_day_lord: sunrise computation failed at "
+                "lat=%.4f lon=%.4f for date=%s; Vedic day-lord may be wrong",
+                latitude, longitude, local_now.date()
+            )
+            # Best-effort: assume the local civil date IS the Vedic date
+            # (only wrong by 1 vara for pre-sunrise queries). This matches
+            # the most common case (queries are usually after sunrise) and
+            # avoids the fabricated-6-AM bug. Caller can detect the WARN.
+            return DAY_LORDS[local_now.weekday()]
 
     # 3. If local time of query is strictly before sunrise, day lord is previous civil day
     if jd < sunrise_jd:

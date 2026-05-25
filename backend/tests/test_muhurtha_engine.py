@@ -1396,6 +1396,69 @@ def test_mu16_eclipse_in_range_escalates_to_tier_3():
         assert any("eclipse" in e.lower() for e in s.get("escalators", []))
 
 
+def test_r2pr2_nakshatra_vedha_pairs_table_locked():
+    """The 13-pair Saptashalaka Chakra table is research-locked.
+    Verify a few canonical pairings to catch any drift."""
+    from app.services.muhurtha_engine import NAKSHATRA_VEDHA_PAIRS
+    # Symmetric pairs
+    assert NAKSHATRA_VEDHA_PAIRS[0] == {17}, "Ashwini ↔ Jyeshtha"
+    assert NAKSHATRA_VEDHA_PAIRS[17] == {0}
+    assert NAKSHATRA_VEDHA_PAIRS[1] == {16}, "Bharani ↔ Anuradha"
+    assert NAKSHATRA_VEDHA_PAIRS[8] == {18}, "Ashlesha ↔ Mula"
+    assert NAKSHATRA_VEDHA_PAIRS[9] == {26}, "Magha ↔ Revati"
+    # Chitra is unpaired
+    assert NAKSHATRA_VEDHA_PAIRS[13] == set(), "Chitra has no Vedha"
+
+
+def test_r2pr2_nakshatra_vedha_marriage_hard_other_soft():
+    """Vedha is HARD (-15) for marriage/engagement, SOFT (-5) for
+    griha-pravesh/yatra/vehicle, ZERO for other events."""
+    from app.services.muhurtha_engine import _nakshatra_vedha_signal
+    # Moon in Ashwini (0), participant in Jyeshtha (17) → veiled
+    sig_marriage = _nakshatra_vedha_signal(0, [17], "marriage")
+    assert sig_marriage["active"] is True
+    assert sig_marriage["delta"] == -15
+    sig_yatra = _nakshatra_vedha_signal(0, [17], "travel")
+    assert sig_yatra["active"] is True
+    assert sig_yatra["delta"] == -5
+    # Surgery: no Vedha penalty by doctrine
+    sig_medical = _nakshatra_vedha_signal(0, [17], "medical")
+    assert sig_medical["active"] is False
+    assert sig_medical["delta"] == 0
+    # Chitra moon → no Vedha regardless
+    sig_chitra = _nakshatra_vedha_signal(13, [17], "marriage")
+    assert sig_chitra["active"] is False
+
+
+def test_r2pr2_mahapata_only_fires_with_yoga_vyatipata_or_vaidhriti():
+    """Mahapata requires nitya yoga in {Vyatipata=16, Vaidhriti=26}.
+    For any other yoga, it must return (False, '')."""
+    from app.services.muhurtha_engine import _is_mahapata_active
+    import swisseph as swe
+    jd = swe.julday(2026, 5, 1, 12.0)
+    # Yoga 0 (Vishkambha) - not eligible
+    active, variety = _is_mahapata_active(jd, nitya_yoga_idx=0)
+    assert active is False
+    assert variety == ""
+
+
+def test_r2pr2_mahapata_helper_returns_correct_shape():
+    """Spot check that _is_mahapata_active returns the (bool, str)
+    tuple regardless of input, doesn't raise on edge cases."""
+    from app.services.muhurtha_engine import _is_mahapata_active
+    import swisseph as swe
+    # Multiple JDs + yoga idxs — none should raise
+    for jd_year in (2026, 2027, 2028):
+        for yoga_idx in (0, 16, 26):
+            jd = swe.julday(jd_year, 6, 15, 12.0)
+            active, variety = _is_mahapata_active(jd, nitya_yoga_idx=yoga_idx)
+            assert isinstance(active, bool)
+            assert variety in ("", "vyatipata", "vaidhriti")
+            if active:
+                # If active, variety must be set
+                assert variety != ""
+
+
 def test_mu0g_antardasha_cache_is_used():
     """_AD_CACHE accumulates entries as scans run; we verify by clearing
     it, running a small scan with a participant, and asserting at least

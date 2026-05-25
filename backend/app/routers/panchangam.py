@@ -316,21 +316,32 @@ def get_sunrise_sunset_jd(local_date: date_type, lat: float, lon: float,
         return _dt_to_jd(s["sunrise"]), _dt_to_jd(s["sunset"])
     except Exception:
         # Polar-region fallback via Swiss Ephemeris.
+        # PR R2-PR1 — Mu0d/Mu0f pattern: pre-fix this block called the
+        # 8-arg legacy signature (tjdut, body, star_name, ephe_flag,
+        # rsmi, geopos, atpress, attemp) which modern pyswisseph
+        # (2.10+) rejects with TypeError accepting at most 7 args.
+        # The outer `except Exception: return ref_jd ± 0.25` silently
+        # fabricated a fake 6 AM / 6 PM "day", so Panchang's polar
+        # fallback path was completely broken in production. Two other
+        # locations had the same bug (chart_engine.py:499 and
+        # muhurtha_engine.py:216) — both fixed in Mu0d / Mu0f. This
+        # was the last live instance.
+        # The module already defines version-tolerant wrappers
+        # `_call_rise_trans` (line 379) and `_extract_rise_jd` (line 359).
+        # Use them instead of raw swe.rise_trans calls.
         geopos = (lon, lat, 0.0)
         # Anchor the search at noon UTC on the local date.
         ref_jd = swe.julday(local_date.year, local_date.month, local_date.day,
                             12.0 - tz_offset)
         try:
-            _, tret = swe.rise_trans(
-                ref_jd - 0.5, swe.SUN, b"", 0,
-                swe.CALC_RISE, geopos, 1013.25, 10.0
-            )
-            sunrise_jd = tret[1]
-            _, tret2 = swe.rise_trans(
-                sunrise_jd, swe.SUN, b"", 0,
-                swe.CALC_SET, geopos, 1013.25, 10.0
-            )
-            sunset_jd = tret2[1]
+            tret = _call_rise_trans(ref_jd - 0.5, swe.SUN, swe.CALC_RISE, geopos)
+            sunrise_jd = _extract_rise_jd(tret, ref_jd)
+            if sunrise_jd is None:
+                raise RuntimeError("polar / no sunrise from rise_trans")
+            tret2 = _call_rise_trans(sunrise_jd, swe.SUN, swe.CALC_SET, geopos)
+            sunset_jd = _extract_rise_jd(tret2, sunrise_jd)
+            if sunset_jd is None:
+                raise RuntimeError("polar / no sunset from rise_trans")
             return sunrise_jd, sunset_jd
         except Exception:
             return ref_jd - 0.25, ref_jd + 0.25
