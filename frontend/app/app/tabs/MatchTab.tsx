@@ -44,6 +44,7 @@ import HousePanel from "../components/HousePanel";
 import PlanetList from "../components/workspace/PlanetList";
 import MatchPatternChips from "../components/MatchPatternChips";  // PR M3
 import MatchStarSubHarmonyStrip from "../components/MatchStarSubHarmonyStrip";  // PR M4
+import MatchReasoningTrace from "../components/MatchReasoningTrace";  // PR M12
 import type { ChartSession } from "../types";
 
 // Verbose prop bag — match flow has many cross-cutting state slots.
@@ -1839,6 +1840,12 @@ export function MatchTab(props: MatchTabProps) {
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* PR M12 — Full reasoning trace + astrologer notes + JSON export.
+                  Spans both columns of the Overall grid. Mirrors HoraryReasoningTrace. */}
+              <div style={{ gridColumn: "1 / -1" }}>
+                <MatchReasoningTrace result={r} />
               </div>
             </div>
             )}
