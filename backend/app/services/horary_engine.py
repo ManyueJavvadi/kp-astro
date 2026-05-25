@@ -382,6 +382,112 @@ def _csl_layer_analysis(csl: str, house_num: int, yes_houses: set, no_houses: se
     }
 
 
+def _compute_star_sub_harmony(
+    csl: str,
+    yes_houses: set[int],
+    no_houses: set[int],
+    planet_lons: dict,
+    cusp_lons: list,
+) -> dict:
+    """
+    PR H5 — Star-Sub Harmony layered reading for horary CSL.
+
+    KSK strict (RULE 16, general.txt §2.5): KP is NOT a 4-step UNION
+    operation — it's a TENSION between two layers. The STAR LORD declares
+    the NATURE of the matter; the SUB LORD decides WHETHER it fructifies.
+
+    LAYER SPLIT:
+      STAR layer = houses from CSL's star lord (occupied + owned)
+                 + houses CSL itself occupies/owns
+                 (the "what kind of matter does this position promote")
+      SUB layer  = houses from CSL's sub lord (occupied + owned)
+                 (the "is it permitted to happen" — the deciding gate)
+
+    HARMONY VERDICTS:
+      HARMONY (++)  : Both layers point to relevant → STRONGLY PROMISED
+      ALIGNED (+)   : Sub points to relevant, Star is neutral/mixed → PROMISED
+      TENSION (-)   : Star points to relevant, Sub points to denial → BLOCK
+      CONTRA (-)    : Star points to denial, Sub points to relevant → fires w/ FRICTION
+      DENIED (--)   : Both point to denial → DENIED
+      NEUTRAL       : Neither layer touches topic
+
+    The naive 4-step UNION used by _csl_layer_analysis tells you houses
+    are touched; the Star-Sub split tells you WHICH layer carries the
+    yes signal, which is what KSK strict reading requires.
+    """
+    if csl not in planet_lons:
+        return {
+            "csl": csl, "harmony": "NEUTRAL",
+            "star_lord": "", "sub_lord": "",
+            "star_houses": [], "sub_houses": [],
+            "star_relevant": [], "star_denial": [],
+            "sub_relevant": [], "sub_denial": [],
+            "note": "CSL not in planet positions",
+        }
+
+    csl_lon = planet_lons[csl]
+    star_lord = get_nakshatra_and_starlord(csl_lon).get("star_lord", "")
+    sub_lord = get_sub_lord(csl_lon)
+
+    # STAR layer = CSL's own occupied + owned + star lord's occupied + owned
+    star_houses: set[int] = set()
+    star_houses.add(_get_planet_house(csl_lon, cusp_lons))
+    star_houses.update(_houses_ruled_by(csl, cusp_lons))
+    if star_lord and star_lord in planet_lons:
+        star_houses.add(_get_planet_house(planet_lons[star_lord], cusp_lons))
+        star_houses.update(_houses_ruled_by(star_lord, cusp_lons))
+    star_houses = set(_clamp_houses(list(star_houses)))
+
+    # SUB layer = sub lord's occupied + owned
+    sub_houses: set[int] = set()
+    if sub_lord and sub_lord in planet_lons:
+        sub_houses.add(_get_planet_house(planet_lons[sub_lord], cusp_lons))
+        sub_houses.update(_houses_ruled_by(sub_lord, cusp_lons))
+    sub_houses = set(_clamp_houses(list(sub_houses)))
+
+    star_relevant = star_houses & yes_houses
+    star_denial = star_houses & no_houses
+    sub_relevant = sub_houses & yes_houses
+    sub_denial = sub_houses & no_houses
+
+    # Harmony classification
+    if star_relevant and not star_denial and sub_relevant and not sub_denial:
+        harmony = "HARMONY"
+        note = "Both layers point to relevant — STRONGLY PROMISED. Smooth fructification."
+    elif sub_relevant and not sub_denial and not (star_denial and not star_relevant):
+        harmony = "ALIGNED"
+        note = "Sub layer (deciding gate) clean for relevant; star layer permits. PROMISED."
+    elif star_relevant and sub_denial and not sub_relevant:
+        harmony = "TENSION"
+        note = "Star promises but sub (deciding gate) signifies denial — block dominates."
+    elif star_denial and sub_relevant:
+        harmony = "CONTRA"
+        note = "Star carries denial flavour but sub permits — event fires WITH friction."
+    elif star_denial and sub_denial and not (star_relevant or sub_relevant):
+        harmony = "DENIED"
+        note = "Both layers point to denial — structurally blocked."
+    elif star_relevant or sub_relevant:
+        harmony = "ALIGNED"  # partial alignment
+        note = "Partial alignment — at least one layer carries relevant signification."
+    else:
+        harmony = "NEUTRAL"
+        note = "Neither layer touches the topic's houses — no clear signal."
+
+    return {
+        "csl": csl,
+        "star_lord": star_lord,
+        "sub_lord": sub_lord,
+        "star_houses": sorted(star_houses),
+        "sub_houses": sorted(sub_houses),
+        "star_relevant": sorted(star_relevant),
+        "star_denial": sorted(star_denial),
+        "sub_relevant": sorted(sub_relevant),
+        "sub_denial": sorted(sub_denial),
+        "harmony": harmony,
+        "note": note,
+    }
+
+
 def _compute_clinical_flags(
     topic: str,
     lagna_sub: str,
@@ -1119,6 +1225,13 @@ def _kp_verdict(
                       f"— no direct connection to topic houses and no Ruling Planet supports them either. "
                       f"Query may be premature or question unclear.")
 
+    # PR H5 — Star-Sub Harmony layered reading for the primary CSL.
+    # Splits the CSL's signification into STAR layer (what kind of matter)
+    # vs SUB layer (whether it fructifies) per KSK strict (RULE 16).
+    star_sub_harmony = _compute_star_sub_harmony(
+        query_csl, yes_houses, no_houses, planet_lons, cusp_lons,
+    )
+
     # PR H3 — Numeric confidence 0–100 with audit trail.
     # Brings horary into parity with Analysis tab's engine_confidence.
     csl_retro = bool(planets_raw and query_csl in planets_raw
@@ -1152,6 +1265,8 @@ def _kp_verdict(
         # PR H3 — numeric confidence + auditable breakdown
         "confidence_score": confidence_score,
         "confidence_breakdown": confidence_breakdown,
+        # PR H5 — Star-Sub Harmony layered reading (KSK strict)
+        "star_sub_harmony": star_sub_harmony,
         "explanation": reason,
         "verdict_reason": reason,
         "lagna_csl": lagna_sub,

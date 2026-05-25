@@ -642,6 +642,89 @@ export function HoraryTab({
                       patterns; amber for D2 friction. Tooltip on each chip
                       shows the full evidence trail. */}
                   <HoraryPatternChips patterns={r.patterns_fired} />
+
+                  {/* PR H5 — Star-Sub Harmony layered reading (KSK strict).
+                      Splits primary CSL signification into STAR vs SUB layer.
+                      HARMONY/ALIGNED/CONTRA/TENSION/DENIED verdict tells the
+                      astrologer WHICH layer carries the yes signal (vs the
+                      naive UNION reading that hides layer attribution). */}
+                  {v.star_sub_harmony && v.star_sub_harmony.harmony !== "NEUTRAL" && (() => {
+                    const ssh = v.star_sub_harmony;
+                    const harmony = ssh.harmony as string;
+                    const harmonyColor =
+                      harmony === "HARMONY" ? "#34d399" :
+                      harmony === "ALIGNED" ? "#34d399" :
+                      harmony === "CONTRA"  ? "#fbbf24" :
+                      harmony === "TENSION" ? "#f87171" :
+                      harmony === "DENIED"  ? "#f87171" :
+                      "var(--muted)";
+                    const harmonySymbol =
+                      harmony === "HARMONY" ? "++" :
+                      harmony === "ALIGNED" ? "+"  :
+                      harmony === "CONTRA"  ? "±"  :
+                      harmony === "TENSION" ? "−"  :
+                      harmony === "DENIED"  ? "−−" : "·";
+                    return (
+                      <div style={{ marginTop: 12, paddingTop: 12, borderTop: `0.5px solid ${verdictColor}20`, maxWidth: 520, marginLeft: "auto", marginRight: "auto" }}>
+                        <div style={{ fontSize: 9, color: "var(--muted)", letterSpacing: "0.14em", textTransform: "uppercase" as const, fontWeight: 600, marginBottom: 8, textAlign: "center" as const }}>
+                          {t("Star ↔ Sub harmony (KSK strict)", "నక్షత్రం ↔ సబ్ సమన్వయం")}
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                          <span style={{
+                            padding: "3px 12px",
+                            background: `${harmonyColor}18`,
+                            border: `0.5px solid ${harmonyColor}55`,
+                            borderRadius: 999,
+                            color: harmonyColor,
+                            fontWeight: 700,
+                            fontSize: 12,
+                            letterSpacing: "0.06em",
+                          }}>
+                            {harmonySymbol} {harmony}
+                          </span>
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8, fontSize: 11 }}>
+                          <div style={{ padding: "8px 10px", background: "rgba(255,255,255,0.02)", borderRadius: 6, border: "0.5px solid var(--border2)" }}>
+                            <div style={{ fontSize: 9, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 3 }}>
+                              {t("STAR layer", "నక్షత్ర స్థాయి")} · {ssh.star_lord}
+                            </div>
+                            <div style={{ color: "var(--text)" }}>
+                              {(ssh.star_relevant || []).length > 0 && (
+                                <span style={{ color: "#34d399" }}>{(ssh.star_relevant || []).map((h: number) => `H${h}`).join(", ")} ✓ </span>
+                              )}
+                              {(ssh.star_denial || []).length > 0 && (
+                                <span style={{ color: "#f87171" }}>{(ssh.star_denial || []).map((h: number) => `H${h}`).join(", ")} ✗</span>
+                              )}
+                              {(ssh.star_relevant || []).length === 0 && (ssh.star_denial || []).length === 0 && (
+                                <span style={{ color: "var(--muted)" }}>{t("no topic hit", "టాపిక్ హిట్ లేదు")}</span>
+                              )}
+                            </div>
+                          </div>
+                          <div style={{ padding: "8px 10px", background: "rgba(255,255,255,0.02)", borderRadius: 6, border: "0.5px solid var(--border2)" }}>
+                            <div style={{ fontSize: 9, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 3 }}>
+                              {t("SUB layer · deciding", "సబ్ స్థాయి · నిర్ణయం")} · {ssh.sub_lord}
+                            </div>
+                            <div style={{ color: "var(--text)" }}>
+                              {(ssh.sub_relevant || []).length > 0 && (
+                                <span style={{ color: "#34d399" }}>{(ssh.sub_relevant || []).map((h: number) => `H${h}`).join(", ")} ✓ </span>
+                              )}
+                              {(ssh.sub_denial || []).length > 0 && (
+                                <span style={{ color: "#f87171" }}>{(ssh.sub_denial || []).map((h: number) => `H${h}`).join(", ")} ✗</span>
+                              )}
+                              {(ssh.sub_relevant || []).length === 0 && (ssh.sub_denial || []).length === 0 && (
+                                <span style={{ color: "var(--muted)" }}>{t("no topic hit", "టాపిక్ హిట్ లేదు")}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        {ssh.note && (
+                          <div style={{ marginTop: 8, fontSize: 11, color: "var(--muted)", fontStyle: "italic", textAlign: "center" as const, lineHeight: 1.5 }}>
+                            {ssh.note}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* 3-Layer Analysis — visual journey.
