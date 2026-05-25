@@ -2771,6 +2771,74 @@ def _scan_date_range(
         raw_score = sum(b["delta"] for b in breakdown)
         confidence_score = max(0, min(100, raw_score))
 
+        # ── PR Mu14 — Evidence payload (the "verify by hand" packet)
+        # Surface the underlying numbers the astrologer needs to
+        # independently audit the verdict: cusp longitudes, planet
+        # positions at the moment, RK/YG/GL/Durmuhurta HH:MM tags,
+        # day slot details. Per user direction: "if astrologer is not
+        # satisfied with the output he will do himself if we present
+        # all necessary details right."
+        def _jd_to_local_hhmm(jd_val: float) -> str:
+            """JD → HH:MM in event-local time."""
+            try:
+                dt_utc = datetime(1970, 1, 1) + timedelta(days=jd_val - 2440587.5)
+                local = dt_utc + timedelta(hours=day_event_tz)
+                return local.strftime("%H:%M")
+            except Exception:
+                return ""
+
+        evidence_payload = {
+            # Cusp longitudes (all 12 + event primary highlighted)
+            "cusp_longitudes_deg": [round(c % 360, 4) for c in cusp_lons],
+            "event_primary_cusp_deg": round(cusp_lons[group["primary"] - 1] % 360, 4),
+            # Lagna detail
+            "lagna_lon_deg":     round(lagna_lon, 4),
+            "lagna_sign":        get_sign(lagna_lon),
+            "lagna_sub_lord":    lagna_sl,
+            "lagna_star_lord":   lagna_star,
+            # Planet positions snapshot (lon + sign + nak + sub-lord +
+            # retrograde flag) at the moment
+            "planet_positions": {
+                pname: {
+                    "lon_deg":   round(pdata.get("longitude", 0), 4),
+                    "sign":      get_sign(pdata.get("longitude", 0)),
+                    "nakshatra": pdata.get("nakshatra", ""),
+                    "star_lord": pdata.get("star_lord", ""),
+                    "sub_lord":  pdata.get("sub_lord", ""),
+                    "retrograde": bool(pdata.get("retrograde", False)),
+                }
+                for pname, pdata in planets.items()
+            },
+            # Day slot HH:MM tags in event-local time
+            "sunrise_hhmm":     _jd_to_local_hhmm(sunrise_jd),
+            "sunset_hhmm":      _jd_to_local_hhmm(sunset_jd),
+            "rahu_kalam_hhmm":  f"{_jd_to_local_hhmm(rk_start)}-{_jd_to_local_hhmm(rk_end)}",
+            "yamagandam_hhmm":  f"{_jd_to_local_hhmm(yg_start)}-{_jd_to_local_hhmm(yg_end)}",
+            "gulika_hhmm":      f"{_jd_to_local_hhmm(gl_start)}-{_jd_to_local_hhmm(gl_end)}",
+            "abhijit_hhmm":     (
+                f"{_jd_to_local_hhmm(ab_start)}-{_jd_to_local_hhmm(ab_end)}"
+                if ab_valid else None
+            ),
+            "durmuhurtha_hhmm": [
+                f"{_jd_to_local_hhmm(s)}-{_jd_to_local_hhmm(e)}"
+                for s, e in durm_windows
+            ],
+            # JD + tz used for this slot (raw audit numbers)
+            "jd":               jd,
+            "day_event_tz":     day_event_tz,
+            # Sun-Moon separation for tithi/yoga/karana cross-check
+            "sun_moon_sep_deg": round((moon_lon - sun_lon) % 360, 4),
+            # Per-participant DBA dates (MD/AD windows)
+            "participant_dba_dates": [
+                {
+                    "name":      p.get("name", ""),
+                    "current_md": p.get("current_md", ""),
+                    "current_ad": p.get("current_ad", ""),
+                }
+                for p in per_participant
+            ],
+        }
+
         if base_score >= 40:
             raw_windows.append({
                 "date":              current.strftime("%Y-%m-%d"),
@@ -2825,6 +2893,8 @@ def _scan_date_range(
                 "advanced_dosha_check_enabled":    bool(advanced_dosha_check),
                 # PR Mu13 — Disha Shula / Kalapurusha / 15 day-muhurta name
                 "mu13_overlays":                   mu13_overlays,
+                # PR Mu14 — Evidence payload (verify-by-hand packet)
+                "evidence_payload":                evidence_payload,
                 "in_rahu_kalam":     in_rk,
                 "in_yamagandam":     in_yg,
                 "in_gulika":         in_gl,

@@ -1314,6 +1314,55 @@ def test_mu13_day_muhurta_name_indexed_correctly():
     assert len(DAY_MUHURTA_NAMES) == 15
 
 
+def test_mu14_evidence_payload_present_with_required_keys():
+    """Every window must carry an evidence_payload with the full
+    verify-by-hand packet."""
+    r = find_muhurtha_windows(
+        date_start="2026-05-01", date_end="2026-05-01",
+        event_type="general", **TENALI,
+        nearby_days=0, participants=[MANYUE],
+    )
+    all_w = (r.get("windows") or []) + (r.get("soft_flagged_windows") or [])
+    assert all_w
+    for w in all_w[:3]:
+        ev = w.get("evidence_payload")
+        assert isinstance(ev, dict)
+        for key in ("cusp_longitudes_deg", "event_primary_cusp_deg",
+                    "lagna_lon_deg", "planet_positions", "sunrise_hhmm",
+                    "sunset_hhmm", "rahu_kalam_hhmm", "yamagandam_hhmm",
+                    "gulika_hhmm", "jd", "day_event_tz", "sun_moon_sep_deg",
+                    "participant_dba_dates"):
+            assert key in ev, f"evidence_payload missing {key}"
+        # cusp_longitudes_deg is a 12-list
+        assert len(ev["cusp_longitudes_deg"]) == 12
+        # planet_positions has at least Sun + Moon
+        assert "Sun" in ev["planet_positions"]
+        assert "Moon" in ev["planet_positions"]
+        # HH:MM strings look right
+        assert ":" in ev["sunrise_hhmm"]
+        assert "-" in ev["rahu_kalam_hhmm"]
+
+
+def test_mu14_evidence_sunrise_matches_real_world_value():
+    """Tenali on 2026-05-01: real sunrise should be ~05:45 IST.
+    Evidence payload sunrise_hhmm should reflect that, not the
+    pre-Mu0d fake 06:00."""
+    r = find_muhurtha_windows(
+        date_start="2026-05-01", date_end="2026-05-01",
+        event_type="general", **TENALI,
+        nearby_days=0, participants=[],
+    )
+    all_w = (r.get("windows") or []) + (r.get("soft_flagged_windows") or [])
+    if all_w:
+        sr = all_w[0]["evidence_payload"]["sunrise_hhmm"]
+        # Sunrise in Tenali, May = 05:43-05:48 IST. Anything below 05:55
+        # confirms the real-math path; old fake fallback was 06:00.
+        h, m = sr.split(":")
+        assert int(h) == 5 and int(m) < 55, (
+            f"Sunrise {sr} suggests fake-day fallback is back"
+        )
+
+
 def test_mu0g_antardasha_cache_is_used():
     """_AD_CACHE accumulates entries as scans run; we verify by clearing
     it, running a small scan with a participant, and asserting at least
