@@ -4037,23 +4037,51 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
         ksk_stricter_exceptional=bool(ksk_stricter.get("exceptional_cross_match")),
     )
 
-    # Nadi dosha — only flag as serious-concern if also same nakshatra.
-    # (Cancellation exception per classical rules — see audit §C6.)
+    # Nadi dosha — directional cancellation per classical rules.
+    # PR M6 — refined per https://aaps.space/blog/5-ways-to-nadi-dosha-cancellation-and-nadi-matching/
+    #   "The Nakshatra of the Boy must be one which comes first and that of
+    #    a Girl must be the latter one."  Same-rashi cancellation only applies
+    #   when boy's nakshatra index precedes the girl's within the shared sign.
     nadi_serious = ("Nadi" in ashtakoota.get("critical_doshas", []))
     if nadi_serious:
-        # Same nakshatra cancellation
+        # Same nakshatra cancellation (direction-independent classical exception)
         if chart1["moon_nakshatra"] == chart2["moon_nakshatra"]:
-            # Same nakshatra: keep dosha but flag the cancellation note
             ashtakoota["nadi_cancellation_note"] = (
                 "Same nakshatra ({}) — classical exception applies; "
                 "severity reduced.".format(chart1["moon_nakshatra"])
             )
-        # Same rashi different nakshatra cancellation
-        elif chart1["moon_sign"] == chart2["moon_sign"]:
-            ashtakoota["nadi_cancellation_note"] = (
-                "Same Moon sign ({}) different nakshatras — classical "
-                "exception applies; severity reduced.".format(chart1["moon_sign"])
-            )
+            ashtakoota["nadi_cancellation_applied"] = True
+        # Same rashi different nakshatra — apply directional rule
+        elif chart_boy["moon_sign"] == chart_girl["moon_sign"]:
+            try:
+                boy_idx = NAKSHATRA_ORDER.index(chart_boy["moon_nakshatra"])
+                girl_idx = NAKSHATRA_ORDER.index(chart_girl["moon_nakshatra"])
+            except ValueError:
+                boy_idx, girl_idx = -1, -1
+            if 0 <= boy_idx < girl_idx:
+                # Directional rule satisfied — boy's nakshatra precedes girl's
+                ashtakoota["nadi_cancellation_note"] = (
+                    "Same Moon sign ({sign}); boy's nakshatra ({bn}) precedes "
+                    "girl's ({gn}) — directional rule satisfied, classical "
+                    "exception applies; severity reduced.".format(
+                        sign=chart_boy["moon_sign"],
+                        bn=chart_boy["moon_nakshatra"],
+                        gn=chart_girl["moon_nakshatra"],
+                    )
+                )
+                ashtakoota["nadi_cancellation_applied"] = True
+            else:
+                # Directional rule fails — dosha stands at full severity
+                ashtakoota["nadi_cancellation_note"] = (
+                    "Same Moon sign ({sign}) but girl's nakshatra ({gn}) "
+                    "precedes boy's ({bn}) — directional rule fails; Nadi "
+                    "dosha stands at full severity.".format(
+                        sign=chart_boy["moon_sign"],
+                        bn=chart_boy["moon_nakshatra"],
+                        gn=chart_girl["moon_nakshatra"],
+                    )
+                )
+                ashtakoota["nadi_cancellation_applied"] = False
 
     return {
         "person1": {"name": person1["name"], "gender": gender1,
