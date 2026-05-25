@@ -121,17 +121,25 @@ def test_partial_yes_rule_when_rp_signifies_topic():
 
 
 def test_clinical_flags_shape():
-    """PR A1.1d — clinical_flags is a list of dicts with the required keys."""
+    """PR A1.1d — clinical_flags is a list of dicts with the required keys.
+
+    PR H11 — Telugu translations added (label_te, detail_te) alongside
+    legacy label/detail. Test now checks REQUIRED keys are present
+    (rather than exact-set equality) so future additive fields don't
+    break the test."""
     r = analyze_horary(number=42, question="test", topic="career", **FIXED_KWARGS)
     flags = r["clinical_flags"]
     assert isinstance(flags, list)
     assert len(flags) > 0, "Expected at least some clinical flags"
+    required = {"tone", "code", "label", "detail"}
     for f in flags:
-        assert set(f.keys()) == {"tone", "code", "label", "detail"}, (
-            f"Flag missing keys: {f}"
+        assert required.issubset(set(f.keys())), (
+            f"Flag missing required keys: {f}"
         )
         assert f["tone"] in {"green", "yellow", "red"}, f"Bad tone: {f['tone']}"
         assert f["code"] and f["label"] and f["detail"]
+        # PR H11 — bilingual fields should be present on all post-H11 flags
+        # (not asserted as required to keep backward-compat headroom)
 
 
 def test_clinical_flags_do_not_mutate_verdict():
