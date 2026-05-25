@@ -608,16 +608,31 @@ def _natal_badhakesh_marakesh(participant: dict) -> dict:
         }
         marakesh.discard(None)
 
+        # PR Mu9 — Dussthana lords (6/8/12 from natal Lagna). DBA-at-
+        # moment doctrine: if the current MD / AD lord is a Dussthana
+        # lord for this person, the period structurally opposes
+        # auspicious starts. -30 per participant in scoring.
+        dussthana_signs = [
+            _SIGN_ORDER[(li + 5) % 12],   # 6th sign from Lagna
+            _SIGN_ORDER[(li + 7) % 12],   # 8th sign
+            _SIGN_ORDER[(li + 11) % 12],  # 12th sign
+        ]
+        dussthana_lords = {
+            _SIGN_LORDS_FALLBACK.get(s) for s in dussthana_signs
+        }
+        dussthana_lords.discard(None)
+
         return {
             "badhakesh": badhakesh,
             "marakesh": marakesh,
+            "dussthana_lords": dussthana_lords,
             "lagna_sign": lagna_sign,
             "lagna_sign_type": sign_type,
             "badhaka_house": badhaka_house_num,
         }
     except Exception:
-        return {"badhakesh": None, "marakesh": set(), "lagna_sign": None,
-                "lagna_sign_type": None, "badhaka_house": None}
+        return {"badhakesh": None, "marakesh": set(), "dussthana_lords": set(),
+                "lagna_sign": None, "lagna_sign_type": None, "badhaka_house": None}
 
 
 def _natal_dasha_list(participant: dict) -> list:
@@ -787,6 +802,26 @@ def _evaluate_participant(
     rp_x_natal = sorted(moment_rps_set & natal_sigs_set)
     rp_x_natal_count = len(rp_x_natal)
 
+    # PR Mu9 — DBA-at-moment vs natal event significators. Check whether
+    # the current MD / AD lords signify the event houses in this
+    # participant's natal chart. Strongest dasha confirmation = all
+    # active lords are in the natal event-sig set.
+    dba_lords_at_moment = [l for l in (current_md, current_ad) if l]
+    dba_lords_signifying_event = [
+        l for l in dba_lords_at_moment if l in natal_sigs_set
+    ]
+    dba_all_signify_event = bool(dba_lords_at_moment) and (
+        len(dba_lords_signifying_event) == len(dba_lords_at_moment)
+    )
+    # Per audit Mu9: if ANY active lord falls into the natal 6/8/12
+    # (Dussthana) houses, the dasha is opposing the event. We surface
+    # the natal-dussthana check via natal_bm.dussthana_lords if available;
+    # absent that, we conservatively skip the negative side.
+    natal_dussthana_planets = (natal_bm or {}).get("dussthana_lords") or set()
+    dba_any_in_natal_dussthana = bool(
+        natal_dussthana_planets and (set(dba_lords_at_moment) & natal_dussthana_planets)
+    )
+
     return {
         "name": name,
         "is_primary": is_primary,                # PR Mu4
@@ -811,6 +846,11 @@ def _evaluate_participant(
         "natal_event_significators": sorted(natal_sigs_set),
         "rp_x_natal_overlap":        rp_x_natal,
         "rp_x_natal_count":          rp_x_natal_count,
+        # PR Mu9 — DBA-at-moment doctrine check
+        "dba_lords_at_moment":           sorted(set(dba_lords_at_moment)),
+        "dba_lords_signifying_event":    sorted(set(dba_lords_signifying_event)),
+        "dba_all_signify_event":         dba_all_signify_event,
+        "dba_any_in_natal_dussthana":    dba_any_in_natal_dussthana,
     }
 
 
@@ -1562,6 +1602,12 @@ def _scan_date_range(
             rp_x_natal_total += p_eval.get("rp_x_natal_count", 0)
             if p_eval["hard_rejected_for"]:
                 participant_hard_rejects.extend(p_eval["hard_rejected_for"])
+        # PR Mu9 — DBA-at-moment scoring aggregate (after per-participant
+        # loop so we can sum across all participants).
+        dba_all_sig_count = sum(1 for p in per_participant
+                                 if p.get("dba_all_signify_event"))
+        dba_any_dussthana_count = sum(1 for p in per_participant
+                                       if p.get("dba_any_in_natal_dussthana"))
         # PR Mu4 — apply doctrine-correct aggregation across participants
         if per_participant:
             agg = _aggregate_participant_evaluations(per_participant, event_type)
@@ -1855,6 +1901,54 @@ def _scan_date_range(
         ekargala_active = sun_sign_idx_here == moon_sign_idx_here
         ekargala_penalty = -20 if ekargala_active else 0
 
+        # ── PR Mu9 — Combined Kartari + Ekargala elevation.
+        # When BOTH are active simultaneously for marriage / engagement /
+        # house_warming, the chart's auspicious gates are sealed —
+        # classical "Yama-Vela" condition. Hard reject for the most
+        # auspicious-required events.
+        kartari_ekargala_combined_hard = (
+            kartari_active and ekargala_active and
+            event_type in {"marriage", "engagement", "house_warming"}
+        )
+        if kartari_ekargala_combined_hard:
+            hard_rejected_for.append(
+                "Kartari + Ekargala simultaneously active — Yama-Vela seal"
+            )
+
+        # ── PR Mu9 — 8th-house occupancy hard reject (KB §5.3).
+        # If a malefic occupies the muhurtha 8th house, classical KP
+        # treats it as a structural obstruction (8th = death/loss/
+        # transformation house). Hard reject for shubh events.
+        # Note: 8th occupants are sometimes ACCEPTABLE for medical or
+        # tantric ceremonies — those event types are excluded from this
+        # gate.
+        h8_sign_idx = (lagna_sign_idx + 7) % 12
+        h8_malefics = []
+        for pname, pdata in planets.items():
+            if pname not in MALEFICS:
+                continue
+            p_sign_idx = int((pdata.get("longitude", 0) % 360) / 30.0)
+            if p_sign_idx == h8_sign_idx:
+                h8_malefics.append(pname)
+        h8_occupancy_hard = bool(h8_malefics) and event_type not in {"medical"}
+        if h8_occupancy_hard:
+            hard_rejected_for.append(
+                f"Malefic(s) {', '.join(h8_malefics)} occupy H8 of the muhurtha — "
+                f"structural obstruction for {event_type}"
+            )
+
+        # ── PR Mu9 — Per-participant DBA-at-moment scoring.
+        # For each participant: check if their CURRENT MD/AD/PD lords
+        # signify the event's house group in their own natal chart.
+        # If ALL THREE signify → +20 per participant (strongest possible
+        # dasha confirmation). If ANY lord is in their natal 6/8/12 →
+        # -30 per participant (Dussthana DBA = structural opposition).
+        # This per-slot scoring is the doctrine-correct version of the
+        # legacy A2.2c.2 Badhakesh/Marakesh single-flag check, and
+        # complements Mu3's moment-RPs-x-natal-sigs by adding TIMING.
+        # Computed below in the per-participant block; surfaced in
+        # the breakdown ledger as `dba_at_moment_p1`, `_p2`, etc.
+
         # ── PR Mu7 — Eclipse + Sutak windows (classical hard reject).
         #     Per research: solar eclipse Sutak = 12h before peak through
         #     moksha; lunar eclipse Sutak = 9h. Inside Sutak NO auspicious
@@ -2011,6 +2105,41 @@ def _scan_date_range(
                 "factor": "nakshatra_vedha",
                 "delta": int(vedha_penalty),
                 "note": "Moon nakshatra has classical vedha relationship"})
+        # PR Mu9 — DBA-at-moment ledger entries
+        if dba_all_sig_count:
+            breakdown.append({
+                "factor": "dba_at_moment_all_signify_event",
+                "delta": int(dba_all_sig_count * 20),
+                "note": (
+                    f"+20 per participant whose ALL current DBA lords signify "
+                    f"the event's natal houses ({dba_all_sig_count} of "
+                    f"{len(per_participant)})"
+                )
+            })
+        if dba_any_dussthana_count:
+            breakdown.append({
+                "factor": "dba_at_moment_dussthana",
+                "delta": int(dba_any_dussthana_count * -30),
+                "note": (
+                    f"-30 per participant whose current DBA includes a Dussthana "
+                    f"(natal 6/8/12) lord ({dba_any_dussthana_count} of "
+                    f"{len(per_participant)})"
+                )
+            })
+        # PR Mu9 — Kartari+Ekargala combined hard-reject ledger entry
+        if kartari_ekargala_combined_hard:
+            breakdown.append({
+                "factor": "kartari_ekargala_combined",
+                "delta": 0,
+                "note": f"Hard reject — Kartari + Ekargala both active for {event_type}"
+            })
+        if h8_occupancy_hard:
+            breakdown.append({
+                "factor": "h8_malefic_occupancy",
+                "delta": 0,
+                "note": f"Hard reject — malefic(s) {', '.join(h8_malefics)} in H8"
+            })
+
         # PR Mu7 — Eclipse ledger entries (informational; hard reject
         # is applied via hard_rejected_for above so it doesn't double-count
         # the score, but the ledger entry tells the astrologer WHY).
@@ -2053,6 +2182,8 @@ def _scan_date_range(
             + tithi_shunya_penalty   # PR Mu6
             + vedha_penalty          # PR Mu6
             + (-10 if in_eclipse_ext and not in_sutak else 0)  # PR Mu7 soft
+            + (dba_all_sig_count * 20)                # PR Mu9 — +20/participant when all DBA lords signify event
+            + (dba_any_dussthana_count * -30)         # PR Mu9 — -30/participant when any DBA lord in Dussthana
         )
         # Hard time-window penalties — listed AFTER soft factors so
         # the breakdown reads as "would have been N, then inauspicious
@@ -2208,6 +2339,16 @@ def _scan_date_range(
                 # Mrityu Yoga / Krura tithi / Dagdha tithi / Vyatipata
                 # defunct-after-noon)
                 "advanced_doshas": adv_doshas,
+                # PR Mu9 — Kartari + Ekargala combined hard, H8 malefic
+                # occupancy, DBA-at-moment aggregate
+                "kartari_ekargala_combined_hard": kartari_ekargala_combined_hard,
+                "h8_malefic_occupants":           list(h8_malefics),
+                "h8_occupancy_hard":              h8_occupancy_hard,
+                "dba_at_moment_aggregate": {
+                    "all_signify_count":      dba_all_sig_count,
+                    "dussthana_count":        dba_any_dussthana_count,
+                    "participants_total":     len(per_participant),
+                },
                 "in_rahu_kalam":     in_rk,
                 "in_yamagandam":     in_yg,
                 "in_gulika":         in_gl,

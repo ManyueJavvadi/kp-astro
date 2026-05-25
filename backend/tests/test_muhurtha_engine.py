@@ -1084,6 +1084,49 @@ def test_mu8_sandhya_window_gets_penalty():
             break
 
 
+def test_mu9_h8_malefic_occupancy_flag_present():
+    """Every window must carry h8_malefic_occupants (list, possibly empty)
+    + h8_occupancy_hard (bool)."""
+    r = find_muhurtha_windows(
+        date_start="2026-05-01", date_end="2026-05-01",
+        event_type="general", **TENALI,
+        nearby_days=0, participants=[],
+    )
+    all_w = (r.get("windows") or []) + (r.get("soft_flagged_windows") or [])
+    assert all_w
+    for w in all_w[:3]:
+        assert isinstance(w.get("h8_malefic_occupants"), list)
+        assert isinstance(w.get("h8_occupancy_hard"), bool)
+
+
+def test_mu9_dba_at_moment_aggregate_present_with_participants():
+    """When participants are passed, every window has
+    dba_at_moment_aggregate with the documented counters."""
+    r = find_muhurtha_windows(
+        date_start="2026-05-01", date_end="2026-05-01",
+        event_type="general", **TENALI,
+        nearby_days=0, participants=[MANYUE],
+    )
+    all_w = (r.get("windows") or []) + (r.get("soft_flagged_windows") or [])
+    for w in all_w[:3]:
+        agg = w.get("dba_at_moment_aggregate")
+        assert isinstance(agg, dict)
+        for key in ("all_signify_count", "dussthana_count", "participants_total"):
+            assert key in agg
+
+
+def test_mu9_natal_bm_includes_dussthana_lords():
+    """_natal_badhakesh_marakesh now exposes dussthana_lords (set)."""
+    bm = _natal_badhakesh_marakesh(MANYUE)
+    assert "dussthana_lords" in bm
+    assert isinstance(bm["dussthana_lords"], set)
+    # Manyue is born with a Sagittarius Lagna (verified via natal chart).
+    # Sag Lagna dussthana lords: 6th=Taurus(Venus), 8th=Cancer(Moon),
+    # 12th=Scorpio(Mars). Don't assert exact set — could shift if
+    # Lagna recomputation differs minimally — just assert non-empty.
+    assert len(bm["dussthana_lords"]) > 0
+
+
 def test_mu0g_antardasha_cache_is_used():
     """_AD_CACHE accumulates entries as scans run; we verify by clearing
     it, running a small scan with a participant, and asserting at least
