@@ -402,6 +402,17 @@ def _natal_dasha_list(participant: dict) -> list:
         return []
 
 
+# PR Mu0g — module-level memo for per-MD antardasha lists.
+# `calculate_antardashas(md)` is a pure function of (md_lord, md_start,
+# md_end). For a 60-day muhurtha scan with N participants, the same MD
+# is asked about ~21,600 times per participant (~240 4-min slots × 90
+# days × N). Without memoisation we recompute the same 9 antardashas
+# every time — wasted 64,800+ calls per 3-participant search. The
+# memo keys on (lord, start, end) so it's stable across runs and the
+# 9-AD list per MD is computed at most once per process.
+_AD_CACHE: dict = {}
+
+
 def _dasha_lords_at(
     dashas: list,
     target_date_str: str,
@@ -409,6 +420,8 @@ def _dasha_lords_at(
     """Given a participant's dasha list and a target YYYY-MM-DD string,
     return (mahadasha_lord, antardasha_lord) active on that date.
     Returns (None, None) if no match.
+
+    PR Mu0g — antardasha computation memoised per MD identity.
     """
     if not dashas or not target_date_str:
         return (None, None)
@@ -416,7 +429,11 @@ def _dasha_lords_at(
         from app.services.chart_engine import calculate_antardashas
         for md in dashas:
             if md["start"] <= target_date_str <= md["end"]:
-                ads = calculate_antardashas(md)
+                key = (md.get("lord", ""), md.get("start", ""), md.get("end", ""))
+                ads = _AD_CACHE.get(key)
+                if ads is None:
+                    ads = calculate_antardashas(md)
+                    _AD_CACHE[key] = ads
                 for ad in ads:
                     if ad["start"] <= target_date_str <= ad["end"]:
                         return (md["lord"], ad["antardasha_lord"])
@@ -755,11 +772,37 @@ def _scan_date_range(
             current.hour + current.minute / 60.0 - day_event_tz
         )
 
-        # Planet positions cached per hour
+        # Planet positions cached per hour.
+        # PR Mu0g — Moon moves ~2.2 arc-min per 4 min — enough to flip
+        # a nakshatra-sub-lord at a boundary. The Sun moves much less
+        # but still benefits from precision for tithi / yoga / paksha
+        # boundary moments. Pre-fix the per-hour cache used stale Moon
+        # sub-lord for up to 56 min into each hour.
+        # Slow planets (Mars/Jup/Sat/Mercury/Venus/Rahu/Ketu) move
+        # sub-arcsecond per 4 min — per-hour cache is fine. We refresh
+        # only Moon + Sun per slot via direct swe.calc_ut calls (much
+        # cheaper than a full get_planet_positions, which loops all 9
+        # bodies and re-runs nakshatra/sub-lord lookups).
         hr_key = current.strftime("%Y-%m-%d %H")
         if hr_key not in planet_cache:
             planet_cache[hr_key] = get_planet_positions(jd)
-        planets = planet_cache[hr_key]
+        # Shallow copy so per-slot Moon/Sun refresh doesn't mutate cache
+        planets = dict(planet_cache[hr_key])
+        try:
+            for _name, _id in (("Moon", swe.MOON), ("Sun", swe.SUN)):
+                _res, _ = swe.calc_ut(jd, _id, swe.FLG_SIDEREAL)
+                _lon = _res[0]
+                _nak = get_nakshatra_and_starlord(_lon)
+                planets[_name] = {
+                    "longitude": round(_lon, 4),
+                    "sign":      get_sign(_lon),
+                    "nakshatra": _nak["nakshatra"],
+                    "star_lord": _nak["star_lord"],
+                    "sub_lord":  get_sub_lord(_lon),
+                    "retrograde": False,  # Moon/Sun never retrograde
+                }
+        except Exception:
+            pass
 
         if day_key not in slot_cache:
             date_jd = swe.julday(current.year, current.month, current.day, 12.0 - day_event_tz)
