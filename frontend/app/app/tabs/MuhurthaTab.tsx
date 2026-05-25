@@ -803,6 +803,87 @@ export function MuhurthaTab(props: MuhurthaTabProps) {
                     <span>·</span>
                     <span>{allWindows.length} {t("windows", "సమయాలు")}</span>
                   </div>
+
+                  {/* ── PR Mu17 — Dual-tz display (IST + event-local)
+                      so an India-based astrologer with diaspora clients
+                      sees BOTH clocks side-by-side. evidence_payload
+                      already carries the event-local HH:MM; we compute
+                      IST manually from the same JD. */}
+                  {bestWindow.evidence_payload && (() => {
+                    const ev = bestWindow.evidence_payload;
+                    const isISTLocation = Math.abs((ev.day_event_tz || 0) - 5.5) < 0.01;
+                    if (isISTLocation) return null;  // skip when both are the same
+                    // Convert window's start JD → IST. The start_time is event-local;
+                    // we just label them appropriately.
+                    return (
+                      <div style={{
+                        marginTop: 12, padding: "8px 12px",
+                        background: "rgba(147,197,253,0.05)",
+                        border: "0.5px solid rgba(147,197,253,0.25)",
+                        borderRadius: 8,
+                        display: "flex", gap: 14, flexWrap: "wrap" as const,
+                        alignItems: "center", fontSize: 11, color: "var(--text)",
+                      }}>
+                        <span style={{ color: "#93c5fd", fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase" as const, fontWeight: 700 }}>
+                          {t("Dual time-zone", "రెండు సమయ మండలాలు")}
+                        </span>
+                        <span>
+                          <span style={{ color: "var(--muted)", fontSize: 10 }}>{t("Event local", "ఈవెంట్ స్థానిక")} </span>
+                          <strong>{bestWindow.start_time}</strong>
+                          <span style={{ color: "var(--muted)", fontSize: 10 }}> (UTC{ev.day_event_tz >= 0 ? "+" : ""}{ev.day_event_tz})</span>
+                        </span>
+                        <span style={{ color: "var(--muted)" }}>·</span>
+                        <span>
+                          <span style={{ color: "var(--muted)", fontSize: 10 }}>IST </span>
+                          {(() => {
+                            try {
+                              // start_time is "HH:MM" in event-local. Convert:
+                              //   local_clock + (5.5 - event_tz) = IST_clock
+                              const [h, m] = bestWindow.start_time.split(":").map(Number);
+                              const ist_minutes = h * 60 + m + (5.5 - (ev.day_event_tz || 0)) * 60;
+                              const day_offset = Math.floor(ist_minutes / 1440);
+                              const wrapped = ((ist_minutes % 1440) + 1440) % 1440;
+                              const ih = Math.floor(wrapped / 60), im = Math.floor(wrapped % 60);
+                              const tag = day_offset === 1 ? " (+1 day)" : day_offset === -1 ? " (-1 day)" : "";
+                              return <strong>{`${ih.toString().padStart(2, "0")}:${im.toString().padStart(2, "0")}${tag}`}</strong>;
+                            } catch { return null; }
+                          })()}
+                        </span>
+                      </div>
+                    );
+                  })()}
+
+                  {/* ── PR Mu17 — Same-day alternatives strip ──
+                      Backend Mu5 surfaced same_day_alternatives;
+                      render here as a chip row so the astrologer can
+                      pick by client logistics. Hidden when only 1
+                      alternative (= the best window itself). */}
+                  {Array.isArray(mResults.same_day_alternatives) && mResults.same_day_alternatives.length > 1 && (
+                    <div style={{ marginTop: 12 }}>
+                      <div style={{ fontSize: 9, color: "var(--muted)", letterSpacing: "0.12em", textTransform: "uppercase" as const, fontWeight: 600, marginBottom: 6 }}>
+                        {t("Other windows on this day", "ఈ రోజు ఇతర సమయాలు")}
+                      </div>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const }}>
+                        {mResults.same_day_alternatives.slice(1, 5).map((w: any, i: number) => (
+                          <div key={i} style={{
+                            padding: "5px 11px",
+                            background: "rgba(255,255,255,0.02)",
+                            border: "0.5px solid var(--border2)",
+                            borderRadius: 999,
+                            fontSize: 11,
+                            color: "var(--text)",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 8,
+                          }}>
+                            <strong>{w.start_time}–{w.end_time}</strong>
+                            <span style={{ color: qualityColor(w.quality), fontSize: 10, fontWeight: 600 }}>{w.score}</span>
+                            <span style={{ color: "var(--muted)", fontSize: 9 }}>{w.lagna} · {w.lagna_sublord}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
