@@ -1460,6 +1460,249 @@ def _supporting_cusps(chart: dict) -> dict:
     }
 
 
+def _detect_marriage_patterns(chart: dict, person_dict: dict | None = None) -> list[dict]:
+    """
+    PR M3 — Detect canonical KP marriage patterns from pattern_library.md
+    per partner. Pattern naming is what distinguishes a deep KSK reading
+    from a generic significator scan (RULE 19).
+
+    Patterns detected (per partner):
+      M1 — Venus + Jupiter joint period trigger (classical marriage karaka activation)
+      M2 — Saturn delay-not-denial (Saturn IS a marriage significator)
+      M3 — H7 in fixed sign + strong fruitful CSL (stable single marriage signal)
+      M5 — AD-lord = supporting-cusp-sub-lord (KSK PRIMARY timing trigger)
+
+    Cross-couple patterns are handled separately by _detect_couple_patterns().
+
+    Each pattern: {id, name, name_te, evidence, evidence_te, tone}
+    tone = "gold" for positive timing/structural patterns, "amber" for friction.
+    """
+    patterns: list[dict] = []
+    planets = chart["planets"]
+    cusp_lons = chart["cusp_lons"]
+    h7_csl = _get_cusp_sub_lord_sigs(7, chart)[0]
+    h7_csl_sigs = _planet_significations(h7_csl, planets, cusp_lons)
+    ruling_planets = chart.get("ruling_planets", set())
+    if not ruling_planets:
+        ruling_planets = _ruling_planets(chart)
+
+    # ── M1 — Venus + Jupiter classical marriage trigger ──────────
+    # Fires when EITHER Venus or Jupiter is a significator of {2,7,11}
+    # AND is in the current RP set (the moment is alive).
+    for karaka in ("Venus", "Jupiter"):
+        karaka_sigs = _planet_significations(karaka, planets, cusp_lons)
+        if karaka_sigs & {2, 7, 11} and karaka in ruling_planets:
+            houses_hit = sorted(karaka_sigs & {2, 7, 11})
+            patterns.append({
+                "id": "M1",
+                "name": f"Marriage Karaka Trigger — {karaka} active",
+                "name_te": f"వివాహ కారక సక్రియం — {karaka}",
+                "evidence": (
+                    f"{karaka} (classical marriage karaka) signifies H{houses_hit} "
+                    f"AND is currently in the Ruling Planet set. Per KSK Reader: "
+                    f"when the karaka is both significator AND ruling, its dasha/"
+                    f"bhukti is the prime marriage-firing window."
+                ),
+                "evidence_te": (
+                    f"{karaka} (వివాహ కారక) H{houses_hit} సూచిస్తుంది + ప్రస్తుత "
+                    f"నియమ గ్రహాలలో — KSK: కారక యొక్క దశ/భుక్తి బలమైన వివాహ సమయం."
+                ),
+                "tone": "gold",
+            })
+            break  # only fire one M1 per chart (don't double-count if both karakas qualify)
+
+    # ── M2 — Saturn delay-not-denial ─────────────────────────────
+    # When Saturn IS a significator of {2,7,11}, the classical "Saturn delays
+    # marriage" turns into "Saturn delivers marriage in its own time" (KSK).
+    saturn_sigs = _planet_significations("Saturn", planets, cusp_lons)
+    if saturn_sigs & {2, 7, 11}:
+        houses_hit = sorted(saturn_sigs & {2, 7, 11})
+        patterns.append({
+            "id": "M2",
+            "name": "Saturn Delay-not-Denial",
+            "name_te": "శని ఆలస్యం — తిరస్కరణ కాదు",
+            "evidence": (
+                f"Saturn signifies H{houses_hit} for marriage. Per KSK Reader: "
+                f"when Saturn is a marriage significator (not just transiting "
+                f"malefic), it DELAYS but DELIVERS — Saturn's dasha/bhukti is "
+                f"a real marriage window, just later than karaka-AD expectations."
+            ),
+            "evidence_te": (
+                f"శని H{houses_hit} సూచిస్తుంది — KSK: శని వివాహాన్ని ఆలస్యం "
+                f"చేస్తుంది కానీ తిరస్కరించదు. శని దశ నిజమైన వివాహ సమయం."
+            ),
+            "tone": "gold",
+        })
+
+    # ── M3 — H7 in fixed sign + strong fruitful CSL (stable single marriage) ──
+    # Per pattern_library.md M3: H7 in Fixed sign (Taurus/Leo/Scorpio/Aquarius)
+    # combined with H7 CSL signifying {2,7,11} = stable single marriage.
+    # H7 in Mutable (Gemini/Virgo/Sag/Pisces) is the multi-marriage signal (M5 below).
+    h7_lon = cusp_lons[6] % 360
+    h7_sign = get_sign(h7_lon)
+    FIXED = {"Taurus", "Leo", "Scorpio", "Aquarius"}
+    if h7_sign in FIXED and h7_csl_sigs & {2, 7, 11}:
+        patterns.append({
+            "id": "M3",
+            "name": f"H7 in Fixed Sign ({h7_sign}) + fruitful CSL — stable single marriage",
+            "name_te": f"H7 స్థిర రాశి ({h7_sign}) + ఫలప్రద CSL — స్థిర ఏకవివాహ సంకేతం",
+            "evidence": (
+                f"H7 cusp is in {h7_sign} (Fixed sign) + H7 CSL {h7_csl} "
+                f"signifies H{sorted(h7_csl_sigs & {2,7,11})}. Per KP doctrine, "
+                f"fixed-sign H7 with fruitful CSL indicates ONE stable marriage "
+                f"that endures (as distinct from dual-sign H7 = multi-marriage signal)."
+            ),
+            "evidence_te": (
+                f"H7 {h7_sign} (స్థిర) + H7 CSL {h7_csl} అనుకూలం — "
+                f"KP: ఒక స్థిర వివాహం దీర్ఘకాలికం."
+            ),
+            "tone": "gold",
+        })
+
+    # ── M5 — AD-lord = supporting-cusp-sub-lord (KSK PRIMARY timing trigger) ──
+    # KSK Reader marriage chapter: marriage fructifies in the joint period of
+    # significators of 2, 7, 11. When the AD lord IS the sub-lord of one of
+    # these cusps AND its chain signifies the other two, that AD is the
+    # primary trigger window — even if not Venus/Jupiter karaka AD.
+    # Avoids the Parashari karaka-bias of "wait for Venus AD".
+    if person_dict:
+        try:
+            from app.services.chart_engine import (
+                calculate_dashas, get_current_dasha,
+                calculate_antardashas, get_current_antardasha,
+            )
+            jd = chart.get("jd")
+            moon_lon = chart["planets"]["Moon"]["longitude"]
+            tz_off = person_dict.get("timezone_offset", 5.5)
+            dashas = calculate_dashas(person_dict["date"], person_dict["time"], moon_lon, tz_off)
+            current_md = get_current_dasha(dashas)
+            antardashas = calculate_antardashas(current_md)
+            # Get sub-lords of H2, H7, H11
+            h2_csl_planet = _get_cusp_sub_lord_sigs(2, chart)[0]
+            h7_csl_planet = _get_cusp_sub_lord_sigs(7, chart)[0]
+            h11_csl_planet = _get_cusp_sub_lord_sigs(11, chart)[0]
+            supporting_csl_planets = {h2_csl_planet, h7_csl_planet, h11_csl_planet}
+            # Find upcoming AD where AD lord = one of the supporting CSL planets
+            # AND that AD lord's chain signifies the OTHER two relevant cusps
+            for ad in antardashas:
+                ad_lord = ad.get("antardasha_lord")
+                if ad_lord in supporting_csl_planets:
+                    ad_sigs = _planet_significations(ad_lord, planets, cusp_lons)
+                    # Does AD lord's chain signify at least 2 of {2,7,11}?
+                    relevant_hits = ad_sigs & {2, 7, 11}
+                    if len(relevant_hits) >= 2:
+                        patterns.append({
+                            "id": "M5",
+                            "name": f"KSK Primary Timing — {ad_lord} AD is H{h2_csl_planet == ad_lord and 2 or (h7_csl_planet == ad_lord and 7 or 11)} CSL + signifies {{{','.join(str(h) for h in sorted(relevant_hits))}}}",
+                            "name_te": f"KSK ప్రాథమిక సమయం — {ad_lord} AD",
+                            "evidence": (
+                                f"Upcoming AD lord {ad_lord} ({ad.get('start')} → "
+                                f"{ad.get('end')}) IS the sub-lord of a marriage-"
+                                f"relevant cusp AND its chain signifies H{sorted(relevant_hits)}. "
+                                f"Per KSK Reader marriage chapter, this is the PRIMARY "
+                                f"marriage-trigger AD — even if not Venus/Jupiter karaka. "
+                                f"Avoids Parashari karaka-bias."
+                            ),
+                            "evidence_te": (
+                                f"రాబోయే AD అధిపతి {ad_lord} వివాహ-సంబంధ భావ సబ్ లార్డ్ "
+                                f"+ గొలుసు H{sorted(relevant_hits)} సూచిస్తుంది — KSK "
+                                f"ప్రాథమిక వివాహ ట్రిగ్గర్ AD."
+                            ),
+                            "tone": "gold",
+                        })
+                        break  # only flag the EARLIEST upcoming KSK-primary AD
+        except Exception:
+            pass  # don't break engine if dasha compute fails
+
+    return patterns
+
+
+def _detect_couple_patterns(
+    chart1: dict, chart2: dict, kp: dict,
+    dba1: dict | None = None, dba2: dict | None = None,
+) -> list[dict]:
+    """
+    PR M3 — Cross-couple patterns (apply to both charts simultaneously).
+
+    Patterns:
+      T1 — Joint Period (per-couple): MD+AD lords of BOTH partners
+           signify marriage houses {2,7,11} simultaneously. Strongest
+           couple-wide YES signal.
+      T2 — RP Amplifier (cross-chart): canonical cross-match active per KSK
+           Reader IV — partner's RPs signify marriage houses in your chart.
+    """
+    patterns: list[dict] = []
+
+    # T1 — Joint Period (couple-wide)
+    # Use the pre-computed DBA significations (more reliable than
+    # re-computing). dba already has md_signifies / ad_signifies.
+    if dba1 and dba2:
+        p1_md_hits = set(dba1.get("md_signifies", [])) & {2, 7, 11}
+        p2_md_hits = set(dba2.get("md_signifies", [])) & {2, 7, 11}
+        p1_ad_hits = set(dba1.get("ad_signifies", [])) & {2, 7, 11}
+        p2_ad_hits = set(dba2.get("ad_signifies", [])) & {2, 7, 11}
+        both_md_align = bool(p1_md_hits and p2_md_hits)
+        both_ad_align = bool(p1_ad_hits and p2_ad_hits)
+        if both_md_align and both_ad_align:
+            patterns.append({
+                "id": "T1",
+                "name": "Joint Period — both partners' MD+AD signify marriage houses",
+                "name_te": "ఉమ్మడి కాలం — ఇద్దరి MD+AD వివాహ భావాలను సూచిస్తాయి",
+                "evidence": (
+                    f"Person 1 MD {dba1.get('md_lord')}+AD {dba1.get('ad_lord')} "
+                    f"signify H{sorted(p1_md_hits | p1_ad_hits)} | "
+                    f"Person 2 MD {dba2.get('md_lord')}+AD {dba2.get('ad_lord')} "
+                    f"signify H{sorted(p2_md_hits | p2_ad_hits)}. "
+                    f"Per KSK Reader V: events fire only at joint periods. Both "
+                    f"partners' current dashas aligning on marriage houses is the "
+                    f"strongest couple-wide YES signal."
+                ),
+                "evidence_te": (
+                    f"P1 MD+AD ({dba1.get('md_lord')}+{dba1.get('ad_lord')}), "
+                    f"P2 MD+AD ({dba2.get('md_lord')}+{dba2.get('ad_lord')}) "
+                    f"ఇద్దరూ వివాహ భావాలను సూచిస్తాయి — బలమైన YES."
+                ),
+                "tone": "gold",
+            })
+        elif both_md_align:
+            patterns.append({
+                "id": "T1",
+                "name": "Joint Period (partial) — both partners' MD signifies marriage houses",
+                "name_te": "ఉమ్మడి కాలం (పాక్షికం) — ఇద్దరి MD వివాహ భావాలను సూచిస్తాయి",
+                "evidence": (
+                    f"Both MDs align on marriage houses (P1 {dba1.get('md_lord')}, "
+                    f"P2 {dba2.get('md_lord')}) but AD layer not yet converged. "
+                    f"Couple is in the right MD-era; waiting for the right AD pair."
+                ),
+                "evidence_te": (
+                    f"ఇద్దరి MD వివాహ-అనుకూలం (P1 {dba1.get('md_lord')}, "
+                    f"P2 {dba2.get('md_lord')}); సరైన AD జంట కోసం వేచి ఉండండి."
+                ),
+                "tone": "gold",
+            })
+
+    # T2 — RP Amplifier (per canonical cross-match)
+    ccm = kp.get("canonical_cross_match", {})
+    if ccm.get("a_side_canonical_match") or ccm.get("b_side_canonical_match"):
+        patterns.append({
+            "id": "T2",
+            "name": "RP Amplifier — canonical cross-match active",
+            "name_te": "RP వర్ధకం — క్యానానికల్ క్రాస్-మ్యాచ్",
+            "evidence": (
+                "Each partner's H7/H2/H11 CSLs signify {2,7,11} AND partner's "
+                "Ruling Planets also signify {2,7,11} in the other's chart. Per KSK "
+                "Reader: RP-confirmed significators carry 2-3× timing weight."
+            ),
+            "evidence_te": (
+                "ప్రతి భాగస్వామి H7/H2/H11 CSL {2,7,11} సూచిస్తుంది + భాగస్వామి "
+                "RPs ఇతరి చార్ట్‌లో {2,7,11} సూచిస్తాయి — KSK బలమైన సమయ సంకేతం."
+            ),
+            "tone": "gold",
+        })
+
+    return patterns
+
+
 def _compute_multi_cusp_tier(chart: dict) -> dict:
     """
     PR M2 — Multi-cusp confirmation TIER 0/1/2/3/-1 per partner.
@@ -3399,6 +3642,15 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
     multi_cusp_tier_p1 = _compute_multi_cusp_tier(chart1)
     multi_cusp_tier_p2 = _compute_multi_cusp_tier(chart2)
 
+    # PR M3 — Pattern detection per partner (M1/M2/M3/M5) + cross-couple
+    # (T1/T2). Pattern naming is what distinguishes a deep KSK reading
+    # from a generic significator scan (RULE 19).
+    patterns_p1 = _detect_marriage_patterns(chart1, person_dict=person1)
+    patterns_p2 = _detect_marriage_patterns(chart2, person_dict=person2)
+    patterns_couple = _detect_couple_patterns(
+        chart1, chart2, kp, dba1=dba_chart1, dba2=dba_chart2,
+    )
+
     # Kuja dosha mutual cancellation — PR A1.4 SOFTENED.
     # Pre-A1.4: zeroed both doshas entirely. Per AstroSight + Nidhi Trivedi,
     # canonical behavior is "energies balance, severity reduced" — not
@@ -3632,6 +3884,10 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
         # PR M2 — multi-cusp TIER 0/1/2/3/-1 per partner
         "multi_cusp_tier_chart1": multi_cusp_tier_p1,
         "multi_cusp_tier_chart2": multi_cusp_tier_p2,
+        # PR M3 — Pattern detection per partner + cross-couple
+        "patterns_chart1": patterns_p1,
+        "patterns_chart2": patterns_p2,
+        "patterns_couple": patterns_couple,
         "summary": {
             "kp_verdict": kp["kp_verdict"],
             "ashtakoota_score": f"{ashtakoota['total_score']}/{ashtakoota['max_score']}",

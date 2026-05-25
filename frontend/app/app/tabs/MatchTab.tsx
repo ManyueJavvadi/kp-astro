@@ -42,6 +42,7 @@ import RasiChart from "../components/RasiChart";
 const SouthIndianChart = RasiChart;
 import HousePanel from "../components/HousePanel";
 import PlanetList from "../components/workspace/PlanetList";
+import MatchPatternChips from "../components/MatchPatternChips";  // PR M3
 import type { ChartSession } from "../types";
 
 // Verbose prop bag — match flow has many cross-cutting state slots.
@@ -556,6 +557,17 @@ export function MatchTab(props: MatchTabProps) {
                 <div style={{ fontSize: 10, color: "var(--muted)", maxWidth: 68, textAlign: "center" as const, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{r.person2?.name}</div>
               </div>
             </div>
+
+            {/* PR M3 — Canonical KP pattern chips (M1/M2/M3/M5 per partner +
+                T1/T2 couple-wide). Pattern naming distinguishes a deep KSK
+                reading from a generic significator scan (RULE 19). */}
+            <MatchPatternChips
+              patternsP1={r.patterns_chart1}
+              patternsP2={r.patterns_chart2}
+              patternsCouple={r.patterns_couple}
+              p1Name={r.person1?.name}
+              p2Name={r.person2?.name}
+            />
 
             {/* Sub-tab bar — breaks the big result wall into scannable
                 sections. Same pill pattern as Houses sub-tabs. */}
