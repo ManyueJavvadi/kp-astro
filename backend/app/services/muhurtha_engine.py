@@ -749,10 +749,19 @@ def _scan_date_range(
             base_score -= 40
 
         vara = current.weekday()
-        if vara in GOOD_VARA:
-            base_score += 10
-        elif vara in BAD_VARA:
-            base_score -= 15
+        # PR Mu0c — vara scoring is now per-event-aware. If this event has
+        # a per-event preferred/avoided weekday table (EVENT_PREFERRED_VARAS),
+        # we DO NOT apply the global GOOD_VARA / BAD_VARA score here —
+        # the per-event block (below) is authoritative and applies the +10
+        # bonus / -15 penalty directly. This avoids the rollback dance that
+        # was needed when both were applied, and (correctly) lets surgery
+        # on Tuesday score positively (Mars day favours surgery) without
+        # the global BAD_VARA{Tue,Sat} penalty fighting the per-event bonus.
+        if event_type not in EVENT_PREFERRED_VARAS:
+            if vara in GOOD_VARA:
+                base_score += 10
+            elif vara in BAD_VARA:
+                base_score -= 15
 
         # ── PR A2.2c — per-participant evaluation ─────────────────
         # For each participant (not just primary), compute classical
@@ -952,16 +961,12 @@ def _scan_date_range(
             elif nak_class in avoid_nak_classes:
                 nak_bonus = -15
 
-        # Per-event weekday table (§3.4 KB — replaces global GOOD_VARA)
+        # Per-event weekday table (§3.4 KB — authoritative when present).
+        # PR Mu0c — the global GOOD_VARA / BAD_VARA block above is gated
+        # on event_type NOT having a per-event table, so no rollback is
+        # needed here. We just apply the per-event bonus / penalty directly.
         preferred_varas = EVENT_PREFERRED_VARAS.get(event_type, set())
         avoid_varas = EVENT_AVOID_VARAS.get(event_type, set())
-        # Rollback the global vara score applied earlier (lines above
-        # added +10 for GOOD_VARA / -15 for BAD_VARA — undo that here
-        # and re-apply per-event score instead).
-        if vara in GOOD_VARA:
-            base_score -= 10
-        elif vara in BAD_VARA:
-            base_score += 15
         per_event_vara_bonus = 0
         if vara in preferred_varas:
             per_event_vara_bonus = 10
