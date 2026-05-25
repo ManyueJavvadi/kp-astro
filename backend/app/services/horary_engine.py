@@ -961,10 +961,16 @@ def _compute_clinical_flags(
             "tone": "green",
             "code": "lagna_csl_fruitful",
             "label": f"Lagna CSL {lagna_sub} is fruitful",
+            "label_te": f"లగ్న CSL {lagna_sub} ఫలప్రదం",
             "detail": (
                 f"The Lagna sub-lord {lagna_sub} signifies favorable houses "
                 f"{lagna_yes_hits} — the question itself carries real potential. "
                 f"A barren Lagna CSL would have stopped the analysis at Layer 1."
+            ),
+            "detail_te": (
+                f"లగ్న సబ్‌లార్డ్ {lagna_sub} అనుకూల భావాలను సూచిస్తుంది "
+                f"{lagna_yes_hits} — ప్రశ్నలో నిజమైన శక్తి ఉంది. "
+                f"నిష్ఫల లగ్న CSL ఉండి ఉంటే విశ్లేషణ Layer 1లోనే ఆగిపోయేది."
             ),
         })
 
@@ -979,6 +985,7 @@ def _compute_clinical_flags(
             "tone": "yellow",
             "code": "lagna_csl_self_obstruction",
             "label": f"Lagna CSL also signifies denial house{'s' if len(lagna_denial) > 1 else ''} H{', H'.join(str(h) for h in lagna_denial)}",
+            "label_te": f"లగ్న CSL నిరాకరణ భావాలను కూడా సూచిస్తుంది H{', H'.join(str(h) for h in lagna_denial)}",
             "detail": (
                 f"{lagna_sub} (Lagna CSL) signifies the topic's denial house"
                 f"{'s' if len(lagna_denial) > 1 else ''} "
@@ -986,6 +993,11 @@ def _compute_clinical_flags(
                 f"obstruction — the querent's own mindset or context pulls "
                 f"against the matter even when other factors align. Denial "
                 f"houses for this topic: H{', H'.join(str(h) for h in sorted(no_houses))}."
+            ),
+            "detail_te": (
+                f"{lagna_sub} (లగ్న CSL) టాపిక్‌ నిరాకరణ భావాలను సూచిస్తుంది {lagna_denial}. "
+                f"క్లాసికల్ KP దీన్ని సూక్ష్మ అడ్డంకిగా చూస్తుంది — ఇతర కారకాలు సరిగ్గా "
+                f"ఉన్నా ప్రశ్నికుని మనస్తత్వం/సందర్భం వ్యతిరేకంగా లాగుతుంది."
             ),
         })
 
@@ -1000,11 +1012,17 @@ def _compute_clinical_flags(
             "tone": "yellow",
             "code": "primary_house_empty",
             "label": f"H{primary_house} is empty — weak direct promise",
+            "label_te": f"H{primary_house} ఖాళీగా ఉంది — బలహీన ప్రత్యక్ష వాగ్దానం",
             "detail": (
                 f"No planet occupies H{primary_house} (the topic's primary house). "
                 f"Classical KP: an empty primary house means the matter has to "
                 f"manifest through indirect significators (L3/L4) rather than direct "
                 f"occupancy — typically slower, less certain, and more conditional."
+            ),
+            "detail_te": (
+                f"ప్రాథమిక భావం H{primary_house}లో ఏ గ్రహమూ లేదు. క్లాసికల్ KP: "
+                f"విషయం పరోక్ష సూచకుల ద్వారా (L3/L4) వ్యక్తం కావాలి — సాధారణంగా "
+                f"నెమ్మదిగా, తక్కువ నిశ్చితంగా, మరింత షరతుబద్ధంగా."
             ),
         })
     else:
@@ -1012,11 +1030,16 @@ def _compute_clinical_flags(
             "tone": "green",
             "code": "primary_house_occupied",
             "label": f"H{primary_house} occupied by {', '.join(primary_occupants)}",
+            "label_te": f"H{primary_house}లో {', '.join(primary_occupants)} ఉన్నారు",
             "detail": (
                 f"Direct occupancy of the primary house is the strongest form of "
                 f"significator placement in KP (Level 2). "
                 f"{', '.join(primary_occupants)} occup{'ies' if len(primary_occupants) == 1 else 'y'} H{primary_house} — "
                 f"a solid foundation for manifestation."
+            ),
+            "detail_te": (
+                f"ప్రాథమిక భావంలో ప్రత్యక్ష స్థానం KPలో సూచక స్థానం యొక్క బలమైన రూపం (Level 2). "
+                f"{', '.join(primary_occupants)} H{primary_house}లో — వ్యక్తీకరణకు ధృఢమైన పునాది."
             ),
         })
 
@@ -1031,11 +1054,17 @@ def _compute_clinical_flags(
             "tone": "yellow",
             "code": "sigs_lack_rp_support",
             "label": f"H{primary_house} significators carry no RP support",
+            "label_te": f"H{primary_house} సూచకులకు RP మద్దతు లేదు",
             "detail": (
                 f"H{primary_house} is signified by {names}, but NONE of them appear in "
                 f"the current Ruling Planets. KSK: a significator that isn't also a "
                 f"Ruling Planet at the query moment tends to produce weak or "
                 f"delayed results — the timing window hasn't arrived yet."
+            ),
+            "detail_te": (
+                f"H{primary_house} సూచకులు {names}, కానీ ఇప్పటి నియమ గ్రహాలలో ఎవరూ లేరు. "
+                f"KSK: ప్రశ్న సమయంలో నియమ గ్రహం కాని సూచకుడు బలహీన లేదా ఆలస్యమైన ఫలితాలు "
+                f"ఇస్తుంది — సమయ విండో ఇంకా రాలేదు."
             ),
         })
     elif sigs_with_rp:
@@ -1044,10 +1073,15 @@ def _compute_clinical_flags(
             "tone": "green",
             "code": "sigs_with_rp_support",
             "label": f"H{primary_house} has RP-backed significators: {rp_names}",
+            "label_te": f"H{primary_house} RP-మద్దతు సూచకులు: {rp_names}",
             "detail": (
                 f"{rp_names} both signify H{primary_house} AND appear in the "
                 f"current Ruling Planets — the strongest possible timing signal. "
                 f"Expect results during the dasha/bhukti of these planets."
+            ),
+            "detail_te": (
+                f"{rp_names} H{primary_house}ని సూచిస్తాయి + ప్రస్తుత నియమ గ్రహాలలో ఉన్నాయి — "
+                f"బలమైన సమయ సంకేతం. ఈ గ్రహాల దశ/భుక్తి సమయంలో ఫలితాలు ఆశించండి."
             ),
         })
 
@@ -1058,11 +1092,17 @@ def _compute_clinical_flags(
             "tone": "green",
             "code": "csl_is_rp",
             "label": f"Primary-house CSL {query_csl} is an RP ({freq}/7 slots)",
+            "label_te": f"ప్రాథమిక CSL {query_csl} నియమ గ్రహం ({freq}/7 స్థానాలు)",
             "detail": (
                 f"The Layer-2 gate ({query_csl}, CSL of H{primary_house}) is "
                 f"simultaneously a Ruling Planet filling {freq} of 7 slots. This is "
                 f"the canonical confirmation signal — KP's highest-confidence "
                 f"\"yes the moment is ripe\" indicator."
+            ),
+            "detail_te": (
+                f"Layer-2 ద్వారం ({query_csl}, H{primary_house}కు CSL) ఏకకాలంలో నియమ గ్రహం, "
+                f"7 స్థానాలలో {freq} నింపుతోంది. ఇది క్లాసికల్ నిర్ధారణ సంకేతం — "
+                f"KP అత్యధిక-విశ్వాస 'క్షణం పక్వం' సూచిక."
             ),
         })
 
@@ -1075,9 +1115,14 @@ def _compute_clinical_flags(
             "tone": "green",
             "code": "csl_clean_positive",
             "label": f"H{primary_house} CSL signifies only favorable houses {csl_yes}",
+            "label_te": f"H{primary_house} CSL కేవలం అనుకూల భావాలను సూచిస్తుంది {csl_yes}",
             "detail": (
                 f"{query_csl}'s significations overlap ONLY the yes-set — no "
                 f"contamination from denial houses. Classical KP clean YES signal."
+            ),
+            "detail_te": (
+                f"{query_csl} సూచనలు కేవలం yes-సెట్‌తో మాత్రమే — నిరాకరణ భావాలతో "
+                f"కలుషితం లేదు. క్లాసికల్ KP స్వచ్ఛమైన YES సంకేతం."
             ),
         })
     elif csl_yes and csl_no:
@@ -1085,10 +1130,15 @@ def _compute_clinical_flags(
             "tone": "yellow",
             "code": "csl_mixed",
             "label": f"H{primary_house} CSL signifies yes {csl_yes} AND no {csl_no}",
+            "label_te": f"H{primary_house} CSL yes {csl_yes} మరియు no {csl_no} సూచిస్తుంది",
             "detail": (
                 f"{query_csl} signifies both sides of the topic. The yes-houses "
                 f"provide potential; the no-houses provide conditions/obstacles. "
                 f"Exactly the CONDITIONAL verdict pattern."
+            ),
+            "detail_te": (
+                f"{query_csl} టాపిక్ రెండు వైపులా సూచిస్తుంది. yes-భావాలు అవకాశం ఇస్తాయి; "
+                f"no-భావాలు షరతులు/అడ్డంకులు ఇస్తాయి. ఇది CONDITIONAL తీర్పు నమూనా."
             ),
         })
     elif csl_no and not csl_yes:
@@ -1096,9 +1146,14 @@ def _compute_clinical_flags(
             "tone": "red",
             "code": "csl_clean_negative",
             "label": f"H{primary_house} CSL signifies only denial houses {csl_no}",
+            "label_te": f"H{primary_house} CSL కేవలం నిరాకరణ భావాలను సూచిస్తుంది {csl_no}",
             "detail": (
                 f"{query_csl} touches only the no-set — classical NO signal, "
                 f"independent of the Lagna or RP support."
+            ),
+            "detail_te": (
+                f"{query_csl} కేవలం no-సెట్‌ను తాకుతుంది — క్లాసికల్ NO సంకేతం, "
+                f"లగ్న లేదా RP మద్దతుతో సంబంధం లేకుండా."
             ),
         })
 
@@ -1205,10 +1260,16 @@ def _compute_clinical_flags(
             "tone": "green",
             "code": "strongest_rp_supports_topic",
             "label": f"Strongest RP{'s' if len(strong_topic_support) > 1 else ''} {names} signify the topic",
+            "label_te": f"బలమైన RP {names} టాపిక్‌ను సూచిస్తాయి",
             "detail": (
                 f"{names} fill 2+ slots of the current RP set AND signify favorable "
                 f"houses. KSK's timing priority: dasha/bhukti of these planets "
                 f"deliver results with the highest probability."
+            ),
+            "detail_te": (
+                f"{names} ప్రస్తుత RP సెట్‌లో 2+ స్థానాలను నింపుతాయి + అనుకూల భావాలను "
+                f"సూచిస్తాయి. KSK సమయ ప్రాధాన్యం: ఈ గ్రహాల దశ/భుక్తి అత్యధిక "
+                f"సంభావ్యతతో ఫలితాలను ఇస్తాయి."
             ),
         })
 
