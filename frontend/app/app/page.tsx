@@ -106,6 +106,38 @@ export default function Home() {
   const [workspaceData, setWorkspaceData] = useState<any>(null);
   const [rectifying, setRectifying] = useState(false);
 
+  // PR R3-PR1 — Single source of truth for "the chart state changed,
+  // throw away every downstream tab's cached result". Called by
+  // TIME SHIFT chips + Edit Chart modal save. Without this, Match /
+  // Muhurtha / Horary kept rendering stale verdicts from the pre-edit
+  // birth time, while Chart / Houses / Dasha / Panchang correctly
+  // recomputed — silently inconsistent across the app.
+  const invalidateDownstreamResults = (reason: string) => {
+    // Match
+    setMatchResults(null);
+    setMatchAnalysisMessages([]);
+    setMatchSubTab("overall");
+    setMatchHouseShared(null);
+    setMatchShowAI(false);
+    setMatchChatQ("");
+    // Muhurtha
+    setMResults(null);
+    setMExpandedWindow(null);
+    setMSelectedDate(null);
+    setMAiMessages([]);
+    setMAiQuestion("");
+    // Horary
+    setHoraryResult(null);
+    setHoraryQuestion("");
+    // Best-effort toast (silent if toast helper unavailable in this scope)
+    try {
+      setToast({
+        msg: `Chart changed (${reason}) — Match / Muhurtha / Horary results cleared. Re-compute when ready.`,
+        tone: "info",
+      });
+    } catch { /* ignore */ }
+  };
+
   const handleTimeShift = async (minutesDelta: number) => {
     if (!birthDetails.time || rectifying) return;
     setRectifying(true);
@@ -158,6 +190,12 @@ export default function Home() {
       });
       
       setWorkspaceData(res.data);
+      // PR R3-PR1 — invalidate downstream Match / Muhurtha / Horary
+      // results since the underlying chart moment just shifted. Without
+      // this clear, those tabs would still show the verdict from the
+      // pre-shift moment while Chart / Houses / Dasha / Panchang
+      // correctly updated — silently inconsistent.
+      invalidateDownstreamResults(`time shift ${minutesDelta > 0 ? "+" : ""}${minutesDelta} min`);
       setToast({ msg: `Time shifted by ${minutesDelta > 0 ? "+" : ""}${minutesDelta} min. Calculations updated!`, tone: "info" });
     } catch (err) {
       setToast({ msg: "Time travel calculation failed. Please try again.", tone: "error" });
@@ -1361,6 +1399,11 @@ export default function Home() {
           })
         );
         setIsEditingChart(false);
+        // PR R3-PR1 — chart edit just changed the birth moment. Throw
+        // out every downstream tab's cached result so the astrologer
+        // sees a clean state and knows to re-compute Match / Muhurtha /
+        // Horary with the corrected details.
+        invalidateDownstreamResults("birth details edited");
       } else {
         setCurrentSessionId(Date.now().toString());
         setActiveTab("chart");
@@ -1381,6 +1424,11 @@ export default function Home() {
     const snap = snapshotCurrentSession();
     setCurrentSessionId(target.id);
     setBirthDetails(target.birthDetails);
+    // PR R3-PR1 — switching to a different saved chart means every
+    // downstream tab (Match / Muhurtha / Horary) is now showing data
+    // computed for the PREVIOUS chart. Throw it all out so the
+    // astrologer doesn't read a verdict from the wrong person.
+    invalidateDownstreamResults(`switched to ${target.name || "another chart"}`);
     
     let wsData = target.workspaceData;
     if (!wsData) {
