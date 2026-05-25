@@ -51,6 +51,8 @@ from app.services.muhurtha_findings import (
     EVENT_AVOID_NAK_CLASSES,
     EVENT_PREFERRED_VARAS,
     EVENT_AVOID_VARAS,
+    EVENT_PREFERRED_HORAS,   # PR Mu11
+    EVENT_AVOID_HORAS,       # PR Mu11
     EVENT_PREFERRED_LAGNA_TYPE,
     EVENT_PRACTICAL_HOURS,
     RIKTA_NANDA_AVOID_TITHIS,
@@ -1757,12 +1759,30 @@ def _scan_date_range(
         base_score += participant_soft_total
 
         # ── Hora lord scoring ──────────────────────────────────────
+        # PR Mu11 — per-event hora preference. If the event has a
+        # per-event preferred/avoided table, use it; otherwise fall
+        # back to the global AUSPICIOUS_HORA / INAUSPICIOUS_HORA rule.
+        # This fixes: surgery (medical) on Mars hora is now favoured,
+        # court on Saturn hora is favoured; both were being penalised
+        # by the old universal rule.
         hora_lord = _get_hora_lord(jd, sunrise_jd, sunset_jd, vara)
-        hora_auspicious = hora_lord in AUSPICIOUS_HORA
-        if hora_auspicious:
-            base_score += 10
-        elif hora_lord in INAUSPICIOUS_HORA:
-            base_score -= 10
+        evt_pref_horas = EVENT_PREFERRED_HORAS.get(event_type)
+        evt_avoid_horas = EVENT_AVOID_HORAS.get(event_type)
+        if evt_pref_horas is not None:
+            if hora_lord in evt_pref_horas:
+                hora_auspicious = True
+                base_score += 10
+            elif hora_lord in (evt_avoid_horas or set()):
+                hora_auspicious = False
+                base_score -= 10
+            else:
+                hora_auspicious = False
+        else:
+            hora_auspicious = hora_lord in AUSPICIOUS_HORA
+            if hora_auspicious:
+                base_score += 10
+            elif hora_lord in INAUSPICIOUS_HORA:
+                base_score -= 10
 
         # ── Retrograde lagna lord ──────────────────────────────────
         lagna_sign = get_sign(lagna_lon)

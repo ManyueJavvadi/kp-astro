@@ -1174,6 +1174,46 @@ def test_mu10_mu10_doshas_field_present():
             assert k in m
 
 
+def test_mu11_per_event_hora_table_present_and_correct():
+    """Mu11 lookup table sanity: surgery (medical) prefers Mars,
+    legal prefers Mars/Saturn — the audit's headline correction
+    against the universal "Mars/Saturn = bad" rule."""
+    from app.services.muhurtha_findings import EVENT_PREFERRED_HORAS
+    assert "Mars" in EVENT_PREFERRED_HORAS["medical"], (
+        "Surgery / medical event must prefer Mars hora — audit Mu11 finding"
+    )
+    assert "Mars" in EVENT_PREFERRED_HORAS["legal"]
+    assert "Saturn" in EVENT_PREFERRED_HORAS["legal"]
+
+
+def test_mu11_marriage_avoids_mars_hora():
+    """Marriage event still avoids Mars/Saturn/Sun hora — per-event
+    table preserves the classical rule for shubh events."""
+    from app.services.muhurtha_findings import EVENT_AVOID_HORAS
+    assert "Mars" in EVENT_AVOID_HORAS["marriage"]
+    assert "Saturn" in EVENT_AVOID_HORAS["marriage"]
+
+
+def test_mu11_per_event_hora_scoring_overrides_global():
+    """If we search for a medical muhurtha and find a window in Mars
+    hora, the hora_auspicious flag must be True (positive). Under the
+    old universal rule it would have been False."""
+    # Search wide enough to catch a Mars hora window for medical
+    r = find_muhurtha_windows(
+        date_start="2026-05-01", date_end="2026-05-03",
+        event_type="medical", **TENALI,
+        nearby_days=0, participants=[],
+    )
+    all_w = (r.get("windows") or []) + (r.get("soft_flagged_windows") or [])
+    mars_hora_medical = [w for w in all_w if w.get("hora_lord") == "Mars"]
+    if mars_hora_medical:
+        for w in mars_hora_medical:
+            assert w.get("hora_auspicious") is True, (
+                f"Mars hora for medical event must score auspicious; got "
+                f"hora_auspicious={w.get('hora_auspicious')}"
+            )
+
+
 def test_mu0g_antardasha_cache_is_used():
     """_AD_CACHE accumulates entries as scans run; we verify by clearing
     it, running a small scan with a participant, and asserting at least

@@ -139,6 +139,41 @@ EVENT_PREFERRED_LAGNA_TYPE = {
     "general":       ["Fixed", "Dual"],
 }
 
+# PR Mu11 — Per-event hora preferences. Pre-Mu11 the engine used a
+# universal "Jupiter / Venus / Mercury good; Sun / Saturn / Mars bad"
+# table, which mis-scored surgery (Mars is PREFERRED for surgery) and
+# legal events (Saturn for victory, Mars for assertion). The per-event
+# table below replaces the global rule when present; events not listed
+# fall back to the global AUSPICIOUS_HORA / INAUSPICIOUS_HORA.
+EVENT_PREFERRED_HORAS = {
+    "marriage":      {"Venus", "Jupiter"},
+    "engagement":    {"Venus", "Jupiter"},
+    "house_warming": {"Jupiter", "Venus"},
+    "business":      {"Mercury", "Jupiter"},
+    "education":     {"Mercury", "Jupiter"},
+    "travel":        {"Mercury", "Moon"},
+    "vehicle":       {"Moon", "Mercury"},
+    "investment":    {"Mercury", "Jupiter"},
+    # Mars and Saturn are PREFERRED for surgery / legal — opposite of
+    # the universal "malefic" rule. Audit explicitly called this out.
+    "medical":       {"Mars", "Jupiter"},      # surgery favours Mars
+    "legal":         {"Mars", "Saturn"},
+    "general":       {"Jupiter", "Venus", "Mercury"},
+}
+EVENT_AVOID_HORAS = {
+    "marriage":      {"Mars", "Saturn", "Sun"},
+    "engagement":    {"Mars", "Saturn"},
+    "house_warming": {"Mars", "Saturn"},
+    "business":      {"Sun"},                  # ego-driven, slows ventures
+    "education":     {"Saturn"},               # slows learning
+    "travel":        {"Saturn"},               # delays
+    "vehicle":       {"Mars", "Saturn"},
+    "investment":    {"Sun"},
+    "medical":       set(),                    # surgery accepts most horas
+    "legal":         {"Mercury"},              # slippery for legal
+    "general":       {"Sun", "Saturn", "Mars"},
+}
+
 # Tithi groups (KB §3.1)
 AUSPICIOUS_TITHIS = {2, 3, 5, 7, 10, 11, 13}
 RIKTA_NANDA_AVOID_TITHIS = {4, 9, 14}            # Rikta classical avoid
