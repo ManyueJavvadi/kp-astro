@@ -454,14 +454,27 @@ def _evaluate_participant(
     target_date_str: str = None,
     moment_rps: set = None,         # PR Mu3 — the moment's 5 KP RPs
     natal_event_sigs: set = None,   # PR Mu3 — planets that signify event in natal
+    is_primary: bool = True,        # PR Mu4 — primary participant flag
 ) -> dict:
     """Compute per-participant findings for a single candidate moment.
 
     KB §8.1 hard filters: Chandrashtamam, Janma Tara.
     KB §8.2 soft signals: Tarabala class, Chandrabala.
 
-    Returns a dict the scan loop aggregates into the window's
-    per_participant list and hard_rejected_for list.
+    PR Mu4 — primary-participant semantics. Per web research +
+    classical KP convention (Drik vivaha rule, Kanak Bosmia KPDP):
+      • Chandrashtamam / Janma Tara hard-reject ONLY for the primary
+        participant. For secondaries these are recorded as
+        `soft_concerns` (not in hard_rejected_for).
+      • Badhakesh / Marakesh DBA same treatment.
+      • Tarabala + Chandrabala are SUBSTITUTABLE per partner — if one
+        is good the other can be soft-noted, not hard-failed. The
+        aggregation across all partners happens in
+        _aggregate_participant_evaluations (called by the scan loop).
+
+    Returns a dict with hard_rejected_for (only for primary's hard
+    flags), soft_concerns (for secondaries' would-be hard flags),
+    and raw signals for the aggregator to consume.
     """
     birth_nak_idx = natal_moon.get("moon_nakshatra_idx", 0)
     birth_sign_idx = natal_moon.get("moon_sign_idx", 0)
@@ -482,11 +495,17 @@ def _evaluate_participant(
     else:
         soft -= 6
 
-    hard_rejected_for = []
+    # PR Mu4 — primary vs secondary handling. Primary's hard flags go
+    # into hard_rejected_for (drop the window from passed tier);
+    # secondaries' hard flags go into soft_concerns (window can still
+    # pass, but the astrologer sees the caveat).
+    hard_rejected_for: list = []
+    soft_concerns: list = []
+    bucket = hard_rejected_for if is_primary else soft_concerns
     if chandrashtamam:
-        hard_rejected_for.append(f"{name}: Chandrashtamam")
+        bucket.append(f"{name}: Chandrashtamam")
     if janma_tara:
-        hard_rejected_for.append(f"{name}: Janma Tara")
+        bucket.append(f"{name}: Janma Tara")
 
     # ── PR A2.2c.2: Current DBA + Badhakesh/Marakesh check ──
     # Classical KP rule (KB §8.1): auspicious events must NOT start
@@ -507,14 +526,14 @@ def _evaluate_participant(
             if badhakesh and badhakesh in active_dba_lords:
                 badhakesh_active = True
                 which = "MD" if current_md == badhakesh else "AD"
-                hard_rejected_for.append(
+                bucket.append(
                     f"{name}: Badhakesh {badhakesh} active ({which})"
                 )
             if marakesh_set & active_dba_lords:
                 marakesh_active = True
                 hit = next(iter(marakesh_set & active_dba_lords))
                 which = "MD" if current_md == hit else "AD"
-                hard_rejected_for.append(
+                bucket.append(
                     f"{name}: Marakesh {hit} active ({which})"
                 )
 
@@ -531,6 +550,7 @@ def _evaluate_participant(
 
     return {
         "name": name,
+        "is_primary": is_primary,                # PR Mu4
         "chandrashtamam": chandrashtamam,
         "janma_tara": janma_tara,
         "tara_bala_num": tara_num,
@@ -540,6 +560,7 @@ def _evaluate_participant(
         "chandrabala_good": cb_good,
         "soft_score": soft,
         "hard_rejected_for": hard_rejected_for,
+        "soft_concerns": soft_concerns,          # PR Mu4
         # PR A2.2c.2 — surfaced for UI (Partners panel)
         "current_md": current_md,
         "current_ad": current_ad,
@@ -551,6 +572,99 @@ def _evaluate_participant(
         "natal_event_significators": sorted(natal_sigs_set),
         "rp_x_natal_overlap":        rp_x_natal,
         "rp_x_natal_count":          rp_x_natal_count,
+    }
+
+
+# PR Mu4 — Tara classes considered "worst" for the all-must-fail
+# aggregation rule. Per classical Vedic muhurta + Drik vivaha doctrine,
+# Janma (1), Vipat (3), Pratyak (5), Vadha (7) are the four malefic
+# Taras. Sampat (2), Kshema (4), Sadhaka (6), Mitra (8), Atimitra (9)
+# are benefic. Soft-flag if SOME partners hit malefic; hard-reject
+# only if ALL participants are in worst-Tara simultaneously.
+_WORST_TARA_NUMS = {1, 3, 5, 7}
+
+
+def _aggregate_participant_evaluations(
+    per_participant: list,
+    event_type: str,
+) -> dict:
+    """
+    PR Mu4 — KP-doctrine aggregation across multiple participants.
+
+    Rules (per audit + web research, especially Drik vivaha + Bosmia
+    KPDP):
+      1. Per-partner: Tarabala and Chandrabala are SUBSTITUTABLE.
+         If at least ONE is good, the partner is OK on this axis.
+         Only flag as concern when BOTH fail for the same partner.
+      2. Aggregate: Tarabala HARD reject only when ALL participants
+         simultaneously land in worst-Tara classes ({Janma, Vipat,
+         Pratyak, Vadha}). Single-partner-bad = soft only.
+      3. Primary-only hard filters (Chandrashtamam / Janma Tara /
+         Badhakesh / Marakesh DBA) are handled inside
+         _evaluate_participant via the is_primary flag — already in
+         hard_rejected_for vs soft_concerns there.
+      4. Aggregation strategy:
+         - marriage / engagement / vivaha-class events: min() of
+           the per-partner scores (everyone must pass for vivaha)
+         - business / contract / property / legal: primary-weighted
+           0.6 + secondaries averaged 0.4 (primary's perspective
+           drives, but secondaries can drag down)
+         - default (general / single-participant): primary only
+
+    Returns:
+      {
+        all_hard_rejects: list[str],   # combined hard rejects across all
+        all_soft_concerns: list[str],  # combined soft concerns
+        worst_tara_for_all: bool,      # Tarabala all-bad signal
+        cb_tb_substitutable_fail: list[str],  # partners failing BOTH
+        aggregation_strategy: str,
+      }
+    """
+    all_hard: list = []
+    all_soft: list = []
+    for p in per_participant:
+        all_hard.extend(p.get("hard_rejected_for") or [])
+        all_soft.extend(p.get("soft_concerns") or [])
+
+    # Rule 2: Tarabala all-bad?
+    worst_tara_for_all = bool(per_participant) and all(
+        (p.get("tara_bala_num") in _WORST_TARA_NUMS)
+        for p in per_participant
+    )
+    if worst_tara_for_all and len(per_participant) > 1:
+        names = ", ".join(p.get("name", "?") for p in per_participant)
+        all_hard.append(
+            f"ALL participants ({names}) in worst-Tara simultaneously — "
+            f"Janma/Vipat/Pratyak/Vadha"
+        )
+
+    # Rule 1: Per-partner CB+TB substitutability — concern only when BOTH fail.
+    cb_tb_fail: list = []
+    for p in per_participant:
+        if not p.get("tara_bala_good") and not p.get("chandrabala_good"):
+            cb_tb_fail.append(p.get("name", "?"))
+    if cb_tb_fail:
+        names = ", ".join(cb_tb_fail)
+        all_soft.append(
+            f"{names}: both Tarabala AND Chandrabala fail (per-partner substitution rule)"
+        )
+
+    # Aggregation strategy
+    HARD_AGG_EVENTS = {"marriage", "engagement"}
+    PRIMARY_WEIGHTED_EVENTS = {"business", "contract", "property", "legal", "investment", "loan"}
+    if event_type in HARD_AGG_EVENTS:
+        strategy = "min_across_all"
+    elif event_type in PRIMARY_WEIGHTED_EVENTS:
+        strategy = "primary_weighted_0.6_secondaries_0.4"
+    else:
+        strategy = "primary_only"
+
+    return {
+        "all_hard_rejects": all_hard,
+        "all_soft_concerns": all_soft,
+        "worst_tara_for_all": worst_tara_for_all,
+        "cb_tb_substitutable_fail": cb_tb_fail,
+        "aggregation_strategy": strategy,
     }
 
 
@@ -810,6 +924,7 @@ def _scan_date_range(
     participant_natal_bm: list = None,      # PR A2.2c.2 — (name, {badhakesh, marakesh, ...})
     participant_natal_dashas: list = None,  # PR A2.2c.2 — (name, [full dasha list])
     participant_natal_event_sigs: list = None,  # PR Mu3 — (name, set of planets signifying event in natal)
+    primary_by_name: dict = None,  # PR Mu4 — explicit primary flag per participant name
 ) -> list:
     """Scan a date range every 4 minutes, return raw scored windows."""
     swe.set_sid_mode(swe.SIDM_KRISHNAMURTI_VP291)
@@ -822,6 +937,11 @@ def _scan_date_range(
     _bm_by_name = {name: data for name, data in participant_natal_bm}
     _dashas_by_name = {name: data for name, data in participant_natal_dashas}
     _event_sigs_by_name = {name: data for name, data in participant_natal_event_sigs}
+    # PR Mu4 — primary participant lookup (parallel dict keyed by name).
+    # Built from primary_by_name kwarg if passed; otherwise idx==0
+    # defaults via the scan loop. Initialised here to avoid NameError
+    # in the empty-participants case.
+    _primary_by_name: dict = dict(primary_by_name or {})
 
     raw_windows = []
     planet_cache: dict = {}
@@ -1014,7 +1134,13 @@ def _scan_date_range(
         # can do the doctrine-correct multi-chart test.
         moment_rps = _compute_moment_rps(planets, cusp_lons, vara)
         rp_x_natal_total = 0  # sum across participants for ledger
-        for name, natal_data in participant_natal_moon:
+        for idx, (name, natal_data) in enumerate(participant_natal_moon):
+            # PR Mu4 — primary participant flag. Default: first
+            # participant unless the participant dict itself carries
+            # an explicit primary=True. (`participant_natal_moon`
+            # entries are tuples of (name, moon_data); we look up the
+            # primary flag from a parallel dict built in find_muhurtha.)
+            is_primary = _primary_by_name.get(name, idx == 0)
             p_eval = _evaluate_participant(
                 name, natal_data, moon_lon,
                 natal_bm=_bm_by_name.get(name),
@@ -1022,12 +1148,26 @@ def _scan_date_range(
                 target_date_str=_target_date_str,
                 moment_rps=moment_rps,
                 natal_event_sigs=_event_sigs_by_name.get(name, set()),
+                is_primary=is_primary,
             )
             per_participant.append(p_eval)
             participant_soft_total += p_eval["soft_score"]
             rp_x_natal_total += p_eval.get("rp_x_natal_count", 0)
             if p_eval["hard_rejected_for"]:
                 participant_hard_rejects.extend(p_eval["hard_rejected_for"])
+        # PR Mu4 — apply doctrine-correct aggregation across participants
+        if per_participant:
+            agg = _aggregate_participant_evaluations(per_participant, event_type)
+            # Replace participant_hard_rejects with the aggregated version
+            # (which includes the all-Tarabala-bad rule + dedups)
+            participant_hard_rejects = list(agg["all_hard_rejects"])
+            participant_soft_concerns_all = agg["all_soft_concerns"]
+            aggregation_strategy = agg["aggregation_strategy"]
+            worst_tara_for_all = agg["worst_tara_for_all"]
+        else:
+            participant_soft_concerns_all = []
+            aggregation_strategy = "no_participants"
+            worst_tara_for_all = False
 
         # Primary-participant legacy fields (first in list; UI chips)
         if per_participant:
@@ -1453,6 +1593,10 @@ def _scan_date_range(
                 "raw_score":            int(raw_score),
                 "confidence_score":     int(confidence_score),
                 "confidence_breakdown": breakdown,
+                # PR Mu4 — aggregation transparency
+                "aggregation_strategy":  aggregation_strategy,
+                "worst_tara_for_all":    worst_tara_for_all,
+                "participant_soft_concerns": participant_soft_concerns_all,
                 "in_rahu_kalam":     in_rk,
                 "in_yamagandam":     in_yg,
                 "in_gulika":         in_gl,
@@ -1654,9 +1798,17 @@ def find_muhurtha_windows(
         classified_event, EVENT_HOUSE_GROUPS["general"]
     )
     event_house_set = {event_house_group["primary"]} | set(event_house_group.get("supporting", []))
+    # PR Mu4 — primary participant flag map. Default: first explicit
+    # primary=True wins; if none flagged, first participant by index
+    # is treated as primary.
+    primary_by_name: dict = {}
+    explicit_primary_found = False
     if participants:
         for p in participants:
             p_name = p.get("name", "")
+            if p.get("primary") is True:
+                primary_by_name[p_name] = True
+                explicit_primary_found = True
             rps = _get_natal_rps(p)
             if rps:
                 participant_rps.append((p_name, rps))
@@ -1669,6 +1821,16 @@ def find_muhurtha_windows(
             # PR Mu3 — natal event-house significators
             sigs = _natal_event_significators(p, event_house_set)
             participant_natal_event_sigs.append((p_name, sigs))
+        # If nobody was explicitly flagged, treat first participant as primary
+        if not explicit_primary_found and participants:
+            primary_by_name[participants[0].get("name", "")] = True
+        # Ensure non-primary participants get an explicit False so the
+        # scan loop's `_primary_by_name.get(name, idx == 0)` semantics
+        # are deterministic regardless of order
+        for p in participants:
+            p_name = p.get("name", "")
+            if p_name not in primary_by_name:
+                primary_by_name[p_name] = False
 
     selected_raw, _selected_skipped = _scan_date_range(
         start_dt, end_dt, classified_event,
@@ -1676,6 +1838,7 @@ def find_muhurtha_windows(
         participant_rps, participant_natal_moon,
         participant_natal_bm, participant_natal_dashas,
         participant_natal_event_sigs,
+        primary_by_name,
     )
     all_merged = _merge_windows(selected_raw)
     all_merged.sort(key=lambda w: w["score"], reverse=True)
@@ -1734,6 +1897,7 @@ def find_muhurtha_windows(
             participant_rps, participant_natal_moon,
             participant_natal_bm, participant_natal_dashas,
             participant_natal_event_sigs,
+            primary_by_name,
         )
         nearby_merged = _merge_windows(nearby_raw)
         nearby_merged.sort(key=lambda w: w["score"], reverse=True)
@@ -1771,6 +1935,7 @@ def find_muhurtha_windows(
             participant_rps, participant_natal_moon,
             participant_natal_bm, participant_natal_dashas,
             participant_natal_event_sigs,
+            primary_by_name,
         )
         extend_merged = _merge_windows(extend_raw)
         extend_passed = [w for w in extend_merged if not w.get("hard_rejected_for")]

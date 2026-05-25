@@ -22,6 +22,12 @@ class Participant(BaseModel):
     latitude: float = Field(..., ge=-90, le=90)
     longitude: float = Field(..., ge=-180, le=180)
     timezone_offset: float = Field(5.5, ge=-14, le=14)
+    # PR Mu4 — primary participant flag. Only the PRIMARY's
+    # Chandrashtamam / Janma Tara / Badhakesh / Marakesh DBA hard-reject
+    # the window; for secondaries these become soft_concerns. If no one
+    # is explicitly flagged primary, the first participant in the list
+    # is treated as primary by default.
+    primary: bool = Field(False)
 
 
 class MuhurthaRequest(BaseModel):
