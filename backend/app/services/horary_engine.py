@@ -414,6 +414,76 @@ def _compute_clinical_flags(
     """
     flags: list[dict] = []
 
+    # === H1 — Lagna degree validity (KSK Reader I — 5°-25° rule) ===
+    # Per KSK doctrine: a Prashna Lagna degree < 5° = "query not ripened,
+    # too early to look into"; > 25° = "too late to look into". The verdict
+    # cascade still runs but a yellow flag is added so the astrologer
+    # explicitly weighs the structural caveat before delivering the verdict.
+    # Source: kpastrology.com horary rules + theastrologyonline.com KP horary
+    # method + KSK Reader I chapter on Prashna validity.
+    lagna_deg_in_sign = cusp_lons[0] % 30
+    if lagna_deg_in_sign < 5.0:
+        flags.append({
+            "tone": "yellow",
+            "code": "lagna_premature",
+            "label": f"Lagna at {lagna_deg_in_sign:.2f}° — query may be premature",
+            "label_te": f"లగ్నం {lagna_deg_in_sign:.2f}° — ప్రశ్న ముందుగా అడిగినట్లు",
+            "detail": (
+                f"Prashna Lagna sits at {lagna_deg_in_sign:.2f}° in its sign — "
+                f"below the canonical 5° threshold. Per KSK Reader I doctrine on "
+                f"Prashna validity, lagna degrees under 5° indicate the matter "
+                f"has not yet ripened — the querent may be asking before the "
+                f"event-window has actually formed. Verdict below remains "
+                f"structurally accurate, but treat the timing with extra caution: "
+                f"re-querying after 2-3 weeks (when the situation matures) often "
+                f"produces a cleaner Prashna."
+            ),
+            "detail_te": (
+                f"ప్రశ్న లగ్నం దాని రాశిలో {lagna_deg_in_sign:.2f}° వద్ద ఉంది — KSK "
+                f"పఠనశాస్త్రం ప్రకారం 5° కంటే తక్కువ ఉంటే ప్రశ్న పూర్తిగా "
+                f"పరిపక్వం కాలేదు. క్రింది ఫలితం నిర్మాణాత్మకంగా సరైనదే, కానీ "
+                f"2-3 వారాల తర్వాత మళ్లీ ప్రశ్నించడం స్పష్టమైన ఫలితం ఇస్తుంది."
+            ),
+        })
+    elif lagna_deg_in_sign > 25.0:
+        flags.append({
+            "tone": "yellow",
+            "code": "lagna_expired",
+            "label": f"Lagna at {lagna_deg_in_sign:.2f}° — query may be too late",
+            "label_te": f"లగ్నం {lagna_deg_in_sign:.2f}° — ప్రశ్నకు సమయం దాటిపోయింది",
+            "detail": (
+                f"Prashna Lagna sits at {lagna_deg_in_sign:.2f}° in its sign — "
+                f"above the canonical 25° threshold. Per KSK Reader I doctrine, "
+                f"lagna degrees over 25° indicate the matter has already passed "
+                f"its decision window — the event may have crystallized (positively "
+                f"or negatively) before the question was asked. Verdict below "
+                f"reflects current chart structure; consider whether a related "
+                f"event has already occurred that the querent may have missed."
+            ),
+            "detail_te": (
+                f"ప్రశ్న లగ్నం దాని రాశిలో {lagna_deg_in_sign:.2f}° వద్ద ఉంది — "
+                f"KSK ప్రకారం 25° దాటితే ప్రశ్నకు సమయం దాటిపోయిందని అర్థం. "
+                f"సంఘటన ఇప్పటికే జరిగి ఉండవచ్చు — ఫలితాన్ని ఆ దృష్టితో చూడండి."
+            ),
+        })
+    else:
+        flags.append({
+            "tone": "green",
+            "code": "lagna_ripened",
+            "label": f"Lagna at {lagna_deg_in_sign:.2f}° — query is ripe (5°–25° window)",
+            "label_te": f"లగ్నం {lagna_deg_in_sign:.2f}° — ప్రశ్న పరిపక్వం (5°–25°)",
+            "detail": (
+                f"Prashna Lagna sits at {lagna_deg_in_sign:.2f}° in its sign — "
+                f"well within the canonical 5°–25° KSK decision window. The "
+                f"question is structurally ripe for a clean horary verdict."
+            ),
+            "detail_te": (
+                f"ప్రశ్న లగ్నం {lagna_deg_in_sign:.2f}° వద్ద — KSK 5°–25° "
+                f"నిర్ణయ విండోలో ఉంది. ప్రశ్న స్పష్టమైన హోరారీ ఫలితం కోసం "
+                f"నిర్మాణాత్మకంగా సిద్ధంగా ఉంది."
+            ),
+        })
+
     # === Layer 1 green: Lagna CSL fruitful ===
     lagna_sigs = set(_planet_significations(lagna_sub, planet_lons, cusp_lons))
     lagna_yes_hits = sorted(lagna_sigs & yes_houses)
@@ -879,6 +949,28 @@ def analyze_horary(
         primary_house_significators=primary_house_significators,
     )
 
+    # H1 — Structured lagna validity for the frontend "Query Validity" card.
+    # Mirrors the clinical-flag classification but as a single field the UI
+    # can render prominently (vs scanning the flags array).
+    _ldis = lagna_lon % 30
+    if _ldis < 5.0:
+        _lagna_state = "premature"
+    elif _ldis > 25.0:
+        _lagna_state = "expired"
+    else:
+        _lagna_state = "ripened"
+    lagna_validity = {
+        "state": _lagna_state,
+        "degree_in_sign": round(_ldis, 4),
+        "window_start": 5.0,
+        "window_end": 25.0,
+        "in_window": 5.0 <= _ldis <= 25.0,
+        "doctrine": (
+            "KSK Reader I (Prashna validity): lagna degree < 5° = "
+            "premature; 5°–25° = ripened decision window; > 25° = expired."
+        ),
+    }
+
     return {
         "prashna_number": number,
         "question": question,
@@ -887,11 +979,13 @@ def analyze_horary(
         "lagna": {
             "longitude": round(lagna_lon % 360, 4),
             "sign": get_sign(lagna_lon % 360),
+            "degree_in_sign": round(_ldis, 4),
             "nakshatra": lagna_nak_info.get("nakshatra", ""),
             "star_lord": lagna_nak_info.get("star_lord", ""),
             "sub_lord": lagna_sub,
             "sub_entry": sub_entry,
         },
+        "lagna_validity": lagna_validity,  # H1
         "ruling_planets": ruling_planets,
         "rp_context": rp_context,
         "moon_analysis": moon_analysis,

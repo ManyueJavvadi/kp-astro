@@ -40,6 +40,7 @@ import HorarySubLordChains from "../components/HorarySubLordChains";
 import HoraryFourLevelAccordion from "../components/HoraryFourLevelAccordion";
 import ClinicalFlagsStrip from "../components/ClinicalFlagsStrip";
 import RPContextStrip from "../components/RPContextStrip";
+import HoraryValidityCard from "../components/HoraryValidityCard";  // PR H1
 import { PLANET_COLORS } from "../components/constants";
 // PR R1-hotfix lesson — SouthIndianChart in page.tsx is an alias for the
 // modern RasiChart (not the legacy 56-line file). Reproduce the alias.
@@ -454,6 +455,11 @@ export function HoraryTab({
                 <div className="celestial-mono" style={{ padding: "10px 14px", background: "rgba(201,169,110,0.06)", border: "0.5px solid rgba(201,169,110,0.2)", borderRadius: 8, fontSize: 12, color: "var(--muted)", fontStyle: "italic" }}>
                   "{horaryQuestion}" <span className="celestial-serif" style={{ color: "var(--accent)", fontStyle: "normal" }}>#{r.prashna_number}</span>
                 </div>
+
+                {/* PR H1 — Query validity (KSK 5°–25° lagna degree rule). Surfaces
+                    the structural-readiness caveat BEFORE the verdict hero so the
+                    astrologer weighs ripened/premature/expired status first. */}
+                <HoraryValidityCard validity={r.lagna_validity} />
 
                 {/* Verdict hero — serif word, fade+scale entrance, radial glow.
                     This is the moment of the whole tab. */}
