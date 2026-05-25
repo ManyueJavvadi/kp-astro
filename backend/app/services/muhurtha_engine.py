@@ -1560,6 +1560,33 @@ DAY_MUHURTA_NAMES = [
 ]
 
 
+# PR R3-PR3 — Tier 3 framing strings extracted as constants so
+# downstream escalators (like `empty_horizon_no_extend` added by the
+# find_muhurtha_windows caller AFTER this helper returns) can replace
+# the Tier 2 framing with the correct Tier 3 copy. Pre-R3 bug: when
+# a Tier 2 result was escalated to Tier 3 later, only the `tier`
+# field flipped; framing_note_en stayed as the Tier 2 string while
+# the UI rendered the RED Tier 3 banner — message/banner mismatch.
+_TIER3_FRAMING_EN = (
+    "TIER 3 reading. Structural risk signals are active in this "
+    "search range — eclipse window / marriage with combust "
+    "Shukra-Guru / medical with malefic complex / empty horizon. "
+    "Muhurtha shows STRUCTURAL TENDENCIES only; the astrologer "
+    "must recommend reconsidering scope (different date range, "
+    "different location, or extra ritual preparation) BEFORE "
+    "committing to any of these windows. Do NOT use any window "
+    "in this range as a verdict-grade muhurtha without manual "
+    "override + justification."
+)
+_TIER3_FRAMING_TE = (
+    "టైర్ 3 ఫలితం. ఈ శోధన పరిధిలో నిర్మాణాత్మక రిస్క్ సూచనలు "
+    "ఉన్నాయి — గ్రహణం / దగ్ధ శుక్ర-గురు / వైద్య మాలెఫిక్ / ఖాళీ "
+    "హోరిజోన్. ముహూర్తం నిర్మాణాత్మక ధోరణులు మాత్రమే చూపిస్తుంది; "
+    "ఈ పరిధిలోని ఏ కిటికీని కూడా మాన్యువల్ ఓవర్‌రైడ్ లేకుండా "
+    "ఉపయోగించవద్దు."
+)
+
+
 def _compute_sensitivity_tier(
     event_type: str,
     eclipses_in_range: list,
@@ -1633,24 +1660,8 @@ def _compute_sensitivity_tier(
     effective_tier = 3 if escalators else base_tier
 
     if effective_tier == 3:
-        framing_en = (
-            "TIER 3 reading. Structural risk signals are active in this "
-            "search range — eclipse window / marriage with combust "
-            "Shukra-Guru / medical with malefic complex / empty horizon. "
-            "Muhurtha shows STRUCTURAL TENDENCIES only; the astrologer "
-            "must recommend reconsidering scope (different date range, "
-            "different location, or extra ritual preparation) BEFORE "
-            "committing to any of these windows. Do NOT use any window "
-            "in this range as a verdict-grade muhurtha without manual "
-            "override + justification."
-        )
-        framing_te = (
-            "టైర్ 3 ఫలితం. ఈ శోధన పరిధిలో నిర్మాణాత్మక రిస్క్ సూచనలు "
-            "ఉన్నాయి — గ్రహణం / దగ్ధ శుక్ర-గురు / వైద్య మాలెఫిక్ / ఖాళీ "
-            "హోరిజోన్. ముహూర్తం నిర్మాణాత్మక ధోరణులు మాత్రమే చూపిస్తుంది; "
-            "ఈ పరిధిలోని ఏ కిటికీని కూడా మాన్యువల్ ఓవర్‌రైడ్ లేకుండా "
-            "ఉపయోగించవద్దు."
-        )
+        framing_en = _TIER3_FRAMING_EN
+        framing_te = _TIER3_FRAMING_TE
     elif effective_tier == 2:
         framing_en = (
             "Life-impact reading. Muhurtha shows structural tendencies; "
@@ -3617,6 +3628,13 @@ def find_muhurtha_windows(
     if not selected_windows and not extend_suggestion:
         sensitivity["escalators"].append("empty_horizon_no_extend")
         sensitivity["tier"] = 3
+        # PR R3-PR3 — also overwrite the framing_note text to the Tier 3
+        # copy. Pre-R3 the empty_horizon escalator flipped the tier flag
+        # but left the framing_note as the Tier 2 "life-impact" string,
+        # so the UI rendered a RED Tier 3 banner with calmer Tier 2 body
+        # copy — confusing message/banner mismatch reported by user.
+        sensitivity["framing_note_en"] = _TIER3_FRAMING_EN
+        sensitivity["framing_note_te"] = _TIER3_FRAMING_TE
 
     return {
         "windows":              selected_windows[:15],
