@@ -25,6 +25,12 @@ class PersonDetails(BaseModel):
 class CompatibilityRequest(BaseModel):
     person1: PersonDetails
     person2: PersonDetails
+    # PR M9 + M11 — optional free-text concerns from the astrologer.
+    # Used by:
+    #   - sensitivity tier resolver (escalates Tier 2 → 3 on crisis phrases)
+    #   - Bhavat Bhavam relative-marriage rotation (fires when relative
+    #     keywords like "my sister", "father's marriage" are present)
+    user_concerns: Optional[str] = Field(default=None, max_length=2000)
 
 
 class CompatibilityAnalyzeRequest(BaseModel):
@@ -40,6 +46,7 @@ def match_compatibility(request: CompatibilityRequest):
     return compute_compatibility(
         request.person1.model_dump(),
         request.person2.model_dump(),
+        user_concerns=request.user_concerns,
     )
 
 

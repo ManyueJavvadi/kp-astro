@@ -1997,6 +1997,120 @@ def _h7_csl_borderline_flag(chart: dict) -> dict:
     }
 
 
+def _bhavat_bhavam_for_relative_marriage(
+    chart: dict,
+    user_concerns: str | None,
+) -> dict:
+    """
+    PR M11 — Bhavat Bhavam for relative-marriage queries.
+
+    Per Parashari Bhavat Bhavam: the Nth house FROM another house gives
+    insight into the matters of THAT house's relation. For marriage of
+    a relative we rotate the H7 (the 7th house) FROM the relative's
+    karaka house:
+
+      Self                → H7  (default, no rotation)
+      Spouse              → H7  (no rotation; spouse already = H7)
+      Mother              → 7th from H4 = H10
+      Father              → 7th from H9 = H3
+      Elder sibling       → 7th from H11 = H5
+      Younger sibling     → 7th from H3 = H9
+      Son                 → 7th from H5 = H11
+      Daughter            → 7th from H5 = H11
+      Spouse's sibling    → 7th from H7+3=H10 ... too compound, skip
+      Friend              → 7th from H11 = H5
+
+    This DOES NOT change the couple's H7 verdict — it surfaces a SECONDARY
+    reading lens for relative-marriage queries the astrologer typed
+    into user_concerns ("my sister's marriage", "father remarrying", etc).
+
+    Returns {applies, relative, rotated_house, csl_at_rotated, sigs, note}
+    or {applies: False} if no relationship keyword detected.
+    """
+    if not user_concerns:
+        return {"applies": False, "relative": "", "note": ""}
+
+    text = user_concerns.lower()
+
+    # Relationship → rotated H7 house mapping
+    rel_map = [
+        # (keywords, relative_label_en, relative_label_te, rotated_house)
+        (("my mother", "mother's marriage", "mom's marriage", "mother remarry", "amma marriage"),
+         "mother", "తల్లి", 10),
+        (("my father", "father's marriage", "dad's marriage", "father remarry", "nanna marriage"),
+         "father", "తండ్రి", 3),
+        (("elder sister", "elder brother", "elder sibling", "akka marriage", "anna marriage"),
+         "elder sibling", "పెద్ద తోబుట్టువు", 5),
+        (("younger sister", "younger brother", "younger sibling", "chelli marriage", "thammudu marriage", "sister marriage", "brother marriage"),
+         "younger sibling", "చిన్న తోబుట్టువు", 9),
+        (("my son", "son's marriage", "kumar marriage"),
+         "son", "కుమారుడు", 11),
+        (("my daughter", "daughter's marriage", "kuthuru marriage"),
+         "daughter", "కుమార్తె", 11),
+        (("my friend", "friend's marriage"),
+         "friend", "మిత్రుడు", 5),
+    ]
+
+    matched_relative = None
+    matched_te = ""
+    rotated_house = 7
+    for keywords, label_en, label_te, house in rel_map:
+        if any(k in text for k in keywords):
+            matched_relative = label_en
+            matched_te = label_te
+            rotated_house = house
+            break
+
+    if matched_relative is None:
+        return {"applies": False, "relative": "", "note": ""}
+
+    # Read the rotated-house CSL chain from THIS chart
+    cusp_lons = chart["cusp_lons"]
+    rot_lon = cusp_lons[rotated_house - 1] % 360
+    rot_csl = get_sub_lord(rot_lon)
+    rot_sigs = _planet_significations(rot_csl, chart["planets"], cusp_lons)
+    rot_promise = rot_sigs & {2, 7, 11}
+    rot_denial = rot_sigs & {6, 8, 12}
+
+    if rot_promise and not rot_denial:
+        flavor_en = "Promised — chain supports the relative's marriage."
+        flavor_te = "ప్రమాణం ఉంది — బంధువు వివాహానికి అనుకూలం."
+    elif rot_denial and not rot_promise:
+        flavor_en = "Denial — chain blocks the relative's marriage."
+        flavor_te = "నిరాకరణ — బంధువు వివాహం ఆగుతుంది."
+    elif rot_promise and rot_denial:
+        flavor_en = "Mixed — promise and denial both present; depends on dasha timing."
+        flavor_te = "మిశ్రమం — ప్రమాణం + నిరాకరణ; దశ సమయంపై ఆధారం."
+    else:
+        flavor_en = "Inconclusive — no clear marriage chain at rotated house."
+        flavor_te = "నిర్ధారణ లేదు — తిప్పిన ఇంటి వద్ద స్పష్ట సూచన లేదు."
+
+    return {
+        "applies": True,
+        "relative": matched_relative,
+        "relative_te": matched_te,
+        "rotated_house": rotated_house,
+        "rotation_formula": (
+            f"7th from H{ {'mother':4, 'father':9, 'elder sibling':11, 'younger sibling':3, 'son':5, 'daughter':5, 'friend':11}.get(matched_relative, 1) }"
+        ),
+        "csl_at_rotated": rot_csl,
+        "sigs": sorted(rot_sigs),
+        "promise_hits": sorted(rot_promise),
+        "denial_hits": sorted(rot_denial),
+        "flavor_en": flavor_en,
+        "flavor_te": flavor_te,
+        "note_en": (
+            f"Bhavat Bhavam rotation for {matched_relative}'s marriage: "
+            f"H7 rotated to H{rotated_house} in this chart. CSL at H{rotated_house} "
+            f"is {rot_csl}, signifying H{sorted(rot_sigs)}. {flavor_en}"
+        ),
+        "note_te": (
+            f"{matched_te} వివాహం కోసం Bhavat Bhavam తిప్పుడు: ఈ చార్ట్‌లో "
+            f"H7 → H{rotated_house}. CSL {rot_csl}, సూచనలు H{sorted(rot_sigs)}. {flavor_te}"
+        ),
+    }
+
+
 def _resolve_match_sensitivity_tier(
     pattern_d2_p1: dict | None,
     pattern_d2_p2: dict | None,
@@ -4408,6 +4522,14 @@ def compute_compatibility(person1: dict, person2: dict, user_concerns: str | Non
     h7_csl_borderline_p1 = _h7_csl_borderline_flag(chart1)
     h7_csl_borderline_p2 = _h7_csl_borderline_flag(chart2)
 
+    # PR M11 — Bhavat Bhavam relative-marriage rotation per partner.
+    # When user_concerns mentions a relative ("my sister", "father's
+    # marriage", etc.), surface a secondary reading rotated to the
+    # appropriate Bhavat Bhavam house in EACH partner's chart. Does NOT
+    # change the couple's own H7 verdict.
+    bhavat_bhavam_p1 = _bhavat_bhavam_for_relative_marriage(chart1, user_concerns)
+    bhavat_bhavam_p2 = _bhavat_bhavam_for_relative_marriage(chart2, user_concerns)
+
     # PR M9 — Sensitivity tier framing + structural auto-escalators.
     # Base tier 2 (marriage = life-impact). Escalates to Tier 3 when
     # D2/denial+multi/bilateral-tension/combust+denial structural signals
@@ -4718,6 +4840,10 @@ def compute_compatibility(person1: dict, person2: dict, user_concerns: str | Non
         "h7_csl_borderline_chart2": h7_csl_borderline_p2,
         # PR M9 — Sensitivity tier framing + auto-escalators
         "sensitivity": sensitivity,
+        # PR M11 — Bhavat Bhavam relative-marriage rotation (only fires
+        # when user_concerns mentions a relative)
+        "bhavat_bhavam_chart1": bhavat_bhavam_p1,
+        "bhavat_bhavam_chart2": bhavat_bhavam_p2,
         "summary": {
             "kp_verdict": kp["kp_verdict"],
             "ashtakoota_score": f"{ashtakoota['total_score']}/{ashtakoota['max_score']}",

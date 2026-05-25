@@ -110,6 +110,9 @@ export function MatchTab(props: MatchTabProps) {
   const API_URL = apiUrl;
   // Person 1 is always the current chart
   const matchPerson1 = workspaceData ? snapshotCurrentSession() : null;
+  // PR M9 + M11 — astrologer's free-text notes (escalates sensitivity
+  // tier and/or triggers Bhavat Bhavam relative-marriage rotation).
+  const [matchConcerns, setMatchConcerns] = React.useState<string>("");
   const canAddP2     = !!(mNewP.name && mNewP.date && mNewP.time);
   return (
     <div className="tab-content" style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: 1020 }}>
@@ -389,6 +392,46 @@ export function MatchTab(props: MatchTabProps) {
             </div>
           </div>{/* close 2-col grid */}
 
+          {/* PR M9 + M11 — Astrologer concerns / context input.
+              Optional. Drives:
+                · sensitivity tier escalation (crisis phrases → Tier 3)
+                · Bhavat Bhavam relative-marriage rotation (relationship
+                  keywords like "my sister", "father's marriage") */}
+          <div style={{ marginTop: 12, display: "flex", flexDirection: "column" as const, gap: 4 }}>
+            <label
+              htmlFor="match-user-concerns"
+              style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.06em", textTransform: "uppercase" as const, fontWeight: 600 }}
+            >
+              {t("Astrologer notes (optional)", "జ్యోతిష్యుని గమనికలు (ఐచ్ఛికం)")}
+            </label>
+            <input
+              id="match-user-concerns"
+              type="text"
+              value={matchConcerns}
+              onChange={(e) => setMatchConcerns(e.target.value)}
+              placeholder={t(
+                "e.g. 'client anxious about divorce', 'my sister's marriage', 'father remarrying' …",
+                "ఉదా: 'క్లయింట్ విడాకుల ఆందోళన', 'నా చెల్లి వివాహం', 'తండ్రి పునర్వివాహం' …"
+              )}
+              maxLength={2000}
+              style={{
+                padding: "8px 12px",
+                fontSize: 12,
+                borderRadius: 8,
+                border: "0.5px solid var(--border2)",
+                background: "rgba(255,255,255,0.02)",
+                color: "var(--text)",
+                outline: "none",
+              }}
+            />
+            <div style={{ fontSize: 10, color: "var(--muted)", fontStyle: "italic", marginTop: 2 }}>
+              {t(
+                "Used by the engine for sensitivity-tier framing and relative-marriage (Bhavat Bhavam) rotation. Does not change the couple's H7 verdict.",
+                "సెన్సిటివిటీ టైర్ + Bhavat Bhavam తిప్పుడుకి ఉపయోగం. జంట H7 ఫలితంపై ప్రభావం లేదు."
+              )}
+            </div>
+          </div>
+
           <button onClick={async () => {
             const p2 = matchResults?.__p2;
             if (!matchPerson1 || !p2) return;
@@ -400,6 +443,7 @@ export function MatchTab(props: MatchTabProps) {
               const res = await axios.post(`${API_URL}/compatibility/match`, {
                 person1: sessionToApiPerson(matchPerson1),
                 person2: sessionToApiPerson(prevP2),
+                user_concerns: matchConcerns.trim() || null,
               });
               // Minimum 650ms loading window so the verdict reveal
               // has weight, same pattern as horary PR14.
@@ -603,6 +647,48 @@ export function MatchTab(props: MatchTabProps) {
                     {(lang === "te" ? r.sensitivity.caveats_te : r.sensitivity.caveats_en).join(" · ")}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* PR M11 — Bhavat Bhavam relative-marriage rotation.
+                Fires only when astrologer's notes mentioned a relative
+                (mother / father / sibling / son / daughter / friend).
+                Shows a SECONDARY reading from each partner's chart at
+                the rotated marriage house — does not change the couple's
+                own H7 verdict. */}
+            {(r.bhavat_bhavam_chart1?.applies || r.bhavat_bhavam_chart2?.applies) && (
+              <div
+                style={{
+                  marginTop: 10,
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  background: "rgba(147,197,253,0.05)",
+                  border: "0.5px solid rgba(147,197,253,0.30)",
+                  color: "var(--text)",
+                  fontSize: 11,
+                  lineHeight: 1.6,
+                }}
+              >
+                <div style={{ fontWeight: 700, letterSpacing: "0.06em", fontSize: 10, textTransform: "uppercase", marginBottom: 6, color: "#93c5fd" }}>
+                  {t("Bhavat Bhavam · relative-marriage rotation",
+                     "Bhavat Bhavam · బంధువు వివాహ తిప్పుడు")}
+                </div>
+                {[
+                  { bb: r.bhavat_bhavam_chart1, name: r.person1?.name },
+                  { bb: r.bhavat_bhavam_chart2, name: r.person2?.name },
+                ].filter(it => it.bb?.applies).map((it, i) => (
+                  <div key={i} style={{ marginBottom: i < 1 ? 8 : 0, paddingBottom: i < 1 ? 8 : 0, borderBottom: i < 1 ? "0.5px dashed var(--border)" : "none" }}>
+                    <div style={{ fontWeight: 600, marginBottom: 3 }}>
+                      {it.name} · <span style={{ color: "var(--accent)" }}>{t(it.bb.relative, it.bb.relative_te || it.bb.relative)}</span>
+                      <span style={{ marginLeft: 8, fontSize: 10, color: "var(--muted)" }}>
+                        ({it.bb.rotation_formula} → H{it.bb.rotated_house})
+                      </span>
+                    </div>
+                    <div style={{ color: "var(--muted)", fontSize: 10.5 }}>
+                      {lang === "te" ? it.bb.note_te : it.bb.note_en}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
 
