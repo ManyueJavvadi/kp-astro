@@ -491,13 +491,34 @@ export function HoraryTab({
                       {v.verdict || "MAYBE"}
                     </div>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 16, marginBottom: 12 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginTop: 16, marginBottom: 12, flexWrap: "wrap" as const }}>
                     <span style={{ fontSize: 13, color: confColor, fontWeight: 700, letterSpacing: "0.1em" }}>
                       {v.confidence === "HIGH" ? "●●●" : v.confidence === "MEDIUM" ? "●●○" : "●○○"}
                     </span>
                     <span style={{ fontSize: 11, color: "var(--muted)", letterSpacing: "0.1em", textTransform: "uppercase" as const, fontWeight: 500 }}>
                       {v.confidence || "LOW"} {t("CONFIDENCE", "విశ్వాసం")}
                     </span>
+                    {/* PR H3 — numeric confidence 0–100 (engine-computed, audit trail
+                        available in verdict.confidence_breakdown). Brings horary
+                        into parity with Analysis tab's engine_confidence. */}
+                    {typeof v.confidence_score === "number" && (
+                      <span
+                        title={t("Engine confidence (0–100) — open the reasoning panel for the breakdown",
+                                 "ఇంజిన్ విశ్వాసం (0–100)")}
+                        style={{
+                          fontSize: 12,
+                          color: confColor,
+                          fontWeight: 700,
+                          padding: "2px 10px",
+                          borderRadius: 999,
+                          background: `${confColor}18`,
+                          border: `0.5px solid ${confColor}44`,
+                          letterSpacing: "0.04em",
+                        }}
+                      >
+                        {v.confidence_score}/100
+                      </span>
+                    )}
                   </div>
                   {/* Confidence → separator → Ruling Planets (with subhead) →
                       flags → Reasoning. Each block gets its own visual tier so

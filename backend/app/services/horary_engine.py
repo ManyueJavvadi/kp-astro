@@ -746,9 +746,116 @@ def _compute_clinical_flags(
     return flags
 
 
+def _compute_numeric_confidence(
+    *,
+    layer1_pass: bool,
+    layer2_clean_yes: bool,
+    layer2_mixed: bool,
+    layer2_clean_no: bool,
+    layer2_neutral: bool,
+    rp_strength: int,
+    h2_supports: bool,
+    h11_supports: bool,
+    csl_retrograde: bool,
+    csl_star_retrograde: bool,
+    lagna_in_window: bool,
+) -> tuple[int, list[dict]]:
+    """
+    PR H3 — Compute a numeric 0–100 confidence score for the horary verdict.
+
+    Brings horary into parity with the Analysis tab's engine_confidence
+    (also 0–100). Score is built from explicit, auditable contributions
+    so the astrologer can see exactly what produced the number.
+
+    Weighting (max 100):
+      Layer 1  — Lagna CSL fruitful                       0 / +20
+      Layer 2  — Primary CSL clean YES (++)               +30
+                 — Primary CSL mixed yes/no (CONDITIONAL) +15
+                 — Primary CSL neutral (no touch)         +0
+                 — Primary CSL clean NO (denial)          -10
+      Layer 3  — RP overlap (per significator hit)        +10 each (cap +30)
+      Multi-cusp — H2 supports                            +5
+                 — H11 supports                           +5
+
+      Penalties (subtract):
+      CSL retrograde                                       -5
+      CSL star lord retrograde                             -5
+      Lagna outside 5°–25° window                          -10
+
+    Returns (score in [0, 100], contributions list for audit trail).
+    Contributions list entries: {label, delta, note}.
+    """
+    contributions: list[dict] = []
+    score = 0
+
+    # Layer 1
+    if layer1_pass:
+        score += 20
+        contributions.append({"label": "Layer 1 — Lagna CSL fruitful", "delta": +20,
+                              "note": "Question itself carries promise (KSK Reader)"})
+    else:
+        contributions.append({"label": "Layer 1 — Lagna CSL barren", "delta": 0,
+                              "note": "Question may not carry inherent promise"})
+
+    # Layer 2
+    if layer2_clean_yes:
+        score += 30
+        contributions.append({"label": "Layer 2 — Primary CSL clean YES", "delta": +30,
+                              "note": "CSL signifies only relevant houses"})
+    elif layer2_mixed:
+        score += 15
+        contributions.append({"label": "Layer 2 — Primary CSL mixed", "delta": +15,
+                              "note": "CSL touches both relevant + denial — CONDITIONAL"})
+    elif layer2_clean_no:
+        score -= 10
+        contributions.append({"label": "Layer 2 — Primary CSL denial", "delta": -10,
+                              "note": "CSL signifies only denial houses"})
+    elif layer2_neutral:
+        contributions.append({"label": "Layer 2 — Primary CSL neutral", "delta": 0,
+                              "note": "CSL signifies houses outside the topic set"})
+
+    # Layer 3 — RP overlap
+    rp_delta = min(rp_strength * 10, 30)
+    if rp_delta > 0:
+        score += rp_delta
+        contributions.append({"label": f"Layer 3 — {rp_strength} RP{'s' if rp_strength != 1 else ''} signify topic",
+                              "delta": +rp_delta,
+                              "note": f"Capped at +30 ({rp_strength}×10)"})
+    else:
+        contributions.append({"label": "Layer 3 — No RP signifies topic", "delta": 0,
+                              "note": "Timing thread not currently active"})
+
+    # Multi-cusp supporting
+    if h2_supports:
+        score += 5
+        contributions.append({"label": "Multi-cusp — H2 (family/wealth) supports", "delta": +5, "note": ""})
+    if h11_supports:
+        score += 5
+        contributions.append({"label": "Multi-cusp — H11 (fulfilment) supports", "delta": +5, "note": ""})
+
+    # Penalties
+    if csl_retrograde:
+        score -= 5
+        contributions.append({"label": "Penalty — Primary CSL retrograde", "delta": -5,
+                              "note": "KSK: retro CSL delays results"})
+    if csl_star_retrograde:
+        score -= 5
+        contributions.append({"label": "Penalty — Primary CSL in star of retrograde", "delta": -5,
+                              "note": "KSK Reader I rule 4: results delayed until star lord direct"})
+    if not lagna_in_window:
+        score -= 10
+        contributions.append({"label": "Penalty — Lagna outside 5°–25° window", "delta": -10,
+                              "note": "KSK: query premature or expired"})
+
+    # Clamp to [0, 100]
+    score = max(0, min(100, score))
+    return score, contributions
+
+
 def _kp_verdict(
     lagna_sub: str, topic: str, planet_lons: dict, cusp_lons: list,
     ruling_planets: list, moon_analysis: dict,
+    planets_raw: dict | None = None,
 ) -> dict:
     houses = TOPIC_HOUSES.get(topic.lower(), TOPIC_HOUSES["general"])
     yes_houses = set(houses["yes"])
@@ -832,10 +939,39 @@ def _kp_verdict(
                       f"— no direct connection to topic houses and no Ruling Planet supports them either. "
                       f"Query may be premature or question unclear.")
 
+    # PR H3 — Numeric confidence 0–100 with audit trail.
+    # Brings horary into parity with Analysis tab's engine_confidence.
+    csl_retro = bool(planets_raw and query_csl in planets_raw
+                     and planets_raw[query_csl].get("retrograde"))
+    csl_star_retro = False
+    if query_csl in planet_lons and planets_raw:
+        _csl_star = get_nakshatra_and_starlord(planet_lons[query_csl]).get("star_lord", "")
+        if _csl_star and _csl_star in planets_raw and planets_raw[_csl_star].get("retrograde"):
+            csl_star_retro = True
+    _lagna_dis = cusp_lons[0] % 30
+    lagna_in_window = 5.0 <= _lagna_dis <= 25.0
+
+    confidence_score, confidence_breakdown = _compute_numeric_confidence(
+        layer1_pass=lagna_fruitful,
+        layer2_clean_yes=(query_verdict == "YES"),
+        layer2_mixed=(query_verdict == "MIXED"),
+        layer2_clean_no=(query_verdict == "NO"),
+        layer2_neutral=(query_verdict == "NEUTRAL"),
+        rp_strength=rp_strength,
+        h2_supports=h2_supports,
+        h11_supports=h11_supports,
+        csl_retrograde=csl_retro,
+        csl_star_retrograde=csl_star_retro,
+        lagna_in_window=lagna_in_window,
+    )
+
     return {
         "verdict": overall,
         "overall_verdict": overall,
         "confidence": confidence,
+        # PR H3 — numeric confidence + auditable breakdown
+        "confidence_score": confidence_score,
+        "confidence_breakdown": confidence_breakdown,
         "explanation": reason,
         "verdict_reason": reason,
         "lagna_csl": lagna_sub,
@@ -1004,7 +1140,10 @@ def analyze_horary(
             "sub_lord_significations": _planet_significations(c_sub, planet_lons, cusp_lons),
         })
 
-    verdict = _kp_verdict(lagna_sub, topic, planet_lons, cusp_lons, ruling_planets, moon_analysis)
+    verdict = _kp_verdict(
+        lagna_sub, topic, planet_lons, cusp_lons, ruling_planets, moon_analysis,
+        planets_raw=planets_raw,  # H3 — for retrograde penalty computation
+    )
 
     t_houses = TOPIC_HOUSES.get(topic.lower(), TOPIC_HOUSES["general"])
 
