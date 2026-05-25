@@ -204,6 +204,93 @@ export function MuhurthaTab(props: MuhurthaTabProps) {
             })}
           </div>
 
+          {/* PR R3-PR4 — Mu12 expanded event types (17 new beyond the
+              original 8 KP canon tiles). The backend `classify_event`
+              routes the keywords below to their own per-event tables
+              (preferred varas, preferred horas, denial houses, etc.).
+              Pre-R3 these were silently available via free-text only;
+              now exposed as a "More events…" collapsible chip strip
+              so the astrologer can discover them. */}
+          <details style={{ marginTop: 10, marginBottom: 16 }}>
+            <summary
+              style={{
+                cursor: "pointer",
+                fontSize: 10.5,
+                color: "var(--accent)",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase" as const,
+                fontWeight: 600,
+                padding: "6px 8px",
+                userSelect: "none" as const,
+              }}
+            >
+              + {t("More events (17 sacraments / financial / legal)", "మరిన్ని (17 సంస్కారాలు / ఆర్థిక / న్యాయ)")}
+            </summary>
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap" as const,
+                gap: 6,
+                marginTop: 10,
+                padding: "8px 4px",
+              }}
+            >
+              {[
+                // sacraments
+                { en: "Engagement",        te: "నిశ్చితార్థం", group: "sacrament" },
+                { en: "Namakaranam",       te: "నామకరణం",       group: "sacrament" },
+                { en: "Annaprashana",      te: "అన్నప్రాశన",    group: "sacrament" },
+                { en: "Upanayanam",        te: "ఉపనయనం",         group: "sacrament" },
+                { en: "Vidyarambham",      te: "విద్యారంభం",   group: "sacrament" },
+                { en: "Mundan",            te: "ముండనం",         group: "sacrament" },
+                { en: "Karna Vedha",       te: "కర్ణవేధ",      group: "sacrament" },
+                // financial / commercial
+                { en: "Gold buying",       te: "బంగారం కొనుగోలు", group: "financial" },
+                { en: "Contract signing",  te: "ఒప్పందం సంతకం",   group: "financial" },
+                { en: "Property purchase", te: "ఆస్తి కొనుగోలు", group: "financial" },
+                { en: "Loan disbursement", te: "రుణ విడుదల",     group: "financial" },
+                // legal / govt
+                { en: "Court hearing",     te: "కోర్టు విచారణ",  group: "legal" },
+                { en: "Election filing",   te: "నామినేషన్ ఫైలింగ్", group: "legal" },
+                // daily-life
+                { en: "Deeksha",           te: "దీక్ష",         group: "spiritual" },
+                { en: "Medication start",  te: "మందులు ప్రారంభం", group: "medical" },
+                { en: "Job joining",       te: "ఉద్యోగంలో చేరడం", group: "career" },
+                { en: "Lease signing",     te: "లీజ్ సంతకం",     group: "domestic" },
+                { en: "Planting",          te: "విత్తడం",       group: "agri" },
+              ].map(it => {
+                const active = mEventType === it.en;
+                return (
+                  <button
+                    key={it.en}
+                    onClick={() => setMEventType(it.en)}
+                    style={{
+                      padding: "5px 12px",
+                      borderRadius: 999,
+                      background: active ? "rgba(201,169,110,0.15)" : "rgba(255,255,255,0.02)",
+                      border: active
+                        ? "0.5px solid rgba(201,169,110,0.45)"
+                        : "0.5px solid var(--border2)",
+                      color: active ? "var(--accent)" : "var(--text)",
+                      fontWeight: active ? 600 : 500,
+                      fontSize: 11,
+                      cursor: "pointer",
+                      transition: "all 140ms",
+                    }}
+                  >
+                    {lang === "en" ? it.en : it.te}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ marginTop: 8, fontSize: 10, color: "var(--muted)", fontStyle: "italic" as const, paddingLeft: 4 }}>
+              {t(
+                "Each event uses its own KP rules — preferred weekdays, hora, houses — per Mu12 expansion. Tier 3 sensitivity may auto-engage for surgical, spiritual or court events.",
+                "ప్రతి ఈవెంట్‌కు దాని స్వంత KP నియమాలు ఉన్నాయి — ఇష్ట వారాలు, హోర, భావాలు — Mu12 విస్తరణ ప్రకారం."
+              )}
+            </div>
+          </details>
+
           {/* Participants panel */}
           <div style={{ background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 10, padding: "0.875rem 1rem", marginBottom: "1rem" }}>
             <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: "0.625rem" }}>
