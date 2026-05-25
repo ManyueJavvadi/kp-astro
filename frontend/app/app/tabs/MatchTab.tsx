@@ -661,8 +661,8 @@ export function MatchTab(props: MatchTabProps) {
               </div>
               <div className="match-section-grid">
                 {[
-                  {p: kp?.chart1_promise, name: r.person1?.name, tier: r.multi_cusp_tier_chart1},
-                  {p: kp?.chart2_promise, name: r.person2?.name, tier: r.multi_cusp_tier_chart2},
+                  {p: kp?.chart1_promise, name: r.person1?.name, tier: r.multi_cusp_tier_chart1, multi: r.multi_marriage_chart1},
+                  {p: kp?.chart2_promise, name: r.person2?.name, tier: r.multi_cusp_tier_chart2, multi: r.multi_marriage_chart2},
                 ].map((item, i) => item.p && (
                   <div key={i} className="match-tile" style={{ borderColor: item.p.has_promise && !item.p.has_denial ? "rgba(74,222,128,0.3)" : item.p.has_denial ? "rgba(248,113,113,0.3)" : "var(--border)" }}>
                     <div className="match-tile-name">{item.name}</div>
@@ -702,6 +702,34 @@ export function MatchTab(props: MatchTabProps) {
                       >
                         {item.tier.label}
                         <span style={{ opacity: 0.7, fontSize: 9, marginLeft: 2 }}>({item.tier.confidence_band})</span>
+                      </div>
+                    )}
+                    {/* PR M5 — Multi-marriage KSK signature chip.
+                        Per Krishnamurti: H7 CSL = Mercury, in dual sign, or
+                        in star of dual-sign planet → structural multi-marriage
+                        signal. NOT a divorce prediction — astrologer framing aid. */}
+                    {item.multi?.signature_present && (
+                      <div
+                        title={lang === "te" ? item.multi.details_te : item.multi.details}
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: "3px 8px",
+                          marginTop: 4,
+                          marginBottom: 4,
+                          borderRadius: 999,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                          cursor: "help",
+                          background: "rgba(251,191,36,0.10)",
+                          color: "#fbbf24",
+                          border: "0.5px solid rgba(251,191,36,0.45)",
+                          letterSpacing: "0.04em",
+                        }}
+                      >
+                        {t("Multi-marriage signature", "అనేక-వివాహ సూచన")}
+                        <span style={{ opacity: 0.7, fontSize: 9 }}>· {item.multi.basis.replace(/_/g, " ")}</span>
                       </div>
                     )}
                     <div className="match-tile-row">

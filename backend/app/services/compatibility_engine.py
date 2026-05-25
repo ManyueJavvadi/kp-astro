@@ -1703,6 +1703,108 @@ def _detect_couple_patterns(
     return patterns
 
 
+def _multiple_marriages_check(chart: dict) -> dict:
+    """
+    PR M5 — Multiple-marriages signature per KSK rule.
+
+    Per LinkedIn KP article (Subir Pal) citing Prof. Krishnamurti:
+    "If the 7th sub-lord is either Mercury OR any planet occupying a
+    dual sign OR deposited in the constellation of a planet in the
+    dual sign, there will be more than one marriage."
+
+    Dual signs: Gemini (Mercury), Virgo (Mercury), Sagittarius (Jupiter),
+                Pisces (Jupiter).
+
+    This is a STRUCTURAL signature — not a prediction of divorce. It
+    indicates the chart carries the potential / possibility of multiple
+    marriages (or re-marriage after spouse loss). Astrologer should
+    frame the verdict accordingly.
+
+    Returns:
+      {
+        "signature_present": bool,
+        "basis": "h7_csl_mercury" | "h7_csl_in_dual_sign" |
+                 "h7_csl_in_star_of_dual_planet" | "",
+        "h7_csl": str,
+        "details": str (one-line explanation),
+        "details_te": str,
+      }
+    """
+    DUAL_SIGNS = {"Gemini", "Virgo", "Sagittarius", "Pisces"}
+    h7_csl, _ = _get_cusp_sub_lord_sigs(7, chart)
+    planets = chart["planets"]
+
+    if h7_csl not in planets:
+        return {
+            "signature_present": False, "basis": "", "h7_csl": h7_csl,
+            "details": "", "details_te": "",
+        }
+
+    # Basis 1: H7 CSL is Mercury (dual-sign-ruler per KSK)
+    if h7_csl == "Mercury":
+        return {
+            "signature_present": True,
+            "basis": "h7_csl_mercury",
+            "h7_csl": h7_csl,
+            "details": (
+                "H7 CSL is Mercury — per KSK Reader, Mercury as H7 sub-lord "
+                "indicates potential for more than one marriage (Mercury rules "
+                "Gemini + Virgo, both dual signs). Structural signature, NOT "
+                "a divorce prediction."
+            ),
+            "details_te": (
+                "H7 CSL బుధుడు — KSK ప్రకారం బుధుడు H7 సబ్‌లార్డ్‌గా ఉంటే "
+                "ఒకటి కంటే ఎక్కువ వివాహాల అవకాశం (బుధుడు మిథున + కన్య "
+                "ద్వంద్వ రాశుల అధిపతి). నిర్మాణ సంకేతం మాత్రమే."
+            ),
+        }
+
+    # Basis 2: H7 CSL is in a dual sign
+    csl_lon = planets[h7_csl]["longitude"]
+    csl_sign = get_sign(csl_lon)
+    if csl_sign in DUAL_SIGNS:
+        return {
+            "signature_present": True,
+            "basis": "h7_csl_in_dual_sign",
+            "h7_csl": h7_csl,
+            "details": (
+                f"H7 CSL {h7_csl} is placed in {csl_sign} (dual sign). Per KSK "
+                f"Reader, dual-sign placement of H7 sub-lord indicates "
+                f"multiple-marriage potential. Structural signature."
+            ),
+            "details_te": (
+                f"H7 CSL {h7_csl} {csl_sign}లో (ద్వంద్వ రాశి) — KSK ప్రకారం "
+                f"H7 సబ్‌లార్డ్ ద్వంద్వ రాశిలో ఉంటే అనేక-వివాహ సూచన."
+            ),
+        }
+
+    # Basis 3: H7 CSL is in nakshatra of a planet that is itself in a dual sign
+    star_lord = get_nakshatra_and_starlord(csl_lon).get("star_lord", "")
+    if star_lord and star_lord in planets:
+        star_lord_sign = get_sign(planets[star_lord]["longitude"])
+        if star_lord_sign in DUAL_SIGNS:
+            return {
+                "signature_present": True,
+                "basis": "h7_csl_in_star_of_dual_planet",
+                "h7_csl": h7_csl,
+                "details": (
+                    f"H7 CSL {h7_csl} is in nakshatra of {star_lord} which is "
+                    f"placed in {star_lord_sign} (dual sign). Per KSK Reader, "
+                    f"this indirect dual-sign chain indicates multiple-marriage "
+                    f"potential. Weaker than direct H7-CSL-in-dual-sign signal."
+                ),
+                "details_te": (
+                    f"H7 CSL {h7_csl} నక్షత్ర అధిపతి {star_lord} {star_lord_sign}లో "
+                    f"(ద్వంద్వ రాశి) — KSK అనేక-వివాహ పరోక్ష సంకేతం."
+                ),
+            }
+
+    return {
+        "signature_present": False, "basis": "", "h7_csl": h7_csl,
+        "details": "", "details_te": "",
+    }
+
+
 def _h7_star_sub_harmony(chart: dict) -> dict:
     """
     PR M4 — Star-Sub Harmony layered reading for each partner's H7 CSL.
@@ -3766,6 +3868,12 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
     h7_star_sub_p1 = _h7_star_sub_harmony(chart1)
     h7_star_sub_p2 = _h7_star_sub_harmony(chart2)
 
+    # PR M5 — Multiple-marriages KSK signature per partner.
+    # Per Prof. Krishnamurti: H7 CSL = Mercury OR in dual sign OR in
+    # nakshatra of dual-sign planet → multiple-marriage potential.
+    multi_marriage_p1 = _multiple_marriages_check(chart1)
+    multi_marriage_p2 = _multiple_marriages_check(chart2)
+
     # PR M3 — Pattern detection per partner (M1/M2/M3/M5) + cross-couple
     # (T1/T2). Pattern naming is what distinguishes a deep KSK reading
     # from a generic significator scan (RULE 19).
@@ -4015,6 +4123,9 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
         # PR M4 — Star-Sub Harmony layered reading per partner H7 CSL
         "h7_star_sub_chart1": h7_star_sub_p1,
         "h7_star_sub_chart2": h7_star_sub_p2,
+        # PR M5 — Multi-marriages KSK signature per partner
+        "multi_marriage_chart1": multi_marriage_p1,
+        "multi_marriage_chart2": multi_marriage_p2,
         "summary": {
             "kp_verdict": kp["kp_verdict"],
             "ashtakoota_score": f"{ashtakoota['total_score']}/{ashtakoota['max_score']}",
