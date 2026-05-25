@@ -157,19 +157,34 @@ export function HoraryTab({
                   rows={5}
                   style={{ width: "100%", padding: "12px 14px", background: "var(--card)", border: `1px solid ${horaryQuestion.trim() ? "rgba(201,169,110,0.4)" : "var(--border2)"}`, borderRadius: 8, color: "var(--fg)", fontSize: 13, fontFamily: "inherit", resize: "none" as const, outline: "none", lineHeight: 1.55, boxSizing: "border-box" as const, transition: "border-color 0.2s" }}
                 />
-                {/* Topic chips — lucide icons + en/te labels */}
+                {/* Topic chips — lucide icons + en/te labels.
+                    PR H6 — expanded from 10 to 20 with high-frequency additions
+                    (business, divorce, second_marriage, vehicle, foreign_settle,
+                    visa, mental_health, longevity, addiction, missing_person).
+                    Backend resolves all 48 canonical topics + 245 aliases — these
+                    are the curated common-use shortcuts. */}
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const, marginTop: 10 }}>
                   {[
-                    { id: "general",   Icon: Globe,       en: "General",    te: "సాధారణ" },
-                    { id: "marriage",  Icon: HandHeart,   en: "Marriage",   te: "వివాహం" },
-                    { id: "career",    Icon: Briefcase,   en: "Career",     te: "ఉద్యోగం" },
-                    { id: "health",    Icon: HeartPulse,  en: "Health",     te: "ఆరోగ్యం" },
-                    { id: "property",  Icon: HomeIcon,    en: "Property",   te: "ఆస్తి" },
-                    { id: "finance",   Icon: Wallet,      en: "Finance",    te: "ధనం" },
-                    { id: "children",  Icon: Baby,        en: "Children",   te: "సంతానం" },
-                    { id: "travel",    Icon: Plane,       en: "Travel",     te: "ప్రయాణం" },
-                    { id: "education", Icon: BookOpen,    en: "Education",  te: "విద్య" },
-                    { id: "legal",     Icon: Scale,       en: "Legal",      te: "న్యాయం" },
+                    { id: "general",        Icon: Globe,        en: "General",        te: "సాధారణ" },
+                    { id: "marriage",       Icon: HandHeart,    en: "Marriage",       te: "వివాహం" },
+                    { id: "second_marriage",Icon: HandHeart,    en: "2nd marriage",   te: "రెండవ వివాహం" },
+                    { id: "divorce",        Icon: XCircle,      en: "Divorce",        te: "విడాకులు" },
+                    { id: "children",       Icon: Baby,         en: "Children",       te: "సంతానం" },
+                    { id: "career",         Icon: Briefcase,    en: "Career",         te: "ఉద్యోగం" },
+                    { id: "business",       Icon: Sparkles,     en: "Business",       te: "వ్యాపారం" },
+                    { id: "finance",        Icon: Wallet,       en: "Finance",        te: "ధనం" },
+                    { id: "health",         Icon: HeartPulse,   en: "Health",         te: "ఆరోగ్యం" },
+                    { id: "mental_health",  Icon: HeartPulse,   en: "Mental health",  te: "మానసిక ఆరోగ్యం" },
+                    { id: "longevity",      Icon: HeartPulse,   en: "Longevity",      te: "ఆయుర్దాయం" },
+                    { id: "property",       Icon: HomeIcon,     en: "Property",       te: "ఆస్తి" },
+                    { id: "vehicle",        Icon: HomeIcon,     en: "Vehicle",        te: "వాహనం" },
+                    { id: "travel",         Icon: Plane,        en: "Travel",         te: "ప్రయాణం" },
+                    { id: "foreign_settle", Icon: Plane,        en: "Foreign settle", te: "విదేశ నివాసం" },
+                    { id: "visa",           Icon: Plane,        en: "Visa",           te: "వీసా" },
+                    { id: "education",      Icon: BookOpen,     en: "Education",      te: "విద్య" },
+                    { id: "legal",          Icon: Scale,        en: "Legal",          te: "న్యాయం" },
+                    { id: "missing_person", Icon: HelpCircle,   en: "Missing person", te: "కనిపించడం లేదు" },
+                    { id: "spirituality",   Icon: Sparkles,     en: "Spirituality",   te: "ఆధ్యాత్మికత" },
                   ].map(item => {
                     const active = horaryTopic === item.id;
                     const label = lang === "en" ? item.en : item.te;
@@ -592,7 +607,15 @@ export function HoraryTab({
                   <div style={{ marginTop: 14, paddingTop: 14, borderTop: `0.5px solid ${verdictColor}20`, display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
                     <span className="horary-topic-chip">
                       <span className="chip-label">{t("Topic", "విషయం")}</span>
-                      <span style={{ textTransform: "capitalize" as const }}>{r.topic}</span>
+                      <span style={{ textTransform: "capitalize" as const }}>
+                        {(r.resolved_topic ?? r.topic ?? "general").replace(/_/g, " ")}
+                      </span>
+                      {/* PR H6 — show alias resolution if topic was remapped */}
+                      {r.topic_was_aliased && (
+                        <span className="chip-label" style={{ opacity: 0.7, fontStyle: "italic" }}>
+                          ({t("from", "నుండి")} "{r.topic}")
+                        </span>
+                      )}
                       <span className="chip-label">· H{r.primary_house}</span>
                     </span>
                     {(v.yes_houses && v.yes_houses.length > 0) && (() => {

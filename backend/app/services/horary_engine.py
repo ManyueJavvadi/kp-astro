@@ -74,35 +74,104 @@ HOUSE_THEMES = {
 # PR A1.1 — expanded canonical KP topic houses.
 # "yes" = houses whose signification by the CSL confirms the matter.
 # "no"  = houses whose signification denies the matter (12th-from + obstruction houses).
-TOPIC_HOUSES = {
-    # Marriage: 2 (family expansion), 7 (partnership), 11 (fulfilment); optional 5 (romance).
+#
+# PR H6 — Horary-specific overrides (kept for topics where horary differs
+# slightly from natal — e.g., marriage horary canonically includes H5
+# romance which is not in the natal marriage set). All OTHER topics fall
+# through to chart_engine.TOPIC_HOUSE_MAP_CANONICAL (43 topics, single
+# source of truth across analysis + horary).
+_HORARY_OVERRIDES = {
+    # Marriage horary canonically includes H5 (romance) — distinct from natal
     "marriage":  {"yes": [2, 5, 7, 11], "no": [1, 6, 10]},
-    # Career/job: 2 (income), 6 (service), 10 (status), 11 (gain). Denials: 5, 8, 12.
+    # Career horary: same as canonical 'job' but with 'career' alias preserved
     "career":    {"yes": [2, 6, 10, 11], "no": [5, 8, 12]},
-    # Health improvement: 1 (body), 5 (recovery), 11 (relief). Denials: 6, 8, 12.
+    # Health horary = recovery framing (vs natal 'health' which is wellness)
     "health":    {"yes": [1, 5, 11], "no": [6, 8, 12]},
-    # Property: 4 (home), 11 (fulfilment); 2 supports for purchase finance. Denials: 3, 8, 12.
+    # Property — same shape, surface for backward compat
     "property":  {"yes": [2, 4, 11], "no": [3, 8, 12]},
-    # Finance/gain: 2, 6, 10, 11.  Speculation/debt denials: 5, 8, 12.
+    # Finance horary preserved as alias to wealth/job income blend
     "finance":   {"yes": [2, 6, 10, 11], "no": [5, 8, 12]},
-    # Children: 2 (family), 5 (progeny), 11 (fulfilment). Denials: 1, 4, 10.
+    # Children horary
     "children":  {"yes": [2, 5, 11], "no": [1, 4, 10]},
-    # Travel: 3 (short), 9 (long), 12 (foreign). Denial: 4 (rooted at home).
+    # Travel — short journey emphasis (vs natal foreign_settle which is H12 primary)
     "travel":    {"yes": [3, 9, 12], "no": [4]},
-    # Education: 4 (primary), 9 (higher), 11 (completion). Denials: 5, 8, 12.
+    # Education horary
     "education": {"yes": [4, 9, 11], "no": [5, 8, 12]},
-    # Legal: 6 (win litigation), 11 (favourable outcome); 3 is courage. Denials: 1, 5, 12.
+    # Legal horary — for filing a case (H3 primary). 'litigation' from canonical = winning (H6 primary)
     "legal":     {"yes": [3, 6, 11], "no": [1, 5, 12]},
-    # General — catch-all: positive growth vs loss.
+    # General — horary catch-all
     "general":   {"yes": [1, 2, 3, 6, 10, 11], "no": [5, 8, 12]},
 }
 
-# Primary house to examine CSL for each topic (Layer 2 verdict)
-TOPIC_PRIMARY_HOUSE = {
-    "marriage": 7, "career": 10, "health": 1, "property": 4,
-    "finance": 2, "children": 5, "travel": 9, "education": 9,
-    "legal": 6, "general": 1,
-}
+
+def _build_topic_houses() -> dict:
+    """Build the horary TOPIC_HOUSES map from chart_engine canonical
+    truth + horary overrides. Single source of truth for all 43 topics."""
+    try:
+        from app.services.chart_engine import TOPIC_HOUSE_MAP_CANONICAL
+    except Exception:
+        return dict(_HORARY_OVERRIDES)
+
+    merged: dict = {}
+    for topic, data in TOPIC_HOUSE_MAP_CANONICAL.items():
+        merged[topic] = {
+            "yes": sorted(data.get("relevant", set())),
+            "no": sorted(data.get("denial", set())),
+        }
+    # Apply horary-specific overrides (e.g., marriage with H5 romance)
+    for topic, data in _HORARY_OVERRIDES.items():
+        merged[topic] = dict(data)
+    return merged
+
+
+def _build_topic_primary() -> dict:
+    """Primary cusp per topic — from canonical chart_engine, with horary
+    overrides for the 10 legacy topics that keep their existing primaries."""
+    legacy_primary = {
+        "marriage": 7, "career": 10, "health": 1, "property": 4,
+        "finance": 2, "children": 5, "travel": 9, "education": 9,
+        "legal": 6, "general": 1,
+    }
+    try:
+        from app.services.chart_engine import TOPIC_HOUSE_MAP_CANONICAL
+    except Exception:
+        return dict(legacy_primary)
+
+    primary: dict = {}
+    for topic, data in TOPIC_HOUSE_MAP_CANONICAL.items():
+        primary[topic] = data.get("primary_cusp", 1)
+    primary.update(legacy_primary)
+    return primary
+
+
+def _build_topic_aliases() -> dict:
+    """Topic aliases from chart_engine, plus horary-friendly extras."""
+    try:
+        from app.services.chart_engine import TOPIC_ALIASES
+        return dict(TOPIC_ALIASES)
+    except Exception:
+        return {}
+
+
+# Populated at import time. PR H6 — single source of truth across analysis + horary.
+TOPIC_HOUSES = _build_topic_houses()
+TOPIC_PRIMARY_HOUSE = _build_topic_primary()
+TOPIC_ALIASES = _build_topic_aliases()
+
+
+def _resolve_topic(topic: str) -> str:
+    """PR H6 — resolve a topic string through the alias map.
+    Returns the canonical topic key. Falls through to 'general' if unknown."""
+    if not topic:
+        return "general"
+    t = topic.strip().lower()
+    if t in TOPIC_HOUSES:
+        return t
+    if t in TOPIC_ALIASES:
+        canonical = TOPIC_ALIASES[t]
+        if canonical in TOPIC_HOUSES:
+            return canonical
+    return "general"
 
 
 # ─────────────────────────────────────────────────────────────
@@ -1143,14 +1212,16 @@ def _kp_verdict(
     ruling_planets: list, moon_analysis: dict,
     planets_raw: dict | None = None,
 ) -> dict:
-    houses = TOPIC_HOUSES.get(topic.lower(), TOPIC_HOUSES["general"])
+    # PR H6 — resolve through alias map first
+    resolved_topic = _resolve_topic(topic)
+    houses = TOPIC_HOUSES.get(resolved_topic, TOPIC_HOUSES["general"])
     yes_houses = set(houses["yes"])
     no_houses = set(houses["no"])
 
     layer1 = _csl_layer_analysis(lagna_sub, 1, yes_houses, no_houses, planet_lons, cusp_lons)
     lagna_fruitful = layer1["layer_verdict"] in ("YES", "MIXED")
 
-    primary_house = TOPIC_PRIMARY_HOUSE.get(topic.lower(), 1)
+    primary_house = TOPIC_PRIMARY_HOUSE.get(resolved_topic, 1)
     if primary_house == 1:
         layer2 = layer1
         query_csl = lagna_sub
@@ -1398,7 +1469,9 @@ def analyze_horary(
     # PR A1.1b: for the primary topic house, build a ranked significator
     # list — every planet that signifies the house, with its strongest
     # level. The frontend uses this for the "Significator hierarchy" card.
-    primary_house = TOPIC_PRIMARY_HOUSE.get(topic.lower(), 1)
+    # PR H6 — resolve through alias map (e.g. 'employment' -> 'job')
+    resolved_topic = _resolve_topic(topic)
+    primary_house = TOPIC_PRIMARY_HOUSE.get(resolved_topic, 1)
     primary_house_significators: list[dict] = []
     for p_name in planet_lons.keys():
         by_level = _planet_significations_by_level(p_name, planet_lons, cusp_lons)
@@ -1440,13 +1513,13 @@ def analyze_horary(
         planets_raw=planets_raw,  # H3 — for retrograde penalty computation
     )
 
-    t_houses = TOPIC_HOUSES.get(topic.lower(), TOPIC_HOUSES["general"])
+    t_houses = TOPIC_HOUSES.get(resolved_topic, TOPIC_HOUSES["general"])
 
     # PR H4 — Pattern detection. Names canonical KP patterns from
     # pattern_library.md (T1/T2/T3/D2). Pattern naming distinguishes
     # a deep KSK reading from a generic significator scan (RULE 19).
     patterns_fired = _detect_patterns(
-        topic=topic,
+        topic=resolved_topic,
         query_csl=verdict.get("query_csl", ""),
         lagna_csl=lagna_sub,
         planet_lons=planet_lons,
@@ -1502,6 +1575,9 @@ def analyze_horary(
         "prashna_number": number,
         "question": question,
         "topic": topic,
+        # PR H6 — resolved canonical topic + framing (for UI display)
+        "resolved_topic": resolved_topic,
+        "topic_was_aliased": resolved_topic != (topic or "").strip().lower(),
         "chart_time": utc_dt.strftime("%Y-%m-%d %H:%M UTC"),
         "lagna": {
             "longitude": round(lagna_lon % 360, 4),
