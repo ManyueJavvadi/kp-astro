@@ -106,6 +106,7 @@ export default function UserModeUI(props: Props) {
       <TimingStrip
         currentDasha={currentDashaSrc}
         upcomingAntardashas={latestAnalysis?.upcoming_antardashas}
+        chartData={chartData}
       />
       <ActiveAnalysisPanel
         analysis={latestAnalysis}
@@ -168,6 +169,7 @@ export default function UserModeUI(props: Props) {
               <EmptyStateHero
                 birthDetails={birthDetails}
                 currentDasha={currentDashaSrc}
+                chartData={chartData}
                 onPickQuestion={(q) => setQuestion(q)}
               />
             ) : (
