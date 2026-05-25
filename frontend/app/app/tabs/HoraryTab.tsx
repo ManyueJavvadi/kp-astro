@@ -45,6 +45,7 @@ import HoraryPatternChips from "../components/HoraryPatternChips";  // PR H4
 import HoraryBhavatBhavamCard from "../components/HoraryBhavatBhavamCard";  // PR H7
 import HorarySensitivityCard from "../components/HorarySensitivityCard";  // PR H8
 import HoraryTimingWindowCard from "../components/HoraryTimingWindowCard";  // PR H9
+import HoraryReasoningTrace from "../components/HoraryReasoningTrace";  // PR H10
 import { PLANET_COLORS } from "../components/constants";
 // PR R1-hotfix lesson — SouthIndianChart in page.tsx is an alias for the
 // modern RasiChart (not the legacy 56-line file). Reproduce the alias.
@@ -1086,6 +1087,12 @@ export function HoraryTab({
                 {Array.isArray(r.cusps) && r.cusps.length > 0 && (
                   <HoraryCuspsAccordion cusps={r.cusps} />
                 )}
+
+                {/* PR H10 — Full reasoning trace + astrologer notes + export.
+                    Collapsible audit trail of every signal that produced the
+                    verdict, plus a copy-paste-ready notes block and JSON
+                    export so the astrologer can verify or archive the chart. */}
+                <HoraryReasoningTrace result={r} />
 
                 {/* Planet table — alternating rows + left accent for ruling planets */}
                 <div style={{ overflowX: "auto" as const }}>
