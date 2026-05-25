@@ -622,7 +622,20 @@ def _compute_ruling_planets(
     _, ascmc = swe.houses_ex(jd_utc, latitude, longitude, b'P', swe.FLG_SIDEREAL)
     actual_lagna_lon = ascmc[0] % 360
 
-    # Local weekday. Build local datetime from JD, corrected at sunrise.
+    # HOTFIX (post-eb662e2): rebuild local_dt + utc_dt for rp_context
+    # display fields. The Vedic-sunrise day-lord switch removed the
+    # weekday-from-midnight derivation but rp_context still references
+    # local_dt + utc_dt for local_datetime/utc_datetime/weekday display.
+    # CORS error on production was actually a NameError exception inside
+    # the endpoint — when backend errors, the response carries no CORS
+    # headers and browser reports it as a CORS issue.
+    utc_dt = datetime(2000, 1, 1, 12, 0, 0, tzinfo=dt_tz.utc) + \
+             timedelta(days=(jd_utc - 2451545.0))
+    local_dt = utc_dt + timedelta(hours=timezone_offset)
+
+    # Day lord — Vedic sunrise-based (post-eb662e2). This correctly
+    # handles the case where current local time is between midnight
+    # and sunrise (still previous "Vedic day").
     from app.services.chart_engine import get_vedic_day_lord
     day_lord = get_vedic_day_lord(jd_utc, latitude, longitude, timezone_offset)
 

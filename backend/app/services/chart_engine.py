@@ -463,8 +463,16 @@ def get_vedic_day_lord(jd: float, latitude: float, longitude: float, timezone_of
     import swisseph as swe
     from datetime import datetime, timedelta, timezone as dt_tz
     
-    # 1. Convert Julian Day (UT) to local datetime
-    unix_seconds = (jd - 2440588.5) * 86400
+    # 1. Convert Julian Day (UT) to local datetime.
+    # HOTFIX (post-eb662e2): the Unix-epoch JD constant was 2440588.5 which
+    # is the JD of 1970-01-02 00:00 UTC. Correct constant is 2440587.5
+    # (= JD of 1970-01-01 00:00 UTC). The off-by-one-day shift was
+    # making Monday-IST queries compute the previous day's Vedic day lord
+    # (Sun instead of Moon). That broke 18/20 horary tests AND production
+    # /horary/analyze (NameError on missing local_dt → 500 → no CORS headers
+    # → browser reported CORS block). See sources:
+    # https://en.wikipedia.org/wiki/Julian_day#Variants
+    unix_seconds = (jd - 2440587.5) * 86400
     dt_utc = datetime(1970, 1, 1, tzinfo=dt_tz.utc) + timedelta(seconds=unix_seconds)
     local_now = dt_utc + timedelta(hours=timezone_offset)
     
