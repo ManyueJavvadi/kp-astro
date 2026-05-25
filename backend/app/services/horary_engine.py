@@ -159,6 +159,161 @@ TOPIC_PRIMARY_HOUSE = _build_topic_primary()
 TOPIC_ALIASES = _build_topic_aliases()
 
 
+# PR H8 — Sensitivity tier routing.
+# Maps each canonical topic to its protective-framing tier per
+# knowledge/sensitivity_tiers.md §2 + RULE 52. Three tiers:
+#   1 = factual/standard (job, education, travel, vehicle, fame, etc.)
+#   2 = life-impact (marriage, divorce, business, property, money_recovery,
+#       litigation, mental_health, foreign_settle, etc.)
+#   3 = life-or-death ABSOLUTE (criminal_case, surgery, cancer/terminal,
+#       suicide_risk, longevity, child_illness, congenital_conditions,
+#       hospitalization, etc.)
+_TOPIC_TIER = {
+    # Tier 3 — life-or-death absolute (RULE 15: never name dates)
+    "longevity": 3,
+    "suicide_risk": 3,
+    "child_illness": 3,
+    "congenital_conditions": 3,
+    "hospitalization": 3,
+    "missing_person": 3,
+    # Tier 2 — life-impact (RULE 44 capability/manifestation + falsifiable)
+    "marriage": 2,
+    "divorce": 2,
+    "second_marriage": 2,
+    "in_laws": 2,
+    "children": 2,
+    "pregnancy_complications": 2,
+    "adoption": 2,
+    "blended_family": 2,
+    "business": 2,
+    "money_recovery": 2,
+    "loan": 2,
+    "litigation": 2,
+    "litigation_loss": 2,
+    "mental_health": 2,
+    "addiction": 2,
+    "foreign_settle": 2,
+    "visa": 2,
+    "property": 2,
+    "disease_risk": 2,
+    "occult": 2,  # cultural sensitivity — never confirm 'cursed' verdict
+    "decision": 2,
+    # Tier 1 — factual / standard (default fallback)
+    # job, career, salary_growth, education, education_higher, foreign_travel,
+    # travel, vehicle, finance, wealth, health (recovery framing),
+    # spirituality, pilgrimage, fame, politics, sports, personality,
+    # father, mother, parents, siblings, etc.
+}
+
+# Auto-escalators: if ANY of these phrases appear in the question, escalate
+# to Tier 3 regardless of topic default. Source: sensitivity_tiers.md §3.
+_TIER3_ESCALATORS = [
+    # Death / longevity
+    "survive", "survival", "terminal", "dying", " die ", " dies ", " death ",
+    "how long will", "will [name] live", "last days", "final stage", "outlive",
+    # Suicide / self-harm
+    "kill myself", "suicide", "suicidal", "end it all", "end my life",
+    "no reason to live", "worth living", "self-harm", "self harm",
+    # Severe illness
+    "cancer", "tumour", "tumor", "chemo", "chemotherapy", "radiation",
+    "ICU", "icu", "coma", "ventilator", "life support",
+    "kidney failure", "liver failure", "heart attack", "stroke",
+    "transplant", "metastasis",
+    # Legal severe
+    " jail ", "prison", "convicted", "imprisonment", "arrested", "FIR filed",
+    "kidnapped", "kidnapping",
+    # Child specific
+    "born with", "congenital", "genetic disorder", "stillborn",
+    # Bankruptcy (per sensitivity_tiers.md — correlated with suicide risk)
+    "bankruptcy", "bankrupt",
+]
+
+
+def _resolve_sensitivity_tier(topic: str, question: str) -> dict:
+    """
+    PR H8 — Determine the protective-framing tier for this horary question.
+
+    Returns:
+      {
+        "tier": 1 | 2 | 3,
+        "base_tier": 1 | 2 | 3 (from topic alone),
+        "escalators_triggered": list of phrases found in question,
+        "framing_required": bool,
+        "framing_note_en": str (mandatory prepend text for Tier 2-3),
+        "framing_note_te": str,
+        "crisis_resources": list[dict] (for Tier 3 mental_health / suicide),
+      }
+    """
+    base_tier = _TOPIC_TIER.get(topic, 1)
+    escalators_triggered: list[str] = []
+    q_lower = (question or "").lower()
+    for phrase in _TIER3_ESCALATORS:
+        if phrase.strip() in q_lower:
+            escalators_triggered.append(phrase.strip())
+
+    # Escalation: if any tier-3 phrase is present, force tier 3
+    effective_tier = 3 if escalators_triggered else base_tier
+
+    # Build the framing notes
+    framing_note_en = ""
+    framing_note_te = ""
+    crisis_resources: list[dict] = []
+
+    if effective_tier == 3:
+        framing_note_en = (
+            "TIER 3 reading. KP shows structural tendencies only — NOT a verdict. "
+            "Final outcome depends on medical team / legal counsel / mental-health "
+            "professional / family resolve. Please consult them for the actual "
+            "decision you are making. Both possible branches are read below."
+        )
+        framing_note_te = (
+            "టైర్ 3 ఫలితం. KP నిర్మాణాత్మక ధోరణులు మాత్రమే చూపిస్తుంది — తీర్పు కాదు. "
+            "చివరి ఫలితం వైద్య బృందం / న్యాయవాది / మానసిక ఆరోగ్య నిపుణుడు / కుటుంబ "
+            "సంకల్పంపై ఆధారపడి ఉంటుంది. మీ నిర్ణయం కోసం వారిని సంప్రదించండి."
+        )
+        # Crisis resources for mental health / suicide-related Tier 3
+        is_mental_crisis = (
+            topic in ("suicide_risk", "mental_health", "addiction")
+            or any(p in q_lower for p in (
+                "suicide", "suicidal", "kill myself", "no reason to live",
+                "end it all", "end my life", "self harm", "self-harm",
+            ))
+        )
+        if is_mental_crisis:
+            crisis_resources = [
+                {"region": "India", "name": "iCall (TISS)",
+                 "number": "+91-9152987821",
+                 "hours": "Mon–Sat 8 AM – 10 PM IST"},
+                {"region": "India", "name": "Vandrevala Foundation",
+                 "number": "1860-2662-345 / +91-9999666555",
+                 "hours": "24/7"},
+                {"region": "India", "name": "NIMHANS helpline",
+                 "number": "+91-80-46110007", "hours": "24/7"},
+                {"region": "USA", "name": "988 Suicide & Crisis Lifeline",
+                 "number": "988", "hours": "24/7"},
+            ]
+    elif effective_tier == 2:
+        framing_note_en = (
+            "Life-impact reading. KP shows structural tendencies; YOUR free will "
+            "and the actions of others shape the actual outcome. The chart's "
+            "promise is one input, the dasha period is another — both must align."
+        )
+        framing_note_te = (
+            "జీవిత-ప్రభావ ఫలితం. KP నిర్మాణాత్మక ధోరణులు చూపిస్తుంది; మీ స్వేచ్ఛా "
+            "సంకల్పం + ఇతరుల చర్యలు చివరి ఫలితాన్ని రూపొందిస్తాయి."
+        )
+
+    return {
+        "tier": effective_tier,
+        "base_tier": base_tier,
+        "escalators_triggered": escalators_triggered,
+        "framing_required": effective_tier >= 2,
+        "framing_note_en": framing_note_en,
+        "framing_note_te": framing_note_te,
+        "crisis_resources": crisis_resources,
+    }
+
+
 def _resolve_topic(topic: str) -> str:
     """PR H6 — resolve a topic string through the alias map.
     Returns the canonical topic key. Falls through to 'general' if unknown."""
@@ -1695,6 +1850,11 @@ def analyze_horary(
     else:
         t_houses = TOPIC_HOUSES.get(resolved_topic, TOPIC_HOUSES["general"])
 
+    # PR H8 — Sensitivity tier routing. For Tier 2-3 topics or auto-
+    # escalated questions (cancer / suicide / jail / etc.), apply
+    # protective framing required by sensitivity_tiers.md + RULE 52.
+    sensitivity = _resolve_sensitivity_tier(resolved_topic, question)
+
     # PR H4 — Pattern detection. Names canonical KP patterns from
     # pattern_library.md (T1/T2/T3/D2). Pattern naming distinguishes
     # a deep KSK reading from a generic significator scan (RULE 19).
@@ -1760,6 +1920,8 @@ def analyze_horary(
         "topic_was_aliased": resolved_topic != (topic or "").strip().lower(),
         # PR H7 — Bhavat Bhavam context if a relative was detected in question
         "bhavat_bhavam": bhavat_bhavam_context,
+        # PR H8 — sensitivity tier + protective framing requirements
+        "sensitivity": sensitivity,
         "chart_time": utc_dt.strftime("%Y-%m-%d %H:%M UTC"),
         "lagna": {
             "longitude": round(lagna_lon % 360, 4),

@@ -43,6 +43,7 @@ import RPContextStrip from "../components/RPContextStrip";
 import HoraryValidityCard from "../components/HoraryValidityCard";  // PR H1
 import HoraryPatternChips from "../components/HoraryPatternChips";  // PR H4
 import HoraryBhavatBhavamCard from "../components/HoraryBhavatBhavamCard";  // PR H7
+import HorarySensitivityCard from "../components/HorarySensitivityCard";  // PR H8
 import { PLANET_COLORS } from "../components/constants";
 // PR R1-hotfix lesson — SouthIndianChart in page.tsx is an alias for the
 // modern RasiChart (not the legacy 56-line file). Reproduce the alias.
@@ -483,6 +484,13 @@ export function HoraryTab({
                     boss), engine rotates topic houses via house-from-house.
                     This card tells the astrologer the translation happened. */}
                 <HoraryBhavatBhavamCard ctx={r.bhavat_bhavam} />
+
+                {/* PR H8 — Sensitivity tier protective framing. Renders for
+                    Tier 2 (life-impact) and Tier 3 (life-or-death) topics —
+                    or auto-escalates to Tier 3 when question contains keywords
+                    like 'cancer', 'suicide', 'jail', etc. Includes crisis
+                    resources for mental-health Tier 3 cases. */}
+                <HorarySensitivityCard sensitivity={r.sensitivity} />
 
                 {/* Verdict hero — serif word, fade+scale entrance, radial glow.
                     This is the moment of the whole tab. */}
