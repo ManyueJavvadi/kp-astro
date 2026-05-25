@@ -639,6 +639,9 @@ export default function Home() {
   const handleSelectPlace = (s: PlaceSuggestion) => {
     setBirthDetails(prev => ({ ...prev, place: s.display, latitude: s.lat, longitude: s.lon }));
     setPlaceStatus("found"); setShowSuggestions(false); setSuggestions([]);
+    // R3-PR5: clear stale "Please pick your birth place" validation error
+    // the moment the user actually picks a valid suggestion.
+    setSetupError("");
     // Auto-detect timezone from coordinates (silent fallback to IST)
     axios.get("https://api.bigdatacloud.net/data/reverse-geocode-client", {
       params: { latitude: s.lat, longitude: s.lon, localityLanguage: "en" }
