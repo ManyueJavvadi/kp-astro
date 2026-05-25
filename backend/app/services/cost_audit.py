@@ -75,6 +75,8 @@ def log_anthropic_call(
     mode: str = "unknown",
     usage: Any = None,
     note: str = "",
+    diag_reason: str | None = None,
+    diag_missed_tokens: int = 0,
 ) -> None:
     """Emit a single audit line for one Anthropic API call.
 
@@ -87,6 +89,12 @@ def log_anthropic_call(
     .cache_read_input_tokens attributes) or a plain dict with the same
     keys. Pass None and we'll log the call with zero token counts
     (still useful — proves the call happened).
+
+    `diag_reason` and `diag_missed_tokens` are populated by
+    services/cache_diag.py when the `cache-diagnosis-2026-04-07` beta
+    feature is enabled (CACHE_DIAG=1 env). When None/0 (default), the
+    audit line shape is unchanged from before — existing grep filters
+    keep working.
     """
     in_tok = 0
     out_tok = 0
@@ -114,6 +122,12 @@ def log_anthropic_call(
     )
     if note:
         line += f" note={note}"
+    # Cost-optimization arc (May 2026) — diagnostics fields appear only
+    # when CACHE_DIAG=1 is set in env and the beta returned a result.
+    # Default (None / 0) keeps the line shape identical to pre-arc audit
+    # log so existing log filters / dashboards keep working.
+    if diag_reason:
+        line += f" diag_reason={diag_reason} diag_missed={diag_missed_tokens}"
     # Use WARNING so it bypasses default INFO filters in Railway and is
     # always visible without changing log level.
     logger.warning(line)

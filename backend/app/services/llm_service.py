@@ -3418,18 +3418,52 @@ Perform complete KP analysis. Format output for {mode.upper()} mode as instructe
     # "extended-cache-ttl-2025-04-11"}`. Per Anthropic docs the 1h TTL
     # is GA — no beta header needed. Verified `ttl: "1h"` on cache blocks
     # works without the header.
-    message = client.messages.create(
-        model=model_id,
-        max_tokens=max_tokens,
-        temperature=0,
-        system=system_blocks,
-        messages=messages,
+    #
+    # Cost-optimization arc (May 2026) — opt-in cache diagnostics via
+    # CACHE_DIAG=1 env. Default OFF → code path is byte-identical to
+    # before. See services/cache_diag.py + .claude/research/cost-optimization-2026-05.md
+    from . import cache_diag as _diag
+    _diag_key = _diag.session_key(
+        endpoint="llm.get_prediction",
+        chart_hash=str(chart_data.get("name") or chart_data.get("birth_date") or "?"),
+        topic=detected_topic,
+        mode=mode,
+        lang=None,
     )
+    _diag_prev = _diag.get_prev_id(_diag_key)
+    _diag_kwargs = _diag.build_call_kwargs(_diag_prev)
+    _diag_reason, _diag_missed = None, 0
+    message = None
+    if _diag.is_enabled() and _diag_kwargs:
+        try:
+            message = client.beta.messages.create(
+                model=model_id,
+                max_tokens=max_tokens,
+                temperature=0,
+                system=system_blocks,
+                messages=messages,
+                **_diag_kwargs,
+            )
+            _diag_reason, _diag_missed = _diag.extract(message)
+            _diag.set_prev_id(_diag_key, getattr(message, "id", None))
+        except Exception:
+            # SDK / beta shape mismatch — silent fall-through to non-beta call.
+            message = None
+    if message is None:
+        message = client.messages.create(
+            model=model_id,
+            max_tokens=max_tokens,
+            temperature=0,
+            system=system_blocks,
+            messages=messages,
+        )
     log_anthropic_call(
         endpoint="llm.get_prediction",
         model=model_id,
         mode=mode,
         usage=getattr(message, "usage", None),
+        diag_reason=_diag_reason,
+        diag_missed_tokens=_diag_missed,
     )
 
     return message.content[0].text
@@ -3746,15 +3780,51 @@ Perform complete KP analysis. Format output for {mode.upper()} mode as instructe
 
     # PR A1.3-fix-22 — dropped vestigial extended-cache-ttl-2025-04-11
     # beta header. 1h TTL is GA per Anthropic docs.
+    #
+    # Cost-optimization arc (May 2026) — opt-in cache diagnostics via
+    # CACHE_DIAG=1 env. This is the HIGHEST-VALUE diagnostic site since
+    # the Analysis tab streaming flow drives ~80% of monthly $$ and is
+    # multi-turn (so prev_id threading is meaningful here).
+    # Per Anthropic docs, diagnostics arrives on `message_start` SSE
+    # event and is carried through to `stream.get_final_message()`, so
+    # we extract from final_message just like the non-streaming sites.
+    from . import cache_diag as _diag
+    _diag_key = _diag.session_key(
+        endpoint="llm.get_prediction_stream",
+        chart_hash=str(chart_data.get("name") or chart_data.get("birth_date") or "?"),
+        topic=detected_topic,
+        mode=mode,
+        lang=None,
+    )
+    _diag_prev = _diag.get_prev_id(_diag_key)
+    _diag_kwargs = _diag.build_call_kwargs(_diag_prev)
+    _diag_reason, _diag_missed = None, 0
+
     accumulated: list[str] = []
     final_message = None
-    async with async_client.messages.stream(
-        model=model_id,
-        max_tokens=max_tokens,
-        temperature=0,
-        system=system_blocks,
-        messages=messages,
-    ) as stream:
+    _stream_cm = None
+    if _diag.is_enabled() and _diag_kwargs:
+        try:
+            _stream_cm = async_client.beta.messages.stream(
+                model=model_id,
+                max_tokens=max_tokens,
+                temperature=0,
+                system=system_blocks,
+                messages=messages,
+                **_diag_kwargs,
+            )
+        except Exception:
+            # Beta unsupported — silent fall-through.
+            _stream_cm = None
+    if _stream_cm is None:
+        _stream_cm = async_client.messages.stream(
+            model=model_id,
+            max_tokens=max_tokens,
+            temperature=0,
+            system=system_blocks,
+            messages=messages,
+        )
+    async with _stream_cm as stream:
         async for text in stream.text_stream:
             accumulated.append(text)
             yield text
@@ -3764,6 +3834,9 @@ Perform complete KP analysis. Format output for {mode.upper()} mode as instructe
             final_message = await stream.get_final_message()
         except Exception:
             final_message = None
+    if final_message is not None:
+        _diag_reason, _diag_missed = _diag.extract(final_message)
+        _diag.set_prev_id(_diag_key, getattr(final_message, "id", None))
 
     # Phase 13.2 — audit log so this call is reconcilable against the
     # Anthropic dashboard. endpoint label distinguishes the two SSE
@@ -3774,6 +3847,8 @@ Perform complete KP analysis. Format output for {mode.upper()} mode as instructe
         mode=mode,
         usage=getattr(final_message, "usage", None) if final_message else None,
         note=f"topic={detected_topic} qtype={early_resolved_qt}",
+        diag_reason=_diag_reason,
+        diag_missed_tokens=_diag_missed,
     )
 
     # ─── Write to cache after stream completes ───────────────────────
@@ -5371,18 +5446,55 @@ KEY RULES — read carefully and apply strictly:
     # PR M1.11 — capped at 5000 (was 8000). Real Match answers complete in
     # 3.5K-4.5K tokens; 8K let the model ramble and cost an extra ~$0.05
     # per call. 5K is comfortably above observed p99 with no quality loss.
-    message = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=5000,
-        temperature=0,
-        system=system_blocks,
-        messages=messages,
+    #
+    # Cost-optimization arc (May 2026) — opt-in cache diagnostics. Match
+    # is usually one-shot per (chart-pair, language) but follow-up
+    # questions on the Match tab DO route here, so prev_id threading is
+    # meaningful. Session key uses both partner names so re-asking the
+    # same pair caches; switching to a new pair starts a fresh thread.
+    from . import cache_diag as _diag
+    _p1n = (compat_result.get("person1") or {}).get("name") or "?"
+    _p2n = (compat_result.get("person2") or {}).get("name") or "?"
+    _diag_key = _diag.session_key(
+        endpoint="llm.get_match_prediction",
+        chart_hash=f"{_p1n}|{_p2n}",
+        topic="match",
+        mode="match",
+        lang=language,
     )
+    _diag_prev = _diag.get_prev_id(_diag_key)
+    _diag_kwargs = _diag.build_call_kwargs(_diag_prev)
+    _diag_reason, _diag_missed = None, 0
+    message = None
+    if _diag.is_enabled() and _diag_kwargs:
+        try:
+            message = client.beta.messages.create(
+                model="claude-sonnet-4-6",
+                max_tokens=5000,
+                temperature=0,
+                system=system_blocks,
+                messages=messages,
+                **_diag_kwargs,
+            )
+            _diag_reason, _diag_missed = _diag.extract(message)
+            _diag.set_prev_id(_diag_key, getattr(message, "id", None))
+        except Exception:
+            message = None
+    if message is None:
+        message = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=5000,
+            temperature=0,
+            system=system_blocks,
+            messages=messages,
+        )
     log_anthropic_call(
         endpoint="llm.get_match_prediction",
         model="claude-sonnet-4-6",
         mode="match",
         usage=getattr(message, "usage", None),
+        diag_reason=_diag_reason,
+        diag_missed_tokens=_diag_missed,
     )
 
     return message.content[0].text
@@ -5750,23 +5862,62 @@ Analyze the muhurtha windows above and answer the question. Reference specific w
     # shapes (see system prompt) target 400-1400 tokens typical; 2500
     # gives comfortable headroom for "Compare top 3" + detail follow-ups
     # while preventing runaway 3000+-token verbose walls.
-    message = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=2500,
-        temperature=0,
-        system=[
-            {
-                "type": "text",
-                "text": system_prompt,
-                "cache_control": {"type": "ephemeral", "ttl": "1h"},
-            }
-        ],
-        messages=messages,
+    #
+    # Cost-optimization arc (May 2026) — opt-in cache diagnostics.
+    # Muhurtha is multi-turn capable ("Compare top 3", "Alternatives",
+    # etc.) so prev_id threading is meaningful. Session key uses event
+    # type + searched range so a re-compute with different inputs starts
+    # a fresh thread.
+    from . import cache_diag as _diag
+    _evt = muhurtha_data.get("event_type") or "?"
+    _sr = muhurtha_data.get("searched_range") or {}
+    _sr_key = f"{_sr.get('start','?')}_{_sr.get('end','?')}"
+    _diag_key = _diag.session_key(
+        endpoint="llm.get_muhurtha_prediction",
+        chart_hash=_sr_key,
+        topic=_evt,
+        mode="muhurtha",
+        lang=None,
     )
+    _diag_prev = _diag.get_prev_id(_diag_key)
+    _diag_kwargs = _diag.build_call_kwargs(_diag_prev)
+    _diag_reason, _diag_missed = None, 0
+    _muh_sys = [
+        {
+            "type": "text",
+            "text": system_prompt,
+            "cache_control": {"type": "ephemeral", "ttl": "1h"},
+        }
+    ]
+    message = None
+    if _diag.is_enabled() and _diag_kwargs:
+        try:
+            message = client.beta.messages.create(
+                model="claude-sonnet-4-6",
+                max_tokens=2500,
+                temperature=0,
+                system=_muh_sys,
+                messages=messages,
+                **_diag_kwargs,
+            )
+            _diag_reason, _diag_missed = _diag.extract(message)
+            _diag.set_prev_id(_diag_key, getattr(message, "id", None))
+        except Exception:
+            message = None
+    if message is None:
+        message = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=2500,
+            temperature=0,
+            system=_muh_sys,
+            messages=messages,
+        )
     log_anthropic_call(
         endpoint="llm.get_muhurtha_prediction",
         model="claude-sonnet-4-6",
         mode="muhurtha",
         usage=getattr(message, "usage", None),
+        diag_reason=_diag_reason,
+        diag_missed_tokens=_diag_missed,
     )
     return message.content[0].text
