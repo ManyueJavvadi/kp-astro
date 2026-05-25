@@ -5389,68 +5389,20 @@ KEY RULES — read carefully and apply strictly:
 
 
 # ================================================================
-# QUICK INSIGHTS — Focused 3-4 bullet points per topic
+# QUICK INSIGHTS — removed (dead since Phase 13.1 / PR 31).
 # ================================================================
-
-QUICK_INSIGHT_TOPICS = {
-    "marriage": {"houses": "H2, H7, H11", "denial": "H1, H6, H10"},
-    "career": {"houses": "H2, H6, H10, H11", "denial": "H5, H8, H12"},
-    "health": {"houses": "H1, H5, H11 (recovery)", "denial": "H6, H8, H12 (disease)"},
-    "children": {"houses": "H2, H5, H11", "denial": "H1, H4, H10"},
-    "property": {"houses": "H4, H11, H12", "denial": "H3, H8"},
-    "wealth": {"houses": "H2, H6, H11", "denial": "H5, H8, H12"},
-    "education": {"houses": "H4, H9, H11", "denial": "H5, H8, H12"},
-    "foreign_travel": {"houses": "H9, H12, H3", "denial": "H4"},
-    "litigation": {"houses": "H6, H11 (win)", "denial": "H12 (lose)"},
-    "divorce": {"houses": "H6, H10, H12", "denial": "H2, H7, H11"},
-}
-
-
-def get_quick_insights(chart_data: dict, topic: str, language: str = "telugu_english") -> str:
-    """
-    Generate 3-4 focused, chart-specific bullet-point insights for a topic.
-    Uses a tighter prompt for speed — max 1500 tokens.
-    """
-    topic_info = QUICK_INSIGHT_TOPICS.get(topic, {"houses": "H1-H12", "denial": "—"})
-    relevant = topic_info["houses"]
-    denial = topic_info["denial"]
-
-    chart_summary = format_chart_for_llm(chart_data)
-
-    lang_note = ""
-    if language == "telugu_english":
-        lang_note = "Write in Telugu script mixed with English KP terms (Sub Lord, CSL, house numbers like H7, planet names in Telugu)."
-
-    prompt = f"""You are a KP astrologer. Analyze this chart for {topic.upper()} and give EXACTLY 4 bullet points:
-
-• Promise: [PROMISED / CONDITIONAL / DENIED] — one sentence naming the specific CSL and what houses it signifies from THIS chart
-• Key factor: the single most important planet/cusp placement for this topic in this chart
-• Timing: what the current {chart_data.get('current_dasha', {}).get('mahadasha', {}).get('lord', 'MD')} MD + current AD means for this topic right now
-• Watch: one specific upcoming dasha period or placement to monitor
-
-Topic houses (yes): {relevant}
-Denial houses: {denial}
-
-Use ONLY data from this specific chart. Be specific — mention actual planet names, house numbers, sub-lord names from this chart.
-{lang_note}
-
-CHART DATA:
-{chart_summary}"""
-
-    message = client.messages.create(
-        model="claude-haiku-4-5",
-        max_tokens=1200,
-        temperature=0,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    log_anthropic_call(
-        endpoint="llm.get_quick_insights",
-        model="claude-haiku-4-5",
-        mode="quick_insights",
-        usage=getattr(message, "usage", None),
-        note=f"topic={topic}",
-    )
-    return message.content[0].text
+# The router endpoint POST /astrologer/quick-insights returns HTTP 410
+# Gone; the auto-fire that used to trigger on every Analysis tab open
+# (~$0.30 per visit) was removed from the frontend in Phase 13.
+#
+# Cost-optimization arc (May 2026) dropped:
+#   - QUICK_INSIGHT_TOPICS dict (per-topic house mappings)
+#   - get_quick_insights() function (Haiku call dispatch)
+#   - dead unreachable body in routers/astrologer.py:quick_insights()
+#
+# If re-enabled later, design as an EXPLICIT opt-in button on the
+# Analysis tab (not auto-fire on open) with per-user cost gating.
+# See .claude/research/cost-optimization-2026-05.md for the rationale.
 
 
 # ================================================================

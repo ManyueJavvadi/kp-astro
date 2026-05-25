@@ -19,7 +19,7 @@ from app.services.telugu_terms import (
     UI_LABELS, PLANETS_TELUGU
 )
 from app.services.llm_service import (
-    get_prediction, get_prediction_stream, detect_topic, get_quick_insights,
+    get_prediction, get_prediction_stream, detect_topic,
     resolve_effective_topic,
 )
 from app.services.csl_chains import compute_csl_chains, format_csl_chains_for_llm
@@ -780,22 +780,30 @@ class QuickInsightsRequest(BaseModel):
 @router.post("/quick-insights")
 def quick_insights(request: QuickInsightsRequest):
     """
-    Phase 13.1 — endpoint hard-disabled.
+    Phase 13.1 — endpoint hard-disabled (HTTP 410 Gone).
 
     Original purpose: generate 3-4 bullet-point chart-specific observations
     for each requested topic. Auto-fired by the Analysis tab on every open
     and was the single biggest preventable cost (~$0.30 per visit at
     Sonnet rates × N opens per session).
 
-    Phase 13 / PR 31 removed the frontend auto-fire. We're now hard-killing
-    the endpoint itself as defence-in-depth so:
+    Phase 13 / PR 31 removed the frontend auto-fire. We then hard-killed
+    the endpoint as defence-in-depth so:
       • a stale Vercel CDN bundle still serving the old `loadQuickInsights`
         code can't bill anything (returns 410 immediately, no LLM call)
       • a future caller who imports this endpoint by mistake gets a clear
         404-class signal instead of silently spending credits.
 
-    To re-enable later (opt-in surface), restore the body and bump the
-    return to a 200 with the data dict.
+    Cost-optimization arc (May 2026): the unreachable dead body that was
+    kept verbatim below the raise — including ~120 lines of chart
+    construction + per-topic LLM dispatch — has been removed. With
+    `get_quick_insights()` itself also dropped from llm_service.py, the
+    only thing left here is the raise (the intentional 410 surface).
+
+    To re-enable this feature later, re-architect it as an OPT-IN button
+    on the Analysis tab (not an auto-fire on open), with explicit per-user
+    cost gating. The git history at .claude/research/cost-optimization-2026-05.md
+    + PR R3-PR... has the original body if anyone wants to reference it.
     """
     raise HTTPException(
         status_code=410,
@@ -805,123 +813,3 @@ def quick_insights(request: QuickInsightsRequest):
             "click flow (POST /astrologer/analyze-stream) instead."
         ),
     )
-
-    # Unreachable — kept below as a reference for the future opt-in
-    # restoration. The full body is preserved verbatim so re-enabling is
-    # a single-line change (delete the raise above + the early return).
-    chart = generate_chart(
-        request.date, request.time,
-        request.latitude, request.longitude,
-        request.timezone_offset
-    )
-    moon_longitude = chart["planets"]["Moon"]["longitude"]
-    dashas = calculate_dashas(request.date, request.time, moon_longitude, request.timezone_offset)
-    current_md = get_current_dasha(dashas)
-    antardashas = calculate_antardashas(current_md)
-    current_ad = get_current_antardasha(antardashas)
-    pratyantardashas = calculate_pratyantardashas(current_ad)
-    current_pad = get_current_pratyantardasha(pratyantardashas)
-    all_significators = get_all_house_significators(chart["planets"], chart["cusps"])
-
-    from app.services.chart_engine import get_planet_house_positions
-    planet_positions = get_planet_house_positions(chart["planets"], chart["cusps"])
-
-    cusp_lons = [v.get("cusp_longitude", 0) for v in chart["cusps"].values()]
-    planets_list = [{"planet_en": k, "longitude": v.get("longitude", 0)} for k, v in chart["planets"].items()]
-    cusps_list = [{"house_num": i+1, "cusp_longitude": lon, "sub_lord_en": v.get("sub_lord", "")}
-                  for i, (lon, v) in enumerate(zip(cusp_lons, chart["cusps"].values()))]
-    csl_chains = compute_csl_chains(cusps_list, planets_list)
-    csl_text = format_csl_chains_for_llm(csl_chains)
-
-    # PR A1.3c — Ruling Planets + advanced compute for quick-insights too.
-    # Quick-insights previously had no RPs, which contributed to vague timing
-    # output. Compute once, attach per-topic advanced bundles in the loop.
-    ruling_planets = get_ruling_planets(
-        request.latitude, request.longitude, request.timezone_offset,
-    )
-    rp_list = (ruling_planets.get("rp_context", {}) or {}).get("slot_assignments", []) if isinstance(ruling_planets, dict) else []
-
-    from app.services.kp_advanced_compute import compute_advanced_for_topic
-
-    # PR A1.3-fix-9 — Quick-insights parity: bring transits + yogini +
-    # decision_support to match /analyze. Previously bullets had less
-    # context than full analysis = inconsistent quality across endpoints.
-    import logging
-    _qi_log = logging.getLogger("astrologer.quick_insights")
-    try:
-        from app.services.kp_transit_compute import compute_transit_bundle
-        qi_transits = compute_transit_bundle(chart["cusps"], moon_longitude, chart["planets"])
-    except Exception as e:
-        _qi_log.warning("transit bundle failed for quick-insights: %s", e)
-        qi_transits = {}
-    try:
-        from app.services.kp_yogini_dasha import (
-            calculate_yogini_dashas, get_current_yogini, cross_check_with_vimsottari,
-        )
-        qi_yog_list = calculate_yogini_dashas(request.date, request.time, moon_longitude)
-        qi_yogini = {
-            "current":           get_current_yogini(qi_yog_list),
-            "next_3_yoginis":    qi_yog_list[1:4] if len(qi_yog_list) > 1 else [],
-            "vimsottari_xcheck": cross_check_with_vimsottari(qi_yog_list, antardashas[:9]),
-        }
-    except Exception as e:
-        _qi_log.warning("Yogini failed for quick-insights: %s", e)
-        qi_yogini = {}
-
-    chart_data = {
-        "name": request.name,
-        # PR A1.3a — gender + age so quick-insights also stops guessing.
-        "gender": request.gender or "",
-        "birth_date": request.date,
-        "age_years": _compute_age_years(request.date),
-        "chart_summary": {"planets": chart["planets"], "cusps": chart["cusps"]},
-        "current_dasha": {
-            "mahadasha": current_md,
-            "antardasha": current_ad,
-            "pratyantardasha": current_pad,
-        },
-        "upcoming_antardashas": antardashas[:9],
-        "ruling_planets": ruling_planets,           # PR A1.3c
-        "significators": all_significators,
-        "planet_positions": planet_positions,
-        "csl_chains_text": csl_text,
-        "transits":   qi_transits,                  # PR A1.3-fix-9 (parity with /analyze)
-        "yogini_dasha": qi_yogini,                  # PR A1.3-fix-9
-    }
-
-    results = {}
-    from app.services.kp_advanced_compute import (
-        decision_support_score, flag_dasha_conflicts,
-    )
-    for topic in request.topics:
-        try:
-            # PR A1.3c — per-topic advanced compute (A/B/C/D, harmony, etc.)
-            adv = compute_advanced_for_topic(
-                topic=topic,
-                planets=chart["planets"],
-                cusps=chart["cusps"],
-                planet_positions=planet_positions,
-                ruling_planets_list=rp_list,
-                current_md_lord=(current_md or {}).get("lord"),
-                current_ad_lord=(current_ad or {}).get("antardasha_lord"),
-                upcoming_antardashas=antardashas[:9],
-                promise_verdict=None,
-            )
-            chart_data["advanced_compute"] = adv
-            # PR A1.3-fix-9 — decision support + conflict flags per topic
-            try:
-                chart_data["decision_support"] = decision_support_score(adv)
-                chart_data["dasha_conflicts"]  = flag_dasha_conflicts(adv, qi_yogini)
-            except Exception as e:
-                _qi_log.warning("decision_support failed for topic %s: %s", topic, e)
-                chart_data["decision_support"] = {}
-                chart_data["dasha_conflicts"]  = []
-            insight = get_quick_insights(chart_data, topic, request.language)
-            results[topic] = insight
-        except Exception as e:
-            # PR A1.3-fix-24 — log details server-side, return generic
-            # message to user (was leaking exception text + paths into UI)
-            _qi_log.warning("get_quick_insights failed for topic %s: %s", topic, e)
-            results[topic] = "Insight unavailable for this topic right now."
-
-    return results

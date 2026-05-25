@@ -562,13 +562,21 @@ client construction).
 
 ---
 
-## `/quick-insights` endpoint — HARD-DISABLED (Phase 13.1)
+## `/quick-insights` endpoint — HARD-DISABLED (Phase 13.1) + cleaned up (May 2026)
 
 `POST /astrologer/quick-insights` raises **HTTP 410 Gone** at the top of
 the function body. Defense-in-depth: even if a stale Vercel CDN bundle
 still calls `loadQuickInsights()` (the frontend code was removed in
-Phase 13), the backend refuses to bill. Original body kept verbatim
-below the `raise` for easy re-enable behind a flag later.
+Phase 13), the backend refuses to bill.
+
+**Cost-optimization arc (May 2026) cleanup:**
+- Removed the unreachable dead body below the 410 raise in
+  `routers/astrologer.py` (~115 lines)
+- Removed `get_quick_insights()` function + `QUICK_INSIGHT_TOPICS` dict
+  from `services/llm_service.py` (~60 lines)
+- Removed `get_quick_insights` from the router's import line
+- The 410 raise + `QuickInsightsRequest` Pydantic model remain — so the
+  endpoint surface still answers cleanly (410, not 500)
 
 Original sin: a `useEffect` fired `loadQuickInsights()` every time the
 user opened the Analysis tab — burned Sonnet calls without the user
@@ -578,6 +586,9 @@ clicking anything. Visible on the Anthropic dashboard as ~$5/day.
 1. Explicit user opt-in toggle ("Show quick insights on tab open?")
 2. Per-chart cache hit logged to console (so user can see it's free)
 3. Frontend rate limit (no fire on rapid tab toggles)
+
+If re-enabling, the original implementation lives in git history (search
+for `get_quick_insights` before the May 2026 cleanup commit).
 
 ---
 
