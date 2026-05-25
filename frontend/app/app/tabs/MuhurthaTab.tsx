@@ -32,6 +32,7 @@ import { useLanguage } from "@/lib/i18n";
 import { PageHero } from "@/components/ui/PageHero";
 import { PlacePicker } from "@/components/ui/place-picker";
 import { PLANET_COLORS } from "../components/constants";
+import MuhurthaReasoningTrace from "../components/MuhurthaReasoningTrace";  // PR Mu15
 import { recordAiCall } from "@/lib/aiAudit";
 
 interface MuhurthaTabProps {
@@ -766,6 +767,26 @@ export function MuhurthaTab(props: MuhurthaTabProps) {
                     <span>{allWindows.length} {t("windows", "సమయాలు")}</span>
                   </div>
                 </div>
+              )}
+
+              {/* ── PR Mu15 — MuhurthaReasoningTrace for the best window ──
+                  Collapsible "Full reasoning trace + Copy notes +
+                  Export JSON" panel mirroring MatchReasoningTrace
+                  (M12) and HoraryReasoningTrace (H10). Closed by
+                  default so the leaderboard stays clean; opens to
+                  show every signal the engine used for the verdict
+                  + a copy-paste-ready astrologer notes block. */}
+              {bestWindow && (
+                <MuhurthaReasoningTrace
+                  window={bestWindow}
+                  metadata={{
+                    event_type: mResults.event_type,
+                    event_label: mResults.event_label,
+                    participants_loaded: mResults.participants_loaded,
+                    eclipses_in_range: mResults.eclipses_in_range,
+                    advanced_dosha_check_enabled: mResults.advanced_dosha_check_enabled,
+                  }}
+                />
               )}
 
               {/* ── Nearby Better Alert ── */}
