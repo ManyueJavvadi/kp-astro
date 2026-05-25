@@ -44,6 +44,7 @@ import HoraryValidityCard from "../components/HoraryValidityCard";  // PR H1
 import HoraryPatternChips from "../components/HoraryPatternChips";  // PR H4
 import HoraryBhavatBhavamCard from "../components/HoraryBhavatBhavamCard";  // PR H7
 import HorarySensitivityCard from "../components/HorarySensitivityCard";  // PR H8
+import HoraryTimingWindowCard from "../components/HoraryTimingWindowCard";  // PR H9
 import { PLANET_COLORS } from "../components/constants";
 // PR R1-hotfix lesson — SouthIndianChart in page.tsx is an alias for the
 // modern RasiChart (not the legacy 56-line file). Reproduce the alias.
@@ -764,6 +765,17 @@ export function HoraryTab({
                     );
                   })()}
                 </div>
+
+                {/* PR H9 — Fires-between-X-and-Y timing window card.
+                    Crosses horary RPs with native dashas to synthesize a single
+                    date range. Appears right after the verdict so the astrologer
+                    immediately sees WHEN (the natural follow-up to YES/NO). */}
+                <HoraryTimingWindowCard
+                  rulingPlanets={r.ruling_planets ?? []}
+                  rpSignifyingYes={v.rp_signifying_yes ?? []}
+                  antardashas={workspaceData?.antardashas ?? []}
+                  pratyantardashas={workspaceData?.pratyantardashas ?? []}
+                />
 
                 {/* 3-Layer Analysis — visual journey.
                     Three cards laid out horizontally (stack on mobile via CSS),
