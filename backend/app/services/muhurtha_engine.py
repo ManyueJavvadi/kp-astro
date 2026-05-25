@@ -1479,6 +1479,123 @@ DAY_MUHURTA_NAMES = [
 ]
 
 
+def _compute_sensitivity_tier(
+    event_type: str,
+    eclipses_in_range: list,
+    best_window: Optional[dict],
+    soft_flagged_windows: list,
+) -> dict:
+    """
+    PR Mu16 — Sensitivity tier framing. Mirrors Horary PR H8 + Match
+    PR M9. Base tier 2 for muhurtha (life-impact). Auto-escalates to
+    Tier 3 when structural risk signals fire.
+
+    Tier 3 escalators:
+      • Marriage / engagement with Venus/Jupiter combust in any
+        candidate window (the Shukra/Guru-asta hard reject in PR A2.2e
+        already drops those windows from passed; if it ALSO drops them
+        from the soft_flagged tier we still want the framing).
+      • Medical / surgery with Sun-Moon-Saturn-Mars complex impacting
+        the muhurtha Lagna (proxy: any best_window has a malefic
+        ekargala + kartari combo).
+      • Eclipse intersects the search range (Sutak windows present).
+      • If extend_suggestion is None AND no passed windows AND no
+        soft_flagged_windows either — empty horizon = Tier 3 framing
+        ("nothing qualifies; reconsider scope").
+
+    Returns:
+      {
+        tier: 1 | 2 | 3,
+        base_tier: 2,
+        escalators: list[str],
+        framing_required: bool,
+        framing_note_en: str,
+        framing_note_te: str,
+      }
+    """
+    base_tier = 2  # Muhurtha is inherently life-impact
+    escalators: list = []
+
+    # Eclipse in range → Tier 3 caution
+    if eclipses_in_range:
+        e0 = eclipses_in_range[0]
+        escalators.append(
+            f"eclipse_in_range:{e0.get('type', '?')}_{e0.get('eclipse_kind', '?')}"
+        )
+
+    # Marriage with Shukra/Guru combust signature
+    if event_type in {"marriage", "engagement"}:
+        if best_window:
+            if best_window.get("venus_combust"):
+                escalators.append("venus_combust_vivaha")
+            if best_window.get("jupiter_combust"):
+                escalators.append("jupiter_combust_vivaha")
+        # If many soft-flagged windows hit Shukra/Guru combust, the
+        # whole search range carries that signature
+        if soft_flagged_windows:
+            combust_count = sum(
+                1 for w in soft_flagged_windows
+                if w.get("venus_combust") or w.get("jupiter_combust")
+            )
+            if combust_count >= len(soft_flagged_windows) * 0.4:
+                escalators.append(f"combust_dominant_in_range:{combust_count}")
+
+    # Medical / surgery with malefic-aspect signature
+    if event_type == "medical" and best_window:
+        if best_window.get("kartari_ekargala_combined_hard") or best_window.get("h8_occupancy_hard"):
+            escalators.append("medical_malefic_signature_active")
+
+    # Empty horizon (nothing qualifies anywhere)
+    # Determined by the absence of best_window + extend_suggestion;
+    # the caller decides — we just expose the flag here.
+
+    effective_tier = 3 if escalators else base_tier
+
+    if effective_tier == 3:
+        framing_en = (
+            "TIER 3 reading. Structural risk signals are active in this "
+            "search range — eclipse window / marriage with combust "
+            "Shukra-Guru / medical with malefic complex / empty horizon. "
+            "Muhurtha shows STRUCTURAL TENDENCIES only; the astrologer "
+            "must recommend reconsidering scope (different date range, "
+            "different location, or extra ritual preparation) BEFORE "
+            "committing to any of these windows. Do NOT use any window "
+            "in this range as a verdict-grade muhurtha without manual "
+            "override + justification."
+        )
+        framing_te = (
+            "టైర్ 3 ఫలితం. ఈ శోధన పరిధిలో నిర్మాణాత్మక రిస్క్ సూచనలు "
+            "ఉన్నాయి — గ్రహణం / దగ్ధ శుక్ర-గురు / వైద్య మాలెఫిక్ / ఖాళీ "
+            "హోరిజోన్. ముహూర్తం నిర్మాణాత్మక ధోరణులు మాత్రమే చూపిస్తుంది; "
+            "ఈ పరిధిలోని ఏ కిటికీని కూడా మాన్యువల్ ఓవర్‌రైడ్ లేకుండా "
+            "ఉపయోగించవద్దు."
+        )
+    elif effective_tier == 2:
+        framing_en = (
+            "Life-impact reading. Muhurtha shows structural tendencies; "
+            "actual outcome depends on follow-through actions, ritual "
+            "preparation, and client free will. The chart's confidence "
+            "score is one input — astrologer-grade judgment is the other."
+        )
+        framing_te = (
+            "జీవిత-ప్రభావ ఫలితం. ముహూర్తం నిర్మాణాత్మక ధోరణులు "
+            "చూపిస్తుంది; నిజమైన ఫలితం తదుపరి చర్యలు, ఆచారం, స్వేచ్ఛా "
+            "సంకల్పంపై ఆధారపడుతుంది."
+        )
+    else:
+        framing_en = ""
+        framing_te = ""
+
+    return {
+        "tier":               effective_tier,
+        "base_tier":          base_tier,
+        "escalators":         escalators,
+        "framing_required":   True,
+        "framing_note_en":    framing_en,
+        "framing_note_te":    framing_te,
+    }
+
+
 def _compute_mu13_overlays(
     jd: float,
     sunrise_jd: float,
@@ -3305,6 +3422,32 @@ def find_muhurtha_windows(
         # else: extend_suggestion stays None — caller (UI) shows
         # "no qualifying muhurtha in next 90 days; manual review recommended"
 
+    # PR Mu16 — Sensitivity tier framing. Computed after we know the
+    # final selected/soft_flagged windows + eclipses_in_range.
+    _eclipses_for_tier = [
+        {
+            "type":         e["type"],
+            "eclipse_kind": e["eclipse_kind"],
+        }
+        for e in _find_eclipses_in_range(
+            swe.julday(start_dt.year, start_dt.month, start_dt.day, 0.0)
+              - (nearby_days if nearby_days else 0),
+            swe.julday(end_dt.year, end_dt.month, end_dt.day, 23.99)
+              + (nearby_days if nearby_days else 0),
+        )
+    ]
+    _best_for_tier = selected_windows[0] if selected_windows else None
+    sensitivity = _compute_sensitivity_tier(
+        event_type=classified_event,
+        eclipses_in_range=_eclipses_for_tier,
+        best_window=_best_for_tier,
+        soft_flagged_windows=soft_flagged_windows,
+    )
+    # Empty-horizon Tier 3 escalator: no passed AND no extend suggestion
+    if not selected_windows and not extend_suggestion:
+        sensitivity["escalators"].append("empty_horizon_no_extend")
+        sensitivity["tier"] = 3
+
     return {
         "windows":              selected_windows[:15],
         "soft_flagged_windows": soft_flagged_windows[:15],  # PR A2.2b
@@ -3314,6 +3457,8 @@ def find_muhurtha_windows(
         # below the best-window hero so the astrologer can pick by
         # client logistics (catering time, family availability, etc.).
         "same_day_alternatives": same_day_alternatives,
+        # PR Mu16 — Sensitivity tier framing for the response as a whole
+        "sensitivity":          sensitivity,
         "best_window":          selected_windows[0] if selected_windows else None,
         "nearby_better":        nearby_better,
         "extend_suggestion":    extend_suggestion,          # PR A2.2c

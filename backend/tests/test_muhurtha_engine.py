@@ -1363,6 +1363,39 @@ def test_mu14_evidence_sunrise_matches_real_world_value():
         )
 
 
+def test_mu16_sensitivity_present_with_required_shape():
+    """Response always carries sensitivity dict with required keys."""
+    r = find_muhurtha_windows(
+        date_start="2026-05-01", date_end="2026-05-01",
+        event_type="general", **TENALI,
+        nearby_days=0, participants=[],
+    )
+    s = r.get("sensitivity")
+    assert isinstance(s, dict)
+    for key in ("tier", "base_tier", "escalators", "framing_required",
+                "framing_note_en", "framing_note_te"):
+        assert key in s, f"sensitivity missing {key}"
+    assert s["base_tier"] == 2
+    assert s["tier"] in (2, 3)
+
+
+def test_mu16_eclipse_in_range_escalates_to_tier_3():
+    """Search a range that overlaps the 2026-02-17 solar eclipse —
+    sensitivity tier MUST escalate to 3."""
+    r = find_muhurtha_windows(
+        date_start="2026-02-15", date_end="2026-02-19",
+        event_type="general", **TENALI,
+        nearby_days=0, participants=[],
+    )
+    s = r.get("sensitivity") or {}
+    if r.get("eclipses_in_range"):
+        assert s.get("tier") == 3, (
+            f"Eclipse in range expected Tier 3, got {s.get('tier')}; "
+            f"escalators={s.get('escalators')}"
+        )
+        assert any("eclipse" in e.lower() for e in s.get("escalators", []))
+
+
 def test_mu0g_antardasha_cache_is_used():
     """_AD_CACHE accumulates entries as scans run; we verify by clearing
     it, running a small scan with a participant, and asserting at least

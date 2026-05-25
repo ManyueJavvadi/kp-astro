@@ -722,6 +722,43 @@ export function MuhurthaTab(props: MuhurthaTabProps) {
             return (
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
 
+              {/* ── PR Mu16 — Sensitivity tier framing banner ──
+                  Tier 2 (life-impact, default) = amber muted bar.
+                  Tier 3 (structural risk: eclipse / combust / empty
+                  horizon) = red prominent bar with escalator list. */}
+              {mResults.sensitivity && mResults.sensitivity.framing_required && (
+                <div
+                  style={{
+                    padding: "10px 14px",
+                    borderRadius: 10,
+                    background: mResults.sensitivity.tier === 3
+                      ? "rgba(248,113,113,0.08)"
+                      : "rgba(201,169,110,0.05)",
+                    border: mResults.sensitivity.tier === 3
+                      ? "0.5px solid rgba(248,113,113,0.40)"
+                      : "0.5px solid rgba(201,169,110,0.30)",
+                    color: mResults.sensitivity.tier === 3 ? "#f87171" : "var(--accent)",
+                    fontSize: 11,
+                    lineHeight: 1.6,
+                  }}
+                >
+                  <div style={{ fontWeight: 700, letterSpacing: "0.06em", fontSize: 10, textTransform: "uppercase", marginBottom: 6 }}>
+                    {mResults.sensitivity.tier === 3
+                      ? t("⚠ Tier 3 — structural risk in this range", "⚠ టైర్ 3 — ఈ పరిధిలో నిర్మాణ రిస్క్")
+                      : t("Tier 2 — life-impact reading", "టైర్ 2 — జీవిత-ప్రభావ ఫలితం")}
+                  </div>
+                  <div style={{ color: "var(--text)", opacity: 0.85 }}>
+                    {lang === "te" ? mResults.sensitivity.framing_note_te : mResults.sensitivity.framing_note_en}
+                  </div>
+                  {mResults.sensitivity.tier === 3 && mResults.sensitivity.escalators?.length > 0 && (
+                    <div style={{ marginTop: 6, fontSize: 10, color: "var(--muted)", fontStyle: "italic" }}>
+                      {t("Triggered by:", "ట్రిగ్గర్:")}{" "}
+                      {mResults.sensitivity.escalators.map((e: string) => e.replace(/_/g, " ").replace(/:/g, " ")).join(" · ")}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* ── BEST WINDOW — serif hero reveal ── */}
               {bestWindow && (
                 <div className="muhurtha-best-hero">
