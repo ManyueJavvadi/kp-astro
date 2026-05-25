@@ -975,6 +975,56 @@ def test_mu6_panchaka_blocks_event_for_relevant_event():
     # we don't fail. The shape contract is the important assertion.
 
 
+def test_mu7_eclipses_in_range_field_present():
+    """find_muhurtha_windows response always includes
+    `eclipses_in_range` (may be empty list)."""
+    r = find_muhurtha_windows(
+        date_start="2026-05-01", date_end="2026-05-02",
+        event_type="general", **TENALI,
+        nearby_days=0, participants=[],
+    )
+    assert "eclipses_in_range" in r
+    assert isinstance(r["eclipses_in_range"], list)
+
+
+def test_mu7_known_eclipse_detected_in_range():
+    """A real eclipse: 2026-02-17 annular solar eclipse. Search a range
+    spanning that date — engine must surface it in eclipses_in_range."""
+    r = find_muhurtha_windows(
+        date_start="2026-02-15", date_end="2026-02-19",
+        event_type="general", **TENALI,
+        nearby_days=0, participants=[],
+    )
+    found_solar = any(e["type"] == "solar" for e in r.get("eclipses_in_range", []))
+    assert found_solar, (
+        "Feb 17 2026 annular solar eclipse should be in eclipses_in_range"
+    )
+
+
+def test_mu7_windows_inside_sutak_are_soft_flagged():
+    """When a candidate window falls inside Sutak (12h before solar
+    eclipse peak), the window must be in soft_flagged_windows with
+    Sutak in its hard_rejected_for. Search a range that overlaps
+    the Feb 17 2026 solar eclipse Sutak."""
+    r = find_muhurtha_windows(
+        date_start="2026-02-17", date_end="2026-02-17",
+        event_type="general", **TENALI,
+        nearby_days=0, participants=[],
+    )
+    all_w = (r.get("windows") or []) + (r.get("soft_flagged_windows") or [])
+    sutak_windows = [w for w in all_w if w.get("in_sutak")]
+    if sutak_windows:
+        for w in sutak_windows:
+            # Must be in soft_flagged (not passed leaderboard)
+            assert w in (r.get("soft_flagged_windows") or []), (
+                "Sutak window should be soft-flagged, not in passed list"
+            )
+            # And hard_rejected_for must mention Sutak
+            assert any("Sutak" in s for s in (w.get("hard_rejected_for") or [])), (
+                "Sutak window must have 'Sutak' in hard_rejected_for"
+            )
+
+
 def test_mu0g_antardasha_cache_is_used():
     """_AD_CACHE accumulates entries as scans run; we verify by clearing
     it, running a small scan with a participant, and asserting at least

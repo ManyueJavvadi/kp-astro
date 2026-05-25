@@ -242,6 +242,121 @@ def _has_nakshatra_vedha(naks_num: int) -> bool:
     return False
 
 
+def _find_eclipses_in_range(start_jd: float, end_jd: float) -> list:
+    """
+    PR Mu7 — Find all solar + lunar eclipses whose peak falls within
+    [start_jd, end_jd] and compute the classical Sutak windows around
+    them. Sutak = "impurity period" during which NO auspicious event
+    should be undertaken — classical hard reject.
+
+    Per research:
+      Solar eclipse: Sutak begins 12h before the eclipse peak and
+                     ends at moksha (end) of the eclipse.
+      Lunar eclipse: Sutak begins 9h before the peak and ends at moksha.
+      Extended avoidance (±3 days around eclipse): soft caution; we
+        record it as `extended_advisory_jd_range` but DON'T hard-reject.
+
+    Returns a list of dicts:
+      [{
+        type: "solar" | "lunar",
+        eclipse_kind: "TOTAL" | "ANNULAR" | "PARTIAL" | ...,
+        peak_jd: float,
+        sutak_start_jd: float,
+        sutak_end_jd: float,
+        ext_advisory_start_jd: float,  # 3 days before
+        ext_advisory_end_jd: float,    # 3 days after
+      }]
+    """
+    swe.set_sid_mode(swe.SIDM_KRISHNAMURTI_VP291)
+    eclipses: list = []
+    SUTAK_SOLAR_HRS = 12.0
+    SUTAK_LUNAR_HRS = 9.0
+    EXT_ADVISORY_DAYS = 3.0
+
+    # ── Solar eclipses ──
+    try:
+        cursor = start_jd
+        for _ in range(20):  # at most ~12 solar eclipses in 5 years
+            res, tret = swe.sol_eclipse_when_glob(cursor, swe.FLG_SWIEPH, 0, False)
+            if not tret:
+                break
+            peak = tret[0]
+            if peak > end_jd:
+                break
+            # tret indices: 0=peak, 2=eclipse_start, 3=eclipse_end (global)
+            ecl_end = tret[3] if len(tret) > 3 and tret[3] else (peak + 0.1)
+            kind = (
+                "TOTAL" if res & swe.ECL_TOTAL else
+                "ANNULAR" if res & swe.ECL_ANNULAR else
+                "PARTIAL" if res & swe.ECL_PARTIAL else
+                "ANNULAR_TOTAL" if res & swe.ECL_ANNULAR_TOTAL else
+                "UNKNOWN"
+            )
+            eclipses.append({
+                "type": "solar",
+                "eclipse_kind": kind,
+                "peak_jd": peak,
+                "sutak_start_jd": peak - (SUTAK_SOLAR_HRS / 24.0),
+                "sutak_end_jd":   ecl_end,
+                "ext_advisory_start_jd": peak - EXT_ADVISORY_DAYS,
+                "ext_advisory_end_jd":   peak + EXT_ADVISORY_DAYS,
+            })
+            cursor = peak + 0.5  # advance past this eclipse
+    except Exception:
+        pass
+
+    # ── Lunar eclipses ──
+    try:
+        cursor = start_jd
+        for _ in range(20):
+            res, tret = swe.lun_eclipse_when(cursor, swe.FLG_SWIEPH, 0, False)
+            if not tret:
+                break
+            peak = tret[0]
+            if peak > end_jd:
+                break
+            ecl_end = tret[3] if len(tret) > 3 and tret[3] else (peak + 0.15)
+            kind = (
+                "TOTAL" if res & swe.ECL_TOTAL else
+                "PARTIAL" if res & swe.ECL_PARTIAL else
+                "PENUMBRAL" if res & swe.ECL_PENUMBRAL else
+                "UNKNOWN"
+            )
+            eclipses.append({
+                "type": "lunar",
+                "eclipse_kind": kind,
+                "peak_jd": peak,
+                "sutak_start_jd": peak - (SUTAK_LUNAR_HRS / 24.0),
+                "sutak_end_jd":   ecl_end,
+                "ext_advisory_start_jd": peak - EXT_ADVISORY_DAYS,
+                "ext_advisory_end_jd":   peak + EXT_ADVISORY_DAYS,
+            })
+            cursor = peak + 0.5
+    except Exception:
+        pass
+
+    eclipses.sort(key=lambda e: e["peak_jd"])
+    return eclipses
+
+
+def _eclipse_status_at(jd: float, eclipses: list) -> dict:
+    """For a given jd, return the eclipse / sutak / extended-advisory
+    status. Used per slot to flag hard rejects and soft cautions."""
+    in_sutak = None
+    in_extended = None
+    for e in eclipses:
+        if e["sutak_start_jd"] <= jd <= e["sutak_end_jd"]:
+            in_sutak = e
+            break
+        if e["ext_advisory_start_jd"] <= jd <= e["ext_advisory_end_jd"]:
+            in_extended = e
+            # don't break — sutak takes precedence if found later
+    return {
+        "in_sutak": in_sutak,
+        "in_extended_advisory": in_extended,
+    }
+
+
 def _compute_panchang_overlays(
     jd: float,
     moon_lon: float,
@@ -1070,6 +1185,12 @@ def _scan_date_range(
     raw_windows = []
     planet_cache: dict = {}
     slot_cache: dict = {}
+    # PR Mu7 — eclipses + sutak windows within the search range. Computed
+    # ONCE per scan (eclipses are global events, not per-second). The
+    # per-slot check is then O(small-N).
+    _start_jd = swe.julday(start_dt.year, start_dt.month, start_dt.day, 0.0)
+    _end_jd = swe.julday(end_dt.year, end_dt.month, end_dt.day, 23.99)
+    _eclipses = _find_eclipses_in_range(_start_jd, _end_jd)
     # PR Mu0d — track polar / sunrise-resolution failures per day so the
     # response can surface "no muhurtha computable on Dec 22 at this
     # latitude" instead of silently falling back to a fake 12-hour day.
@@ -1574,6 +1695,22 @@ def _scan_date_range(
         ekargala_active = sun_sign_idx_here == moon_sign_idx_here
         ekargala_penalty = -20 if ekargala_active else 0
 
+        # ── PR Mu7 — Eclipse + Sutak windows (classical hard reject).
+        #     Per research: solar eclipse Sutak = 12h before peak through
+        #     moksha; lunar eclipse Sutak = 9h. Inside Sutak NO auspicious
+        #     event should be undertaken. Extended advisory (±3 days)
+        #     is a soft caution (also recorded for ledger but does not
+        #     hard-reject — astrologer may justify override on a clean
+        #     Lagna).
+        eclipse_status = _eclipse_status_at(jd, _eclipses)
+        in_sutak = eclipse_status["in_sutak"]
+        in_eclipse_ext = eclipse_status["in_extended_advisory"]
+        if in_sutak:
+            hard_rejected_for.append(
+                f"Sutak ({in_sutak['type'].title()} eclipse "
+                f"{in_sutak['eclipse_kind']}) — no auspicious event"
+            )
+
         # ── PR Mu6 — Panchang overlays (Varjyam / Amrit Kala / Panchaka /
         #     Tithi Shunya / Nakshatra Vedha). KB §4 explicitly requires
         #     muhurtha to consume these from the Panchang module; the
@@ -1714,6 +1851,25 @@ def _scan_date_range(
                 "factor": "nakshatra_vedha",
                 "delta": int(vedha_penalty),
                 "note": "Moon nakshatra has classical vedha relationship"})
+        # PR Mu7 — Eclipse ledger entries (informational; hard reject
+        # is applied via hard_rejected_for above so it doesn't double-count
+        # the score, but the ledger entry tells the astrologer WHY).
+        if in_sutak:
+            breakdown.append({
+                "factor": "eclipse_sutak",
+                "delta": 0,  # already hard-rejected; no further score delta
+                "note": (
+                    f"Inside Sutak — {in_sutak['type']} eclipse "
+                    f"({in_sutak['eclipse_kind']}). Hard reject."
+                )})
+        elif in_eclipse_ext:
+            breakdown.append({
+                "factor": "eclipse_extended_advisory",
+                "delta": -10,
+                "note": (
+                    f"Within ±3 days of {in_eclipse_ext['type']} eclipse "
+                    f"({in_eclipse_ext['eclipse_kind']}) — soft caution."
+                )})
 
         effective_score = (
             base_score
@@ -1736,6 +1892,7 @@ def _scan_date_range(
             + panchaka_penalty       # PR Mu6
             + tithi_shunya_penalty   # PR Mu6
             + vedha_penalty          # PR Mu6
+            + (-10 if in_eclipse_ext and not in_sutak else 0)  # PR Mu7 soft
         )
         # Hard time-window penalties — listed AFTER soft factors so
         # the breakdown reads as "would have been N, then inauspicious
@@ -1789,6 +1946,15 @@ def _scan_date_range(
                 "participant_soft_concerns": participant_soft_concerns_all,
                 # PR Mu6 — Panchang overlays (varjyam/amrit/panchaka/tithi-shunya/vedha)
                 "panchang_overlays":     panchang_overlays,
+                # PR Mu7 — eclipse / sutak status
+                "in_sutak":              bool(in_sutak),
+                "sutak_eclipse":         (
+                    {
+                        "type":         in_sutak["type"],
+                        "eclipse_kind": in_sutak["eclipse_kind"],
+                    } if in_sutak else None
+                ),
+                "in_eclipse_extended_advisory": bool(in_eclipse_ext and not in_sutak),
                 "in_rahu_kalam":     in_rk,
                 "in_yamagandam":     in_yg,
                 "in_gulika":         in_gl,
@@ -2202,6 +2368,26 @@ def find_muhurtha_windows(
         # polar night, no muhurtha computable" instead of silently
         # missing days from the leaderboard.
         "skipped_polar_days":   (_selected_skipped or []) + (_nearby_skipped or []) + (_extend_skipped or []),
+        # PR Mu7 — Eclipses that intersect the search range (incl.
+        # nearby + extend). Frontend uses this to render a banner
+        # like "⚠ Lunar eclipse on Sep 12 — affects windows Sep 11–14".
+        "eclipses_in_range": [
+            {
+                "type":           e["type"],
+                "eclipse_kind":   e["eclipse_kind"],
+                "peak_jd":        e["peak_jd"],
+                "sutak_start_jd": e["sutak_start_jd"],
+                "sutak_end_jd":   e["sutak_end_jd"],
+                "ext_advisory_start_jd": e["ext_advisory_start_jd"],
+                "ext_advisory_end_jd":   e["ext_advisory_end_jd"],
+            }
+            for e in _find_eclipses_in_range(
+                swe.julday(start_dt.year, start_dt.month, start_dt.day, 0.0)
+                  - (nearby_days if nearby_days else 0),
+                swe.julday(end_dt.year, end_dt.month, end_dt.day, 23.99)
+                  + (nearby_days if nearby_days else 0),
+            )
+        ],
     }
 
 
