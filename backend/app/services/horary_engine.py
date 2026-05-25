@@ -640,12 +640,89 @@ def _compute_clinical_flags(
             "tone": "yellow",
             "code": "csl_retrograde",
             "label": f"{query_csl} (H{primary_house} CSL) is retrograde",
+            "label_te": f"{query_csl} (H{primary_house} CSL) వక్రంలో",
             "detail": (
                 f"A retrograde primary-house CSL in KP indicates delays, revisits, "
                 f"or an outcome that comes through a second attempt / re-negotiation "
                 f"rather than a direct path."
             ),
+            "detail_te": (
+                f"ప్రాథమిక CSL వక్ర గ్రహం — KP ప్రకారం ఆలస్యం, తిరిగి సందర్శన, "
+                f"లేదా రెండవ ప్రయత్నం / తిరిగి చర్చల ద్వారా ఫలితం వస్తుంది."
+            ),
         })
+
+    # === H2 — Primary CSL in star of retrograde planet ===
+    # KSK Reader I rule 4 (verbatim spirit): "The most important house cusp
+    # sub lord should not itself be retrograde at the time of judgment.
+    # This sub lord should not occupy a star whose lord is retrograde at
+    # the time of judgment."
+    # The first condition (csl_retrograde) is covered above. This flag
+    # catches the SECOND condition: CSL is direct, but its STAR LORD is
+    # retrograde — per KSK, "the event materialises only after the
+    # retrograde planet turns direct, with obstacles and delay."
+    # Source: astrojasa.blogspot.com KP horary rules + KSK Reader I.
+    if query_csl in planet_lons:
+        csl_lon = planet_lons[query_csl]
+        csl_star_lord = get_nakshatra_and_starlord(csl_lon).get("star_lord", "")
+        if (
+            csl_star_lord
+            and csl_star_lord in planets_raw
+            and planets_raw[csl_star_lord].get("retrograde")
+        ):
+            flags.append({
+                "tone": "yellow",
+                "code": "csl_in_retrograde_star",
+                "label": f"{query_csl} (H{primary_house} CSL) sits in star of retrograde {csl_star_lord}",
+                "label_te": f"{query_csl} (H{primary_house} CSL) వక్ర {csl_star_lord} నక్షత్రంలో",
+                "detail": (
+                    f"Primary-house CSL {query_csl} is in nakshatra ruled by "
+                    f"{csl_star_lord}, which is currently retrograde. Per KSK "
+                    f"Reader I rule 4: when the CSL's star lord is retrograde, "
+                    f"the event materialises only AFTER the retrograde planet "
+                    f"turns direct — typically with obstacles, re-attempts, or "
+                    f"delay. This is structurally different from CSL-retrograde "
+                    f"(which delays directly): here the COLOURING star is in "
+                    f"reversal, so the matter holds its breath until "
+                    f"{csl_star_lord} resumes direct motion."
+                ),
+                "detail_te": (
+                    f"ప్రాథమిక CSL {query_csl} {csl_star_lord} నక్షత్రంలో — "
+                    f"{csl_star_lord} ప్రస్తుతం వక్రంలో. KSK ప్రకారం: CSL యొక్క "
+                    f"నక్షత్ర అధిపతి వక్రంగా ఉన్నప్పుడు, ఆ గ్రహం ఋజువు అయిన "
+                    f"తర్వాతనే సంఘటన పూర్తి అవుతుంది — అడ్డంకులు, తిరిగి ప్రయత్నాలు, "
+                    f"లేదా ఆలస్యంతో."
+                ),
+            })
+
+    # Also check Lagna CSL's star lord for additional context on querent state
+    if lagna_sub in planet_lons and lagna_sub != query_csl:
+        lagna_csl_lon = planet_lons[lagna_sub]
+        lagna_star_lord = get_nakshatra_and_starlord(lagna_csl_lon).get("star_lord", "")
+        if (
+            lagna_star_lord
+            and lagna_star_lord in planets_raw
+            and planets_raw[lagna_star_lord].get("retrograde")
+        ):
+            flags.append({
+                "tone": "yellow",
+                "code": "lagna_csl_in_retrograde_star",
+                "label": f"Lagna CSL {lagna_sub} in star of retrograde {lagna_star_lord}",
+                "label_te": f"లగ్న CSL {lagna_sub} వక్ర {lagna_star_lord} నక్షత్రంలో",
+                "detail": (
+                    f"Lagna CSL {lagna_sub}'s star lord {lagna_star_lord} is "
+                    f"retrograde at the query moment. Per KSK doctrine, the "
+                    f"querent's framing of the question itself carries "
+                    f"reconsideration energy — they may revise the question, "
+                    f"add conditions, or be of two minds about the outcome they "
+                    f"want. Not a denial signal, just a flavour of the moment."
+                ),
+                "detail_te": (
+                    f"లగ్న CSL {lagna_sub} నక్షత్ర అధిపతి {lagna_star_lord} "
+                    f"వక్రంలో — ప్రశ్నికుడు ప్రశ్నను తిరిగి ఆలోచించే శక్తి, "
+                    f"షరతులు జోడించడం లేదా రెండు మనసులతో ఉండడం."
+                ),
+            })
 
     # === Strongest RP also signifies the topic? ===
     strongest = rp_context.get("strongest", [])
