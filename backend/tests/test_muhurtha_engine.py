@@ -1549,6 +1549,42 @@ def test_r2pr4_natal_marriage_sigs_returns_planet_subset():
     assert isinstance(sigs, set)
 
 
+def test_r2pr5_muhurtha_formatter_surfaces_new_fields():
+    """format_muhurtha_for_llm now emits the post-Mu0 fields so the
+    LLM sees the same evidence the UI does."""
+    from app.services.llm_service import format_muhurtha_for_llm
+    r = find_muhurtha_windows(
+        date_start="2026-05-01", date_end="2026-05-03",
+        event_type="general", **TENALI,
+        nearby_days=0, participants=[],
+    )
+    txt = format_muhurtha_for_llm(r)
+    # New ledger / aggregation / sensitivity / day-muhurta indicators
+    # should be present for any non-empty result
+    if r.get("windows"):
+        assert "Confidence:" in txt or "confidence" in txt.lower()
+        assert "Day muhurta:" in txt
+    # Top-level sensitivity always emitted when framing_required
+    if r.get("sensitivity", {}).get("framing_required"):
+        assert "SENSITIVITY: TIER" in txt
+
+
+def test_r2pr5_match_formatter_surfaces_new_fields():
+    """format_match_for_llm now emits the M1-M14 / R2 fields."""
+    from app.services.compatibility_engine import compute_compatibility
+    from app.services.llm_service import format_match_for_llm
+    p1 = {"name":"A","date":"1990-01-15","time":"12:00","latitude":17.385,"longitude":78.486,"timezone_offset":5.5,"gender":"male"}
+    p2 = {"name":"B","date":"1992-06-20","time":"09:30","latitude":17.385,"longitude":78.486,"timezone_offset":5.5,"gender":"female"}
+    r = compute_compatibility(p1, p2)
+    txt = format_match_for_llm(r)
+    # Couple confidence (M1) always emitted when score is int
+    if isinstance(r.get("couple_confidence_score"), int):
+        assert "COUPLE CONFIDENCE" in txt
+    # Sensitivity (M9) emitted when framing_required
+    if r.get("sensitivity", {}).get("framing_required"):
+        assert "SENSITIVITY: TIER" in txt
+
+
 def test_mu0g_antardasha_cache_is_used():
     """_AD_CACHE accumulates entries as scans run; we verify by clearing
     it, running a small scan with a participant, and asserting at least

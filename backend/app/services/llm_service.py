@@ -4841,6 +4841,139 @@ def format_match_for_llm(compat_result: dict) -> str:
 
     lines.append(f"\nKP Verdict: {kp['kp_verdict']} | Overall: {compat_result['overall_verdict']}")
 
+    # ── PR R2-PR5 — Surface the post-M-wave engine fields so the LLM
+    # has the same evidence the astrologer sees in the UI. APPENDED
+    # (does not modify the existing scaffold above) so the pre-R2
+    # prompt expectations are preserved for existing fields.
+
+    # M1 numeric couple confidence + breakdown ledger
+    if isinstance(compat_result.get("couple_confidence_score"), int):
+        lines.append(
+            f"\nCOUPLE CONFIDENCE: {compat_result['couple_confidence_score']}/100"
+        )
+        bd = compat_result.get("couple_confidence_breakdown") or []
+        if bd:
+            top = [
+                f"{b.get('label', '?')} = {('+' if b.get('delta', 0) > 0 else '')}{b.get('delta', 0)}"
+                for b in bd if isinstance(b.get('delta'), int)
+            ][:8]
+            if top:
+                lines.append(f"  Ledger: {' | '.join(top)}")
+
+    # M2 multi-cusp TIER per partner
+    tier1 = compat_result.get("multi_cusp_tier_chart1") or {}
+    tier2 = compat_result.get("multi_cusp_tier_chart2") or {}
+    if tier1 or tier2:
+        lines.append(
+            f"Multi-cusp TIER: {p1['name']} = {tier1.get('label', tier1.get('tier', '?'))}, "
+            f"{p2['name']} = {tier2.get('label', tier2.get('tier', '?'))}"
+        )
+
+    # M3 pattern fires
+    pat1 = compat_result.get("patterns_chart1") or []
+    pat2 = compat_result.get("patterns_chart2") or []
+    patc = compat_result.get("patterns_couple") or []
+    if pat1 or pat2 or patc:
+        parts = []
+        if patc:
+            parts.append("Couple: " + ", ".join(f"{p.get('id')}" for p in patc))
+        if pat1:
+            parts.append(f"{p1['name']}: " + ", ".join(f"{p.get('id')}" for p in pat1))
+        if pat2:
+            parts.append(f"{p2['name']}: " + ", ".join(f"{p.get('id')}" for p in pat2))
+        if parts:
+            lines.append("Patterns fired: " + " | ".join(parts))
+
+    # M4 Star-Sub Harmony per partner
+    h1 = compat_result.get("h7_star_sub_chart1") or {}
+    h2 = compat_result.get("h7_star_sub_chart2") or {}
+    if h1.get("harmony") or h2.get("harmony"):
+        lines.append(
+            f"Star-Sub Harmony: {p1['name']} = {h1.get('harmony', '?')}, "
+            f"{p2['name']} = {h2.get('harmony', '?')}"
+        )
+
+    # M5 + M7 + M8 clinical flags per partner
+    m1m = compat_result.get("multi_marriage_chart1") or {}
+    m2m = compat_result.get("multi_marriage_chart2") or {}
+    cmb1 = compat_result.get("h7_csl_combust_chart1") or {}
+    cmb2 = compat_result.get("h7_csl_combust_chart2") or {}
+    bdr1 = compat_result.get("h7_csl_borderline_chart1") or {}
+    bdr2 = compat_result.get("h7_csl_borderline_chart2") or {}
+    clinical_chips = []
+    if m1m.get("signature_present"): clinical_chips.append(f"{p1['name']} multi-marriage ({m1m.get('basis')})")
+    if m2m.get("signature_present"): clinical_chips.append(f"{p2['name']} multi-marriage ({m2m.get('basis')})")
+    if cmb1.get("is_combust"): clinical_chips.append(f"{p1['name']} H7 CSL combust")
+    if cmb2.get("is_combust"): clinical_chips.append(f"{p2['name']} H7 CSL combust")
+    if bdr1.get("is_borderline"): clinical_chips.append(f"{p1['name']} H7 CSL borderline ({bdr1.get('current_sub')}↔{bdr1.get('alternate_sub')})")
+    if bdr2.get("is_borderline"): clinical_chips.append(f"{p2['name']} H7 CSL borderline ({bdr2.get('current_sub')}↔{bdr2.get('alternate_sub')})")
+    if clinical_chips:
+        lines.append("Clinical flags: " + " | ".join(clinical_chips))
+
+    # M9 sensitivity tier
+    sens = compat_result.get("sensitivity") or {}
+    if sens.get("framing_required"):
+        lines.append(f"SENSITIVITY: TIER {sens.get('tier', 2)} (base {sens.get('base_tier', 2)})")
+        if sens.get("escalators_triggered"):
+            lines.append(f"  Escalators: {', '.join(sens['escalators_triggered'][:4])}")
+
+    # M10 + R2-PR3 + R2-PR4 joint precision windows with Sutak/hora/RP enrichment
+    jpw = compat_result.get("joint_precision_windows") or []
+    if jpw:
+        lines.append(f"\nJOINT PRECISION WINDOWS ({len(jpw)} top wedding-grade dates):")
+        for w_jpw in jpw[:5]:
+            chip = f"  • {w_jpw.get('start')} → {w_jpw.get('end')} ({w_jpw.get('duration_days')}d) strength {w_jpw.get('joint_strength')}/4"
+            if w_jpw.get("sutak_warning"):
+                se = w_jpw.get("sutak_eclipse") or {}
+                chip += f" ⚠ SUTAK ({se.get('type')} {se.get('eclipse_kind')}) — AVOID"
+            lines.append(chip)
+            # R2-PR4 hora slots
+            hslots = w_jpw.get("recommended_hora_slots") or []
+            if hslots:
+                hora_str = ", ".join(
+                    f"{s['hora_lord']} {s['start_hhmm']}-{s['end_hhmm']}"
+                    for s in hslots[:4]
+                )
+                lines.append(f"    Hora slots ({len(hslots)}): {hora_str}")
+            # R2-PR4 moment-RPs confirmation
+            mr_conf = w_jpw.get("moment_rps_confirmation_count")
+            if isinstance(mr_conf, int) and mr_conf > 0:
+                lines.append(
+                    f"    Moment-RPs × natal: {p1['name']}={len(w_jpw.get('moment_rps_overlap_partner1', []))}, "
+                    f"{p2['name']}={len(w_jpw.get('moment_rps_overlap_partner2', []))} "
+                    f"(confirmation strength {mr_conf})"
+                )
+
+    # M11 Bhavat Bhavam (relative-marriage rotation)
+    bb1 = compat_result.get("bhavat_bhavam_chart1") or {}
+    bb2 = compat_result.get("bhavat_bhavam_chart2") or {}
+    if bb1.get("applies") or bb2.get("applies"):
+        for bb, pname in ((bb1, p1["name"]), (bb2, p2["name"])):
+            if bb.get("applies"):
+                lines.append(
+                    f"Bhavat Bhavam ({pname}): for {bb.get('relative')} → "
+                    f"H7 rotated to H{bb.get('rotated_house')}; "
+                    f"CSL {bb.get('csl_at_rotated')} sigs H{bb.get('sigs', [])}"
+                )
+
+    # M13 spouse profile (concise)
+    sp1 = compat_result.get("spouse_profile_chart1") or {}
+    sp2 = compat_result.get("spouse_profile_chart2") or {}
+    if sp1 or sp2:
+        for sp, pname in ((sp1, p1["name"]), (sp2, p2["name"])):
+            if sp:
+                lines.append(
+                    f"Spouse profile ({pname}): direction={sp.get('direction_en')}, "
+                    f"age band={sp.get('age_band_en')}, "
+                    f"profession hint={sp.get('profession_hint_en')}"
+                )
+
+    # R2-PR1 day_lord_missing partial-RP signal
+    p1_chart = compat_result.get("chart1") or {}
+    p2_chart = compat_result.get("chart2") or {}
+    if p1_chart.get("day_lord_missing") or p2_chart.get("day_lord_missing"):
+        lines.append("⚠ Partial RPs: day_lord could not be resolved for one or both natal charts")
+
     return "\n".join(lines)
 
 
@@ -5375,6 +5508,180 @@ def format_muhurtha_for_llm(muhurtha_data: dict) -> str:
 
         if w.get("resonating_with"):
             lines.append(f"Resonating with: {', '.join(w['resonating_with'])} ({w.get('participant_resonance', 0)}/{len(participants)})")
+
+        # ── PR R2-PR5 — Surface the post-Mu0 engine fields so the LLM
+        # has the same evidence the astrologer sees in the UI. APPENDED
+        # (not modifying the existing scaffold above) so the pre-R2
+        # prompt expectations are unchanged for the existing fields.
+
+        # Mu2 confidence ledger
+        if isinstance(w.get("raw_score"), int):
+            lines.append(
+                f"Confidence: {w.get('confidence_score', 0)}/100 (raw {w['raw_score']})"
+            )
+        breakdown = w.get("confidence_breakdown") or []
+        if breakdown:
+            top_factors = [
+                f"{b['factor']}={('+' if b['delta'] > 0 else '')}{b['delta']}"
+                for b in breakdown
+                if isinstance(b.get('delta'), int) and b['delta'] != 0
+            ][:8]
+            if top_factors:
+                lines.append(f"Top ledger factors: {', '.join(top_factors)}")
+
+        # Mu4 aggregation strategy + per-participant soft concerns
+        if w.get("aggregation_strategy"):
+            lines.append(f"Aggregation: {w['aggregation_strategy']}")
+        if w.get("worst_tara_for_all"):
+            lines.append("⚠ ALL participants in worst Tara simultaneously")
+        soft_cncrns = w.get("participant_soft_concerns") or []
+        if soft_cncrns:
+            lines.append(f"Participant soft concerns: {' | '.join(soft_cncrns[:5])}")
+
+        # Mu6 Panchang overlays
+        po = w.get("panchang_overlays") or {}
+        if po:
+            tags = []
+            if po.get("amrit_active"): tags.append("Amrit Kala (+20)")
+            if po.get("varjyam_active"): tags.append("Varjyam (-25)")
+            if po.get("panchaka_blocks_event"):
+                tags.append(f"Panchaka ({po.get('panchaka_subtype', '?')}) blocks event")
+            if po.get("tithi_shunya_active"):
+                tags.append(f"Tithi Shunya in {po.get('tithi_shunya_masa', '?')} masa")
+            if tags:
+                lines.append("Panchang overlays: " + ", ".join(tags))
+
+        # Mu7 + R2-PR3 Sutak
+        if w.get("in_sutak"):
+            se = w.get("sutak_eclipse") or {}
+            lines.append(
+                f"⚠ INSIDE SUTAK — {se.get('type', '?')} eclipse "
+                f"({se.get('eclipse_kind', '?')}) — hard reject"
+            )
+        elif w.get("in_eclipse_extended_advisory"):
+            lines.append("Within ±3 days of eclipse — soft caution")
+
+        # Mu8 advanced doshas (Bhadra mukha, Sandhya, Mrityu, Krura, Dagdha)
+        adv = w.get("advanced_doshas") or {}
+        adv_tags = []
+        if adv.get("bhadra_part") == "face":   adv_tags.append("Bhadra FACE (-60)")
+        elif adv.get("bhadra_part") == "tail": adv_tags.append("Bhadra TAIL (soft -10)")
+        elif adv.get("bhadra_part") == "middle": adv_tags.append("Bhadra middle (-30)")
+        if adv.get("in_sandhya"): adv_tags.append(f"Sandhya {adv.get('sandhya_kind', '')} (-50)")
+        if adv.get("mrityu_yoga_active"): adv_tags.append("Mrityu Yoga active")
+        if adv.get("krura_tithi_active"): adv_tags.append("Krura tithi (-10)")
+        if adv.get("dagdha_tithi_active"): adv_tags.append("Dagdha tithi")
+        if adv.get("vyatipata_or_vaidhriti"):
+            adv_tags.append("Vyatipata/Vaidhriti " + ("PRE-NOON (hard)" if adv.get("vyatipata_hard") else "after noon (defunct)"))
+        if adv_tags:
+            lines.append("Advanced doshas: " + ", ".join(adv_tags))
+
+        # Mu9 H8 + Kartari/Ekargala combined
+        if w.get("h8_occupancy_hard"):
+            lines.append(
+                f"⚠ H8 malefic occupancy: {', '.join(w.get('h8_malefic_occupants', []))} — hard reject"
+            )
+        if w.get("kartari_ekargala_combined_hard"):
+            lines.append("⚠ Kartari + Ekargala combined — Yama-Vela seal (hard reject)")
+
+        # Mu9 DBA-at-moment aggregate
+        dba_agg = w.get("dba_at_moment_aggregate") or {}
+        if dba_agg.get("participants_total"):
+            lines.append(
+                f"DBA-at-moment: {dba_agg.get('all_signify_count', 0)}/"
+                f"{dba_agg['participants_total']} all-signify; "
+                f"{dba_agg.get('dussthana_count', 0)} in Dussthana"
+            )
+
+        # Mu10 advanced (Visha Ghatika, Lattaa, Mahapata)
+        m10 = w.get("mu10_doshas") or {}
+        m10_tags = []
+        if m10.get("visha_ghatika_active"): m10_tags.append("Visha Ghatika (-25)")
+        if m10.get("lattaa_active"): m10_tags.append(f"Lattaa ({','.join(m10.get('lattaa_planets', []))}) (-20)")
+        if m10.get("mahapata_active"):
+            m10_tags.append(f"⚠ MAHAPATA YOGA ({m10.get('mahapata_variety', '?')}) — HARD REJECT")
+        if m10_tags:
+            lines.append("Advanced (Mu10): " + ", ".join(m10_tags))
+
+        # Mu13 Disha Shula / Kalapurusha / day-muhurta name
+        m13 = w.get("mu13_overlays") or {}
+        if m13.get("disha_shula_blocked"):
+            lines.append(
+                f"⚠ Disha Shula — travel {m13.get('travel_direction', '?')} "
+                f"matches Vara Shula ({m13.get('disha_shula_direction', '?')})"
+            )
+        if m13.get("kalapurusha_avoid"):
+            lines.append(
+                f"⚠ Kalapurusha — Moon rules surgery body part "
+                f"'{m13.get('surgery_body_part', '?')}'"
+            )
+        if m13.get("day_muhurta_name"):
+            lines.append(
+                f"Day muhurta: {m13['day_muhurta_name']} "
+                f"({m13.get('day_muhurta_idx', 0) + 1}/15)"
+            )
+
+        # R2-PR2 participant-aware Nakshatra Vedha
+        nv = w.get("nakshatra_vedha") or {}
+        if nv.get("active"):
+            lines.append(
+                f"Nakshatra Vedha {nv.get('delta', 0)} — participants "
+                f"affected: {nv.get('affected_participants', [])}"
+            )
+
+    # ── Response-level fields (after the per-window loop) ──
+
+    # Mu7 + R2-PR3 eclipses in scan range
+    eclipses = muhurtha_data.get("eclipses_in_range") or []
+    if eclipses:
+        lines.append("")
+        lines.append(f"ECLIPSES IN SCAN RANGE ({len(eclipses)}):")
+        for e in eclipses[:5]:
+            lines.append(
+                f"  • {e.get('type', '?').title()} {e.get('eclipse_kind', '?')} "
+                f"at JD {e.get('peak_jd', 0):.2f}"
+            )
+
+    # Mu16 sensitivity tier
+    sens = muhurtha_data.get("sensitivity") or {}
+    if sens.get("framing_required"):
+        lines.append("")
+        lines.append(f"SENSITIVITY: TIER {sens.get('tier', 2)} (base {sens.get('base_tier', 2)})")
+        if sens.get("escalators"):
+            lines.append(f"  Escalators: {', '.join(sens['escalators'])}")
+        if sens.get("framing_note_en"):
+            lines.append(f"  Framing: {sens['framing_note_en']}")
+
+    # Mu0d skipped polar days
+    sk = muhurtha_data.get("skipped_polar_days") or []
+    if sk:
+        lines.append("")
+        lines.append(f"SKIPPED POLAR DAYS: {len(sk)} (sunrise unresolvable)")
+        for s in sk[:3]:
+            lines.append(f"  • {s.get('date', '?')}: {s.get('reason', '?')}")
+
+    # Mu5 same-day alternatives
+    alts = muhurtha_data.get("same_day_alternatives") or []
+    if len(alts) > 1:
+        lines.append("")
+        lines.append(f"SAME-DAY ALTERNATIVES on best date ({len(alts)} total):")
+        for a in alts:
+            lines.append(
+                f"  • {a.get('start_time', '?')}-{a.get('end_time', '?')} "
+                f"score {a.get('score', 0)} ({a.get('quality', '?')})"
+            )
+
+    # Mu5 extend suggestion
+    ext = muhurtha_data.get("extend_suggestion")
+    if ext:
+        w_ext = ext.get("window") or {}
+        lines.append("")
+        lines.append(
+            f"EXTEND SUGGESTION: next qualifying window is "
+            f"{w_ext.get('date_display', w_ext.get('date', '?'))} "
+            f"({ext.get('days_from_range_end', '?')} days after range end, "
+            f"horizon {ext.get('horizon_days', '?')}d)"
+        )
 
     return "\n".join(lines)
 
