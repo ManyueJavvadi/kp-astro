@@ -496,7 +496,15 @@ def get_vedic_day_lord(jd: float, latitude: float, longitude: float, timezone_of
         )
         geopos = (longitude, latitude, 0.0)
         try:
-            _, tret = swe.rise_trans(jd_midnight, swe.SUN, b"", 0, 1, geopos, 1013.25, 10.0)
+            # PR Mu0f — modern pyswisseph signature is 7 args max
+            # (tjdut, body, rsmi, geopos, atpress, attemp, flags).
+            # Old 8-arg call raises TypeError → silently fell back to
+            # 6 AM, mis-computing Vedic day lord for any time near
+            # actual sunrise. Try modern signature first, then old.
+            try:
+                _, tret = swe.rise_trans(jd_midnight, swe.SUN, 1, geopos, 1013.25, 10.0)
+            except TypeError:
+                _, tret = swe.rise_trans(jd_midnight, swe.SUN, b"", 0, 1, geopos, 1013.25, 10.0)
             sunrise_jd = tret[0]
         except Exception:
             # Absolute fallback: 6:00 AM local time

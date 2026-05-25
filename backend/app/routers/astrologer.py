@@ -225,14 +225,35 @@ def get_sunrise_sunset_jd(date_jd: float, lat: float, lon: float) -> tuple:
         return sunrise_jd, sunset_jd
     except Exception:
         # Fallback to pyswisseph
+        # PR Mu0f — match the modern pyswisseph signature (7 args max)
+        # and try the old 8-arg form on TypeError. Mirrors the same fix
+        # applied to muhurtha_engine._get_sunrise_sunset_jd (PR Mu0d).
+        # Without this both 8-arg calls below raise TypeError → caught
+        # by `except Exception` → returns a fake 06:00 / 18:00 day,
+        # silently degrading sunrise/sunset for the astrologer router's
+        # Vedic-day-lord computation.
         geopos = (lon, lat, 0.0)
         try:
-            _, tret = swe.rise_trans(date_jd - 0.5, swe.SUN, b"", 0,
-                                     swe.CALC_RISE, geopos, 1013.25, 10.0)
-            sunrise_jd = tret[1]
-            _, tret2 = swe.rise_trans(sunrise_jd, swe.SUN, b"", 0,
-                                      swe.CALC_SET, geopos, 1013.25, 10.0)
-            sunset_jd = tret2[1]
+            try:
+                rflag, tret = swe.rise_trans(
+                    date_jd - 0.5, swe.SUN, swe.CALC_RISE, geopos, 1013.25, 10.0
+                )
+            except TypeError:
+                rflag, tret = swe.rise_trans(
+                    date_jd - 0.5, swe.SUN, b"", 0,
+                    swe.CALC_RISE, geopos, 1013.25, 10.0
+                )
+            sunrise_jd = tret[0]
+            try:
+                sflag, tret2 = swe.rise_trans(
+                    sunrise_jd, swe.SUN, swe.CALC_SET, geopos, 1013.25, 10.0
+                )
+            except TypeError:
+                sflag, tret2 = swe.rise_trans(
+                    sunrise_jd, swe.SUN, b"", 0,
+                    swe.CALC_SET, geopos, 1013.25, 10.0
+                )
+            sunset_jd = tret2[0]
             return sunrise_jd, sunset_jd
         except Exception:
             return date_jd - 0.25, date_jd + 0.25
