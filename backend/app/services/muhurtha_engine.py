@@ -1361,6 +1361,184 @@ LATTAA_NAK_BY_PLANET = {
 }
 
 
+# ─────────────────────────────────────────────────────────────────
+# PR Mu13 — Disha Shula + Kalapurusha body-part + 15 day-muhurta names
+# Classical Muhurta Chintamani §9. The KB referenced these but the
+# engine didn't compute any.
+# ─────────────────────────────────────────────────────────────────
+
+# Disha Shula: the direction in which a journey on this weekday faces
+# a "spear" of misfortune. Travel in this direction on this day = loss.
+# Source: Muhurta Chintamani §9.4 + Drik Panchang. Weekday 0=Mon..6=Sun.
+DISHA_SHULA_BY_VARA = {
+    0: "east",    # Monday    — Soma Shula
+    1: "north",   # Tuesday   — Mangal Shula
+    2: "north",   # Wednesday — Budha Shula
+    3: "south",   # Thursday  — Guru Shula
+    4: "west",    # Friday    — Shukra Shula
+    5: "east",    # Saturday  — Shani Shula
+    6: "west",    # Sunday    — Surya Shula
+}
+DIRECTION_ALIASES = {
+    "east": {"east", "e", "తూర్పు", "purva", "pūrva"},
+    "west": {"west", "w", "పడమర", "pashchima", "paścima"},
+    "north": {"north", "n", "ఉత్తరం", "uttara"},
+    "south": {"south", "s", "దక్షిణం", "dakshina", "dakṣiṇa"},
+    "ne": {"northeast", "north-east", "ne", "ఈశాన్యం", "ishanya"},
+    "nw": {"northwest", "north-west", "nw", "వాయవ్యం", "vayavya"},
+    "se": {"southeast", "south-east", "se", "ఆగ్నేయం", "agneya"},
+    "sw": {"southwest", "south-west", "sw", "నైరుతి", "nairuti"},
+}
+
+
+def _resolve_direction(text: str) -> str:
+    """Map a free-form direction string to one of the 8 cardinal /
+    intercardinal canonical keys, or '' if unparseable."""
+    if not text:
+        return ""
+    t = text.strip().lower()
+    for canonical, aliases in DIRECTION_ALIASES.items():
+        if t in aliases:
+            return canonical
+    return ""
+
+
+# Kalapurusha body-part mapping — sign ruling each body part for the
+# "Cosmic Man" doctrine. Avoid surgery on a body part when Moon is in
+# its ruling sign (sympathetic-magic principle in classical Vedic).
+# Sign 0=Aries..11=Pisces.
+KALAPURUSHA_BODY_PART_BY_SIGN = {
+    0:  "head",
+    1:  "face",
+    2:  "arms",
+    3:  "chest",
+    4:  "stomach",
+    5:  "abdomen",
+    6:  "lower_abdomen",
+    7:  "genitals",
+    8:  "hips_thighs",
+    9:  "knees",
+    10: "calves",
+    11: "feet",
+}
+BODY_PART_ALIASES = {
+    "head":          {"head", "skull", "brain", "scalp", "శిరస్సు"},
+    "face":          {"face", "eye", "eyes", "ear", "ears", "nose", "mouth",
+                      "throat", "neck", "ముఖం"},
+    "arms":          {"arms", "shoulder", "shoulders", "hand", "hands",
+                      "elbow", "elbows", "చేతులు"},
+    "chest":         {"chest", "heart", "lungs", "ribs", "ఛాతీ"},
+    "stomach":       {"stomach", "spleen", "upper abdomen", "ఉదరం"},
+    "abdomen":       {"abdomen", "intestines", "intestine", "navel", "umbilicus"},
+    "lower_abdomen": {"lower abdomen", "kidneys", "kidney", "pelvis"},
+    "genitals":      {"genitals", "groin", "bladder", "perineum"},
+    "hips_thighs":   {"hip", "hips", "thigh", "thighs", "femur", "హిప్"},
+    "knees":         {"knee", "knees", "patella", "మోకాలు"},
+    "calves":        {"calf", "calves", "shin", "shins", "ankle",
+                      "ankles", "lower leg"},
+    "feet":          {"foot", "feet", "sole", "toes", "పాదాలు"},
+}
+
+
+def _resolve_body_part(text: str) -> str:
+    """Map a free-form body part string to a Kalapurusha key, or ''
+    if no canonical match found."""
+    if not text:
+        return ""
+    t = text.strip().lower()
+    for canonical, aliases in BODY_PART_ALIASES.items():
+        if t in aliases:
+            return canonical
+    # Try substring match for compound phrases like "knee replacement surgery"
+    for canonical, aliases in BODY_PART_ALIASES.items():
+        for alias in aliases:
+            if alias in t:
+                return canonical
+    return ""
+
+
+# Classical 15 day-muhurta names per Muhurta Chintamani §6 (15 muhurtas
+# of daytime, starting from sunrise; each ~48 min). Slot 0 = first
+# muhurta after sunrise.
+DAY_MUHURTA_NAMES = [
+    "Rudra",      # 0  inauspicious
+    "Aahi",       # 1  neutral
+    "Mitra",      # 2  auspicious
+    "Pitra",      # 3  for shradha
+    "Vasu",       # 4  auspicious
+    "Vara",       # 5  neutral
+    "Vishvedeva", # 6  auspicious
+    "Abhijit",    # 7  most auspicious (the famed Abhijit muhurta)
+    "Vijaya",     # 8  victory, good for litigation
+    "Naktan",     # 9  late-day, soft
+    "Varuna",     # 10 for water-related rites
+    "Aryama",     # 11 dignity / honour
+    "Bhaga",      # 12 prosperity / marriage friendly
+    "Girisha",    # 13 ascetic / spiritual
+    "Ajapada",    # 14 inauspicious — final day muhurta
+]
+
+
+def _compute_mu13_overlays(
+    jd: float,
+    sunrise_jd: float,
+    sunset_jd: float,
+    weekday: int,
+    moon_lon: float,
+    event_type: str,
+    travel_direction: str = "",
+    surgery_body_part: str = "",
+) -> dict:
+    """
+    PR Mu13 — Disha Shula + Kalapurusha body-part + classical day-muhurta name.
+
+    Returns dict with active flags + ledger-ready notes:
+      disha_shula_blocked: bool — travel direction matches Vara's Shula
+      kalapurusha_avoid:   bool — Moon in Kalapurusha sign of the
+                                  surgery body part
+      day_muhurta_idx:     int (0..14) — current day-muhurta slot
+      day_muhurta_name:    str — classical name (Rudra / Mitra / Abhijit / ...)
+    """
+    # Disha Shula — only fires for travel-type events
+    disha_blocked = False
+    disha_direction = DISHA_SHULA_BY_VARA.get(weekday, "")
+    if event_type in {"travel"} and travel_direction:
+        resolved = _resolve_direction(travel_direction)
+        if resolved and resolved == disha_direction:
+            disha_blocked = True
+
+    # Kalapurusha body-part — only fires for medical (surgery)
+    kalapurusha_avoid = False
+    moon_sign_idx = int((moon_lon % 360) / 30.0)
+    moon_kalapurusha_part = KALAPURUSHA_BODY_PART_BY_SIGN.get(moon_sign_idx, "")
+    if event_type in {"medical"} and surgery_body_part:
+        resolved_part = _resolve_body_part(surgery_body_part)
+        if resolved_part and resolved_part == moon_kalapurusha_part:
+            kalapurusha_avoid = True
+
+    # Day-muhurta name (slot 0..14)
+    day_length = sunset_jd - sunrise_jd
+    if day_length <= 0 or jd < sunrise_jd or jd > sunset_jd:
+        day_muhurta_idx = -1
+        day_muhurta_name = ""
+    else:
+        muhurta_dur = day_length / 15.0
+        elapsed = jd - sunrise_jd
+        day_muhurta_idx = min(14, int(elapsed / muhurta_dur))
+        day_muhurta_name = DAY_MUHURTA_NAMES[day_muhurta_idx]
+
+    return {
+        "disha_shula_blocked":     disha_blocked,
+        "disha_shula_direction":   disha_direction,
+        "travel_direction":        _resolve_direction(travel_direction),
+        "kalapurusha_avoid":       kalapurusha_avoid,
+        "kalapurusha_moon_part":   moon_kalapurusha_part,
+        "surgery_body_part":       _resolve_body_part(surgery_body_part),
+        "day_muhurta_idx":         day_muhurta_idx,
+        "day_muhurta_name":        day_muhurta_name,
+    }
+
+
 def _compute_advanced_doshas_mu10(
     jd: float,
     sunrise_jd: float,
@@ -1543,6 +1721,8 @@ def _scan_date_range(
     participant_natal_event_sigs: list = None,  # PR Mu3 — (name, set of planets signifying event in natal)
     primary_by_name: dict = None,  # PR Mu4 — explicit primary flag per participant name
     advanced_dosha_check: bool = False,  # PR Mu10 — opt-in Visha Ghatika / Lattaa / Mahapata
+    travel_direction: str = "",          # PR Mu13 — Disha Shula check input
+    surgery_body_part: str = "",         # PR Mu13 — Kalapurusha check input
 ) -> list:
     """Scan a date range every 4 minutes, return raw scored windows."""
     swe.set_sid_mode(swe.SIDM_KRISHNAMURTI_VP291)
@@ -1884,6 +2064,25 @@ def _scan_date_range(
             tithi_num=tithi_num, yoga_idx=yoga_idx,
             event_type=event_type, is_vishti=vishti,
         )
+
+        # ── PR Mu13 — Disha Shula / Kalapurusha / Day-muhurta name ──
+        mu13_overlays = _compute_mu13_overlays(
+            jd=jd, sunrise_jd=sunrise_jd, sunset_jd=sunset_jd,
+            weekday=vara, moon_lon=moon_lon, event_type=event_type,
+            travel_direction=travel_direction or "",
+            surgery_body_part=surgery_body_part or "",
+        )
+        if mu13_overlays["disha_shula_blocked"]:
+            hard_rejected_for.append(
+                f"Disha Shula — travel direction "
+                f"{mu13_overlays['travel_direction']} on this Vara is the "
+                f"day's Shula direction ({mu13_overlays['disha_shula_direction']})"
+            )
+        if mu13_overlays["kalapurusha_avoid"]:
+            hard_rejected_for.append(
+                f"Kalapurusha — Moon in sign ruling body part "
+                f"'{mu13_overlays['surgery_body_part']}' — avoid surgery"
+            )
 
         # ── PR Mu10 — Advanced classical doshas behind flag ───────
         if advanced_dosha_check:
@@ -2386,6 +2585,28 @@ def _scan_date_range(
                 "delta": -40,
                 "note": "Mahapata Yoga active (intensified Vyatipata/Vaidhriti)"
             })
+        # PR Mu13 — Disha Shula + Kalapurusha ledger (hard rejects
+        # already in hard_rejected_for; ledger entry is informational
+        # so the astrologer sees WHY)
+        if mu13_overlays["disha_shula_blocked"]:
+            breakdown.append({
+                "factor": "disha_shula",
+                "delta": 0,
+                "note": (
+                    f"Hard reject — travel direction "
+                    f"{mu13_overlays['travel_direction']} matches Vara Shula"
+                )
+            })
+        if mu13_overlays["kalapurusha_avoid"]:
+            breakdown.append({
+                "factor": "kalapurusha_body_part",
+                "delta": 0,
+                "note": (
+                    f"Hard reject — surgery on "
+                    f"{mu13_overlays['surgery_body_part']} when Moon "
+                    f"in its Kalapurusha sign"
+                )
+            })
 
         # PR Mu7 — Eclipse ledger entries (informational; hard reject
         # is applied via hard_rejected_for above so it doesn't double-count
@@ -2602,6 +2823,8 @@ def _scan_date_range(
                 # PR Mu10 — Advanced opt-in classical doshas
                 "mu10_doshas":                     mu10_doshas,
                 "advanced_dosha_check_enabled":    bool(advanced_dosha_check),
+                # PR Mu13 — Disha Shula / Kalapurusha / 15 day-muhurta name
+                "mu13_overlays":                   mu13_overlays,
                 "in_rahu_kalam":     in_rk,
                 "in_yamagandam":     in_yg,
                 "in_gulika":         in_gl,
@@ -2765,6 +2988,9 @@ def find_muhurtha_windows(
     event_tz: Optional[float] = None,
     # PR Mu10 — opt-in advanced dosha pack
     advanced_dosha_check: Optional[bool] = None,
+    # PR Mu13 — event-specific context inputs
+    travel_direction: Optional[str] = None,
+    surgery_body_part: Optional[str] = None,
 ) -> dict:
     """
     Find muhurtha windows in [date_start, date_end], plus +/-nearby_days.
@@ -2936,6 +3162,8 @@ def find_muhurtha_windows(
             participant_natal_event_sigs,
             primary_by_name,
             adv_check_resolved,
+            travel_direction or "",
+            surgery_body_part or "",
         )
         nearby_merged = _merge_windows(nearby_raw)
         nearby_merged.sort(key=lambda w: w["score"], reverse=True)
@@ -2980,6 +3208,8 @@ def find_muhurtha_windows(
             participant_natal_event_sigs,
             primary_by_name,
             adv_check_resolved,
+            travel_direction or "",
+            surgery_body_part or "",
         )
         extend_merged = _merge_windows(extend_raw)
         extend_passed = [w for w in extend_merged if not w.get("hard_rejected_for")]

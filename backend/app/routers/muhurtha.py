@@ -52,6 +52,18 @@ class MuhurthaRequest(BaseModel):
     # other events as opt-out. Set True / False to override.
     advanced_dosha_check: Optional[bool] = Field(None)
 
+    # PR Mu13 — optional event-specific context inputs:
+    #   travel_direction : for travel events, the direction of travel
+    #     (east / west / north / south / ne / nw / se / sw). When the
+    #     muhurtha day's Disha Shula matches this direction, the window
+    #     is hard-rejected for travel.
+    #   surgery_body_part : for medical events, the body part being
+    #     operated on (head / face / chest / knee / etc.). When Moon is
+    #     in the Kalapurusha sign of that body part, the window is
+    #     hard-rejected for surgery.
+    travel_direction:  Optional[str] = Field(None, max_length=20)
+    surgery_body_part: Optional[str] = Field(None, max_length=40)
+
 
 class MuhurthaAnalyzeRequest(BaseModel):
     muhurtha_data: dict
@@ -101,6 +113,8 @@ def find_muhurtha(request: MuhurthaRequest):
         event_lon=event_lon,
         event_tz=_ev_off,
         advanced_dosha_check=request.advanced_dosha_check,
+        travel_direction=request.travel_direction,
+        surgery_body_part=request.surgery_body_part,
     )
 
 
