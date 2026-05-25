@@ -813,7 +813,13 @@ def _scan_date_range(
         # neither bonus nor penalty despite §3.1 classifying it as
         # inauspicious. Fix: check cycle position explicitly, plus
         # keep the 15/30 (Purnima/Amavasya) special-case.
-        tithi_num = int(((moon_lon - sun_lon) % 360) / 12) + 1
+        # PR Mu0e — clamp tithi_num to [1, 30]. The raw `int(...) + 1`
+        # can read 31 due to float arithmetic noise at the exact lunar
+        # cycle close (Sun-Moon separation == 360.0 wraps to 0.0), which
+        # then makes TITHI_NAMES[(31-1)%15] = index 0 = "Pratipada"
+        # silently render — a Krishna Chaturdashi or Amavasya minute can
+        # then masquerade as a Shukla Pratipada. Clamp prevents this.
+        tithi_num = min(int(((moon_lon - sun_lon) % 360) / 12) + 1, 30)
         tithi_cycle_pos = ((tithi_num - 1) % 15) + 1
         if tithi_cycle_pos in AUSPICIOUS_TITHIS:
             base_score += 20
@@ -828,7 +834,20 @@ def _scan_date_range(
         if yoga_idx in INAUSPICIOUS_YOGA_IDX:
             base_score -= 40
 
-        vara = current.weekday()
+        # PR Mu0e — Vedic vara flips at LOCAL SUNRISE, not at local
+        # midnight. Hours between local midnight (00:00) and that day's
+        # sunrise (~06:00 IST) still belong to the PREVIOUS Vedic day.
+        # Concrete impact: at 04:00 local Wednesday the engine used to
+        # report `vara=2 (Wednesday)` and (wrongly) gated out Abhijit
+        # muhurtha as Vyatipata-day. The classical Vedic vara at
+        # 04:00 Wednesday is still Tuesday (Mars), so Abhijit is fine.
+        # We compare the current sample's JD to the sunrise JD already
+        # in `slots`; if before sunrise, vara is one day earlier (mod 7).
+        vara_calendar = current.weekday()
+        if jd < slots["sunrise"]:
+            vara = (vara_calendar - 1) % 7
+        else:
+            vara = vara_calendar
         # PR Mu0c — vara scoring is now per-event-aware. If this event has
         # a per-event preferred/avoided weekday table (EVENT_PREFERRED_VARAS),
         # we DO NOT apply the global GOOD_VARA / BAD_VARA score here —
@@ -948,7 +967,17 @@ def _scan_date_range(
         moon_sl_favorable = bool(favorable_set & set(moon_sl_houses))
 
         # ── Panchang ──
-        tithi_name = TITHI_NAMES[(tithi_num - 1) % 15]
+        # PR Mu0e — tithi 15 = Purnima (full moon), tithi 30 = Amavasya
+        # (new moon). Before this fix both rendered as "Purnima/Amavasya"
+        # which forced the UI to disambiguate by paksha — and any UI that
+        # didn't (e.g. PDF export, AI prompt) showed wrong tithi name on
+        # half the cycle.
+        if tithi_num == 15:
+            tithi_name = "Purnima"
+        elif tithi_num == 30:
+            tithi_name = "Amavasya"
+        else:
+            tithi_name = TITHI_NAMES[(tithi_num - 1) % 15]
         paksha = "Shukla" if tithi_num <= 15 else "Krishna"
         yoga_name = YOGA_NAMES[yoga_idx % 27]
 
