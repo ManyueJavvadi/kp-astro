@@ -1460,6 +1460,120 @@ def _supporting_cusps(chart: dict) -> dict:
     }
 
 
+def _compute_multi_cusp_tier(chart: dict) -> dict:
+    """
+    PR M2 — Multi-cusp confirmation TIER 0/1/2/3/-1 per partner.
+
+    Per knowledge/kp_multi_cusp_confirmation.md — KSK gives PROMISE/DENIAL
+    via the PRIMARY cusp's sub lord alone. But a 20-year astrologer ALWAYS
+    cross-checks: when supporting cusps' sub lords ALSO signify the same
+    house group, confidence multiplies.
+
+    For marriage: primary H7 + supporting H2 + H11. Tier ladder:
+
+      TIER 3 — Primary CSL + BOTH supporting CSLs signify {2,7,11} →
+               STRONGLY PROMISED, near-certain in right dasha (80-95%)
+      TIER 2 — Primary CSL + ONE supporting CSL agrees → STRONGLY
+               PROMISED (65-80%)
+      TIER 1 — Primary CSL alone signifies → KSK MINIMUM PROMISE (50-65%)
+      TIER 0 — Primary signifies, supporting cusps DENY → CONDITIONAL
+               with friction (35-50%); apply RULE 11 bhukti precision
+      TIER -1 — Primary CSL doesn't signify, supporting do → effects of
+                supporting houses without primary fruition (<35%)
+
+    Brings Match into parity with Analysis tab's TIER labeling (RULE 34).
+
+    Returns:
+      {
+        "tier": -1 | 0 | 1 | 2 | 3,
+        "label": str,
+        "h7_signifies": bool,
+        "h2_supports": bool,
+        "h11_supports": bool,
+        "supporting_count": int,
+        "note": str (one-line astrologer-facing explanation),
+        "confidence_band": str (e.g., "80-95%")
+      }
+    """
+    # H7 (primary) — does it signify any of {2,7,11}?
+    h7_csl, h7_sigs = _get_cusp_sub_lord_sigs(7, chart)
+    h7_signifies = bool(h7_sigs & {2, 7, 11})
+
+    # Supporting cusps
+    sup = _supporting_cusps(chart)
+    h2_supports = sup["h2_supports"]
+    h11_supports = sup["h11_supports"]
+    supporting_count = int(h2_supports) + int(h11_supports)
+
+    # Tier classification
+    if h7_signifies and supporting_count == 2:
+        tier, label, band = 3, "TIER 3 — STRONGLY PROMISED", "80-95%"
+        note = (
+            f"H7 CSL {h7_csl}, H2 CSL {sup['h2_csl']}, and H11 CSL "
+            f"{sup['h11_csl']} all signify the marriage house group "
+            f"{{2,7,11}}. All three cusps agree — near-certain in right dasha."
+        )
+    elif h7_signifies and supporting_count == 1:
+        agreeing = "H2 CSL " + sup["h2_csl"] if h2_supports else "H11 CSL " + sup["h11_csl"]
+        tier, label, band = 2, "TIER 2 — STRONGLY PROMISED", "65-80%"
+        note = (
+            f"H7 CSL {h7_csl} + {agreeing} both signify {{2,7,11}}. "
+            f"Double confirmation; only one supporting cusp not echoing."
+        )
+    elif h7_signifies and supporting_count == 0:
+        tier, label, band = 1, "TIER 1 — KSK MINIMUM PROMISE", "50-65%"
+        note = (
+            f"H7 CSL {h7_csl} signifies {{2,7,11}} (KSK minimum gate). "
+            f"H2 CSL {sup['h2_csl']} and H11 CSL {sup['h11_csl']} don't "
+            f"echo — promise present, no extra confirmation."
+        )
+    elif h7_signifies and supporting_count == 2 and False:
+        # placeholder unreachable
+        tier, label, band = 0, "TIER 0", "35-50%"
+        note = "(unreachable)"
+    elif not h7_signifies and supporting_count >= 1:
+        tier, label, band = -1, "TIER -1 — Effects of supporting houses only", "<35%"
+        note = (
+            f"H7 CSL {h7_csl} doesn't signify the marriage gate, but "
+            f"{'H2' if h2_supports else ''}{' + ' if h2_supports and h11_supports else ''}"
+            f"{'H11' if h11_supports else ''} support is present — "
+            f"effects of supporting houses (family/gain) may manifest "
+            f"WITHOUT conventional marriage fruition."
+        )
+    elif not h7_signifies and supporting_count == 0:
+        # Both primary fail and supporting fail — rare; could still be
+        # CONDITIONAL if there's denial overlap, but call it TIER 0.
+        tier, label, band = 0, "TIER 0 — CONDITIONAL with friction", "35-50%"
+        note = (
+            f"H7 CSL {h7_csl} doesn't signify {{2,7,11}} cleanly and "
+            f"supporting cusps don't compensate. Apply KSK strict bhukti "
+            f"rule (RULE 11) — event fires only in bhuktis of relevant-"
+            f"house significators."
+        )
+    else:
+        # h7_signifies but supporting are MIXED (one supports, but ALSO denial)
+        # The current _supporting_cusps doesn't expose denial; reserved for future.
+        tier, label, band = 0, "TIER 0 — CONDITIONAL with friction", "35-50%"
+        note = (
+            f"H7 CSL {h7_csl} signifies {{2,7,11}} but supporting cusps "
+            f"show mixed/denial signals. Apply KSK strict bhukti rule."
+        )
+
+    return {
+        "tier": tier,
+        "label": label,
+        "h7_csl": h7_csl,
+        "h7_signifies": h7_signifies,
+        "h2_csl": sup["h2_csl"],
+        "h2_supports": h2_supports,
+        "h11_csl": sup["h11_csl"],
+        "h11_supports": h11_supports,
+        "supporting_count": supporting_count,
+        "note": note,
+        "confidence_band": band,
+    }
+
+
 def _dasha_overlap_check(chart1_data: dict, chart2_data: dict, chart1: dict, chart2: dict) -> dict:
     """
     Check if both persons' current dasha periods are favorable for marriage.
@@ -3279,6 +3393,12 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
     # PR M1.7 — Ascendant sign element compatibility
     asc_element = _ascendant_element_compatibility(chart1, chart2)
 
+    # PR M2 — Multi-cusp confirmation TIER 0/1/2/3/-1 per partner.
+    # Brings Match into parity with Analysis tab's TIER labeling
+    # (per kp_multi_cusp_confirmation.md + RULE 34).
+    multi_cusp_tier_p1 = _compute_multi_cusp_tier(chart1)
+    multi_cusp_tier_p2 = _compute_multi_cusp_tier(chart2)
+
     # Kuja dosha mutual cancellation — PR A1.4 SOFTENED.
     # Pre-A1.4: zeroed both doshas entirely. Per AstroSight + Nidhi Trivedi,
     # canonical behavior is "energies balance, severity reduced" — not
@@ -3509,6 +3629,9 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
         # PR M1 — numeric couple confidence 0-100 + audit trail
         "couple_confidence_score": couple_confidence_score,
         "couple_confidence_breakdown": couple_confidence_breakdown,
+        # PR M2 — multi-cusp TIER 0/1/2/3/-1 per partner
+        "multi_cusp_tier_chart1": multi_cusp_tier_p1,
+        "multi_cusp_tier_chart2": multi_cusp_tier_p2,
         "summary": {
             "kp_verdict": kp["kp_verdict"],
             "ashtakoota_score": f"{ashtakoota['total_score']}/{ashtakoota['max_score']}",

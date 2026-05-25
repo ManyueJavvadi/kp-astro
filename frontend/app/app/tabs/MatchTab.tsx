@@ -647,12 +647,50 @@ export function MatchTab(props: MatchTabProps) {
                 {t("KP marriage promise", "KP వివాహ ప్రమాణం")}
               </div>
               <div className="match-section-grid">
-                {[{p: kp?.chart1_promise, name: r.person1?.name}, {p: kp?.chart2_promise, name: r.person2?.name}].map((item, i) => item.p && (
+                {[
+                  {p: kp?.chart1_promise, name: r.person1?.name, tier: r.multi_cusp_tier_chart1},
+                  {p: kp?.chart2_promise, name: r.person2?.name, tier: r.multi_cusp_tier_chart2},
+                ].map((item, i) => item.p && (
                   <div key={i} className="match-tile" style={{ borderColor: item.p.has_promise && !item.p.has_denial ? "rgba(74,222,128,0.3)" : item.p.has_denial ? "rgba(248,113,113,0.3)" : "var(--border)" }}>
                     <div className="match-tile-name">{item.name}</div>
                     <div className="match-tile-primary" style={{ color: item.p.has_promise && !item.p.has_denial ? "#4ade80" : item.p.has_denial ? "#f87171" : "var(--accent)" }}>
                       H7 CSL: {item.p.sub_lord} — {item.p.verdict}
                     </div>
+                    {/* PR M2 — Multi-cusp TIER 0/1/2/3/-1 badge.
+                        Cross-check with H2 + H11 CSL agreement per
+                        kp_multi_cusp_confirmation.md + RULE 34. */}
+                    {item.tier && (
+                      <div
+                        title={item.tier.note + " · Confidence band: " + item.tier.confidence_band}
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: "3px 8px",
+                          marginTop: 6,
+                          marginBottom: 4,
+                          borderRadius: 999,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                          cursor: "help",
+                          background: item.tier.tier === 3 ? "rgba(74,222,128,0.18)"
+                                    : item.tier.tier === 2 ? "rgba(74,222,128,0.10)"
+                                    : item.tier.tier === 1 ? "rgba(201,169,110,0.12)"
+                                    : item.tier.tier === 0 ? "rgba(251,191,36,0.12)"
+                                    : "rgba(248,113,113,0.15)",
+                          color: item.tier.tier === 3 ? "#4ade80"
+                               : item.tier.tier === 2 ? "#4ade80"
+                               : item.tier.tier === 1 ? "var(--accent)"
+                               : item.tier.tier === 0 ? "#fbbf24"
+                               : "#f87171",
+                          border: "0.5px solid currentColor",
+                          letterSpacing: "0.04em",
+                        }}
+                      >
+                        {item.tier.label}
+                        <span style={{ opacity: 0.7, fontSize: 9, marginLeft: 2 }}>({item.tier.confidence_band})</span>
+                      </div>
+                    )}
                     <div className="match-tile-row">
                       <span className="k">{t("Signifies", "సూచిస్తుంది")}</span>
                       <span className="v">H{item.p.signified_houses?.join(", H")}</span>
