@@ -3465,6 +3465,166 @@ def _ad_lord_pd_sd_signifies_marriage(person: dict, chart: dict,
         return []
 
 
+# ─────────────────────────────────────────────────────────────────
+# PR R2-PR4 — Match ceiling: per-event hora slots + moment-RPs at
+# recommendation date. Pre-R2 the joint_precision_windows handed the
+# astrologer "wedding-grade dates" but offered no help picking the
+# exact hour (Friday at 10am is much better than Friday at 2pm if
+# Friday's hora schedule has Venus then Saturn). Plus the doctrine-
+# correct moment-RPs-x-natal-sigs confirmation wasn't computed at the
+# recommended date. Both fixed here.
+# ─────────────────────────────────────────────────────────────────
+
+# Vivaha-preferred hora set per classical + Mu11 finding
+_VIVAHA_HORA_PREFERRED = {"Venus", "Jupiter"}
+_VIVAHA_HORA_AVOID = {"Mars", "Saturn", "Sun"}
+
+# Chaldean hora order — same 7 lords, starting from sunrise
+_HORA_LORDS_SEQ = ["Sun", "Venus", "Mercury", "Moon", "Saturn", "Jupiter", "Mars"]
+# Weekday → starting hora at sunrise (0=Mon..6=Sun)
+_DAY_HORA_START = {0: 3, 1: 6, 2: 2, 3: 5, 4: 1, 5: 4, 6: 0}
+
+
+def _recommended_hora_slots_for_day(
+    date_str: str,
+    event_lat: float,
+    event_lon: float,
+    event_tz: float,
+) -> list[dict]:
+    """
+    PR R2-PR4 — For a given date + event location, return the list of
+    hora slots whose lord is in the vivaha-preferred set
+    {Venus, Jupiter}. Each slot has HH:MM in event-local time so the
+    astrologer can hand the family precise times.
+
+    Skips silently on any swisseph / sunrise computation failure —
+    returns an empty list rather than blocking the recommendation.
+    """
+    try:
+        from datetime import datetime as _dt, timedelta as _td
+        from app.services.eclipse_utils import find_eclipses_in_range  # ensures helper module exists
+        # Sunrise + sunset at event location for that date
+        # Reuse the shared get_sunrise_sunset_jd from panchangam
+        # to stay aligned with Mu0d/Mu0f fixed signature.
+        from app.routers.panchangam import get_sunrise_sunset_jd, get_next_sunrise_jd
+        from datetime import date as _date_t
+        y, m, d = (int(x) for x in date_str.split("-"))
+        local_date = _date_t(y, m, d)
+        try:
+            sunrise_jd, sunset_jd = get_sunrise_sunset_jd(local_date, event_lat, event_lon, event_tz)
+        except Exception:
+            return []
+        try:
+            # get_next_sunrise_jd expects the NEXT local date (today + 1).
+            # Pass it directly so we don't re-derive from a JD.
+            from datetime import timedelta as _td2
+            next_sunrise_jd = get_next_sunrise_jd(
+                local_date + _td2(days=1), event_lat, event_lon, event_tz
+            )
+            if next_sunrise_jd <= sunset_jd:
+                # Safety net: same-day result is impossible; use a fallback
+                next_sunrise_jd = sunset_jd + (sunset_jd - sunrise_jd)
+        except Exception:
+            next_sunrise_jd = sunset_jd + (sunset_jd - sunrise_jd)
+
+        weekday = local_date.weekday()
+        start_idx = _DAY_HORA_START[weekday]
+
+        day_dur = sunset_jd - sunrise_jd
+        night_dur = next_sunrise_jd - sunset_jd
+        if day_dur <= 0 or night_dur <= 0:
+            return []
+        day_hora_len = day_dur / 12.0
+        night_hora_len = night_dur / 12.0
+
+        def jd_to_hhmm(jd: float) -> str:
+            try:
+                dt_utc = _dt(1970, 1, 1) + _td(days=jd - 2440587.5)
+                local = dt_utc + _td(hours=event_tz)
+                return local.strftime("%H:%M")
+            except Exception:
+                return ""
+
+        slots: list[dict] = []
+        # Day horas 0..11
+        for i in range(12):
+            hora_lord = _HORA_LORDS_SEQ[(start_idx + i) % 7]
+            if hora_lord not in _VIVAHA_HORA_PREFERRED:
+                continue
+            s_jd = sunrise_jd + i * day_hora_len
+            e_jd = s_jd + day_hora_len
+            slots.append({
+                "hora_lord": hora_lord,
+                "start_hhmm": jd_to_hhmm(s_jd),
+                "end_hhmm":   jd_to_hhmm(e_jd),
+                "period":     "day",
+            })
+        # Night horas 12..23
+        for i in range(12):
+            hora_lord = _HORA_LORDS_SEQ[(start_idx + 12 + i) % 7]
+            if hora_lord not in _VIVAHA_HORA_PREFERRED:
+                continue
+            s_jd = sunset_jd + i * night_hora_len
+            e_jd = s_jd + night_hora_len
+            slots.append({
+                "hora_lord": hora_lord,
+                "start_hhmm": jd_to_hhmm(s_jd),
+                "end_hhmm":   jd_to_hhmm(e_jd),
+                "period":     "night",
+            })
+        return slots
+    except Exception:
+        return []
+
+
+def _moment_rps_at_jd(
+    jd: float, lat: float, lon: float, weekday: int,
+) -> set:
+    """
+    PR R2-PR4 — KP 5-RP set at a given moment (mirrors Mu3's
+    _compute_moment_rps for Muhurtha but inlined here so compatibility
+    doesn't need to import from muhurtha_engine).
+    """
+    try:
+        from app.services.chart_engine import (
+            get_planet_positions, get_sub_lord, get_nakshatra_and_starlord,
+            get_sign, DAY_LORDS,
+        )
+        import swisseph as _swe
+        _swe.set_sid_mode(_swe.SIDM_KRISHNAMURTI_VP291)
+        planets = get_planet_positions(jd)
+        cusps, _ = _swe.houses_ex(jd, lat, lon, b'P', _swe.FLG_SIDEREAL)
+        lagna_lon = cusps[0] % 360
+        moon_lon = planets.get("Moon", {}).get("longitude", 0)
+        rps = {
+            DAY_LORDS.get(weekday, ""),
+            SIGN_LORDS.get(get_sign(moon_lon % 360), ""),
+            get_nakshatra_and_starlord(moon_lon)["star_lord"],
+            SIGN_LORDS.get(get_sign(lagna_lon), ""),
+            get_nakshatra_and_starlord(lagna_lon)["star_lord"],
+        }
+        rps.discard("")
+        return rps
+    except Exception:
+        return set()
+
+
+def _natal_marriage_sigs(chart: dict) -> set:
+    """For one partner's natal chart, return the set of planet names
+    that signify ANY house in {2, 7, 11} (marriage karaka houses).
+    Reuses _planet_significations (which already returns the union of
+    occupied + ruled + star-lord's house)."""
+    MARRIAGE_HOUSES = {2, 7, 11}
+    sigs: set = set()
+    planets = chart.get("planets") or {}
+    cusp_lons = chart.get("cusp_lons") or []
+    for pname in planets:
+        houses = _planet_significations(pname, planets, cusp_lons)
+        if houses & MARRIAGE_HOUSES:
+            sigs.add(pname)
+    return sigs
+
+
 def _joint_sookshma_precision_windows(person1: dict, person2: dict,
                                       chart1: dict, chart2: dict,
                                       overlap_windows: list[dict],
@@ -3619,7 +3779,62 @@ def _joint_sookshma_precision_windows(person1: dict, person2: dict,
             # them un-annotated so the existing UI keeps working.
             pass
 
-    return top  # top 8 with Sutak annotations
+    # PR R2-PR4 — per-window enrichment:
+    #   recommended_hora_slots — Venus / Jupiter hora intervals on
+    #     the window's start day so the astrologer can pick the exact
+    #     hour (HH:MM in event-local time)
+    #   moment_rps_x_natal_sigs — count of moment-RPs at recommendation
+    #     date that ALSO signify marriage in each partner's natal chart
+    if top:
+        try:
+            import swisseph as _swe2
+            from datetime import datetime as _dt2
+            ev_lat2 = person1.get("latitude")
+            ev_lon2 = person1.get("longitude")
+            # Resolve event tz at the wedding location with the
+            # recommendation date — DST-aware (Mu0b pattern)
+            try:
+                from app.services.timezone_utils import resolve_timezone
+                _date0 = _dt2.strptime(top[0]["start"], "%Y-%m-%d")
+                ev_tz2, _ = resolve_timezone(ev_lat2, ev_lon2, _date0)
+            except Exception:
+                ev_tz2 = person1.get("timezone_offset", 5.5)
+            # Pre-compute each partner's natal marriage significators
+            # (reuses chart1 / chart2 from the caller scope — passed
+            # in as arguments)
+            natal_sigs_1 = _natal_marriage_sigs(chart1)
+            natal_sigs_2 = _natal_marriage_sigs(chart2)
+            for w in top:
+                # Skip enrichment if Sutak already warned — pointless
+                if w.get("sutak_warning"):
+                    w["recommended_hora_slots"] = []
+                    continue
+                # Hora slots on the window's start date
+                w["recommended_hora_slots"] = _recommended_hora_slots_for_day(
+                    w["start"], ev_lat2, ev_lon2, ev_tz2
+                )
+                # Moment RPs at noon of recommendation date
+                try:
+                    _sd = _dt2.strptime(w["start"], "%Y-%m-%d")
+                    noon_jd = _swe2.julday(_sd.year, _sd.month, _sd.day, 12.0 - ev_tz2)
+                    moment_rps = _moment_rps_at_jd(
+                        noon_jd, ev_lat2, ev_lon2, _sd.weekday()
+                    )
+                    overlap_p1 = sorted(moment_rps & natal_sigs_1)
+                    overlap_p2 = sorted(moment_rps & natal_sigs_2)
+                    w["moment_rps_at_date"] = sorted(moment_rps)
+                    w["moment_rps_overlap_partner1"] = overlap_p1
+                    w["moment_rps_overlap_partner2"] = overlap_p2
+                    w["moment_rps_confirmation_count"] = len(overlap_p1) + len(overlap_p2)
+                except Exception:
+                    w["moment_rps_at_date"] = []
+                    w["moment_rps_overlap_partner1"] = []
+                    w["moment_rps_overlap_partner2"] = []
+                    w["moment_rps_confirmation_count"] = 0
+        except Exception:
+            pass
+
+    return top  # top 8 with Sutak + hora + RP annotations
 
 
 def _shared_marriage_windows(person1: dict, person2: dict,

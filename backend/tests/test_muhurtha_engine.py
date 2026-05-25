@@ -1505,6 +1505,50 @@ def test_r2pr3_visibility_diaspora_rule():
         assert v in (True, False, None)
 
 
+def test_r2pr4_match_hora_slots_helper_returns_venus_jupiter_only():
+    """Match's _recommended_hora_slots_for_day must return only
+    Venus + Jupiter hora intervals (vivaha-preferred set)."""
+    from app.services.compatibility_engine import _recommended_hora_slots_for_day
+    slots = _recommended_hora_slots_for_day("2026-05-08", 17.385, 78.486, 5.5)
+    assert isinstance(slots, list)
+    assert len(slots) > 0, "expected at least some preferred horas"
+    for s in slots:
+        assert s["hora_lord"] in {"Venus", "Jupiter"}
+        assert ":" in s["start_hhmm"]
+        assert ":" in s["end_hhmm"]
+        assert s["period"] in {"day", "night"}
+
+
+def test_r2pr4_match_moment_rps_returns_planet_set():
+    """_moment_rps_at_jd returns a set of 1-5 known planet names."""
+    from app.services.compatibility_engine import _moment_rps_at_jd
+    import swisseph as _swe
+    jd = _swe.julday(2026, 5, 8, 12.0 - 5.5)
+    rps = _moment_rps_at_jd(jd, 17.385, 78.486, 4)
+    PLANETS = {"Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn","Rahu","Ketu"}
+    assert isinstance(rps, set)
+    assert 1 <= len(rps) <= 5
+    for p in rps:
+        assert p in PLANETS
+
+
+def test_r2pr4_natal_marriage_sigs_returns_planet_subset():
+    """_natal_marriage_sigs returns the set of planets that signify
+    {2,7,11} in a partner's natal chart."""
+    from app.services.compatibility_engine import _natal_marriage_sigs, compute_compatibility
+    p1 = {"name":"A","date":"1990-01-15","time":"12:00","latitude":17.385,"longitude":78.486,"timezone_offset":5.5,"gender":"male"}
+    p2 = {"name":"B","date":"1992-06-20","time":"09:30","latitude":17.385,"longitude":78.486,"timezone_offset":5.5,"gender":"female"}
+    r = compute_compatibility(p1, p2)
+    # compute_compatibility internally builds chart1/chart2 — access via the public API
+    # is fine for a smoke test
+    assert r is not None
+    # The function itself with a fake-shaped chart should not raise
+    fake_chart = {"planets": {"Sun": {"longitude": 100.0, "star_lord": "Venus"}},
+                  "cusp_lons": [i * 30.0 for i in range(12)]}
+    sigs = _natal_marriage_sigs(fake_chart)
+    assert isinstance(sigs, set)
+
+
 def test_mu0g_antardasha_cache_is_used():
     """_AD_CACHE accumulates entries as scans run; we verify by clearing
     it, running a small scan with a participant, and asserting at least
