@@ -915,8 +915,21 @@ export function MuhurthaTab(props: MuhurthaTabProps) {
 
                       {/* Right block */}
                       <div style={{ textAlign: "right" as const, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5, flexShrink: 0 }}>
-                        <div style={{ fontSize: 13, padding: "4px 12px", borderRadius: 999, background: qualityBg(w.quality), color: qC, border: `0.5px solid ${qualityBorder(w.quality)}`, fontWeight: 600, letterSpacing: "0.03em" }}>
+                        <div style={{ fontSize: 13, padding: "4px 12px", borderRadius: 999, background: qualityBg(w.quality), color: qC, border: `0.5px solid ${qualityBorder(w.quality)}`, fontWeight: 600, letterSpacing: "0.03em" }}
+                             title={t(
+                               typeof w.confidence_score === "number" && w.confidence_score !== w.raw_score
+                                 ? `Confidence ${w.confidence_score}/100 (raw ${w.raw_score})`
+                                 : `Confidence ${w.confidence_score ?? w.score}/100`,
+                               typeof w.confidence_score === "number" && w.confidence_score !== w.raw_score
+                                 ? `విశ్వాసం ${w.confidence_score}/100 (raw ${w.raw_score})`
+                                 : `విశ్వాసం ${w.confidence_score ?? w.score}/100`
+                             )}>
                           {qualityStars(w.quality)} {w.score}
+                          {typeof w.confidence_score === "number" && w.raw_score !== undefined && w.raw_score > 100 && (
+                            <span style={{ marginLeft: 6, fontSize: 10, color: "var(--muted)", fontWeight: 400 }}>
+                              ({w.raw_score} raw)
+                            </span>
+                          )}
                         </div>
                         <div style={{ display: "flex", gap: 4, flexWrap: "wrap" as const, justifyContent: "flex-end" }}>
                           {bc.passed !== undefined && <span className={`muhurtha-badge ${bc.passed ? "pass" : "fail"}`}>{bc.passed ? "✓" : "✗"} Badhaka</span>}
@@ -1119,6 +1132,46 @@ export function MuhurthaTab(props: MuhurthaTabProps) {
                             </>
                           )}
                         </div>
+
+                        {/* PR Mu2 — Confidence breakdown ledger.
+                            Every contributing factor + its delta + a
+                            short note. Sum of deltas = raw_score;
+                            confidence_score = clamp [0, 100]. Lets the
+                            astrologer trace WHY a window scored what
+                            it scored. */}
+                        {Array.isArray(w.confidence_breakdown) && w.confidence_breakdown.length > 0 && (
+                          <div className="muhurtha-detail-panel">
+                            <div className="muhurtha-panel-title">
+                              {t("Confidence breakdown", "విశ్వాస విభజన")}
+                              <span style={{ marginLeft: 8, fontSize: 10, color: "var(--muted)", fontWeight: 400 }}>
+                                {w.confidence_score}/100
+                                {typeof w.raw_score === "number" && w.raw_score !== w.confidence_score && (
+                                  <span> · raw {w.raw_score}</span>
+                                )}
+                              </span>
+                            </div>
+                            {w.confidence_breakdown.map((b: any, k: number) => {
+                              const color =
+                                b.delta > 0 ? "#4ade80"
+                                  : b.delta < 0 ? "#f87171"
+                                  : "var(--muted)";
+                              return (
+                                <div key={k} className="muhurtha-detail-row" title={b.note}>
+                                  <span style={{ fontSize: 11 }}>{b.factor.replace(/_/g, " ")}</span>
+                                  <span style={{ color, fontWeight: 600 }}>
+                                    {b.delta > 0 ? "+" : ""}{b.delta}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                            <div style={{ fontSize: 10, color: "var(--muted)", fontStyle: "italic", marginTop: 6, lineHeight: 1.4 }}>
+                              {t(
+                                "Sum of deltas = raw_score. Confidence is clamped to [0, 100]; raw > 100 means strong base with headroom; raw < 0 means heavy penalties beyond what the floor can show.",
+                                "డెల్టాల మొత్తం = raw_score. విశ్వాసం [0, 100]కి క్లాంప్ చేయబడింది; raw > 100 అంటే బలమైన పునాది; raw < 0 అంటే భారీ పెనాల్టీలు."
+                              )}
+                            </div>
+                          </div>
+                        )}
 
                         {/* PR A2.2d — Panel 5: Per-participant breakdown
                             (Tarabala / Chandrabala / Chandrashtamam /

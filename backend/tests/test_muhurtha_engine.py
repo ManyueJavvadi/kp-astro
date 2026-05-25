@@ -631,6 +631,45 @@ def test_mu0e_tithi_num_clamped_to_30():
 
 # ── Mu0g — antardasha memoisation ──
 
+def test_mu2_confidence_ledger_sums_to_raw_score():
+    """Sum of deltas in confidence_breakdown must equal raw_score, and
+    confidence_score must be the clamp of raw_score to [0, 100]."""
+    r = find_muhurtha_windows(
+        date_start="2026-05-01", date_end="2026-05-01",
+        event_type="general", **TENALI,
+        nearby_days=0, participants=[MANYUE],
+    )
+    all_w = (r.get("windows") or []) + (r.get("soft_flagged_windows") or [])
+    assert all_w, "Expected at least one window"
+    for w in all_w[:5]:
+        breakdown = w.get("confidence_breakdown")
+        raw = w.get("raw_score")
+        conf = w.get("confidence_score")
+        assert isinstance(breakdown, list), "confidence_breakdown missing"
+        assert isinstance(raw, int), "raw_score missing"
+        assert isinstance(conf, int), "confidence_score missing"
+        delta_sum = sum(b["delta"] for b in breakdown)
+        assert delta_sum == raw, f"breakdown sum {delta_sum} != raw_score {raw}"
+        assert conf == max(0, min(100, raw)), (
+            f"confidence_score {conf} not clamp of raw {raw} to [0,100]"
+        )
+
+
+def test_mu2_breakdown_entries_have_required_shape():
+    """Every breakdown entry must have factor (str), delta (int), note (str)."""
+    r = find_muhurtha_windows(
+        date_start="2026-05-01", date_end="2026-05-01",
+        event_type="marriage", **TENALI,
+        nearby_days=0, participants=[MANYUE],
+    )
+    all_w = (r.get("windows") or []) + (r.get("soft_flagged_windows") or [])
+    for w in all_w[:3]:
+        for b in w.get("confidence_breakdown", []):
+            assert isinstance(b.get("factor"), str) and b["factor"], "factor missing"
+            assert isinstance(b.get("delta"), int), "delta missing or non-int"
+            assert isinstance(b.get("note"), str), "note missing"
+
+
 def test_mu0g_antardasha_cache_is_used():
     """_AD_CACHE accumulates entries as scans run; we verify by clearing
     it, running a small scan with a participant, and asserting at least

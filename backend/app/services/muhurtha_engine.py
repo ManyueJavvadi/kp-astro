@@ -1202,6 +1202,84 @@ def _scan_date_range(
         ekargala_penalty = -20 if ekargala_active else 0
 
         # ── PR A2.2b: assemble effective_score with all new signals ──
+        # ── PR Mu2: also build a confidence_breakdown ledger so the
+        #     astrologer can see every factor's contribution. The ledger
+        #     is a list of {factor, delta, note} dicts; sum of deltas
+        #     equals (effective_score - base_score) modulo the hard
+        #     penalties (RK / YG / GL / Durm / Vishti) which are listed
+        #     separately at the end. base_score itself is the lumped
+        #     Lagna-SL + tithi + nakshatra + yoga + global-vara
+        #     contribution; future PR could split it further.
+        breakdown: list = [
+            {"factor": "base_score", "delta": int(base_score),
+             "note": "Lagna SL signifies + tithi + nakshatra + yoga (+ global vara if unmapped event)"},
+        ]
+        if participant_bonus:
+            breakdown.append({
+                "factor": "participant_resonance",
+                "delta": int(participant_bonus),
+                "note": f"+10 per participant whose natal RPs include Lagna SL ({len(resonating_with)} hits)"})
+        if badhaka_penalty:
+            breakdown.append({
+                "factor": "badhakesh_marakesh",
+                "delta": int(badhaka_penalty),
+                "note": "Querent natal Badhakesh / Marakesh active"})
+        if event_cusp_bonus:
+            breakdown.append({
+                "factor": "event_cusp_csl_confirms",
+                "delta": int(event_cusp_bonus),
+                "note": f"Event cusp (H{group['primary']}) CSL chain signifies the event"})
+        if h11_bonus:
+            breakdown.append({
+                "factor": "h11_csl_confirms",
+                "delta": int(h11_bonus),
+                "note": "H11 (gain) CSL chain signifies the event"})
+        if moon_sl_bonus:
+            breakdown.append({
+                "factor": "moon_starlord_favorable",
+                "delta": int(moon_sl_bonus),
+                "note": "Moon star-lord signifies the event group"})
+        if event_cusp_denial_penalty:
+            breakdown.append({
+                "factor": "event_cusp_csl_denial",
+                "delta": int(event_cusp_denial_penalty),
+                "note": f"Event cusp CSL signifies denial houses"})
+        if h11_denial_penalty:
+            breakdown.append({
+                "factor": "h11_csl_denial",
+                "delta": int(h11_denial_penalty),
+                "note": "H11 CSL signifies denial houses"})
+        if rikta_nanda_penalty:
+            breakdown.append({
+                "factor": "rikta_nanda_tithi",
+                "delta": int(rikta_nanda_penalty),
+                "note": f"Tithi {tithi_num} is in Rikta/Nanda avoid set"})
+        if nak_bonus:
+            breakdown.append({
+                "factor": "nakshatra_class_event_match",
+                "delta": int(nak_bonus),
+                "note": f"Nakshatra class for {event_type}"})
+        if per_event_vara_bonus:
+            breakdown.append({
+                "factor": "per_event_vara",
+                "delta": int(per_event_vara_bonus),
+                "note": f"Vara {vara} for event {event_type}"})
+        if lagna_type_bonus:
+            breakdown.append({
+                "factor": "lagna_type_match",
+                "delta": int(lagna_type_bonus),
+                "note": f"Lagna type {sign_type} for event {event_type}"})
+        if kartari_penalty:
+            breakdown.append({
+                "factor": "kartari_dosha",
+                "delta": int(kartari_penalty),
+                "note": "Malefics flanking the muhurtha Lagna (H2 + H12)"})
+        if ekargala_penalty:
+            breakdown.append({
+                "factor": "ekargala_dosha",
+                "delta": int(ekargala_penalty),
+                "note": "Sun + Moon in the same sign"})
+
         effective_score = (
             base_score
             + participant_bonus
@@ -1218,11 +1296,31 @@ def _scan_date_range(
             + kartari_penalty        # PR A2.2e
             + ekargala_penalty       # PR A2.2e
         )
-        if in_rk:   effective_score -= 50
-        if in_yg:   effective_score -= 60
-        if in_gl:   effective_score -= 50
-        if in_durm: effective_score -= 80
-        if vishti:  effective_score -= 30
+        # Hard time-window penalties — listed AFTER soft factors so
+        # the breakdown reads as "would have been N, then inauspicious
+        # period dragged it to M".
+        if in_rk:
+            effective_score -= 50
+            breakdown.append({"factor": "rahu_kalam", "delta": -50, "note": "Window falls inside Rahu Kalam"})
+        if in_yg:
+            effective_score -= 60
+            breakdown.append({"factor": "yamagandam", "delta": -60, "note": "Window falls inside Yamagandam"})
+        if in_gl:
+            effective_score -= 50
+            breakdown.append({"factor": "gulika_kalam", "delta": -50, "note": "Window falls inside Gulika Kalam"})
+        if in_durm:
+            effective_score -= 80
+            breakdown.append({"factor": "durmuhurtha", "delta": -80, "note": "Window falls inside Durmuhurtha"})
+        if vishti:
+            effective_score -= 30
+            breakdown.append({"factor": "vishti_karana", "delta": -30, "note": "Vishti (Bhadra) karana — inauspicious"})
+
+        # PR Mu2 — raw_score = sum of all deltas (uncapped); confidence_score
+        # = clamped to [0, 100] for display. Raw lets astrologer tell
+        # "strong base + heavy soft penalties" from "weak base alone" —
+        # both can clamp to the same 0 today.
+        raw_score = sum(b["delta"] for b in breakdown)
+        confidence_score = max(0, min(100, raw_score))
 
         if base_score >= 40:
             raw_windows.append({
@@ -1240,6 +1338,10 @@ def _scan_date_range(
                 "participant_resonance": len(resonating_with),
                 "resonating_with":   resonating_with,
                 "score":             max(0, effective_score),
+                # PR Mu2 — numeric confidence ledger + raw vs clamped
+                "raw_score":            int(raw_score),
+                "confidence_score":     int(confidence_score),
+                "confidence_breakdown": breakdown,
                 "in_rahu_kalam":     in_rk,
                 "in_yamagandam":     in_yg,
                 "in_gulika":         in_gl,
