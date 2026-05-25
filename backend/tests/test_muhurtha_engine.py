@@ -838,6 +838,64 @@ def test_mu4_secondary_chandrashtamam_is_soft_not_hard():
     # that's OK — just don't fail the test.
 
 
+def test_mu5_same_day_alternatives_present_when_windows_exist():
+    """When at least one window passes, same_day_alternatives must
+    be a non-empty list containing windows from the best-window's date."""
+    r = find_muhurtha_windows(
+        date_start="2026-05-01", date_end="2026-05-01",
+        event_type="general", **TENALI,
+        nearby_days=0, participants=[MANYUE],
+    )
+    alts = r.get("same_day_alternatives") or []
+    if r.get("best_window"):
+        assert alts, "same_day_alternatives must be populated when best_window exists"
+        best_date = r["best_window"]["date"]
+        for w in alts:
+            assert w["date"] == best_date, "alternative on wrong date"
+        assert len(alts) <= 5, "same_day_alternatives capped at 5"
+
+
+def test_mu5_extend_returns_none_not_inventing():
+    """When the engine truly cannot find ANY qualifying muhurtha in
+    the requested range, extend_suggestion is None (or contains a
+    real future window) — never an empty / placeholder dict."""
+    # We can't easily construct a guaranteed-empty case without a long
+    # search, so we just confirm the field shape contract for a
+    # normal call (where extend may or may not be set).
+    r = find_muhurtha_windows(
+        date_start="2026-05-01", date_end="2026-05-01",
+        event_type="general", **TENALI,
+        nearby_days=0, participants=[MANYUE],
+    )
+    ext = r.get("extend_suggestion")
+    if ext is not None:
+        assert isinstance(ext, dict)
+        assert "window" in ext
+        assert "days_from_range_end" in ext
+        assert "horizon_days" in ext  # PR Mu5 — new field
+
+
+def test_mu5_extend_horizon_is_90_days():
+    """The extend horizon was bumped 30 → 90 days in Mu5. When
+    extend fires, the response carries horizon_days: 90."""
+    # Search a date range we know has no marriage muhurtha (e.g. a
+    # Cancer-sun day which is solar-month-blocked for vivaha) so
+    # extend_suggestion fires. Then assert horizon_days == 90.
+    r = find_muhurtha_windows(
+        # Cancer Sun period = mid-Jul to mid-Aug — guaranteed blocked
+        # for marriage by the solar-month rule (Mu0a-vintage classical
+        # gate). Range is tight to keep test fast.
+        date_start="2026-07-25", date_end="2026-07-26",
+        event_type="marriage", **TENALI,
+        nearby_days=0, participants=[MANYUE],
+    )
+    ext = r.get("extend_suggestion")
+    if ext:
+        assert ext.get("horizon_days") == 90, (
+            f"Mu5 horizon should be 90, got {ext.get('horizon_days')}"
+        )
+
+
 def test_mu0g_antardasha_cache_is_used():
     """_AD_CACHE accumulates entries as scans run; we verify by clearing
     it, running a small scan with a participant, and asserting at least

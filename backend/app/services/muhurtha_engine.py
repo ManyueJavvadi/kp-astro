@@ -1040,8 +1040,21 @@ def _scan_date_range(
         sunrise_jd = slots["sunrise"]
         sunset_jd  = slots["sunset"]
 
-        # House cusps at event location
-        cusps, _ = swe.houses_ex(jd, event_lat, event_lon, b'P', swe.FLG_SIDEREAL)
+        # House cusps at event location.
+        # PR Mu5 — at very high latitudes (>= 66.5°) Placidus houses
+        # mathematically degenerate (the calculation involves dividing
+        # by cos(latitude) which → 0). swe.houses_ex raises a generic
+        # error. We catch it and skip the day, same treatment as the
+        # polar sunrise case in Mu0d.
+        try:
+            cusps, _ = swe.houses_ex(jd, event_lat, event_lon, b'P', swe.FLG_SIDEREAL)
+        except Exception as _e:
+            _skipped_polar_days.append({
+                "date":   current.strftime("%Y-%m-%d"),
+                "reason": f"Placidus houses undefined at lat={event_lat:.4f} ({_e})",
+            })
+            current += timedelta(hours=24 - current.hour, minutes=-current.minute)
+            continue
         cusp_lons = list(cusps[:12])
         lagna_lon = cusp_lons[0] % 360
 
@@ -1875,13 +1888,30 @@ def find_muhurtha_windows(
         else:
             selected_windows.append(w)
 
+    # PR Mu5 — same-day grouping. Previously kept top 3 per day.
+    # Bumped to 5 because professional astrologer workflow needs to
+    # choose among multiple viable windows on the same day based on
+    # client logistics (e.g. catering booked 13:00 — pick the window
+    # closest to that). Each per-day list is sorted by score desc.
     date_windows: dict = {}
     for w in selected_windows:
         d = w["date"]
         if d not in date_windows:
             date_windows[d] = []
-        if len(date_windows[d]) < 3:
+        if len(date_windows[d]) < 5:
             date_windows[d].append(w)
+
+    # PR Mu5 — `same_day_alternatives` is a flat list-of-lists keyed
+    # by the date of the BEST window. The first inner list is the best
+    # day's alternatives (3-5 windows); UI renders it as a horizontal
+    # strip below the best-window hero so the astrologer sees options
+    # at-a-glance without expanding the leaderboard.
+    same_day_alternatives: list = []
+    if selected_windows:
+        best_date = selected_windows[0]["date"]
+        same_day_alternatives = [
+            w for w in selected_windows if w["date"] == best_date
+        ][:5]
 
     best_selected_score = selected_windows[0]["score"] if selected_windows else 0
 
@@ -1920,15 +1950,20 @@ def find_muhurtha_windows(
             nearby_better = nearby_only[0]
             nearby_better["event_location_used"] = event_location_different
 
-    # PR A2.2c — extend-window logic (KB §8.5).
+    # PR A2.2c / Mu5 — extend-window logic (KB §8.5).
     # If nothing in the client's range passes hard filters, scan forward
-    # up to 30 days for the next qualifying window. Classical practice:
+    # up to 90 days for the next qualifying window. Classical practice:
     # "no qualifying muhurtha exists in your range; the next one is in
     # N days. Recommend waiting." (User's dad's exact workflow.)
+    # Pre-Mu5: 30-day horizon — too tight for marriage / vivaha which
+    # often need to skip the next sankranti / amavasya boundary.
+    # Mu5: extended to 90 days per audit Wave-2 plan. Critical
+    # invariant: if NOTHING qualifies in 90 days, return None —
+    # the engine MUST NOT invent a "best of bad" answer.
     extend_suggestion = None
     if not selected_windows:
         extend_start = end_dt + timedelta(days=1)
-        extend_end = end_dt + timedelta(days=30)
+        extend_end = end_dt + timedelta(days=90)  # Mu5: 30 → 90
         extend_raw, _extend_skipped = _scan_date_range(
             extend_start, extend_end, classified_event,
             e_lat, e_lon, e_tz,
@@ -1947,6 +1982,8 @@ def find_muhurtha_windows(
             extend_suggestion = {
                 "window": first,
                 "days_from_range_end": (first_date - end_dt).days,
+                "horizon_days": 90,  # Mu5 — surface horizon in response
+                "candidates_scanned": len(extend_merged),
                 "blocking_reasons": (
                     # Summarize why the client's range had nothing.
                     # Collect reason frequencies across soft-flagged
@@ -1956,11 +1993,18 @@ def find_muhurtha_windows(
                     if soft_flagged_windows else []
                 ),
             }
+        # else: extend_suggestion stays None — caller (UI) shows
+        # "no qualifying muhurtha in next 90 days; manual review recommended"
 
     return {
         "windows":              selected_windows[:15],
         "soft_flagged_windows": soft_flagged_windows[:15],  # PR A2.2b
         "date_windows":         date_windows,
+        # PR Mu5 — same-day alternatives strip (up to 5 windows on the
+        # best window's date). Frontend renders as horizontal grid
+        # below the best-window hero so the astrologer can pick by
+        # client logistics (catering time, family availability, etc.).
+        "same_day_alternatives": same_day_alternatives,
         "best_window":          selected_windows[0] if selected_windows else None,
         "nearby_better":        nearby_better,
         "extend_suggestion":    extend_suggestion,          # PR A2.2c
