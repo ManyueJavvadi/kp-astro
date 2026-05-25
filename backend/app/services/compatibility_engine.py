@@ -38,6 +38,7 @@ from app.services.chart_engine import (
     calculate_antardashas, get_current_antardasha,
     calculate_pratyantardashas, get_current_pratyantardasha,
     DAY_LORDS,
+    is_borderline_csl, sub_boundary_distance,
 )
 from app.services.chart_formatter import format_chart_for_frontend
 from app.services.kp_advanced_compute import detect_combustion
@@ -1900,6 +1901,94 @@ def _h7_csl_combust_flag(chart: dict) -> dict:
         "h7_csl": h7_csl,
         "distance_from_sun_deg": dist,
         "threshold_deg": thr,
+        "label_en": label_en,
+        "label_te": label_te,
+        "detail_en": detail_en,
+        "detail_te": detail_te,
+    }
+
+
+def _h7_csl_borderline_flag(chart: dict) -> dict:
+    """
+    PR M8 — Borderline H7 CSL caveat per partner.
+
+    The H7 cusp longitude is the seed for everything in the marriage
+    primary read (sub-lord, CSL chain, all of _h7_sublord_promise).
+    If that longitude sits within ~0.3° of a sub-lord boundary, a
+    rounding-of-minutes error in the birth time can FLIP the sub
+    lord — and with it, the verdict (Promised vs Denied).
+
+    KP sensitivity: 0.3° ≈ 1.2 minutes of clock time at the average
+    ascendant rate (~15°/h). Most charts use birth times rounded to
+    the nearest minute → boundary-adjacent H7 cusps are at-risk.
+
+    This DOES NOT change the verdict. It surfaces the caveat so the
+    astrologer can request a rectified birth time before committing
+    to a marriage-timing call. RULE 37 (chart_engine.is_borderline_csl
+    docstring) maps to this same concern at the chart level.
+
+    Returns:
+      {
+        "is_borderline": bool,
+        "deg_to_boundary": float (degrees),
+        "minutes_of_birth_time": float (≈ deg × 4),
+        "current_sub": str,
+        "alternate_sub": str (the flip candidate),
+        "side": "next" | "prev",
+        "label_en": str,
+        "label_te": str,
+        "detail_en": str,
+        "detail_te": str,
+      }
+    """
+    h7_lon = chart["cusp_lons"][6] % 360
+    info = sub_boundary_distance(h7_lon)
+    is_border = is_borderline_csl(h7_lon, threshold_deg=0.3)
+    deg_to_next = info["deg_to_next_boundary"]
+    deg_to_prev = info["deg_to_prev_boundary"]
+    current_sub = info["current_sub_lord"]
+    next_sub = info["next_sub_lord"]
+    prev_sub = info["prev_sub_lord"]
+    nearest_deg = info["deg_to_nearest_boundary"]
+
+    if deg_to_next <= deg_to_prev:
+        side = "next"
+        alternate = next_sub
+    else:
+        side = "prev"
+        alternate = prev_sub
+
+    minutes = round(nearest_deg * 4.0, 1)  # 1° lagna motion ≈ 4 min
+
+    if is_border:
+        label_en = "H7 CSL borderline"
+        label_te = "H7 CSL సరిహద్దు సమీపంలో"
+        detail_en = (
+            f"H7 cusp is {nearest_deg:.3f}° from the {side} sub-boundary "
+            f"(≈ {minutes} min of clock time). Current sub-lord {current_sub} "
+            f"could flip to {alternate} if the birth time is off by a "
+            f"minute or two. Request a rectified birth time before "
+            f"committing to a marriage-timing verdict."
+        )
+        detail_te = (
+            f"H7 cusp సబ్‌లార్డ్ సరిహద్దు నుండి {nearest_deg:.3f}° దూరం "
+            f"(≈ {minutes} నిమి). జన్మ సమయం 1-2 నిమిషాలు తేడాతో సబ్ లార్డ్ "
+            f"{current_sub} → {alternate} మారే అవకాశం. వివాహ నిర్ధారణకు ముందు "
+            f"జన్మ సమయం స్పష్టత అడగండి."
+        )
+    else:
+        label_en = ""
+        label_te = ""
+        detail_en = ""
+        detail_te = ""
+
+    return {
+        "is_borderline": is_border,
+        "deg_to_boundary": round(nearest_deg, 4),
+        "minutes_of_birth_time": minutes,
+        "current_sub": current_sub,
+        "alternate_sub": alternate,
+        "side": side,
         "label_en": label_en,
         "label_te": label_te,
         "detail_en": detail_en,
@@ -3982,6 +4071,13 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
     h7_csl_combust_p1 = _h7_csl_combust_flag(chart1)
     h7_csl_combust_p2 = _h7_csl_combust_flag(chart2)
 
+    # PR M8 — Borderline H7 CSL caveat per partner.
+    # When H7 cusp sits within 0.3° of a sub-lord boundary, a small
+    # birth-time error can flip the verdict — astrologer should request
+    # rectified birth time before committing.
+    h7_csl_borderline_p1 = _h7_csl_borderline_flag(chart1)
+    h7_csl_borderline_p2 = _h7_csl_borderline_flag(chart2)
+
     # PR M3 — Pattern detection per partner (M1/M2/M3/M5) + cross-couple
     # (T1/T2). Pattern naming is what distinguishes a deep KSK reading
     # from a generic significator scan (RULE 19).
@@ -4265,6 +4361,9 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
         # PR M7 — Combust H7 CSL clinical flag per partner
         "h7_csl_combust_chart1": h7_csl_combust_p1,
         "h7_csl_combust_chart2": h7_csl_combust_p2,
+        # PR M8 — Borderline H7 CSL caveat per partner
+        "h7_csl_borderline_chart1": h7_csl_borderline_p1,
+        "h7_csl_borderline_chart2": h7_csl_borderline_p2,
         "summary": {
             "kp_verdict": kp["kp_verdict"],
             "ashtakoota_score": f"{ashtakoota['total_score']}/{ashtakoota['max_score']}",

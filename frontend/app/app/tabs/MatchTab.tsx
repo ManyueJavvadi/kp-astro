@@ -661,8 +661,8 @@ export function MatchTab(props: MatchTabProps) {
               </div>
               <div className="match-section-grid">
                 {[
-                  {p: kp?.chart1_promise, name: r.person1?.name, tier: r.multi_cusp_tier_chart1, multi: r.multi_marriage_chart1, combust: r.h7_csl_combust_chart1},
-                  {p: kp?.chart2_promise, name: r.person2?.name, tier: r.multi_cusp_tier_chart2, multi: r.multi_marriage_chart2, combust: r.h7_csl_combust_chart2},
+                  {p: kp?.chart1_promise, name: r.person1?.name, tier: r.multi_cusp_tier_chart1, multi: r.multi_marriage_chart1, combust: r.h7_csl_combust_chart1, border: r.h7_csl_borderline_chart1},
+                  {p: kp?.chart2_promise, name: r.person2?.name, tier: r.multi_cusp_tier_chart2, multi: r.multi_marriage_chart2, combust: r.h7_csl_combust_chart2, border: r.h7_csl_borderline_chart2},
                 ].map((item, i) => item.p && (
                   <div key={i} className="match-tile" style={{ borderColor: item.p.has_promise && !item.p.has_denial ? "rgba(74,222,128,0.3)" : item.p.has_denial ? "rgba(248,113,113,0.3)" : "var(--border)" }}>
                     <div className="match-tile-name">{item.name}</div>
@@ -730,6 +730,35 @@ export function MatchTab(props: MatchTabProps) {
                       >
                         {t("Multi-marriage signature", "అనేక-వివాహ సూచన")}
                         <span style={{ opacity: 0.7, fontSize: 9 }}>· {item.multi.basis.replace(/_/g, " ")}</span>
+                      </div>
+                    )}
+                    {/* PR M8 — Borderline H7 CSL caveat.
+                        H7 cusp within 0.3° of sub boundary => birth-time
+                        rectification may flip the verdict. */}
+                    {item.border?.is_borderline && (
+                      <div
+                        title={lang === "te" ? item.border.detail_te : item.border.detail_en}
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: "3px 8px",
+                          marginTop: 4,
+                          marginBottom: 4,
+                          borderRadius: 999,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                          cursor: "help",
+                          background: "rgba(147,197,253,0.08)",
+                          color: "#93c5fd",
+                          border: "0.5px solid rgba(147,197,253,0.45)",
+                          letterSpacing: "0.04em",
+                        }}
+                      >
+                        {lang === "te" ? item.border.label_te : item.border.label_en}
+                        <span style={{ opacity: 0.7, fontSize: 9 }}>
+                          · {item.border.current_sub} ⇄ {item.border.alternate_sub} (≈ {item.border.minutes_of_birth_time} min)
+                        </span>
                       </div>
                     )}
                     {/* PR M7 — Combust H7 CSL clinical flag.
