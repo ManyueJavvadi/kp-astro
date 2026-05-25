@@ -99,6 +99,13 @@ export function MuhurthaTab(props: MuhurthaTabProps) {
     sessionToApiPerson,
   } = props;
   const API_URL = apiUrl;
+
+  // PR R3-PR2 — index of the currently-expanded soft-flagged window
+  // (null = none). User-reported gap: BELOW THRESHOLD cards were
+  // non-interactive; clicking did nothing. Now each card toggles
+  // an inline detail panel showing the full confidence ledger +
+  // evidence_payload + advanced doshas for transparency.
+  const [softExpandedIdx, setSoftExpandedIdx] = React.useState<number | null>(null);
   return (
     <div className="tab-content" style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: 960 }}>
       {/* Phase 15.2 — Track A serif PageHero (Muhurtha tab) */}
@@ -1494,22 +1501,42 @@ export function MuhurthaTab(props: MuhurthaTabProps) {
                         if (s.includes("rahu kalam") || s.includes("yamaganda") || s.includes("gulika")) return t("Falls inside an inauspicious panchang window (Rahu Kalam / Yamaganda / Gulika).", "రాహుకాలం/యమగండం/గులిక లో పడుతుంది");
                         return t("KP hard filter — open the rule reference for this event before overriding.", "KP హార్డ్ ఫిల్టర్ — KP నియమావళి సంప్రదించి మాత్రమే ఓవర్‌రైడ్ చేయండి");
                       };
-                      return mResults.soft_flagged_windows.slice(0, 25).map((sw: any, i: number) => (
+                      return mResults.soft_flagged_windows.slice(0, 25).map((sw: any, i: number) => {
+                        const isOpen = softExpandedIdx === i;
+                        const ev = sw.evidence_payload || {};
+                        const adv = sw.advanced_doshas || {};
+                        const po = sw.panchang_overlays || {};
+                        const m13 = sw.mu13_overlays || {};
+                        const breakdown = sw.confidence_breakdown || [];
+                        return (
                         <div
                           key={i}
                           style={{
                             padding: "8px 10px",
-                            background: "rgba(0,0,0,0.2)",
-                            border: "0.5px solid rgba(255,255,255,0.04)",
+                            background: isOpen ? "rgba(0,0,0,0.35)" : "rgba(0,0,0,0.2)",
+                            border: isOpen
+                              ? "0.5px solid rgba(201,169,110,0.30)"
+                              : "0.5px solid rgba(255,255,255,0.04)",
                             borderRadius: 6,
                             display: "flex",
-                            gap: 12,
-                            alignItems: "flex-start",
+                            flexDirection: "column" as const,
+                            gap: 8,
+                            cursor: "pointer",
+                            transition: "background 140ms, border-color 140ms",
                           }}
+                          onClick={() => setSoftExpandedIdx(isOpen ? null : i)}
+                          title={t(
+                            isOpen ? "Click to collapse" : "Click to view full ledger + evidence",
+                            isOpen ? "క్లిక్ చేసి మూసివేయండి" : "క్లిక్ చేసి పూర్తి వివరాలు చూడండి"
+                          )}
                         >
+                          <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
                           <div style={{ minWidth: 0, flex: 1 }}>
                             <div style={{ fontSize: 12, color: "var(--text)", fontWeight: 500, marginBottom: 2 }}>
                               {sw.date_display || sw.date} · {sw.start_time}–{sw.end_time}
+                              <span style={{ marginLeft: 8, fontSize: 10, color: "var(--muted)" }}>
+                                {isOpen ? "▾" : "▸"}
+                              </span>
                             </div>
                             <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 4 }}>
                               Lagna {sw.lagna} · SL {sw.lagna_sublord} ·{" "}
@@ -1522,12 +1549,18 @@ export function MuhurthaTab(props: MuhurthaTabProps) {
                               >
                                 Score {sw.score}
                               </span>
+                              {typeof sw.confidence_score === "number" && (
+                                <span style={{ marginLeft: 6, color: "var(--accent2)" }}>
+                                  · Confidence {sw.confidence_score}/100
+                                </span>
+                              )}
                             </div>
                             <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 4 }}>
                               {(sw.hard_rejected_for || []).map((r: string, ri: number) => (
                                 <span
                                   key={ri}
                                   title={reasonHelp(r)}
+                                  onClick={(e) => e.stopPropagation()}
                                   style={{
                                     fontSize: 10,
                                     padding: "2px 8px",
@@ -1543,8 +1576,100 @@ export function MuhurthaTab(props: MuhurthaTabProps) {
                               ))}
                             </div>
                           </div>
+                          </div>
+
+                          {/* PR R3-PR2 — Expanded detail panel: full
+                              ledger + Panchang + advanced doshas + Mu13
+                              + evidence_payload. Click stops propagation
+                              on inner elements so users can highlight
+                              text without collapsing the panel. */}
+                          {isOpen && (
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              style={{
+                                paddingTop: 8,
+                                borderTop: "0.5px dashed rgba(201,169,110,0.20)",
+                                display: "flex",
+                                flexDirection: "column" as const,
+                                gap: 10,
+                                fontSize: 11,
+                                color: "var(--muted)",
+                                lineHeight: 1.55,
+                                cursor: "default",
+                              }}
+                            >
+                              {/* Confidence breakdown ledger */}
+                              {breakdown.length > 0 && (
+                                <div>
+                                  <div style={{ color: "var(--accent)", fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase" as const, fontWeight: 600, marginBottom: 4 }}>
+                                    {t("Confidence breakdown", "విశ్వాస విభజన")}
+                                  </div>
+                                  {breakdown.map((b: any, bi: number) => (
+                                    <div key={bi} style={{ display: "flex", justifyContent: "space-between", paddingLeft: 6 }}>
+                                      <span>{b.factor?.replace(/_/g, " ")}{b.note ? <span style={{ opacity: 0.6, fontStyle: "italic" as const }}> · {b.note}</span> : null}</span>
+                                      <span style={{ color: b.delta > 0 ? "#4ade80" : b.delta < 0 ? "#f87171" : "var(--muted)", fontWeight: 600, marginLeft: 8, whiteSpace: "nowrap" as const }}>
+                                        {b.delta > 0 ? "+" : ""}{b.delta}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* Panchang overlays + Day muhurta */}
+                              <div>
+                                <div style={{ color: "var(--accent)", fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase" as const, fontWeight: 600, marginBottom: 4 }}>
+                                  {t("Panchang context", "పంచాంగ సందర్భం")}
+                                </div>
+                                {sw.panchang?.tithi && <div>{t("Tithi", "తిథి")}: {sw.panchang.paksha} {sw.panchang.tithi} ({sw.panchang.tithi_num})</div>}
+                                {sw.panchang?.nakshatra && <div>{t("Nakshatra", "నక్షత్రం")}: {sw.panchang.nakshatra} · {t("Yoga", "యోగం")}: {sw.panchang.yoga}</div>}
+                                {m13.day_muhurta_name && <div>{t("Day muhurta", "దిన ముహూర్తం")}: {m13.day_muhurta_name} ({m13.day_muhurta_idx + 1}/15)</div>}
+                                {po.amrit_active && <div style={{ color: "#4ade80" }}>✓ {t("Inside Amrit Kala (+20)", "అమృత కాలంలో (+20)")}</div>}
+                                {po.varjyam_active && <div style={{ color: "#f87171" }}>✗ {t("Inside Varjyam (-25)", "వర్జ్యంలో (-25)")}</div>}
+                                {po.panchaka_blocks_event && <div style={{ color: "#f87171" }}>✗ {t("Panchaka blocks this event", "పంచక ఈవెంట్‌ను నిషేధిస్తుంది")} ({po.panchaka_subtype || "?"})</div>}
+                                {sw.in_sutak && <div style={{ color: "#f87171" }}>✗ {t("Inside Sutak (eclipse impurity)", "సుతక్‌లో")} — {sw.sutak_eclipse?.type} {sw.sutak_eclipse?.eclipse_kind}</div>}
+                              </div>
+
+                              {/* Advanced doshas */}
+                              {(adv.bhadra_part || adv.in_sandhya || adv.mrityu_yoga_active || adv.dagdha_tithi_active) && (
+                                <div>
+                                  <div style={{ color: "var(--accent)", fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase" as const, fontWeight: 600, marginBottom: 4 }}>
+                                    {t("Advanced doshas", "అడ్వాన్స్‌డ్ దోషాలు")}
+                                  </div>
+                                  {adv.bhadra_part === "face" && <div style={{ color: "#f87171" }}>Bhadra FACE (-60)</div>}
+                                  {adv.bhadra_part === "middle" && <div>Bhadra middle (-30)</div>}
+                                  {adv.bhadra_part === "tail" && <div style={{ color: "#fbbf24" }}>Bhadra TAIL (-10) — often acceptable</div>}
+                                  {adv.in_sandhya && <div style={{ color: "#f87171" }}>Sandhya {adv.sandhya_kind} (-50)</div>}
+                                  {adv.mrityu_yoga_active && <div style={{ color: "#f87171" }}>Mrityu Yoga active{adv.mrityu_yoga_hard ? " — hard reject for this event" : " (soft)"}</div>}
+                                  {adv.dagdha_tithi_active && <div style={{ color: "#f87171" }}>Dagdha tithi for Sun-sign</div>}
+                                </div>
+                              )}
+
+                              {/* Evidence payload — verify by hand */}
+                              {ev.sunrise_hhmm && (
+                                <div>
+                                  <div style={{ color: "var(--accent)", fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase" as const, fontWeight: 600, marginBottom: 4 }}>
+                                    {t("Verify by hand (evidence)", "స్వయంగా ధృవీకరించండి")}
+                                  </div>
+                                  <div>{t("Sunrise", "సూర్యోదయం")}: {ev.sunrise_hhmm} · {t("Sunset", "సూర్యాస్తమయం")}: {ev.sunset_hhmm}</div>
+                                  <div>RK: {ev.rahu_kalam_hhmm} · YG: {ev.yamagandam_hhmm} · GL: {ev.gulika_hhmm}</div>
+                                  {ev.abhijit_hhmm && <div>Abhijit: {ev.abhijit_hhmm}</div>}
+                                  {Array.isArray(ev.cusp_longitudes_deg) && (
+                                    <div style={{ marginTop: 2, fontSize: 10 }}>
+                                      Cusps: H1={ev.cusp_longitudes_deg[0]?.toFixed(2)}° H7={ev.cusp_longitudes_deg[6]?.toFixed(2)}° H10={ev.cusp_longitudes_deg[9]?.toFixed(2)}° H11={ev.cusp_longitudes_deg[10]?.toFixed(2)}°
+                                    </div>
+                                  )}
+                                  {ev.planet_positions?.Sun && ev.planet_positions?.Moon && (
+                                    <div style={{ marginTop: 2, fontSize: 10 }}>
+                                      Sun {ev.planet_positions.Sun.lon_deg?.toFixed(2)}° {ev.planet_positions.Sun.sign} · Moon {ev.planet_positions.Moon.lon_deg?.toFixed(2)}° {ev.planet_positions.Moon.sign} ({ev.planet_positions.Moon.nakshatra})
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
-                      ));
+                        );
+                      });
                     })()}
                     {mResults.soft_flagged_windows.length > 25 && (
                       <div style={{ fontSize: 10, color: "var(--muted)", textAlign: "center" as const, paddingTop: 4, fontStyle: "italic" as const }}>
