@@ -58,7 +58,11 @@ from app.services.muhurtha_findings import (
 # ── Event house requirements (research-validated) ──────────────
 
 EVENT_HOUSE_GROUPS = {
-    "marriage":      {"primary": 7,  "supporting": [2, 11, 5],  "denial": [1, 6, 10]},
+    # PR Mu0a — marriage denial includes H12 (loss / separation / hospital).
+    # KB §2 + KSK marriage doctrine require {1, 6, 10, 12} as denial set.
+    # Prior `[1, 6, 10]` was passing muhurthas where Lagna SL signified H12
+    # (separation chain); those should be hard-rejected per KP.
+    "marriage":      {"primary": 7,  "supporting": [2, 11, 5],  "denial": [1, 6, 10, 12]},
     "business":      {"primary": 10, "supporting": [2, 6, 11],  "denial": [5, 12]},
     "house_warming": {"primary": 4,  "supporting": [11, 2],     "denial": [3, 10, 8]},
     "travel":        {"primary": 9,  "supporting": [3, 12],     "denial": [2, 8]},
