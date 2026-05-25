@@ -659,14 +659,34 @@ def _scan_date_range(
     raw_windows = []
     planet_cache: dict = {}
     slot_cache: dict = {}
+    # PR Mu0b — per-day event-tz cache. The router resolves event_tz ONCE
+    # using the date_start of the scan; for a 60-day search that crosses a
+    # DST transition (e.g. US spring-forward in March, fall-back in
+    # November), the stored float is wrong for half the windows, silently
+    # shifting Lagna by ~15° per hour of offset error. We re-resolve per
+    # calendar day so zoneinfo handles every DST flip transparently.
+    # Falls back to the router-supplied event_tz on resolution failure.
+    tz_cache: dict = {}
 
     current = start_dt.replace(hour=5, minute=0, second=0, microsecond=0)
     end = end_dt.replace(hour=21, minute=0, second=0, microsecond=0)
 
     while current <= end:
+        # Day slots cached per day — needs tz BEFORE jd
+        day_key = current.strftime("%Y-%m-%d")
+        if day_key not in tz_cache:
+            try:
+                # Import lazily to keep zoneinfo cost out of single-day calls
+                from app.services.timezone_utils import resolve_timezone
+                _day_tz, _ = resolve_timezone(event_lat, event_lon, current)
+                tz_cache[day_key] = _day_tz
+            except Exception:
+                tz_cache[day_key] = event_tz
+        day_event_tz = tz_cache[day_key]
+
         jd = swe.julday(
             current.year, current.month, current.day,
-            current.hour + current.minute / 60.0 - event_tz
+            current.hour + current.minute / 60.0 - day_event_tz
         )
 
         # Planet positions cached per hour
@@ -675,10 +695,8 @@ def _scan_date_range(
             planet_cache[hr_key] = get_planet_positions(jd)
         planets = planet_cache[hr_key]
 
-        # Day slots cached per day
-        day_key = current.strftime("%Y-%m-%d")
         if day_key not in slot_cache:
-            date_jd = swe.julday(current.year, current.month, current.day, 12.0 - event_tz)
+            date_jd = swe.julday(current.year, current.month, current.day, 12.0 - day_event_tz)
             sr, ss = _get_sunrise_sunset_jd(date_jd, event_lat, event_lon)
             slot_cache[day_key] = _get_day_slots(sr, ss, current.weekday())
         slots = slot_cache[day_key]
