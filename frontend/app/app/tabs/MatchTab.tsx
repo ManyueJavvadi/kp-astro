@@ -44,6 +44,7 @@ import HousePanel from "../components/HousePanel";
 import PlanetList from "../components/workspace/PlanetList";
 import MatchPatternChips from "../components/MatchPatternChips";  // PR M3
 import MatchStarSubHarmonyStrip from "../components/MatchStarSubHarmonyStrip";  // PR M4
+import MatchReasoningTrace from "../components/MatchReasoningTrace";  // PR M12
 import type { ChartSession } from "../types";
 
 // Verbose prop bag — match flow has many cross-cutting state slots.
@@ -110,6 +111,9 @@ export function MatchTab(props: MatchTabProps) {
   const API_URL = apiUrl;
   // Person 1 is always the current chart
   const matchPerson1 = workspaceData ? snapshotCurrentSession() : null;
+  // PR M9 + M11 — astrologer's free-text notes (escalates sensitivity
+  // tier and/or triggers Bhavat Bhavam relative-marriage rotation).
+  const [matchConcerns, setMatchConcerns] = React.useState<string>("");
   const canAddP2     = !!(mNewP.name && mNewP.date && mNewP.time);
   return (
     <div className="tab-content" style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: 1020 }}>
@@ -389,6 +393,46 @@ export function MatchTab(props: MatchTabProps) {
             </div>
           </div>{/* close 2-col grid */}
 
+          {/* PR M9 + M11 — Astrologer concerns / context input.
+              Optional. Drives:
+                · sensitivity tier escalation (crisis phrases → Tier 3)
+                · Bhavat Bhavam relative-marriage rotation (relationship
+                  keywords like "my sister", "father's marriage") */}
+          <div style={{ marginTop: 12, display: "flex", flexDirection: "column" as const, gap: 4 }}>
+            <label
+              htmlFor="match-user-concerns"
+              style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.06em", textTransform: "uppercase" as const, fontWeight: 600 }}
+            >
+              {t("Astrologer notes (optional)", "జ్యోతిష్యుని గమనికలు (ఐచ్ఛికం)")}
+            </label>
+            <input
+              id="match-user-concerns"
+              type="text"
+              value={matchConcerns}
+              onChange={(e) => setMatchConcerns(e.target.value)}
+              placeholder={t(
+                "e.g. 'client anxious about divorce', 'my sister's marriage', 'father remarrying' …",
+                "ఉదా: 'క్లయింట్ విడాకుల ఆందోళన', 'నా చెల్లి వివాహం', 'తండ్రి పునర్వివాహం' …"
+              )}
+              maxLength={2000}
+              style={{
+                padding: "8px 12px",
+                fontSize: 12,
+                borderRadius: 8,
+                border: "0.5px solid var(--border2)",
+                background: "rgba(255,255,255,0.02)",
+                color: "var(--text)",
+                outline: "none",
+              }}
+            />
+            <div style={{ fontSize: 10, color: "var(--muted)", fontStyle: "italic", marginTop: 2 }}>
+              {t(
+                "Used by the engine for sensitivity-tier framing and relative-marriage (Bhavat Bhavam) rotation. Does not change the couple's H7 verdict.",
+                "సెన్సిటివిటీ టైర్ + Bhavat Bhavam తిప్పుడుకి ఉపయోగం. జంట H7 ఫలితంపై ప్రభావం లేదు."
+              )}
+            </div>
+          </div>
+
           <button onClick={async () => {
             const p2 = matchResults?.__p2;
             if (!matchPerson1 || !p2) return;
@@ -400,6 +444,7 @@ export function MatchTab(props: MatchTabProps) {
               const res = await axios.post(`${API_URL}/compatibility/match`, {
                 person1: sessionToApiPerson(matchPerson1),
                 person2: sessionToApiPerson(prevP2),
+                user_concerns: matchConcerns.trim() || null,
               });
               // Minimum 650ms loading window so the verdict reveal
               // has weight, same pattern as horary PR14.
@@ -559,6 +604,95 @@ export function MatchTab(props: MatchTabProps) {
               </div>
             </div>
 
+            {/* PR M9 — Sensitivity tier framing banner. Tier 2 = standard
+                life-impact framing; Tier 3 fires when D2 / denial+multi /
+                bilateral H7 tension / combust+denial structural risk
+                signals appear. The astrologer must read this BEFORE
+                committing to a marriage verdict. */}
+            {r.sensitivity?.framing_required && (
+              <div
+                style={{
+                  marginTop: 10,
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  background: r.sensitivity.tier === 3
+                    ? "rgba(248,113,113,0.06)"
+                    : "rgba(201,169,110,0.05)",
+                  border: r.sensitivity.tier === 3
+                    ? "0.5px solid rgba(248,113,113,0.35)"
+                    : "0.5px solid rgba(201,169,110,0.30)",
+                  color: r.sensitivity.tier === 3 ? "#f87171" : "var(--accent)",
+                  fontSize: 11,
+                  lineHeight: 1.6,
+                }}
+              >
+                <div style={{ fontWeight: 700, letterSpacing: "0.06em", fontSize: 10, textTransform: "uppercase", marginBottom: 6 }}>
+                  {r.sensitivity.tier === 3
+                    ? t("⚠ Tier 3 — life-impact + structural risk",
+                        "⚠ టైర్ 3 — జీవిత-ప్రభావ + నిర్మాణాత్మక రిస్క్")
+                    : t("Tier 2 — life-impact framing",
+                        "టైర్ 2 — జీవిత-ప్రభావ ఫ్రేమింగ్")}
+                </div>
+                <div style={{ color: "var(--text)", opacity: 0.85 }}>
+                  {lang === "te" ? r.sensitivity.framing_note_te : r.sensitivity.framing_note_en}
+                </div>
+                {r.sensitivity.tier === 3 && r.sensitivity.escalators_triggered?.length > 0 && (
+                  <div style={{ marginTop: 6, fontSize: 10, color: "var(--muted)", fontStyle: "italic" }}>
+                    {t("Triggered by:", "ట్రిగ్గర్:")}{" "}
+                    {r.sensitivity.escalators_triggered.map((e: string) => e.replace(/_/g, " ")).join(" · ")}
+                  </div>
+                )}
+                {r.sensitivity.caveats_en?.length > 0 && (
+                  <div style={{ marginTop: 6, fontSize: 10, color: "#93c5fd" }}>
+                    {t("Caveats:", "హెచ్చరికలు:")}{" "}
+                    {(lang === "te" ? r.sensitivity.caveats_te : r.sensitivity.caveats_en).join(" · ")}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* PR M11 — Bhavat Bhavam relative-marriage rotation.
+                Fires only when astrologer's notes mentioned a relative
+                (mother / father / sibling / son / daughter / friend).
+                Shows a SECONDARY reading from each partner's chart at
+                the rotated marriage house — does not change the couple's
+                own H7 verdict. */}
+            {(r.bhavat_bhavam_chart1?.applies || r.bhavat_bhavam_chart2?.applies) && (
+              <div
+                style={{
+                  marginTop: 10,
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  background: "rgba(147,197,253,0.05)",
+                  border: "0.5px solid rgba(147,197,253,0.30)",
+                  color: "var(--text)",
+                  fontSize: 11,
+                  lineHeight: 1.6,
+                }}
+              >
+                <div style={{ fontWeight: 700, letterSpacing: "0.06em", fontSize: 10, textTransform: "uppercase", marginBottom: 6, color: "#93c5fd" }}>
+                  {t("Bhavat Bhavam · relative-marriage rotation",
+                     "Bhavat Bhavam · బంధువు వివాహ తిప్పుడు")}
+                </div>
+                {[
+                  { bb: r.bhavat_bhavam_chart1, name: r.person1?.name },
+                  { bb: r.bhavat_bhavam_chart2, name: r.person2?.name },
+                ].filter(it => it.bb?.applies).map((it, i) => (
+                  <div key={i} style={{ marginBottom: i < 1 ? 8 : 0, paddingBottom: i < 1 ? 8 : 0, borderBottom: i < 1 ? "0.5px dashed var(--border)" : "none" }}>
+                    <div style={{ fontWeight: 600, marginBottom: 3 }}>
+                      {it.name} · <span style={{ color: "var(--accent)" }}>{t(it.bb.relative, it.bb.relative_te || it.bb.relative)}</span>
+                      <span style={{ marginLeft: 8, fontSize: 10, color: "var(--muted)" }}>
+                        ({it.bb.rotation_formula} → H{it.bb.rotated_house})
+                      </span>
+                    </div>
+                    <div style={{ color: "var(--muted)", fontSize: 10.5 }}>
+                      {lang === "te" ? it.bb.note_te : it.bb.note_en}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* PR M3 — Canonical KP pattern chips (M1/M2/M3/M5 per partner +
                 T1/T2 couple-wide). Pattern naming distinguishes a deep KSK
                 reading from a generic significator scan (RULE 19). */}
@@ -661,8 +795,8 @@ export function MatchTab(props: MatchTabProps) {
               </div>
               <div className="match-section-grid">
                 {[
-                  {p: kp?.chart1_promise, name: r.person1?.name, tier: r.multi_cusp_tier_chart1, multi: r.multi_marriage_chart1},
-                  {p: kp?.chart2_promise, name: r.person2?.name, tier: r.multi_cusp_tier_chart2, multi: r.multi_marriage_chart2},
+                  {p: kp?.chart1_promise, name: r.person1?.name, tier: r.multi_cusp_tier_chart1, multi: r.multi_marriage_chart1, combust: r.h7_csl_combust_chart1, border: r.h7_csl_borderline_chart1},
+                  {p: kp?.chart2_promise, name: r.person2?.name, tier: r.multi_cusp_tier_chart2, multi: r.multi_marriage_chart2, combust: r.h7_csl_combust_chart2, border: r.h7_csl_borderline_chart2},
                 ].map((item, i) => item.p && (
                   <div key={i} className="match-tile" style={{ borderColor: item.p.has_promise && !item.p.has_denial ? "rgba(74,222,128,0.3)" : item.p.has_denial ? "rgba(248,113,113,0.3)" : "var(--border)" }}>
                     <div className="match-tile-name">{item.name}</div>
@@ -730,6 +864,66 @@ export function MatchTab(props: MatchTabProps) {
                       >
                         {t("Multi-marriage signature", "అనేక-వివాహ సూచన")}
                         <span style={{ opacity: 0.7, fontSize: 9 }}>· {item.multi.basis.replace(/_/g, " ")}</span>
+                      </div>
+                    )}
+                    {/* PR M8 — Borderline H7 CSL caveat.
+                        H7 cusp within 0.3° of sub boundary => birth-time
+                        rectification may flip the verdict. */}
+                    {item.border?.is_borderline && (
+                      <div
+                        title={lang === "te" ? item.border.detail_te : item.border.detail_en}
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: "3px 8px",
+                          marginTop: 4,
+                          marginBottom: 4,
+                          borderRadius: 999,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                          cursor: "help",
+                          background: "rgba(147,197,253,0.08)",
+                          color: "#93c5fd",
+                          border: "0.5px solid rgba(147,197,253,0.45)",
+                          letterSpacing: "0.04em",
+                        }}
+                      >
+                        {lang === "te" ? item.border.label_te : item.border.label_en}
+                        <span style={{ opacity: 0.7, fontSize: 9 }}>
+                          · {item.border.current_sub} ⇄ {item.border.alternate_sub} (≈ {item.border.minutes_of_birth_time} min)
+                        </span>
+                      </div>
+                    )}
+                    {/* PR M7 — Combust H7 CSL clinical flag.
+                        Combust sub-lord => marriage promise fructifies hidden
+                        / private. Borderline => mild eclipse / delay. */}
+                    {item.combust && (item.combust.is_combust || item.combust.borderline) && (
+                      <div
+                        title={lang === "te" ? item.combust.detail_te : item.combust.detail_en}
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: "3px 8px",
+                          marginTop: 4,
+                          marginBottom: 4,
+                          borderRadius: 999,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                          cursor: "help",
+                          background: item.combust.is_combust ? "rgba(248,113,113,0.10)" : "rgba(251,191,36,0.10)",
+                          color: item.combust.is_combust ? "#f87171" : "#fbbf24",
+                          border: item.combust.is_combust ? "0.5px solid rgba(248,113,113,0.45)" : "0.5px solid rgba(251,191,36,0.45)",
+                          letterSpacing: "0.04em",
+                        }}
+                      >
+                        {lang === "te" ? item.combust.label_te : item.combust.label_en}
+                        {item.combust.distance_from_sun_deg != null && (
+                          <span style={{ opacity: 0.7, fontSize: 9 }}>
+                            · {item.combust.distance_from_sun_deg}° {t("from Sun", "సూర్యం నుండి")}
+                          </span>
+                        )}
                       </div>
                     )}
                     <div className="match-tile-row">
@@ -873,6 +1067,90 @@ export function MatchTab(props: MatchTabProps) {
                       )}
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* PR M13 — Spouse profile card per partner.
+                Surfaces backend-computed direction / age band / profession
+                hint / appearance hint + classical H7 sub-lord traits.
+                Structural tendencies — astrologer interprets in context. */}
+            {(r.spouse_profile_chart1 || r.spouse_profile_chart2) && (
+              <div className="match-section">
+                <div className="match-section-title">
+                  <Heart size={12} strokeWidth={1.8} />
+                  {t("Spouse profile · KP structural tendencies",
+                     "భాగస్వామి రూపరేఖ · KP నిర్మాణ ధోరణులు")}
+                </div>
+                <div className="match-section-grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  {[
+                    { sp: r.spouse_profile_chart1, name: r.person1?.name, accent: "var(--accent)" },
+                    { sp: r.spouse_profile_chart2, name: r.person2?.name, accent: "#93c5fd" },
+                  ].map((it, i) => it.sp && (
+                    <div key={i} style={{ padding: "12px 14px", background: "rgba(255,255,255,0.01)", border: "0.5px solid var(--border2)", borderRadius: 10 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: it.accent, marginBottom: 8, letterSpacing: "0.04em" }}>
+                        {it.name} · {t("for spouse", "భాగస్వామి కోసం")}
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column" as const, gap: 6, fontSize: 11.5, color: "var(--text)" }}>
+                        <div>
+                          <span style={{ color: "var(--muted)", fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase" as const, marginRight: 6 }}>
+                            {t("Direction", "దిశ")}
+                          </span>
+                          <strong>{lang === "te" ? it.sp.direction_te : it.sp.direction_en}</strong>
+                          <span style={{ color: "var(--muted)", marginLeft: 6, fontSize: 10 }}>· H7 in {it.sp.h7_sign}</span>
+                        </div>
+                        <div>
+                          <span style={{ color: "var(--muted)", fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase" as const, marginRight: 6 }}>
+                            {t("Age band", "వయోశ్రేణి")}
+                          </span>
+                          {lang === "te" ? it.sp.age_band_te : it.sp.age_band_en}
+                        </div>
+                        {it.sp.spouse_nature && (
+                          <div>
+                            <span style={{ color: "var(--muted)", fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase" as const, marginRight: 6 }}>
+                              {t("Nature", "స్వభావం")}
+                            </span>
+                            {it.sp.spouse_nature}
+                          </div>
+                        )}
+                        {it.sp.appearance_hint_en && (
+                          <div>
+                            <span style={{ color: "var(--muted)", fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase" as const, marginRight: 6 }}>
+                              {t("Appearance", "రూపం")}
+                            </span>
+                            {lang === "te" ? it.sp.appearance_hint_te : it.sp.appearance_hint_en}
+                          </div>
+                        )}
+                        {it.sp.profession_hint_en && (
+                          <div>
+                            <span style={{ color: "var(--muted)", fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase" as const, marginRight: 6 }}>
+                              {t("Profession hint", "వృత్తి సూచన")}
+                            </span>
+                            {lang === "te" ? it.sp.profession_hint_te : it.sp.profession_hint_en}
+                          </div>
+                        )}
+                        {it.sp.marriage_style && (
+                          <div>
+                            <span style={{ color: "var(--muted)", fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase" as const, marginRight: 6 }}>
+                              {t("Style", "శైలి")}
+                            </span>
+                            {it.sp.marriage_style}
+                          </div>
+                        )}
+                        {it.sp.caution && (
+                          <div style={{ fontSize: 11, color: "#fbbf24", fontStyle: "italic" }}>
+                            ⚠ {it.sp.caution}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginTop: 8, fontSize: 10, color: "var(--muted)", fontStyle: "italic", lineHeight: 1.5 }}>
+                  {t(
+                    "Direction = H7 sign direction. Profession = classical Krishnamurti attribution of H7 sub-lord. Appearance = H7 sign element. All are structural tendencies — astrologer interprets in context.",
+                    "దిశ = H7 రాశి దిశ. వృత్తి = H7 సబ్ లార్డ్ క్రిష్ణమూర్తి అట్రిబ్యూషన్. రూపం = H7 రాశి తత్వం. అన్నీ నిర్మాణ ధోరణులు."
+                  )}
                 </div>
               </div>
             )}
@@ -1166,6 +1444,53 @@ export function MatchTab(props: MatchTabProps) {
                 </div>
               )}
 
+              {/* PR M10 — Joint Sookshma days-precision windows.
+                  When both partners' PD AND sookshma lords signify {2,7,11},
+                  we have a wedding-grade dates window. */}
+              {(r.joint_precision_windows?.length > 0) && (
+                <div className="match-section">
+                  <div className="match-section-title">
+                    <Hourglass size={12} strokeWidth={1.8} />
+                    {t("Wedding-grade days · Joint PD + Sookshma fire",
+                       "వివాహ-గ్రేడ్ రోజులు · PD + సూక్ష్మ ఇద్దరికీ")}
+                  </div>
+                  <div style={{ fontSize: 10.5, color: "var(--muted)", marginBottom: 8 }}>
+                    {t("Narrowest joint windows where BOTH partners' Pratyantar AND Sookshma lords signify marriage houses {2,7,11}. Days-precision dates — engagement / wedding candidates.",
+                       "ఇరువురి Pratyantar + Sookshma {2,7,11}ని సూచించే అతి సూక్ష్మ ఉమ్మడి కిటికీలు. నిశ్చితార్థం / వివాహ తేదీ సూచనలు.")}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column" as const, gap: 6 }}>
+                    {(r.joint_precision_windows || []).slice(0, 6).map((w: any, i: number) => (
+                      <div key={i} style={{ padding: "8px 12px", background: "rgba(201,169,110,0.06)", border: "0.5px solid rgba(201,169,110,0.30)", borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" as const, gap: 8 }}>
+                        <div>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--accent)" }}>
+                            {w.start} → {w.end}
+                            <span style={{ fontSize: 10, color: "var(--muted)", marginLeft: 8 }}>({w.duration_days}d)</span>
+                          </div>
+                          <div style={{ fontSize: 10.5, color: "var(--muted)", marginTop: 3, fontFamily: "monospace" }}>
+                            {r.person1?.name}: <strong style={{ color: "var(--text)" }}>{w.person1_lords}</strong>
+                          </div>
+                          <div style={{ fontSize: 10.5, color: "var(--muted)", fontFamily: "monospace" }}>
+                            {r.person2?.name}: <strong style={{ color: "var(--text)" }}>{w.person2_lords}</strong>
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column" as const, alignItems: "flex-end", gap: 2 }}>
+                          <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 16, color: "var(--accent)" }}>
+                            {w.joint_strength}/4
+                          </div>
+                          <div style={{ fontSize: 9, color: "var(--muted)", letterSpacing: "0.06em", textTransform: "uppercase" as const }}>
+                            {t("strength", "బలం")}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 8, fontStyle: "italic", lineHeight: 1.5 }}>
+                    {t("Strength 4/4 = both partners' PD + Sookshma all hit {2,7,11}. Strength 2/4 = one side full fire, other partial.",
+                       "4/4 బలం = ఇరువురి PD + Sookshma నాలుగూ {2,7,11}ని తాకుతాయి. 2/4 = ఒక వ్యక్తి పూర్తి, మరొకరు భాగికంగా.")}
+                  </div>
+                </div>
+              )}
+
               {(r.upcoming_windows.overlap_windows?.length === 0) && (
                 <div className="match-section" style={{ background: "rgba(251,191,36,0.04)", border: "1px solid rgba(251,191,36,0.18)" }}>
                   <div className="match-section-title">
@@ -1272,6 +1597,63 @@ export function MatchTab(props: MatchTabProps) {
               width: "100%",
               alignItems: "start",
             }}>
+
+              {/* PR M14 — Best wedding window hero card.
+                  Pick the strongest joint precision window (PD+Sookshma);
+                  if none, fall back to the strongest AD overlap. Promoted
+                  to the top of the Overall pane so the astrologer sees the
+                  recommendable date range BEFORE reading the verdict body. */}
+              {(() => {
+                const best = r.joint_precision_windows?.[0] || null;
+                const bestAD = r.upcoming_windows?.overlap_windows?.[0] || null;
+                if (!best && !bestAD) return null;
+                const isPrecision = !!best;
+                const w = best || bestAD;
+                return (
+                  <div
+                    style={{
+                      gridColumn: "1 / -1",
+                      padding: "16px 20px",
+                      background: "linear-gradient(135deg, rgba(74,222,128,0.10) 0%, rgba(74,222,128,0.04) 100%)",
+                      border: "1px solid rgba(74,222,128,0.40)",
+                      borderRadius: 12,
+                      display: "flex",
+                      flexWrap: "wrap" as const,
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 14,
+                      position: "relative" as const,
+                      overflow: "hidden" as const,
+                    }}
+                  >
+                    <div style={{ position: "absolute" as const, inset: 0, background: "radial-gradient(circle at 0% 50%, rgba(74,222,128,0.10) 0%, transparent 60%)", pointerEvents: "none" as const }} />
+                    <div style={{ position: "relative" as const }}>
+                      <div style={{ fontSize: 10, color: "#4ade80", letterSpacing: "0.14em", textTransform: "uppercase" as const, fontWeight: 700, marginBottom: 4 }}>
+                        {isPrecision
+                          ? t("Best wedding window · joint PD + Sookshma fire", "ఉత్తమ వివాహ సమయం · ఉమ్మడి PD + Sookshma")
+                          : t("Best wedding window · joint AD overlap", "ఉత్తమ వివాహ సమయం · ఉమ్మడి AD")}
+                      </div>
+                      <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 26, lineHeight: 1.15, color: "var(--text)" }}>
+                        {w.start} → {w.end}
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
+                        {w.duration_days}{t(" days · ", " రోజులు · ")}
+                        {isPrecision
+                          ? <span>{r.person1?.name}: <strong style={{ color: "var(--text)" }}>{w.person1_lords}</strong> · {r.person2?.name}: <strong style={{ color: "var(--text)" }}>{w.person2_lords}</strong></span>
+                          : <span>{r.person1?.name} AD <strong style={{ color: "var(--text)" }}>{w.person1_ad}</strong> · {r.person2?.name} AD <strong style={{ color: "var(--text)" }}>{w.person2_ad}</strong></span>}
+                      </div>
+                    </div>
+                    <div style={{ position: "relative" as const, display: "flex", flexDirection: "column" as const, alignItems: "center" as const, gap: 2 }}>
+                      <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 36, lineHeight: 1, color: "#4ade80" }}>
+                        {isPrecision ? `${w.joint_strength}/4` : w.combined_score}
+                      </div>
+                      <div style={{ fontSize: 9, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" as const, fontWeight: 600 }}>
+                        {isPrecision ? t("strength", "బలం") : t("score", "స్కోర్")}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Column 1: Detailed Astrological Verdicts & KP Promise Synthesis */}
               <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
@@ -1599,6 +1981,12 @@ export function MatchTab(props: MatchTabProps) {
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* PR M12 — Full reasoning trace + astrologer notes + JSON export.
+                  Spans both columns of the Overall grid. Mirrors HoraryReasoningTrace. */}
+              <div style={{ gridColumn: "1 / -1" }}>
+                <MatchReasoningTrace result={r} />
               </div>
             </div>
             )}

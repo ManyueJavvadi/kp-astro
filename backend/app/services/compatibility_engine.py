@@ -38,8 +38,11 @@ from app.services.chart_engine import (
     calculate_antardashas, get_current_antardasha,
     calculate_pratyantardashas, get_current_pratyantardasha,
     DAY_LORDS,
+    is_borderline_csl, sub_boundary_distance,
+    calculate_sookshma_dashas,
 )
 from app.services.chart_formatter import format_chart_for_frontend
+from app.services.kp_advanced_compute import detect_combustion
 
 # ── Planet sign lordships ─────────────────────────────────────
 
@@ -1805,6 +1808,575 @@ def _multiple_marriages_check(chart: dict) -> dict:
     }
 
 
+def _spouse_profile(chart: dict) -> dict:
+    """
+    PR M13 — Synthesize a partner / spouse profile card from
+    backend-computed KP fields. Combines:
+      - H7 sign → spouse direction (KP standard)
+      - H7 sign lord + sub-lord nature → personality traits
+      - Saturn-vs-Jupiter weight on H7 chain → age band hint
+      - H7 sub-lord planet → profession hint (per Krishnamurti
+        classical attribution table)
+      - H7 ruler sign element → appearance hint
+
+    All hints are STRUCTURAL TENDENCIES — astrologer interprets in
+    context. No promises that a spouse exactly matches these fields.
+    """
+    SIGN_DIRECTION_EN = {
+        "Aries": "East", "Leo": "East", "Sagittarius": "East",
+        "Taurus": "South", "Virgo": "South", "Capricorn": "South",
+        "Gemini": "West", "Libra": "West", "Aquarius": "West",
+        "Cancer": "North", "Scorpio": "North", "Pisces": "North",
+    }
+    SIGN_DIRECTION_TE = {
+        "East": "తూర్పు", "South": "దక్షిణం",
+        "West": "పడమర", "North": "ఉత్తరం",
+    }
+    PROFESSION_HINT_EN = {
+        "Sun":     "Government, leadership, medicine, public office",
+        "Moon":    "Public-facing service, hospitality, dairy, nursing",
+        "Mars":    "Engineering, defence, surgery, sports, real-estate",
+        "Mercury": "Communications, accounting, IT, education, trading",
+        "Jupiter": "Teaching, law, finance, religion, counselling",
+        "Venus":   "Arts, design, luxury, entertainment, hospitality",
+        "Saturn":  "Mining, civil construction, labour, longevity-track careers",
+        "Rahu":    "Foreign / unconventional / digital / pharma / aviation",
+        "Ketu":    "Spirituality, research, occult, isolated/specialised crafts",
+    }
+    PROFESSION_HINT_TE = {
+        "Sun":     "ప్రభుత్వం, నాయకత్వం, వైద్యం, ప్రభుత్వ ఉద్యోగం",
+        "Moon":    "ప్రజా-సేవ, ఆతిథ్యం, పాడి, నర్సింగ్",
+        "Mars":    "ఇంజినీరింగ్, రక్షణ, శస్త్రచికిత్స, క్రీడలు, రియల్ ఎస్టేట్",
+        "Mercury": "కమ్యూనికేషన్, అకౌంటింగ్, IT, విద్య, వ్యాపారం",
+        "Jupiter": "బోధన, న్యాయం, ఆర్థికం, మతం, కౌన్సెలింగ్",
+        "Venus":   "కళలు, డిజైన్, లగ్జరీ, వినోదం, ఆతిథ్యం",
+        "Saturn":  "మైనింగ్, నిర్మాణం, శ్రామిక, దీర్ఘాయుష్ వృత్తులు",
+        "Rahu":    "విదేశీ / అసంప్రదాయ / డిజిటల్ / ఫార్మా / విమాన",
+        "Ketu":    "ఆధ్యాత్మికత, పరిశోధన, మంత్రశాస్త్రం, ప్రత్యేక నైపుణ్యం",
+    }
+    APPEARANCE_HINT_EN = {
+        "Fire":  "Athletic / energetic / commanding presence",
+        "Earth": "Solid / grounded / sensual physique",
+        "Air":   "Slender / refined / cerebral demeanour",
+        "Water": "Soft / emotive / dreamy features",
+    }
+    APPEARANCE_HINT_TE = {
+        "Fire":  "క్రీడాశీలి / శక్తివంతం / ఆజ్ఞాపూర్వక ఉనికి",
+        "Earth": "దృఢ / స్థిర / ఇంద్రియమైన శరీరం",
+        "Air":   "సన్నగా / శుద్ధ / మేధో రూపం",
+        "Water": "మృదు / భావోద్వేగ / కలాత్మక",
+    }
+    SIGN_ELEMENT = {
+        "Aries": "Fire", "Leo": "Fire", "Sagittarius": "Fire",
+        "Taurus": "Earth", "Virgo": "Earth", "Capricorn": "Earth",
+        "Gemini": "Air", "Libra": "Air", "Aquarius": "Air",
+        "Cancer": "Water", "Scorpio": "Water", "Pisces": "Water",
+    }
+
+    h7_lon = chart["cusp_lons"][6] % 360
+    h7_sign = get_sign(h7_lon)
+    h7_sub = chart.get("h7_sub_lord", "") or ""
+
+    # Age band hint: Saturn-weight (older) vs Jupiter/Mars/Venus (younger/peer)
+    age_band_en = "Similar age range"
+    age_band_te = "సమాన వయస్సు"
+    if h7_sub == "Saturn":
+        age_band_en = "Significantly older spouse (5+ years)"
+        age_band_te = "గణనీయంగా పెద్ద భాగస్వామి (5+ సం)"
+    elif h7_sub == "Sun":
+        age_band_en = "Slightly older or peer spouse"
+        age_band_te = "కొంచెం పెద్ద లేదా సమవయస్సు"
+    elif h7_sub == "Jupiter":
+        age_band_en = "Mature spouse, possibly older"
+        age_band_te = "పరిపక్వత గల భాగస్వామి, పెద్ద కావచ్చు"
+    elif h7_sub == "Mars":
+        age_band_en = "Younger or same-age spouse, lively"
+        age_band_te = "చిన్న లేదా సమవయస్సు, జీవంతం"
+    elif h7_sub == "Venus":
+        age_band_en = "Peer or slightly younger spouse"
+        age_band_te = "సమవయస్సు లేదా కొద్దిగా చిన్న"
+    elif h7_sub == "Mercury":
+        age_band_en = "Youthful, similar age range"
+        age_band_te = "యువ, సమవయస్సు"
+    elif h7_sub in ("Rahu", "Ketu"):
+        age_band_en = "Age gap can be unusual / unconventional"
+        age_band_te = "వయోభేదం అసాధారణం కావచ్చు"
+
+    direction_en = SIGN_DIRECTION_EN.get(h7_sign, "Unknown")
+    direction_te = SIGN_DIRECTION_TE.get(direction_en, direction_en)
+    element = SIGN_ELEMENT.get(h7_sign, "Air")
+    appearance_en = APPEARANCE_HINT_EN.get(element, "")
+    appearance_te = APPEARANCE_HINT_TE.get(element, "")
+    profession_en = PROFESSION_HINT_EN.get(h7_sub, "")
+    profession_te = PROFESSION_HINT_TE.get(h7_sub, "")
+    traits = H7_SUBLORD_TRAITS.get(h7_sub, {})
+
+    return {
+        "h7_sign": h7_sign,
+        "h7_sub": h7_sub,
+        "direction_en": direction_en,
+        "direction_te": direction_te,
+        "spouse_nature": traits.get("spouse_nature", ""),
+        "age_band_en": age_band_en,
+        "age_band_te": age_band_te,
+        "profession_hint_en": profession_en,
+        "profession_hint_te": profession_te,
+        "appearance_hint_en": appearance_en,
+        "appearance_hint_te": appearance_te,
+        "marriage_style": traits.get("marriage_type", ""),
+        "caution": traits.get("caution", ""),
+    }
+
+
+def _h7_csl_combust_flag(chart: dict) -> dict:
+    """
+    PR M7 — Combust H7 CSL clinical flag.
+
+    Per KP doctrine: a sub-lord 'combust' (within Sun's combustion orb) is
+    burnt — its significations are weakened / hidden, even if the chain
+    looks structurally clean on paper. For the marriage primary (H7 CSL)
+    this surfaces as:
+
+      • Hidden / secret marriage (chain promises, but world doesn't see it)
+      • Spouse personality eclipsed by self (ego dominates the union)
+      • Public/announced relationships fall through, but a quiet alliance
+        may still occur
+
+    Astrologer must frame: "promise present BUT obscured — expect non-
+    obvious / private fructification".
+
+    Sun, Rahu, Ketu never combust (Sun *is* the source; nodes are shadow
+    bodies). Borderline = within ±1° of the threshold per Phase-A fix.
+    """
+    h7_csl, _ = _get_cusp_sub_lord_sigs(7, chart)
+    planets = chart["planets"]
+
+    if not h7_csl or h7_csl in ("Sun", "Rahu", "Ketu") or h7_csl not in planets:
+        return {
+            "is_combust": False,
+            "borderline": False,
+            "h7_csl": h7_csl,
+            "distance_from_sun_deg": None,
+            "threshold_deg": None,
+            "label_en": "",
+            "label_te": "",
+            "detail_en": "",
+            "detail_te": "",
+        }
+
+    combust_map = detect_combustion(planets)
+    info = combust_map.get(h7_csl)
+    if not info:
+        return {
+            "is_combust": False,
+            "borderline": False,
+            "h7_csl": h7_csl,
+            "distance_from_sun_deg": None,
+            "threshold_deg": None,
+            "label_en": "",
+            "label_te": "",
+            "detail_en": "",
+            "detail_te": "",
+        }
+
+    is_combust = bool(info.get("is_combust"))
+    borderline = bool(info.get("borderline"))
+    dist = info.get("distance_from_sun_deg")
+    thr = info.get("threshold_deg")
+
+    if is_combust:
+        label_en = "H7 CSL combust"
+        label_te = "H7 CSL సూర్యతేజ దగ్ధం"
+        detail_en = (
+            f"H7 CSL {h7_csl} is combust ({dist}° from Sun, threshold {thr}°). "
+            f"Marriage promise — if present — fructifies in a hidden / non-public "
+            f"form: quiet alliance, secret marriage, or spouse personality "
+            f"eclipsed. Public/announced relationships tend to fall through."
+        )
+        detail_te = (
+            f"H7 CSL {h7_csl} సూర్యదగ్ధం ({dist}°, థ్రెషోల్డ్ {thr}°). "
+            f"వివాహ సూచన ఉంటే రహస్యంగా / తక్కువ ప్రచారంతో జరుగుతుంది; "
+            f"ప్రకటిత సంబంధాలు ఆగే అవకాశం."
+        )
+    elif borderline:
+        label_en = "H7 CSL near combustion"
+        label_te = "H7 CSL దగ్ధ సమీపంలో"
+        detail_en = (
+            f"H7 CSL {h7_csl} is in the combustion borderline ({dist}° from "
+            f"Sun, threshold {thr}°). Mild eclipsing of the marriage signal — "
+            f"watch for delays or low-visibility fructification."
+        )
+        detail_te = (
+            f"H7 CSL {h7_csl} దగ్ధ సరిహద్దులో ({dist}°). కొంత ఆలస్యం "
+            f"లేదా తక్కువ ప్రకటిత ఫలితం సాధ్యం."
+        )
+    else:
+        label_en = ""
+        label_te = ""
+        detail_en = ""
+        detail_te = ""
+
+    return {
+        "is_combust": is_combust,
+        "borderline": borderline,
+        "h7_csl": h7_csl,
+        "distance_from_sun_deg": dist,
+        "threshold_deg": thr,
+        "label_en": label_en,
+        "label_te": label_te,
+        "detail_en": detail_en,
+        "detail_te": detail_te,
+    }
+
+
+def _h7_csl_borderline_flag(chart: dict) -> dict:
+    """
+    PR M8 — Borderline H7 CSL caveat per partner.
+
+    The H7 cusp longitude is the seed for everything in the marriage
+    primary read (sub-lord, CSL chain, all of _h7_sublord_promise).
+    If that longitude sits within ~0.3° of a sub-lord boundary, a
+    rounding-of-minutes error in the birth time can FLIP the sub
+    lord — and with it, the verdict (Promised vs Denied).
+
+    KP sensitivity: 0.3° ≈ 1.2 minutes of clock time at the average
+    ascendant rate (~15°/h). Most charts use birth times rounded to
+    the nearest minute → boundary-adjacent H7 cusps are at-risk.
+
+    This DOES NOT change the verdict. It surfaces the caveat so the
+    astrologer can request a rectified birth time before committing
+    to a marriage-timing call. RULE 37 (chart_engine.is_borderline_csl
+    docstring) maps to this same concern at the chart level.
+
+    Returns:
+      {
+        "is_borderline": bool,
+        "deg_to_boundary": float (degrees),
+        "minutes_of_birth_time": float (≈ deg × 4),
+        "current_sub": str,
+        "alternate_sub": str (the flip candidate),
+        "side": "next" | "prev",
+        "label_en": str,
+        "label_te": str,
+        "detail_en": str,
+        "detail_te": str,
+      }
+    """
+    h7_lon = chart["cusp_lons"][6] % 360
+    info = sub_boundary_distance(h7_lon)
+    is_border = is_borderline_csl(h7_lon, threshold_deg=0.3)
+    deg_to_next = info["deg_to_next_boundary"]
+    deg_to_prev = info["deg_to_prev_boundary"]
+    current_sub = info["current_sub_lord"]
+    next_sub = info["next_sub_lord"]
+    prev_sub = info["prev_sub_lord"]
+    nearest_deg = info["deg_to_nearest_boundary"]
+
+    if deg_to_next <= deg_to_prev:
+        side = "next"
+        alternate = next_sub
+    else:
+        side = "prev"
+        alternate = prev_sub
+
+    minutes = round(nearest_deg * 4.0, 1)  # 1° lagna motion ≈ 4 min
+
+    if is_border:
+        label_en = "H7 CSL borderline"
+        label_te = "H7 CSL సరిహద్దు సమీపంలో"
+        detail_en = (
+            f"H7 cusp is {nearest_deg:.3f}° from the {side} sub-boundary "
+            f"(≈ {minutes} min of clock time). Current sub-lord {current_sub} "
+            f"could flip to {alternate} if the birth time is off by a "
+            f"minute or two. Request a rectified birth time before "
+            f"committing to a marriage-timing verdict."
+        )
+        detail_te = (
+            f"H7 cusp సబ్‌లార్డ్ సరిహద్దు నుండి {nearest_deg:.3f}° దూరం "
+            f"(≈ {minutes} నిమి). జన్మ సమయం 1-2 నిమిషాలు తేడాతో సబ్ లార్డ్ "
+            f"{current_sub} → {alternate} మారే అవకాశం. వివాహ నిర్ధారణకు ముందు "
+            f"జన్మ సమయం స్పష్టత అడగండి."
+        )
+    else:
+        label_en = ""
+        label_te = ""
+        detail_en = ""
+        detail_te = ""
+
+    return {
+        "is_borderline": is_border,
+        "deg_to_boundary": round(nearest_deg, 4),
+        "minutes_of_birth_time": minutes,
+        "current_sub": current_sub,
+        "alternate_sub": alternate,
+        "side": side,
+        "label_en": label_en,
+        "label_te": label_te,
+        "detail_en": detail_en,
+        "detail_te": detail_te,
+    }
+
+
+def _bhavat_bhavam_for_relative_marriage(
+    chart: dict,
+    user_concerns: str | None,
+) -> dict:
+    """
+    PR M11 — Bhavat Bhavam for relative-marriage queries.
+
+    Per Parashari Bhavat Bhavam: the Nth house FROM another house gives
+    insight into the matters of THAT house's relation. For marriage of
+    a relative we rotate the H7 (the 7th house) FROM the relative's
+    karaka house:
+
+      Self                → H7  (default, no rotation)
+      Spouse              → H7  (no rotation; spouse already = H7)
+      Mother              → 7th from H4 = H10
+      Father              → 7th from H9 = H3
+      Elder sibling       → 7th from H11 = H5
+      Younger sibling     → 7th from H3 = H9
+      Son                 → 7th from H5 = H11
+      Daughter            → 7th from H5 = H11
+      Spouse's sibling    → 7th from H7+3=H10 ... too compound, skip
+      Friend              → 7th from H11 = H5
+
+    This DOES NOT change the couple's H7 verdict — it surfaces a SECONDARY
+    reading lens for relative-marriage queries the astrologer typed
+    into user_concerns ("my sister's marriage", "father remarrying", etc).
+
+    Returns {applies, relative, rotated_house, csl_at_rotated, sigs, note}
+    or {applies: False} if no relationship keyword detected.
+    """
+    if not user_concerns:
+        return {"applies": False, "relative": "", "note": ""}
+
+    text = user_concerns.lower()
+
+    # Relationship → rotated H7 house mapping
+    rel_map = [
+        # (keywords, relative_label_en, relative_label_te, rotated_house)
+        (("my mother", "mother's marriage", "mom's marriage", "mother remarry", "amma marriage"),
+         "mother", "తల్లి", 10),
+        (("my father", "father's marriage", "dad's marriage", "father remarry", "nanna marriage"),
+         "father", "తండ్రి", 3),
+        (("elder sister", "elder brother", "elder sibling", "akka marriage", "anna marriage"),
+         "elder sibling", "పెద్ద తోబుట్టువు", 5),
+        (("younger sister", "younger brother", "younger sibling", "chelli marriage", "thammudu marriage", "sister marriage", "brother marriage"),
+         "younger sibling", "చిన్న తోబుట్టువు", 9),
+        (("my son", "son's marriage", "kumar marriage"),
+         "son", "కుమారుడు", 11),
+        (("my daughter", "daughter's marriage", "kuthuru marriage"),
+         "daughter", "కుమార్తె", 11),
+        (("my friend", "friend's marriage"),
+         "friend", "మిత్రుడు", 5),
+    ]
+
+    matched_relative = None
+    matched_te = ""
+    rotated_house = 7
+    for keywords, label_en, label_te, house in rel_map:
+        if any(k in text for k in keywords):
+            matched_relative = label_en
+            matched_te = label_te
+            rotated_house = house
+            break
+
+    if matched_relative is None:
+        return {"applies": False, "relative": "", "note": ""}
+
+    # Read the rotated-house CSL chain from THIS chart
+    cusp_lons = chart["cusp_lons"]
+    rot_lon = cusp_lons[rotated_house - 1] % 360
+    rot_csl = get_sub_lord(rot_lon)
+    rot_sigs = _planet_significations(rot_csl, chart["planets"], cusp_lons)
+    rot_promise = rot_sigs & {2, 7, 11}
+    rot_denial = rot_sigs & {6, 8, 12}
+
+    if rot_promise and not rot_denial:
+        flavor_en = "Promised — chain supports the relative's marriage."
+        flavor_te = "ప్రమాణం ఉంది — బంధువు వివాహానికి అనుకూలం."
+    elif rot_denial and not rot_promise:
+        flavor_en = "Denial — chain blocks the relative's marriage."
+        flavor_te = "నిరాకరణ — బంధువు వివాహం ఆగుతుంది."
+    elif rot_promise and rot_denial:
+        flavor_en = "Mixed — promise and denial both present; depends on dasha timing."
+        flavor_te = "మిశ్రమం — ప్రమాణం + నిరాకరణ; దశ సమయంపై ఆధారం."
+    else:
+        flavor_en = "Inconclusive — no clear marriage chain at rotated house."
+        flavor_te = "నిర్ధారణ లేదు — తిప్పిన ఇంటి వద్ద స్పష్ట సూచన లేదు."
+
+    return {
+        "applies": True,
+        "relative": matched_relative,
+        "relative_te": matched_te,
+        "rotated_house": rotated_house,
+        "rotation_formula": (
+            f"7th from H{ {'mother':4, 'father':9, 'elder sibling':11, 'younger sibling':3, 'son':5, 'daughter':5, 'friend':11}.get(matched_relative, 1) }"
+        ),
+        "csl_at_rotated": rot_csl,
+        "sigs": sorted(rot_sigs),
+        "promise_hits": sorted(rot_promise),
+        "denial_hits": sorted(rot_denial),
+        "flavor_en": flavor_en,
+        "flavor_te": flavor_te,
+        "note_en": (
+            f"Bhavat Bhavam rotation for {matched_relative}'s marriage: "
+            f"H7 rotated to H{rotated_house} in this chart. CSL at H{rotated_house} "
+            f"is {rot_csl}, signifying H{sorted(rot_sigs)}. {flavor_en}"
+        ),
+        "note_te": (
+            f"{matched_te} వివాహం కోసం Bhavat Bhavam తిప్పుడు: ఈ చార్ట్‌లో "
+            f"H7 → H{rotated_house}. CSL {rot_csl}, సూచనలు H{sorted(rot_sigs)}. {flavor_te}"
+        ),
+    }
+
+
+def _resolve_match_sensitivity_tier(
+    pattern_d2_p1: dict | None,
+    pattern_d2_p2: dict | None,
+    promise_p1: dict | None,
+    promise_p2: dict | None,
+    multi_p1: dict | None,
+    multi_p2: dict | None,
+    combust_p1: dict | None,
+    combust_p2: dict | None,
+    border_p1: dict | None,
+    border_p2: dict | None,
+    h7_star_sub_p1: dict | None,
+    h7_star_sub_p2: dict | None,
+    user_concerns: str | None = None,
+) -> dict:
+    """
+    PR M9 — Sensitivity tier resolver for Match readings.
+
+    Base tier for Match = 2 (life-impact, per Horary topic map: "marriage" → tier 2).
+
+    Auto-escalators to Tier 3 from already-computed STRUCTURAL signals:
+      • D2 STRONG either partner (offer-then-withdrawn at H7) — wedding
+        cancellation / engagement-broken risk
+      • Either H7 promise DENIED + multi-marriage signature → second-
+        marriage / divorce framing required
+      • Both partners' H7 carrying TENSION or DENIED in star-sub harmony
+        + multi-marriage either side → divorce-risk framing required
+      • Either H7 CSL fully combust + denial → hidden-relationship +
+        denial → potential abandonment framing
+
+    Auto-escalators from optional `user_concerns` free text (when the
+    astrologer types a free-text note like "client suicidal about this
+    match" — reuse Horary _TIER3_ESCALATORS phrases). Empty/None passes
+    through with base tier 2.
+
+    The tier governs the FRAMING NOTE that frontend prepends to the
+    Overall tab and the model receives. It does NOT alter the verdict.
+    """
+    base_tier = 2  # marriage is inherently life-impact
+    escalators: list[str] = []
+
+    # Structural escalators
+    if pattern_d2_p1 and pattern_d2_p1.get("severity") == "STRONG":
+        escalators.append("D2_STRONG_partner1")
+    if pattern_d2_p2 and pattern_d2_p2.get("severity") == "STRONG":
+        escalators.append("D2_STRONG_partner2")
+
+    p1_denied = bool(promise_p1 and promise_p1.get("has_denial"))
+    p2_denied = bool(promise_p2 and promise_p2.get("has_denial"))
+    p1_multi = bool(multi_p1 and multi_p1.get("signature_present"))
+    p2_multi = bool(multi_p2 and multi_p2.get("signature_present"))
+
+    if p1_denied and p1_multi:
+        escalators.append("denied_plus_multi_partner1")
+    if p2_denied and p2_multi:
+        escalators.append("denied_plus_multi_partner2")
+
+    p1_tension = (h7_star_sub_p1 or {}).get("harmony") in ("TENSION", "DENIED")
+    p2_tension = (h7_star_sub_p2 or {}).get("harmony") in ("TENSION", "DENIED")
+    if p1_tension and p2_tension and (p1_multi or p2_multi):
+        escalators.append("bilateral_h7_tension_plus_multi")
+
+    p1_combust = bool(combust_p1 and combust_p1.get("is_combust"))
+    p2_combust = bool(combust_p2 and combust_p2.get("is_combust"))
+    if p1_combust and p1_denied:
+        escalators.append("combust_plus_denial_partner1")
+    if p2_combust and p2_denied:
+        escalators.append("combust_plus_denial_partner2")
+
+    # Free-text concerns (optional)
+    concerns_lower = (user_concerns or "").lower()
+    crisis_phrases = (
+        "suicide", "suicidal", "kill myself", "end my life", "self-harm",
+        "self harm", "no reason to live", "divorce inevitable",
+        "abandonment", "abusive",
+    )
+    for phrase in crisis_phrases:
+        if phrase in concerns_lower:
+            escalators.append(f"concern_phrase:{phrase}")
+
+    effective_tier = 3 if escalators else base_tier
+
+    # Caveat ledger — accumulate borderline / combust notes so frontend
+    # has a single place to render the "soft caveats" line.
+    caveats_en: list[str] = []
+    caveats_te: list[str] = []
+    if border_p1 and border_p1.get("is_borderline"):
+        caveats_en.append(border_p1.get("label_en", "P1 borderline"))
+        caveats_te.append(border_p1.get("label_te", "P1 సరిహద్దు"))
+    if border_p2 and border_p2.get("is_borderline"):
+        caveats_en.append(border_p2.get("label_en", "P2 borderline"))
+        caveats_te.append(border_p2.get("label_te", "P2 సరిహద్దు"))
+    if combust_p1 and combust_p1.get("borderline") and not p1_combust:
+        caveats_en.append("P1 H7 CSL near combustion")
+    if combust_p2 and combust_p2.get("borderline") and not p2_combust:
+        caveats_en.append("P2 H7 CSL near combustion")
+
+    # Build framing notes
+    framing_en = ""
+    framing_te = ""
+    if effective_tier == 3:
+        framing_en = (
+            "TIER 3 reading. The chart shows structural risk signals — "
+            "D2 cancellation pattern, denial + multi-marriage signature, "
+            "bilateral H7 tension, or user-flagged crisis concern. KP "
+            "describes STRUCTURAL TENDENCIES only; the actual outcome "
+            "depends on both partners' free will, counselling, family "
+            "support, and (where relevant) professional mental-health or "
+            "legal help. Do NOT use this reading as a verdict for or "
+            "against the match — use it as one input alongside lived "
+            "compatibility and counsel."
+        )
+        framing_te = (
+            "టైర్ 3 ఫలితం. చార్ట్ నిర్మాణాత్మక రిస్క్ సూచనలు చూపిస్తోంది — "
+            "D2 రద్దు నమూనా, నిరాకరణ + అనేక-వివాహ సంకేతం, రెండు H7 ఒత్తిడి, "
+            "లేదా వినియోగదారు సూచించిన సంక్షోభం. KP నిర్మాణాత్మక ధోరణులు "
+            "మాత్రమే వివరిస్తుంది; చివరి ఫలితం ఇరువురి స్వేచ్ఛా సంకల్పం, "
+            "కౌన్సెలింగ్, కుటుంబ మద్దతుపై ఆధారపడుతుంది. ఈ ఫలితాన్ని "
+            "నిర్ధారణగా కాకుండా ఒక ఇన్‌పుట్‌గా మాత్రమే ఉపయోగించండి."
+        )
+    elif effective_tier == 2:
+        framing_en = (
+            "Life-impact reading. KP shows structural tendencies; both "
+            "partners' free will, communication, and shared dasha "
+            "alignment shape the actual outcome. The chart's promise is "
+            "one input; the running dasha is another — both must align "
+            "for a wedding to fructify."
+        )
+        framing_te = (
+            "జీవిత-ప్రభావ ఫలితం. KP నిర్మాణాత్మక ధోరణులు చూపిస్తుంది; "
+            "ఇరువురి స్వేచ్ఛా సంకల్పం, సంభాషణ, దశ సమన్వయం చివరి ఫలితాన్ని "
+            "రూపొందిస్తాయి. చార్ట్ ప్రమాణం + దశ రెండూ సరిపోతేనే వివాహం జరుగుతుంది."
+        )
+
+    return {
+        "tier": effective_tier,
+        "base_tier": base_tier,
+        "escalators_triggered": escalators,
+        "framing_required": True,
+        "framing_note_en": framing_en,
+        "framing_note_te": framing_te,
+        "caveats_en": caveats_en,
+        "caveats_te": caveats_te,
+    }
+
+
 def _h7_star_sub_harmony(chart: dict) -> dict:
     """
     PR M4 — Star-Sub Harmony layered reading for each partner's H7 CSL.
@@ -2807,6 +3379,175 @@ def _upcoming_marriage_windows(person: dict, chart: dict, months_ahead: int = 60
         return {"windows": [], "total_found": 0, "error": str(e)}
 
 
+def _ad_lord_pd_sd_signifies_marriage(person: dict, chart: dict,
+                                     md_lord: str, ad_lord: str,
+                                     md_start_str: str) -> list[dict]:
+    """
+    PR M10 helper — Walk a given AD's PD ladder and inside each PD,
+    walk its sookshma ladder. Return only periods where BOTH the PD lord
+    AND the sookshma lord signify marriage promise houses {2, 7, 11}
+    (intersection — not just union).
+
+    Returns a list of {start, end, pd_lord, sd_lord, pd_score, sd_score,
+                       duration_days, lords_str}
+    """
+    try:
+        # Rebuild the AD object expected by calculate_pratyantardashas
+        # by re-walking from md_start. The chart_engine helpers operate
+        # on AD dicts with start/end strings already.
+        moon_lon = chart["moon_lon"]
+        dashas = calculate_dashas(person["date"], person["time"], moon_lon,
+                                  person.get("timezone_offset", 5.5))
+        target_md = next((m for m in dashas
+                          if m.get("lord") == md_lord
+                          and m.get("start", "")[:10] == md_start_str[:10]),
+                         None)
+        if not target_md:
+            return []
+        ads = calculate_antardashas(target_md)
+        target_ad = next((a for a in ads
+                          if a.get("antardasha_lord") == ad_lord), None)
+        if not target_ad:
+            return []
+        pds = calculate_pratyantardashas(target_ad)
+        out: list[dict] = []
+        for pd in pds:
+            pd_lord = pd.get("pratyantardasha_lord", "")
+            if not pd_lord:
+                continue
+            pd_sigs = _planet_significations(pd_lord, chart["planets"], chart["cusp_lons"])
+            pd_hits = pd_sigs & {2, 7, 11}
+            if not pd_hits:
+                continue
+            sds = calculate_sookshma_dashas(pd)
+            for sd in sds:
+                sd_lord = sd.get("sookshma_lord", "")
+                if not sd_lord:
+                    continue
+                sd_sigs = _planet_significations(sd_lord, chart["planets"], chart["cusp_lons"])
+                sd_hits = sd_sigs & {2, 7, 11}
+                if not sd_hits:
+                    continue
+                # Both PD and SD must hit marriage — sookshma confirms
+                start_s = sd.get("start", "")[:10]
+                end_s = sd.get("end", "")[:10]
+                try:
+                    dur = (_dt.strptime(end_s, "%Y-%m-%d") -
+                           _dt.strptime(start_s, "%Y-%m-%d")).days
+                except Exception:
+                    dur = 0
+                out.append({
+                    "start": start_s,
+                    "end": end_s,
+                    "pd_lord": pd_lord,
+                    "sd_lord": sd_lord,
+                    "pd_hits": sorted(pd_hits),
+                    "sd_hits": sorted(sd_hits),
+                    "duration_days": dur,
+                    "lords_str": f"{md_lord}-{ad_lord}-{pd_lord}-{sd_lord}",
+                })
+        return out
+    except Exception:
+        return []
+
+
+def _joint_sookshma_precision_windows(person1: dict, person2: dict,
+                                      chart1: dict, chart2: dict,
+                                      overlap_windows: list[dict],
+                                      max_windows: int = 3) -> list[dict]:
+    """
+    PR M10 — Joint Sookshma (sub-PAD) days-precision refinement of the
+    AD-level overlap_windows.
+
+    For the top N AD overlap windows (default 3), walk both partners'
+    PD → Sookshma ladders inside the overlap interval. Find date
+    sub-ranges where BOTH partners have:
+      - PD lord signifying {2, 7, 11}
+      - Sookshma lord ALSO signifying {2, 7, 11}
+      - AND the date intervals overlap
+
+    These are the "wedding-grade" days-precision windows the astrologer
+    can recommend for engagement / wedding scheduling.
+
+    Each returned window:
+      {
+        "start", "end", "duration_days",
+        "person1_lords": "MD-AD-PD-SD",
+        "person2_lords": "MD-AD-PD-SD",
+        "joint_strength": int (0-4, count of (p1_pd, p1_sd, p2_pd, p2_sd)
+                                   that hit H7),
+        "ad_overlap_start", "ad_overlap_end" (parent AD overlap)
+      }
+    """
+    result: list[dict] = []
+    for ov in overlap_windows[:max_windows]:
+        p1_md = ov.get("person1_md") or ""
+        p2_md = ov.get("person2_md") or ""
+        p1_ad = ov.get("person1_ad") or ""
+        p2_ad = ov.get("person2_ad") or ""
+        # md_start_str is needed to disambiguate which MD occurrence;
+        # we don't carry it through, so pass empty and let the helper
+        # find the first matching MD with the given lord (good enough
+        # because the same MD lord doesn't repeat within a 5-year horizon).
+        p1_periods = _ad_lord_pd_sd_signifies_marriage(
+            person1, chart1, p1_md, p1_ad, "")
+        p2_periods = _ad_lord_pd_sd_signifies_marriage(
+            person2, chart2, p2_md, p2_ad, "")
+        if not p1_periods or not p2_periods:
+            continue
+        ov_s = ov.get("start", "")[:10]
+        ov_e = ov.get("end", "")[:10]
+        try:
+            ov_s_dt = _dt.strptime(ov_s, "%Y-%m-%d")
+            ov_e_dt = _dt.strptime(ov_e, "%Y-%m-%d")
+        except Exception:
+            continue
+        for a in p1_periods:
+            try:
+                as_dt = _dt.strptime(a["start"], "%Y-%m-%d")
+                ae_dt = _dt.strptime(a["end"], "%Y-%m-%d")
+            except Exception:
+                continue
+            for b in p2_periods:
+                try:
+                    bs_dt = _dt.strptime(b["start"], "%Y-%m-%d")
+                    be_dt = _dt.strptime(b["end"], "%Y-%m-%d")
+                except Exception:
+                    continue
+                # Intersect a, b, AND the parent AD overlap
+                s = max(as_dt, bs_dt, ov_s_dt)
+                e = min(ae_dt, be_dt, ov_e_dt)
+                if s >= e:
+                    continue
+                dur = (e - s).days
+                if dur < 1:
+                    continue
+                # Strength = number of (pd, sd) hits across both partners
+                strength = (
+                    (1 if a["pd_hits"] else 0)
+                    + (1 if a["sd_hits"] else 0)
+                    + (1 if b["pd_hits"] else 0)
+                    + (1 if b["sd_hits"] else 0)
+                )
+                result.append({
+                    "start": s.strftime("%Y-%m-%d"),
+                    "end": e.strftime("%Y-%m-%d"),
+                    "duration_days": dur,
+                    "person1_lords": a["lords_str"],
+                    "person2_lords": b["lords_str"],
+                    "person1_pd_hits": a["pd_hits"],
+                    "person1_sd_hits": a["sd_hits"],
+                    "person2_pd_hits": b["pd_hits"],
+                    "person2_sd_hits": b["sd_hits"],
+                    "joint_strength": strength,
+                    "ad_overlap_start": ov_s,
+                    "ad_overlap_end": ov_e,
+                })
+    # Sort by joint_strength desc, then start asc, then duration desc
+    result.sort(key=lambda w: (-w["joint_strength"], w["start"], -w["duration_days"]))
+    return result[:8]  # top 8
+
+
 def _shared_marriage_windows(person1: dict, person2: dict,
                              chart1: dict, chart2: dict,
                              months_ahead: int = 60) -> dict:
@@ -2840,6 +3581,8 @@ def _shared_marriage_windows(person1: dict, person2: dict,
                 "start": ov_s.strftime("%Y-%m-%d"),
                 "end":   ov_e.strftime("%Y-%m-%d"),
                 "duration_days": duration_days,
+                "person1_md": a.get("md_lord", ""),
+                "person2_md": b.get("md_lord", ""),
                 "person1_ad": a["ad_lord"],
                 "person2_ad": b["ad_lord"],
                 "person1_score": a["score"],
@@ -3738,10 +4481,12 @@ def _compute_couple_confidence(
     return score, contributions
 
 
-def compute_compatibility(person1: dict, person2: dict) -> dict:
+def compute_compatibility(person1: dict, person2: dict, user_concerns: str | None = None) -> dict:
     """
     Main function: compute full KP + Ashtakoota + Dosha compatibility.
     person1/person2 must have: name, date, time, latitude, longitude, timezone_offset, gender
+    user_concerns (optional): free-text note from astrologer used by PR M9
+        sensitivity tier resolver to escalate Tier 2 → Tier 3 on crisis phrases.
     """
     swe.set_sid_mode(swe.SIDM_KRISHNAMURTI_VP291)
 
@@ -3814,6 +4559,16 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
     upcoming_windows = _shared_marriage_windows(person1, person2, chart1, chart2,
                                                 months_ahead=60)
 
+    # PR M10 — Drop to PD + Sookshma level inside the top overlap_windows
+    # to find days-precision joint windows where BOTH partners' PD AND
+    # sookshma lords signify marriage promise houses. These are the
+    # "wedding-grade" recommendable dates the astrologer can hand the family.
+    joint_precision_windows = _joint_sookshma_precision_windows(
+        person1, person2, chart1, chart2,
+        overlap_windows=upcoming_windows.get("overlap_windows", []) or [],
+        max_windows=3,
+    )
+
     # New: D9 Navamsa for both charts
     d9_chart1 = _compute_d9(chart1)
     d9_chart2 = _compute_d9(chart2)
@@ -3873,6 +4628,52 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
     # nakshatra of dual-sign planet → multiple-marriage potential.
     multi_marriage_p1 = _multiple_marriages_check(chart1)
     multi_marriage_p2 = _multiple_marriages_check(chart2)
+
+    # PR M7 — Combust H7 CSL clinical flag per partner.
+    # When the H7 sub-lord is within Sun's combustion orb, marriage
+    # promise (if present) tends to fructify hidden / private / non-public.
+    h7_csl_combust_p1 = _h7_csl_combust_flag(chart1)
+    h7_csl_combust_p2 = _h7_csl_combust_flag(chart2)
+
+    # PR M13 — Spouse profile per partner (direction + age band +
+    # profession hint + appearance hint + classical H7 sub-lord traits).
+    spouse_profile_p1 = _spouse_profile(chart1)
+    spouse_profile_p2 = _spouse_profile(chart2)
+
+    # PR M8 — Borderline H7 CSL caveat per partner.
+    # When H7 cusp sits within 0.3° of a sub-lord boundary, a small
+    # birth-time error can flip the verdict — astrologer should request
+    # rectified birth time before committing.
+    h7_csl_borderline_p1 = _h7_csl_borderline_flag(chart1)
+    h7_csl_borderline_p2 = _h7_csl_borderline_flag(chart2)
+
+    # PR M11 — Bhavat Bhavam relative-marriage rotation per partner.
+    # When user_concerns mentions a relative ("my sister", "father's
+    # marriage", etc.), surface a secondary reading rotated to the
+    # appropriate Bhavat Bhavam house in EACH partner's chart. Does NOT
+    # change the couple's own H7 verdict.
+    bhavat_bhavam_p1 = _bhavat_bhavam_for_relative_marriage(chart1, user_concerns)
+    bhavat_bhavam_p2 = _bhavat_bhavam_for_relative_marriage(chart2, user_concerns)
+
+    # PR M9 — Sensitivity tier framing + structural auto-escalators.
+    # Base tier 2 (marriage = life-impact). Escalates to Tier 3 when
+    # D2/denial+multi/bilateral-tension/combust+denial structural signals
+    # fire, OR when user_concerns text matches crisis phrases.
+    sensitivity = _resolve_match_sensitivity_tier(
+        pattern_d2_p1=pattern_d2_p1,
+        pattern_d2_p2=pattern_d2_p2,
+        promise_p1=kp.get("chart1_promise") if isinstance(kp, dict) else None,
+        promise_p2=kp.get("chart2_promise") if isinstance(kp, dict) else None,
+        multi_p1=multi_marriage_p1,
+        multi_p2=multi_marriage_p2,
+        combust_p1=h7_csl_combust_p1,
+        combust_p2=h7_csl_combust_p2,
+        border_p1=h7_csl_borderline_p1,
+        border_p2=h7_csl_borderline_p2,
+        h7_star_sub_p1=h7_star_sub_p1,
+        h7_star_sub_p2=h7_star_sub_p2,
+        user_concerns=user_concerns,
+    )
 
     # PR M3 — Pattern detection per partner (M1/M2/M3/M5) + cross-couple
     # (T1/T2). Pattern naming is what distinguishes a deep KSK reading
@@ -4037,23 +4838,51 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
         ksk_stricter_exceptional=bool(ksk_stricter.get("exceptional_cross_match")),
     )
 
-    # Nadi dosha — only flag as serious-concern if also same nakshatra.
-    # (Cancellation exception per classical rules — see audit §C6.)
+    # Nadi dosha — directional cancellation per classical rules.
+    # PR M6 — refined per https://aaps.space/blog/5-ways-to-nadi-dosha-cancellation-and-nadi-matching/
+    #   "The Nakshatra of the Boy must be one which comes first and that of
+    #    a Girl must be the latter one."  Same-rashi cancellation only applies
+    #   when boy's nakshatra index precedes the girl's within the shared sign.
     nadi_serious = ("Nadi" in ashtakoota.get("critical_doshas", []))
     if nadi_serious:
-        # Same nakshatra cancellation
+        # Same nakshatra cancellation (direction-independent classical exception)
         if chart1["moon_nakshatra"] == chart2["moon_nakshatra"]:
-            # Same nakshatra: keep dosha but flag the cancellation note
             ashtakoota["nadi_cancellation_note"] = (
                 "Same nakshatra ({}) — classical exception applies; "
                 "severity reduced.".format(chart1["moon_nakshatra"])
             )
-        # Same rashi different nakshatra cancellation
-        elif chart1["moon_sign"] == chart2["moon_sign"]:
-            ashtakoota["nadi_cancellation_note"] = (
-                "Same Moon sign ({}) different nakshatras — classical "
-                "exception applies; severity reduced.".format(chart1["moon_sign"])
-            )
+            ashtakoota["nadi_cancellation_applied"] = True
+        # Same rashi different nakshatra — apply directional rule
+        elif chart_boy["moon_sign"] == chart_girl["moon_sign"]:
+            try:
+                boy_idx = NAKSHATRA_ORDER.index(chart_boy["moon_nakshatra"])
+                girl_idx = NAKSHATRA_ORDER.index(chart_girl["moon_nakshatra"])
+            except ValueError:
+                boy_idx, girl_idx = -1, -1
+            if 0 <= boy_idx < girl_idx:
+                # Directional rule satisfied — boy's nakshatra precedes girl's
+                ashtakoota["nadi_cancellation_note"] = (
+                    "Same Moon sign ({sign}); boy's nakshatra ({bn}) precedes "
+                    "girl's ({gn}) — directional rule satisfied, classical "
+                    "exception applies; severity reduced.".format(
+                        sign=chart_boy["moon_sign"],
+                        bn=chart_boy["moon_nakshatra"],
+                        gn=chart_girl["moon_nakshatra"],
+                    )
+                )
+                ashtakoota["nadi_cancellation_applied"] = True
+            else:
+                # Directional rule fails — dosha stands at full severity
+                ashtakoota["nadi_cancellation_note"] = (
+                    "Same Moon sign ({sign}) but girl's nakshatra ({gn}) "
+                    "precedes boy's ({bn}) — directional rule fails; Nadi "
+                    "dosha stands at full severity.".format(
+                        sign=chart_boy["moon_sign"],
+                        bn=chart_boy["moon_nakshatra"],
+                        gn=chart_girl["moon_nakshatra"],
+                    )
+                )
+                ashtakoota["nadi_cancellation_applied"] = False
 
     return {
         "person1": {"name": person1["name"], "gender": gender1,
@@ -4082,6 +4911,8 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
         "in_laws_chart1": inlaws_p1,
         "in_laws_chart2": inlaws_p2,
         "upcoming_windows": upcoming_windows,
+        # PR M10 — Joint Sookshma days-precision windows (top 8)
+        "joint_precision_windows": joint_precision_windows,
         # D9
         "d9_chart1": d9_chart1,
         "d9_chart2": d9_chart2,
@@ -4126,6 +4957,21 @@ def compute_compatibility(person1: dict, person2: dict) -> dict:
         # PR M5 — Multi-marriages KSK signature per partner
         "multi_marriage_chart1": multi_marriage_p1,
         "multi_marriage_chart2": multi_marriage_p2,
+        # PR M7 — Combust H7 CSL clinical flag per partner
+        "h7_csl_combust_chart1": h7_csl_combust_p1,
+        "h7_csl_combust_chart2": h7_csl_combust_p2,
+        # PR M8 — Borderline H7 CSL caveat per partner
+        "h7_csl_borderline_chart1": h7_csl_borderline_p1,
+        "h7_csl_borderline_chart2": h7_csl_borderline_p2,
+        # PR M9 — Sensitivity tier framing + auto-escalators
+        "sensitivity": sensitivity,
+        # PR M11 — Bhavat Bhavam relative-marriage rotation (only fires
+        # when user_concerns mentions a relative)
+        "bhavat_bhavam_chart1": bhavat_bhavam_p1,
+        "bhavat_bhavam_chart2": bhavat_bhavam_p2,
+        # PR M13 — Spouse profile per partner
+        "spouse_profile_chart1": spouse_profile_p1,
+        "spouse_profile_chart2": spouse_profile_p2,
         "summary": {
             "kp_verdict": kp["kp_verdict"],
             "ashtakoota_score": f"{ashtakoota['total_score']}/{ashtakoota['max_score']}",
