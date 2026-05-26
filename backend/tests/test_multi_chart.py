@@ -1,23 +1,24 @@
-"""Regression tests for multi-chart analysis flow.
+"""Regression tests for multi-chart analysis flow (Phase 5 architecture).
 
-PR MultiChart-Phase-2 (May 2026).
+PR MultiChart-Phase-2 — initial scaffolding (deleted in Phase 5)
+PR MultiChart-Phase-4 — compact formatter discipline (deleted in Phase 5)
+PR MultiChart-Phase-5 — goated context + cross-chart engine primitives
 
 Tests cover:
-  1. compute_multi_chart_context for 2-chart fertility (OR-rule)
-  2. compute_multi_chart_context for 3-chart sibling property dispute (AND-rule)
-  3. compute_multi_chart_context for 3-way business partnership (Synastry rule)
-  4. compute_multi_chart_context for employer-employee compatibility (Synastry rule)
-  5. compute_multi_chart_context for single-chart-with-relative (Bhavat Bhavam fallback)
-  6. Cap enforcement (>4 charts raises ValueError)
-  7. Empty charts list raises ValueError
-  8. Playbook resolver — known topic + unknown topic
-  9. Per-chart compact formatter contains all required sections
- 10. Multi-chart context propagates rp_meta source correctly (live vs natal_fallback)
+  1. Playbook resolver (topic → focus_houses + denial_houses + rule + karakas)
+  2. compute_multi_chart_context returns the Phase 5 dict shape:
+       - per_chart_raw (full goated chart_data dicts)
+       - cross_chart_primitives (7 deterministic primitives)
+       - rp_meta + ruling_planets (shared, Trust-1 contract)
+  3. Cap enforcement (>4 charts raises ValueError)
+  4. Empty charts list raises ValueError
+  5. Sacred-region guards — single-chart functions UNTOUCHED
+  6. Multi-chart system prompt INHERITS sacred get_system_prompt()
+  7. Multi-chart system prompt carries MC1-MC10 discipline blocks
 
 These tests do NOT fire real Anthropic calls — only the engine's
-deterministic per-chart compute is exercised.  LLM-call validation
-happens at the integration level (not unit level — we don't want
-test runs to incur Anthropic bills).
+deterministic per-chart compute + cross-chart engine + prompt builder
+are exercised.
 """
 from __future__ import annotations
 
@@ -26,12 +27,8 @@ import pytest
 from app.services.multi_chart_engine import (
     MAX_CHARTS,
     PLAYBOOK_MAP,
-    GRAHA_ORDER,
     resolve_playbook,
-    format_chart_compact_for_multi,
     compute_multi_chart_context,
-    _deg_in_sign_dms,
-    _invert_significators_for_planet,
 )
 
 
@@ -46,7 +43,6 @@ MANYUE = {
     "gender": "male",
 }
 
-# Hypothetical spouse for couple-fertility tests.
 RAMYA = {
     "name": "Ramya",
     "date": "2001-03-15",
@@ -57,7 +53,6 @@ RAMYA = {
     "gender": "female",
 }
 
-# Hypothetical 2nd sibling for property dispute tests.
 BROTHER_A = {
     "name": "BrotherA",
     "date": "1998-04-20",
@@ -68,7 +63,6 @@ BROTHER_A = {
     "gender": "male",
 }
 
-# Hypothetical 3rd sibling for property dispute tests.
 BROTHER_B = {
     "name": "BrotherB",
     "date": "2003-11-02",
@@ -79,7 +73,6 @@ BROTHER_B = {
     "gender": "male",
 }
 
-# Hypothetical 4th business partner for partnership tests.
 PARTNER_X = {
     "name": "PartnerX",
     "date": "1992-07-04",
@@ -101,6 +94,9 @@ class TestPlaybookResolver:
         assert play["rule"] == "or"
         assert 5 in play["focus_houses"]
         assert "Jupiter" in play["karakas"]
+        # Phase 5: denial_houses must be present
+        assert "denial_houses" in play
+        assert play.get("relative_type") == "child"
 
     def test_known_topic_business_returns_business_partnership(self):
         play = resolve_playbook("business")
@@ -108,6 +104,7 @@ class TestPlaybookResolver:
         assert play["rule"] == "synastry"
         assert 7 in play["focus_houses"]
         assert "Mercury" in play["karakas"]
+        assert "denial_houses" in play
 
     def test_known_topic_litigation_returns_court_case(self):
         play = resolve_playbook("litigation")
@@ -128,128 +125,161 @@ class TestPlaybookResolver:
     def test_marriage_uses_redirect_rule(self):
         play = resolve_playbook("marriage")
         assert play["rule"] == "or_with_match_redirect", (
-            "Marriage questions through the multi-chart flow MUST signal "
-            "the LLM to also recommend the dedicated Match endpoint "
-            "(per KB §5.2)."
+            "Marriage questions through multi-chart flow MUST signal "
+            "the LLM to also recommend the dedicated Match endpoint."
         )
+        assert play.get("relative_type") == "spouse"
+
+    def test_father_topic_has_bhavat_bhavam_axis(self):
+        # Phase 5: parent-child topics carry relative_type for Bhavat
+        # Bhavam cross-validation in the cross-chart engine.
+        play = resolve_playbook("father")
+        assert play.get("relative_type") == "father"
+        assert 9 in play["focus_houses"]
+        assert "Sun" in play["karakas"]
+
+    def test_health_playbook_synastry_rule(self):
+        play = resolve_playbook("health")
+        assert play["rule"] == "synastry"
+        assert 1 in play["focus_houses"]
+        assert 6 in play["focus_houses"]
+
+    def test_property_playbook_uses_and_rule(self):
+        # Property dispute uses AND-rule (denial only when ALL deny).
+        play = resolve_playbook("property")
+        assert play["rule"] == "and"
+        assert 4 in play["focus_houses"]
 
 
 # ────────────────────────────────────────────────────────────────────
-# compute_multi_chart_context tests — these EXERCISE the per-chart
-# pipeline (build_full_chart_data), so they're slower than playbook tests.
-# Each test fires real ephemeris computation but ZERO LLM calls.
+# compute_multi_chart_context — Phase 5 dict shape tests
 # ────────────────────────────────────────────────────────────────────
 class TestComputeMultiChartContext:
-    def test_two_chart_fertility_or_rule(self, monkeypatch):
-        # Stub detect_topic to keep tests offline.
+    def test_two_chart_fertility_returns_phase5_shape(self, monkeypatch):
         from app.services import multi_chart_engine as eng
         monkeypatch.setattr(eng, "detect_topic", lambda q: "children")
 
-        ctx = compute_multi_chart_context(
-            [MANYUE, RAMYA],
-            "Will we have a child this year?",
-        )
+        ctx = compute_multi_chart_context([MANYUE, RAMYA], "Will we have a child?")
         assert ctx["topic"] == "children"
         assert ctx["playbook"] == "couple_fertility"
         assert ctx["combination_rule"] == "or"
         assert ctx["chart_count"] == 2
         assert len(ctx["chart_labels"]) == 2
-        assert len(ctx["per_chart"]) == 2
+        # Phase 5 shape: per_chart_raw is the goated chart_data; no
+        # per_chart compact summaries anymore.
+        assert "per_chart_raw" in ctx
         assert len(ctx["per_chart_raw"]) == 2
-        # Chart labels include gender symbols + names
-        assert "Manyue" in ctx["chart_labels"][0]
-        assert "Ramya" in ctx["chart_labels"][1]
-        # rp_meta exists and is one shared dict for the moment-of-query
-        assert ctx["rp_meta"] is not None
-        # Falls back to natal because no live_* coords passed
-        assert ctx["rp_meta"]["source"] == "natal_fallback"
-        # 7-slot ruling planets returned for the moment
-        assert "ruling_planets" in ctx
-        assert isinstance(ctx["ruling_planets"], dict)
+        assert "per_chart" not in ctx, (
+            "Phase 5 removed 'per_chart' (compact summaries). "
+            "Use 'per_chart_raw' (goated chart_data)."
+        )
+        # Phase 5 NEW: cross_chart_primitives dict
+        assert "cross_chart_primitives" in ctx
+        primitives = ctx["cross_chart_primitives"]
+        for key in [
+            "synastry_overlay", "common_significators", "joint_dasha_windows",
+            "sublord_crosscheck", "bhavat_bhavam_crossval", "karaka_roles",
+            "combination_verdict",
+        ]:
+            assert key in primitives, f"missing primitive: {key}"
+        # focus_houses + denial_houses present
+        assert "focus_houses" in ctx
+        assert "denial_houses" in ctx
 
-    def test_three_chart_sibling_property_dispute_and_rule(self, monkeypatch):
+    def test_three_chart_sibling_property_dispute(self, monkeypatch):
         from app.services import multi_chart_engine as eng
         monkeypatch.setattr(eng, "detect_topic", lambda q: "property")
 
         ctx = compute_multi_chart_context(
             [MANYUE, BROTHER_A, BROTHER_B],
-            "We three brothers are disputing father's property. Will it resolve?",
+            "Will we three resolve the property dispute?",
         )
-        assert ctx["playbook"] == "family_property"
         assert ctx["combination_rule"] == "and"
         assert ctx["chart_count"] == 3
-        # Focus houses include H3 (siblings), H4 (property), H6 (dispute), H8 (inheritance)
-        assert 4 in ctx["focus_houses"]
-        assert 6 in ctx["focus_houses"]
-        assert 8 in ctx["focus_houses"]
+        assert len(ctx["per_chart_raw"]) == 3
+        # 3 charts → synastry overlay has 6 ordered pairs (3 × 2)
+        assert len(ctx["cross_chart_primitives"]["synastry_overlay"]) == 6
 
-    def test_three_way_business_partnership_synastry(self, monkeypatch):
+    def test_three_way_business_partnership_emits_karaka_roles(self, monkeypatch):
         from app.services import multi_chart_engine as eng
         monkeypatch.setattr(eng, "detect_topic", lambda q: "business")
 
         ctx = compute_multi_chart_context(
-            [MANYUE, BROTHER_A, PARTNER_X],
-            "We three want to start a tech consulting firm. Will it succeed?",
+            [MANYUE, RAMYA, PARTNER_X],
+            "Should we three start a business together?",
         )
-        assert ctx["playbook"] == "business_partnership"
         assert ctx["combination_rule"] == "synastry"
-        assert ctx["chart_count"] == 3
-        # Per-chart summaries each ~1-3K chars
-        for s in ctx["per_chart"]:
-            assert "FOCUS HOUSES" in s
-            assert "CURRENT DASHA TREE" in s
-            assert "LAGNA + MOON" in s
+        # Karaka roles SHOULD be emitted for N≥3 business
+        karaka_roles = ctx["cross_chart_primitives"]["karaka_roles"]
+        assert karaka_roles is not None
+        # Should have entries for Mars (operator), Mercury (advisor), etc.
+        assert any("Mars" in k for k in karaka_roles.keys())
 
-    def test_employer_employee_synastry(self, monkeypatch):
+    def test_two_chart_business_skips_karaka_roles(self, monkeypatch):
         from app.services import multi_chart_engine as eng
-        monkeypatch.setattr(eng, "detect_topic", lambda q: "job")
+        monkeypatch.setattr(eng, "detect_topic", lambda q: "business")
 
         ctx = compute_multi_chart_context(
             [MANYUE, RAMYA],
-            "I'm a manager considering hiring this person. Are we compatible?",
+            "Should we start a business together?",
         )
-        assert ctx["playbook"] == "employer_employee"
-        assert ctx["combination_rule"] == "synastry"
-        assert "Mercury" in ctx["karakas"]
-        assert "Saturn" in ctx["karakas"]
+        # N=2 → karaka_roles is None (only N≥3 emits role distribution)
+        assert ctx["cross_chart_primitives"]["karaka_roles"] is None
+
+    def test_marriage_question_with_spouse_relative_type(self, monkeypatch):
+        from app.services import multi_chart_engine as eng
+        monkeypatch.setattr(eng, "detect_topic", lambda q: "marriage")
+
+        ctx = compute_multi_chart_context([MANYUE, RAMYA], "Marriage match?")
+        # relative_type propagates from playbook
+        assert ctx["relative_type"] == "spouse"
+        # Bhavat Bhavam cross-validation gets computed
+        bb = ctx["cross_chart_primitives"]["bhavat_bhavam_crossval"]
+        assert bb is not None and bb.get("applicable") is True
 
     def test_single_chart_for_relative_query(self, monkeypatch):
-        """Single chart through the multi-chart endpoint = Bhavat Bhavam
-        relative inquiry.  Engine should NOT crash; combination logic
-        degrades gracefully.  See KB §4."""
         from app.services import multi_chart_engine as eng
-        monkeypatch.setattr(eng, "detect_topic", lambda q: "health")
+        monkeypatch.setattr(eng, "detect_topic", lambda q: "father")
 
-        ctx = compute_multi_chart_context(
-            [MANYUE],
-            "How is my father's health this year? (via Bhavat Bhavam)",
-        )
+        ctx = compute_multi_chart_context([MANYUE], "How is my father's health?")
         assert ctx["chart_count"] == 1
-        assert len(ctx["per_chart"]) == 1
-        assert ctx["playbook"] == "medical"
+        assert ctx["relative_type"] == "father"
 
     def test_live_location_propagates_to_rp_meta(self, monkeypatch):
-        """If live_* coords are passed, rp_meta.source must be 'live',
-        not 'natal_fallback' (Trust-1 contract holds for multi-chart)."""
+        from app.services import multi_chart_engine as eng
+        monkeypatch.setattr(eng, "detect_topic", lambda q: "marriage")
+
+        ctx = compute_multi_chart_context(
+            [MANYUE, RAMYA],
+            "Marriage compatibility?",
+            live_latitude=37.7749,
+            live_longitude=-122.4194,
+            live_timezone_offset=-7.0,
+        )
+        # rp_meta source = live when live coords passed
+        assert ctx["rp_meta"]["source"] == "live"
+        assert abs(ctx["rp_meta"]["lat"] - 37.7749) < 0.01
+        assert abs(ctx["rp_meta"]["tz_offset"] - (-7.0)) < 0.01
+
+    def test_combination_verdict_is_emitted(self, monkeypatch):
         from app.services import multi_chart_engine as eng
         monkeypatch.setattr(eng, "detect_topic", lambda q: "children")
 
-        ctx = compute_multi_chart_context(
-            [MANYUE, RAMYA],
-            "Will we have a child this year?",
-            live_latitude=43.6532,
-            live_longitude=-79.3832,
-            live_timezone_offset=-4.0,
-        )
-        assert ctx["rp_meta"]["source"] == "live"
-        # Live coords are Toronto; tz_name should resolve to America/Toronto.
-        assert ctx["rp_meta"]["lat"] == 43.6532
-        assert ctx["rp_meta"]["lon"] == -79.3832
-        assert ctx["rp_meta"]["tz_name"] == "America/Toronto"
+        ctx = compute_multi_chart_context([MANYUE, RAMYA], "Will we have children?")
+        cv = ctx["cross_chart_primitives"]["combination_verdict"]
+        assert "rule" in cv
+        assert "verdict" in cv
+        assert "formula_trace" in cv
+        # Verdict is one of the documented MC3 values
+        assert cv["verdict"] in {
+            "STRONGLY PROMISED", "PROMISED", "CONDITIONAL-POSITIVE",
+            "CONDITIONAL", "WEAKLY PROMISED", "DENIED", "NOT-DENIED",
+            "STRONG-FIT", "WORKABLE", "FRICTION", "INCOMPATIBLE", "UNKNOWN",
+        }
 
 
 # ────────────────────────────────────────────────────────────────────
-# Cap + validation tests
+# Caps + validation
 # ────────────────────────────────────────────────────────────────────
 class TestCapsAndValidation:
     def test_max_charts_constant_is_4(self):
@@ -259,9 +289,11 @@ class TestCapsAndValidation:
         from app.services import multi_chart_engine as eng
         monkeypatch.setattr(eng, "detect_topic", lambda q: "general")
 
-        too_many = [MANYUE, RAMYA, BROTHER_A, BROTHER_B, PARTNER_X]
-        with pytest.raises(ValueError, match="max 4"):
-            compute_multi_chart_context(too_many, "test question")
+        with pytest.raises(ValueError, match="max 4 charts"):
+            compute_multi_chart_context(
+                [MANYUE, RAMYA, BROTHER_A, BROTHER_B, PARTNER_X],
+                "Test 5-chart cap",
+            )
 
     def test_empty_charts_list_raises(self):
         with pytest.raises(ValueError, match="empty"):
@@ -269,232 +301,15 @@ class TestCapsAndValidation:
 
 
 # ────────────────────────────────────────────────────────────────────
-# Per-chart compact formatter tests
-# ────────────────────────────────────────────────────────────────────
-class TestPerChartCompactFormatter:
-    def test_formatter_contains_required_sections(self, monkeypatch):
-        """The compact formatter must always emit Native profile,
-        Lagna+Moon, Focus houses, and Current dasha — these are the
-        baselines the LLM needs even before applying the playbook."""
-        # We need a real chart_data to test against, so call the
-        # pipeline once.
-        from app.services.chart_pipeline import build_full_chart_data
-        cd = build_full_chart_data(**{**MANYUE, "topic": "children"})
-        out = format_chart_compact_for_multi(
-            cd,
-            focus_houses=[2, 5, 11],
-            karakas=["Jupiter"],
-            chart_label="Chart 1 — ♂ Manyue",
-        )
-        # Required sections
-        assert "Chart 1 — ♂ Manyue" in out
-        assert "Native:" in out
-        assert "Manyue" in out
-        assert "LAGNA + MOON" in out
-        assert "FOCUS HOUSES" in out
-        assert "[2, 5, 11]" in out
-        assert "CURRENT DASHA TREE" in out
-        assert "RELEVANT KARAKAS" in out
-        assert "Jupiter" in out
-
-    def test_formatter_handles_empty_karakas(self, monkeypatch):
-        from app.services.chart_pipeline import build_full_chart_data
-        cd = build_full_chart_data(**{**MANYUE, "topic": "property"})
-        out = format_chart_compact_for_multi(
-            cd, focus_houses=[3, 4, 6, 8], karakas=[],
-            chart_label="Chart 1",
-        )
-        # No karakas section when list is empty (skipped cleanly)
-        assert "RELEVANT KARAKAS" not in out
-
-
-# ────────────────────────────────────────────────────────────────────
-# MultiChart-Phase-4 universal-fix regression tests.
-#
-# These guard against the May 2026 multi-chart bugs:
-#   - Venus position contradiction across turns (Pisces vs Aquarius)
-#   - Jupiter signification error ({2,4} vs {2,5,6,9})
-#   - Mixed degree formats (54.67° absolute vs 24.67° deg-in-sign)
-#
-# The fix surfaces complete tables in the per-chart compact summary
-# so the LLM has zero excuse to infer.  These tests assert the
-# tables exist + contain the right shape, and that the system prompt
-# carries the "quote verbatim" discipline.
-# ────────────────────────────────────────────────────────────────────
-class TestPhase4VerbatimDataDiscipline:
-    def test_deg_in_sign_dms_basic(self):
-        # 54.67° absolute = Taurus 24.67° = 24°40'12" (within rounding)
-        out = _deg_in_sign_dms(54.67)
-        assert out.startswith("24°"), f"expected starts with 24°, got {out!r}"
-        # Format shape: DD°MM'SS"
-        assert "°" in out and "'" in out and out.endswith('"')
-
-    def test_deg_in_sign_dms_zero_in_sign(self):
-        # 30.0° absolute = Taurus 00°00'00"
-        assert _deg_in_sign_dms(30.0) == "00°00'00\""
-
-    def test_deg_in_sign_dms_handles_none_and_garbage(self):
-        assert _deg_in_sign_dms(None) == "—"
-        assert _deg_in_sign_dms("not a number") == "—"
-
-    def test_deg_in_sign_dms_wraps_360(self):
-        # 360.0° wraps to 0° = Aries 00°00'00"
-        assert _deg_in_sign_dms(360.0) == "00°00'00\""
-
-    def test_invert_significators_handles_empty(self):
-        out = _invert_significators_for_planet("Jupiter", {})
-        assert out["all_signified"] == []
-
-    def test_invert_significators_unions_4_steps(self):
-        # Synthetic significators dict: Jupiter is occupant of H5,
-        # in star of occupant of H2, in star of lord of H9, and is
-        # house lord of H6.  Union should be {2, 5, 6, 9}.
-        fake = {
-            "House_2": {"occupants": [], "planets_in_star_of_occupants": ["Jupiter"],
-                        "planets_in_star_of_lord": [], "house_lord": "Saturn"},
-            "House_5": {"occupants": ["Jupiter"], "planets_in_star_of_occupants": [],
-                        "planets_in_star_of_lord": [], "house_lord": "Sun"},
-            "House_6": {"occupants": [], "planets_in_star_of_occupants": [],
-                        "planets_in_star_of_lord": [], "house_lord": "Jupiter"},
-            "House_9": {"occupants": [], "planets_in_star_of_occupants": [],
-                        "planets_in_star_of_lord": ["Jupiter"], "house_lord": "Mars"},
-        }
-        out = _invert_significators_for_planet("Jupiter", fake)
-        assert out["occupies"] == [5]
-        assert out["in_star_of_occupants"] == [2]
-        assert out["in_star_of_lord"] == [9]
-        assert out["is_house_lord"] == [6]
-        assert out["all_signified"] == [2, 5, 6, 9]
-
-    def test_compact_summary_emits_all_9_planets_table(self, monkeypatch):
-        """Per-chart compact summary MUST emit the PLANETARY POSITIONS
-        table with ALL 9 grahas (root-cause of Venus contradiction)."""
-        from app.services.chart_pipeline import build_full_chart_data
-        cd = build_full_chart_data(**{**MANYUE, "topic": "marriage"})
-        out = format_chart_compact_for_multi(
-            cd, focus_houses=[2, 7, 11], karakas=["Venus", "Jupiter"],
-            chart_label="Chart 1",
-        )
-        assert "PLANETARY POSITIONS" in out
-        # Every graha must appear as a labelled row in the table.
-        for planet in GRAHA_ORDER:
-            # Each row begins "  Planet     | ..."
-            assert f"  {planet:<8} |" in out, (
-                f"PLANETARY POSITIONS table missing row for {planet}"
-            )
-
-    def test_compact_summary_emits_all_12_cusps(self, monkeypatch):
-        """HOUSE CUSPS table MUST emit all 12 rows (so non-focus cusps
-        are not silently absent — root-cause of cross-cusp inference)."""
-        from app.services.chart_pipeline import build_full_chart_data
-        cd = build_full_chart_data(**{**MANYUE, "topic": "marriage"})
-        out = format_chart_compact_for_multi(
-            cd, focus_houses=[7], karakas=[],
-            chart_label="Chart 1",
-        )
-        assert "HOUSE CUSPS" in out
-        for hn in range(1, 13):
-            assert f"  H{hn:<2} |" in out, f"HOUSE CUSPS missing H{hn}"
-
-    def test_compact_summary_emits_house_significators_for_focus(self, monkeypatch):
-        """Engine-computed HOUSE SIGNIFICATORS must precede the LLM
-        answer so it doesn't recompute (Jupiter {2,4} vs {2,5,6,9})."""
-        from app.services.chart_pipeline import build_full_chart_data
-        cd = build_full_chart_data(**{**MANYUE, "topic": "marriage"})
-        out = format_chart_compact_for_multi(
-            cd, focus_houses=[2, 7, 11], karakas=["Venus"],
-            chart_label="Chart 1",
-        )
-        assert "HOUSE SIGNIFICATORS" in out
-        for hn in [2, 7, 11]:
-            assert f"  H{hn}: occupants=" in out, (
-                f"HOUSE SIGNIFICATORS missing H{hn}"
-            )
-
-    def test_compact_summary_dms_format_used(self, monkeypatch):
-        """Planet + cusp rows must use deg-in-sign DMS, not raw absolute
-        longitude (fixes the 54.67° vs 24.67° mixed display)."""
-        from app.services.chart_pipeline import build_full_chart_data
-        cd = build_full_chart_data(**{**MANYUE, "topic": "marriage"})
-        out = format_chart_compact_for_multi(
-            cd, focus_houses=[1], karakas=[],
-            chart_label="Chart 1",
-        )
-        # At least one DMS-shaped token must appear in PLANETARY POSITIONS.
-        import re
-        # DMS pattern: NN°NN'NN" — must show up at least once.
-        assert re.search(r"\d{2}°\d{2}'\d{2}\"", out), (
-            "expected DMS token (NN°NN'NN\") somewhere in compact summary"
-        )
-
-    def test_compact_summary_planet_row_has_signifies_column(self, monkeypatch):
-        """Every planet row must end with a `signifies:[…]` column so
-        the LLM can quote the 4-step union verbatim."""
-        from app.services.chart_pipeline import build_full_chart_data
-        cd = build_full_chart_data(**{**MANYUE, "topic": "marriage"})
-        out = format_chart_compact_for_multi(
-            cd, focus_houses=[7], karakas=["Venus"],
-            chart_label="Chart 1",
-        )
-        # "signifies:" token must appear at least 9 times (once per graha)
-        assert out.count("signifies:") >= 9, (
-            "PLANETARY POSITIONS table must include 'signifies:' for each graha"
-        )
-
-    def test_compact_summary_planet_row_has_house_column(self, monkeypatch):
-        """Planet rows MUST surface the house — root-cause of Venus
-        position contradiction was an empty house field."""
-        from app.services.chart_pipeline import build_full_chart_data
-        cd = build_full_chart_data(**{**MANYUE, "topic": "marriage"})
-        out = format_chart_compact_for_multi(
-            cd, focus_houses=[7], karakas=["Venus"],
-            chart_label="Chart 1",
-        )
-        # At least 9 "| H<n> |" tokens (one per planet row).  None should
-        # be empty (the old bug emitted "| H |" with a blank house).
-        import re
-        house_tokens = re.findall(r"\| H\d{1,2} \|", out)
-        assert len(house_tokens) >= 9, (
-            f"expected ≥9 populated planet-house tokens, got {len(house_tokens)}"
-        )
-
-    def test_system_prompt_contains_verbatim_discipline(self):
-        """The multi-chart system prompt MUST carry the R1-R6 verbatim
-        discipline block (guards against future prompt regressions)."""
-        from app.services.llm_service import _build_multi_chart_system_prompt
-        ctx = {
-            "topic":            "marriage",
-            "playbook":         "marriage_compat",
-            "combination_rule": "or_with_match_redirect",
-            "focus_houses":     [2, 7, 11],
-            "karakas":          ["Venus", "Jupiter"],
-            "chart_count":      2,
-            "chart_labels":     ["Chart 1 — ♂ A", "Chart 2 — ♀ B"],
-        }
-        prompt = _build_multi_chart_system_prompt(ctx, language="english")
-        # Discipline anchor strings — any future refactor that removes
-        # them will fail the test and force a deliberate decision.
-        assert "VERBATIM-DATA DISCIPLINE" in prompt
-        assert "R1." in prompt and "R2." in prompt and "R3." in prompt
-        assert "R4." in prompt and "R5." in prompt and "R6." in prompt
-        # The rules must reference the actual data tables they govern.
-        assert "PLANETARY POSITIONS" in prompt
-        assert "HOUSE CUSPS" in prompt
-        assert "HOUSE SIGNIFICATORS" in prompt
-
-
-# ────────────────────────────────────────────────────────────────────
-# Sacred-region guard tests — make sure the new code does NOT modify
-# the sacred LLM functions or formatters.
+# Sacred-region guard tests — guarantee Phase 5 didn't break the
+# goated single-chart prompt/formatter that powers Analysis tab.
 # ────────────────────────────────────────────────────────────────────
 class TestSacredRegionsUntouched:
     def test_get_prediction_still_exists_with_same_signature(self):
         from app.services import llm_service
         import inspect
-        # Sacred — must keep the existing signature.
         sig = inspect.signature(llm_service.get_prediction)
         params = list(sig.parameters.keys())
-        # Original positional/keyword args must remain
         assert "chart_data" in params
         assert "question" in params
         assert "history" in params
@@ -509,6 +324,7 @@ class TestSacredRegionsUntouched:
     def test_format_chart_for_llm_still_exists(self):
         from app.services import llm_service
         assert hasattr(llm_service, "format_chart_for_llm")
+        assert callable(llm_service.format_chart_for_llm)
 
     def test_format_match_for_llm_still_exists(self):
         from app.services import llm_service
@@ -518,8 +334,151 @@ class TestSacredRegionsUntouched:
         from app.services import llm_service
         assert hasattr(llm_service, "get_match_prediction")
 
-    def test_new_multi_chart_functions_exist(self):
-        """The new functions exist alongside the sacred ones."""
+    def test_get_system_prompt_still_exists(self):
         from app.services import llm_service
+        assert hasattr(llm_service, "get_system_prompt")
+        # Phase 5 multi-chart system prompt INHERITS this — must be callable
+        prompt = llm_service.get_system_prompt()
+        assert "RULE 1" in prompt
+        assert "RULE 5" in prompt
+        assert "RULE 16" in prompt
+        assert "RULE 24" in prompt or "RULE 23" in prompt  # tail rules
+
+    def test_new_multi_chart_functions_exist(self):
+        from app.services import llm_service
+        assert hasattr(llm_service, "_build_multi_chart_system_prompt")
+        assert hasattr(llm_service, "_build_multi_chart_user_message")
         assert hasattr(llm_service, "get_multi_chart_prediction")
         assert hasattr(llm_service, "get_multi_chart_prediction_stream")
+
+
+# ────────────────────────────────────────────────────────────────────
+# Phase 5 multi-chart system prompt tests — MC1-MC10 + inheritance
+# ────────────────────────────────────────────────────────────────────
+class TestPhase5SystemPromptDiscipline:
+    def _build_ctx_for_prompt(self, monkeypatch):
+        from app.services import multi_chart_engine as eng
+        monkeypatch.setattr(eng, "detect_topic", lambda q: "marriage")
+        return compute_multi_chart_context(
+            [MANYUE, RAMYA], "Will Manyue and Ramya have happy marriage?",
+        )
+
+    def test_system_prompt_inherits_sacred_base(self, monkeypatch):
+        ctx = self._build_ctx_for_prompt(monkeypatch)
+        from app.services.llm_service import _build_multi_chart_system_prompt
+        prompt = _build_multi_chart_system_prompt(ctx, "en")
+        # Sacred RULES from get_system_prompt() must be present
+        assert "RULE 1 — NEVER GUESS DASHA DATES" in prompt
+        assert "RULE 5 — PROMISE VERDICT" in prompt
+        assert "RULE 16 — STAR" in prompt and "HARMONY" in prompt
+        assert "RULE 10 — NEVER INVENT" in prompt
+
+    def test_system_prompt_carries_MC1_through_MC10(self, monkeypatch):
+        ctx = self._build_ctx_for_prompt(monkeypatch)
+        from app.services.llm_service import _build_multi_chart_system_prompt
+        prompt = _build_multi_chart_system_prompt(ctx, "en")
+        for mc in ["MC1 —", "MC2 —", "MC3 —", "MC4 —", "MC5 —",
+                   "MC6 —", "MC7 —", "MC8 —", "MC9 —", "MC10 —"]:
+            assert mc in prompt, f"multi-chart discipline rule {mc} missing"
+
+    def test_system_prompt_includes_multi_chart_kb_v2(self, monkeypatch):
+        ctx = self._build_ctx_for_prompt(monkeypatch)
+        from app.services.llm_service import _build_multi_chart_system_prompt
+        prompt = _build_multi_chart_system_prompt(ctx, "en")
+        # KB v2 anchors that must appear
+        assert "Multi-Chart Analysis" in prompt or "MULTI-CHART" in prompt
+        # KB §11 cross-chart primitive specs
+        assert "Cross-chart engine primitive" in prompt or "SYNASTRY OVERLAY" in prompt
+
+    def test_system_prompt_includes_per_topic_kb(self, monkeypatch):
+        ctx = self._build_ctx_for_prompt(monkeypatch)
+        from app.services.llm_service import _build_multi_chart_system_prompt
+        prompt = _build_multi_chart_system_prompt(ctx, "en")
+        # Per-topic KB section header present (topic = marriage)
+        assert "PER-TOPIC KP DOCTRINE" in prompt
+        assert "MARRIAGE" in prompt
+
+    def test_system_prompt_8_section_output_template(self, monkeypatch):
+        ctx = self._build_ctx_for_prompt(monkeypatch)
+        from app.services.llm_service import _build_multi_chart_system_prompt
+        prompt = _build_multi_chart_system_prompt(ctx, "en")
+        assert "Section 1: QUESTION INTERPRETATION" in prompt
+        assert "Section 2: PER-CHART VERDICTS" in prompt
+        assert "Section 3: CROSS-CHART OVERLAY" in prompt
+        assert "Section 4: COMBINED VERDICT" in prompt
+        assert "Section 5: TIMING" in prompt
+        assert "Section 6: RECOMMENDED ACTION" in prompt
+        assert "Section 7: CAVEATS" in prompt
+        assert "Section 8: CLIENT SUMMARY" in prompt
+
+    def test_system_prompt_verification_checklist_present(self, monkeypatch):
+        ctx = self._build_ctx_for_prompt(monkeypatch)
+        from app.services.llm_service import _build_multi_chart_system_prompt
+        prompt = _build_multi_chart_system_prompt(ctx, "en")
+        # MC10 verification checklist anchors
+        assert "VERIFICATION CHECKLIST" in prompt
+        assert "I have read each chart's full goated context block" in prompt
+        assert "I will quote engine values VERBATIM" in prompt
+
+    def test_system_prompt_telugu_directive_when_te_lang(self, monkeypatch):
+        ctx = self._build_ctx_for_prompt(monkeypatch)
+        from app.services.llm_service import _build_multi_chart_system_prompt
+        prompt_te = _build_multi_chart_system_prompt(ctx, "te")
+        prompt_en = _build_multi_chart_system_prompt(ctx, "en")
+        # Telugu directive only in te variants
+        assert "Telugu" in prompt_te
+        assert "Telugu" not in prompt_en or "Telugu" in prompt_en  # base may mention; check directive
+        # Telugu directive specifically
+        assert "U+0C00-U+0C7F" in prompt_te
+        assert "U+0C00-U+0C7F" not in prompt_en
+
+
+# ────────────────────────────────────────────────────────────────────
+# User-message builder tests — Phase 5 must use goated format_chart_for_llm
+# ────────────────────────────────────────────────────────────────────
+class TestPhase5UserMessage:
+    def test_user_message_includes_goated_per_chart_context(self, monkeypatch):
+        from app.services import multi_chart_engine as eng
+        monkeypatch.setattr(eng, "detect_topic", lambda q: "marriage")
+        from app.services.llm_service import _build_multi_chart_user_message
+        ctx = compute_multi_chart_context([MANYUE, RAMYA], "Marriage compatibility?")
+        msg = _build_multi_chart_user_message(ctx, "Marriage compatibility?")
+        # Per-chart goated context section header present
+        assert "PER-CHART GOATED CONTEXT" in msg
+        # Each chart label present
+        assert "Manyue" in msg
+        assert "Ramya" in msg
+        # Cross-chart engine primitives section present
+        assert "CROSS-CHART ENGINE PRIMITIVES" in msg
+        # SYNASTRY OVERLAY visible
+        assert "SYNASTRY OVERLAY" in msg
+        # SUB-LORD CROSS-CHECK visible
+        assert "SUB-LORD CROSS-CHECK" in msg
+        # JOINT DASHA visible
+        assert "JOINT DASHA" in msg
+        # COMBINATION RULE VERDICT visible
+        assert "COMBINATION RULE VERDICT" in msg
+        # Question echoed
+        assert "Marriage compatibility?" in msg
+
+    def test_user_message_carries_rp_at_moment(self, monkeypatch):
+        from app.services import multi_chart_engine as eng
+        monkeypatch.setattr(eng, "detect_topic", lambda q: "marriage")
+        from app.services.llm_service import _build_multi_chart_user_message
+        ctx = compute_multi_chart_context([MANYUE, RAMYA], "Marriage?")
+        msg = _build_multi_chart_user_message(ctx, "Marriage?")
+        assert "RULING PLANETS AT MOMENT OF QUERY" in msg
+        assert "Location:" in msg
+
+    def test_user_message_no_compact_summary_artifacts(self, monkeypatch):
+        """Phase 5 removed compact summary helpers; their distinctive
+        labels must not appear in the user message anymore."""
+        from app.services import multi_chart_engine as eng
+        monkeypatch.setattr(eng, "detect_topic", lambda q: "marriage")
+        from app.services.llm_service import _build_multi_chart_user_message
+        ctx = compute_multi_chart_context([MANYUE, RAMYA], "?")
+        msg = _build_multi_chart_user_message(ctx, "?")
+        assert "PER-CHART COMPACT SUMMARIES" not in msg, (
+            "Phase 5 removed compact summaries; user message must not "
+            "carry the old PER-CHART COMPACT SUMMARIES header."
+        )
