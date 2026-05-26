@@ -3261,6 +3261,27 @@ def get_prediction(chart_data: dict, question: str, history: list = [], mode: st
             chart_data["detected_topic"] = detected_topic
             resolved_qt = "full_topic"
 
+    # Smart-Routing-1 (PR Trust-2 wave) — FRESH-FIRST-TURN ESCALATION.
+    # Mirrors the same logic in get_prediction_stream — see that function
+    # for the full rationale.  Without this, a fresh deep typed question
+    # (history empty, ≥60 chars) silently runs on Haiku because the
+    # frontend hard-codes question_type="sub_question" for chat-box typing.
+    _enable_fresh_turn_escalation = True
+    if (
+        mode == "astrologer"
+        and resolved_qt == "sub_question"
+        and _enable_fresh_turn_escalation
+        and not history
+        and len((question or "").strip()) >= 60
+    ):
+        import logging
+        logging.getLogger("anthropic_audit").warning(
+            "[FRESH_TURN_ESCALATE] first-turn typed question, len=%d, topic=%s "
+            "-> escalating sub_question to full_topic + Sonnet",
+            len((question or "").strip()), detected_topic,
+        )
+        resolved_qt = "full_topic"
+
     # PR A1.3-fix-12 — KB split into universal + topic for stable cache prefix.
     # PR A1.3-fix-18 — universal_kb now mode-aware: user mode gets the
     # 4-file lean KB (~22K tokens), astrologer gets full 12-file kit (~40K).
@@ -3592,6 +3613,51 @@ async def get_prediction_stream(
             # 7-section analysis (not a clarification narrative) AND
             # the model selector below routes to Sonnet.
             early_resolved_qt = "full_topic"
+
+    # Smart-Routing-1 (PR Trust-2 wave, May 2026) — FRESH-FIRST-TURN ESCALATION.
+    #
+    # The frontend hard-codes question_type="sub_question" whenever the
+    # astrologer types into the chat box (vs clicking a topic chip → "full_topic").
+    # That was correct for follow-ups but wrong for the FIRST turn on a fresh
+    # chart, where the astrologer's typed question is the deep inquiry that
+    # deserves Sonnet + the full 7-section worksheet — NOT a Haiku narration.
+    #
+    # The pre-existing Phase 13.5 TOPIC-SWITCH branch above only escalates
+    # when the chat-box question is on a DIFFERENT topic than the one the
+    # system currently holds.  On a freshly-loaded chart with no prior chip
+    # click, the auto-detected topic == the question's topic, so 13.5 never
+    # fires and the answer stays on Haiku.  Real-world impact: a deep
+    # first-turn question like "How is my father's health this year?" was
+    # producing a Haiku-grade answer with no signal to the astrologer that
+    # they got the follow-up tier of analysis instead of the full one.
+    #
+    # Fix: if history is empty AND the question is substantial (≥60 chars,
+    # mirrors the existing `_resolve_question_type` heuristic), force
+    # full_topic so the model selector picks Sonnet and the prompt produces
+    # the structured worksheet.  Subsequent turns (history non-empty) stay
+    # on the existing routing.
+    #
+    # Cost impact: a few first-turn typed questions/day go to Sonnet
+    # instead of Haiku (~$0.45 extra per call).  Negligible at current
+    # volume vs the quality gain of every fresh deep question getting
+    # the full structural analysis.
+    #
+    # Easy revert: set _enable_fresh_turn_escalation = False.
+    _enable_fresh_turn_escalation = True
+    if (
+        mode == "astrologer"
+        and early_resolved_qt == "sub_question"
+        and _enable_fresh_turn_escalation
+        and not history                       # FIRST turn (no prior Q/A pair)
+        and len((question or "").strip()) >= 60  # substantial question
+    ):
+        import logging
+        logging.getLogger("anthropic_audit").warning(
+            "[FRESH_TURN_ESCALATE] first-turn typed question, len=%d, topic=%s "
+            "-> escalating sub_question to full_topic + Sonnet",
+            len((question or "").strip()), detected_topic,
+        )
+        early_resolved_qt = "full_topic"
 
     cache_key: str | None = None
     if cache_key_input:
