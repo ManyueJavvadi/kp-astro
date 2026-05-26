@@ -2007,9 +2007,9 @@ export default function Home() {
             aria-label="Chat questions index"
             style={{
               position: "absolute", top: 12, bottom: 64, right: 4,
-              width: 18,
+              width: 26,
               display: "flex", flexDirection: "column", alignItems: "center",
-              gap: 4, padding: "4px 2px",
+              gap: 8, padding: "6px 2px",
               borderRadius: 999,
               background: "rgba(255,255,255,0.015)",
               zIndex: 4,
@@ -2030,22 +2030,28 @@ export default function Home() {
                     } catch {}
                   }}
                   style={{
-                    width: 12, height: 2, padding: 0,
+                    // Trust-2.2 (May 2026) — bumped tick size for click
+                    // ergonomics (was 12×2 with 4-px gap — too precise to
+                    // hit on first try).  Now 20×4 tick + 8-px gap +
+                    // 22×10 invisible click target via padding so the
+                    // hit area is comfortable on both mouse and touch.
+                    width: 20, height: 4, padding: "3px 1px",
                     border: "none",
-                    borderRadius: 1,
-                    background: "rgba(201,169,110,0.35)",
+                    borderRadius: 2,
+                    background: "rgba(201,169,110,0.4)",
+                    backgroundClip: "content-box",
                     cursor: "pointer",
                     transition: "all 140ms",
                   }}
                   onMouseEnter={e => {
-                    (e.currentTarget as HTMLButtonElement).style.width = "16px";
-                    (e.currentTarget as HTMLButtonElement).style.height = "3px";
+                    (e.currentTarget as HTMLButtonElement).style.width = "24px";
+                    (e.currentTarget as HTMLButtonElement).style.height = "5px";
                     (e.currentTarget as HTMLButtonElement).style.background = "var(--accent)";
                   }}
                   onMouseLeave={e => {
-                    (e.currentTarget as HTMLButtonElement).style.width = "12px";
-                    (e.currentTarget as HTMLButtonElement).style.height = "2px";
-                    (e.currentTarget as HTMLButtonElement).style.background = "rgba(201,169,110,0.35)";
+                    (e.currentTarget as HTMLButtonElement).style.width = "20px";
+                    (e.currentTarget as HTMLButtonElement).style.height = "4px";
+                    (e.currentTarget as HTMLButtonElement).style.background = "rgba(201,169,110,0.4)";
                   }}
                 />
               );
