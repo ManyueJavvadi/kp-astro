@@ -21,7 +21,10 @@ from app.services.telugu_terms import (
 from app.services.llm_service import (
     get_prediction, get_prediction_stream, detect_topic,
     resolve_effective_topic,
+    # PR MultiChart-Phase-2 (May 2026) — multi-chart analysis flow
+    get_multi_chart_prediction, get_multi_chart_prediction_stream,
 )
+from app.services.multi_chart_engine import compute_multi_chart_context, MAX_CHARTS
 from app.services.csl_chains import compute_csl_chains, format_csl_chains_for_llm
 from app.services.timezone_utils import resolve_timezone, resolve_birth_offset
 from app.services.chart_formatter import format_chart_for_frontend
@@ -834,3 +837,135 @@ def quick_insights(request: QuickInsightsRequest):
             "click flow (POST /astrologer/analyze-stream) instead."
         ),
     )
+
+
+# ════════════════════════════════════════════════════════════════════
+# MULTI-CHART ANALYSIS — PR MultiChart-Phase-2 (May 2026)
+# ════════════════════════════════════════════════════════════════════
+#
+# NEW endpoints — `/astrologer/analyze`, `/astrologer/analyze-stream`,
+# and `/astrologer/workspace` are UNTOUCHED.  The frontend's existing
+# Analysis tab continues to use those single-chart endpoints unchanged.
+#
+# These endpoints fire when the frontend detects 2+ charts in context
+# (via the @-mention / chips bar UX in Phase 3).
+#
+
+class MultiChartPerson(BaseModel):
+    """One chart in a multi-chart request (matches PersonDetails shape)."""
+    name: str = Field(..., min_length=1, max_length=120)
+    date: str = Field(..., min_length=8, max_length=12)
+    time: str = Field(..., min_length=4, max_length=8)
+    latitude: float = Field(..., ge=-90, le=90)
+    longitude: float = Field(..., ge=-180, le=180)
+    timezone_offset: float = Field(5.5, ge=-14, le=14)
+    gender: str = Field("", max_length=20)
+
+
+class MultiChartRequest(BaseModel):
+    """Payload for the multi-chart analyze endpoints.
+
+    `charts` is the ordered list of 1-4 charts in conversation context
+    (1 is allowed for single-chart-with-Bhavat-Bhavam relative inquiry;
+    the engine's combination logic degrades cleanly).
+    """
+    charts: list[MultiChartPerson] = Field(..., min_length=1, max_length=MAX_CHARTS)
+    question: str = Field(..., min_length=1, max_length=4000)
+    history: list = Field(default_factory=list, max_length=20)
+    language: str = Field("telugu_english", max_length=20)
+    # Astrologer's live location (Trust-1 contract — same shape as
+    # all other chart-generating endpoints).
+    live_latitude: float | None = Field(None, ge=-90, le=90)
+    live_longitude: float | None = Field(None, ge=-180, le=180)
+    live_timezone_offset: float | None = Field(None, ge=-14, le=14)
+
+
+def _multi_chart_context_dict_to_meta(multi_context: dict) -> dict:
+    """Reduce the full multi-chart context to a small meta payload
+    safe to echo back to the frontend (drops per_chart_raw to avoid
+    leaking large internal compute back over the wire)."""
+    return {
+        "topic":            multi_context.get("topic"),
+        "playbook":         multi_context.get("playbook"),
+        "combination_rule": multi_context.get("combination_rule"),
+        "focus_houses":     multi_context.get("focus_houses"),
+        "karakas":          multi_context.get("karakas"),
+        "chart_count":      multi_context.get("chart_count"),
+        "chart_labels":     multi_context.get("chart_labels"),
+        "rp_meta":          multi_context.get("rp_meta"),
+    }
+
+
+@router.post("/multi-analyze")
+def multi_analyze(request: MultiChartRequest):
+    """Non-streaming multi-chart analysis.
+
+    Use the streaming variant `/multi-analyze-stream` for interactive UX;
+    this endpoint is here for test fixtures, scripted callers, and
+    fallback if streaming is blocked by an intermediary.
+    """
+    charts_payload = [c.model_dump() for c in request.charts]
+    multi_context = compute_multi_chart_context(
+        charts_payload,
+        request.question,
+        history=request.history,
+        live_latitude=request.live_latitude,
+        live_longitude=request.live_longitude,
+        live_timezone_offset=request.live_timezone_offset,
+    )
+    answer = get_multi_chart_prediction(
+        multi_context,
+        request.question,
+        request.history,
+        request.language,
+    )
+    return {
+        "answer": answer,
+        "meta": _multi_chart_context_dict_to_meta(multi_context),
+    }
+
+
+@router.post("/multi-analyze-stream")
+async def multi_analyze_stream(request: MultiChartRequest):
+    """Streaming multi-chart analysis (SSE).
+
+    Yields:
+      - event: meta — initial event with multi_context meta (chart
+        labels, playbook, combination_rule, rp_meta) so the frontend
+        can render the source pills BEFORE chunks arrive.
+      - event: chunk — text deltas from the LLM stream.
+      - event: done — stream complete.
+      - event: error — on exception.
+    """
+    charts_payload = [c.model_dump() for c in request.charts]
+    multi_context = compute_multi_chart_context(
+        charts_payload,
+        request.question,
+        history=request.history,
+        live_latitude=request.live_latitude,
+        live_longitude=request.live_longitude,
+        live_timezone_offset=request.live_timezone_offset,
+    )
+
+    meta_payload = _multi_chart_context_dict_to_meta(multi_context)
+
+    async def event_stream():
+        try:
+            yield f"event: meta\ndata: {json.dumps(meta_payload, default=str)}\n\n"
+            async for chunk in get_multi_chart_prediction_stream(
+                multi_context,
+                request.question,
+                request.history,
+                request.language,
+            ):
+                # Wrap in JSON so frontend can parse uniformly.
+                yield f"event: chunk\ndata: {json.dumps({'text': chunk})}\n\n"
+            yield "event: done\ndata: {}\n\n"
+        except Exception as e:
+            import logging
+            logging.getLogger("astrologer").exception(
+                "multi-analyze-stream failed: %s", e
+            )
+            yield f"event: error\ndata: {json.dumps({'message': str(e)})}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")

@@ -719,6 +719,31 @@ The frontend renders a pill above each multi-chart answer:
 Always include the chart identifier (gender symbol + name) for each
 chart used in the analysis.
 
+### 7.4 Ruling Planets at the moment of a multi-chart query
+
+Even in multi-chart analysis, **Ruling Planets are ONE set of values
+computed at a single moment + location** — namely, the astrologer's
+CURRENT location at the time of the query.  RPs are NOT computed per
+chart; they're computed for the moment of the inquiry.
+
+When multiple charts are in conversation:
+- The "astrologer's live location" determines the RP-source coordinates
+  (same as single-chart — see Trust-1 rp_meta contract).
+- The 7 RP slots (Day Lord, Asc Sign/Star/Sub, Moon Sign/Star/Sub) are
+  computed ONCE for the moment of query.
+- Then each chart's significators are cross-referenced against this
+  one RP set.  A planet that is a significator in Chart 1 AND is a
+  Ruling Planet at the moment is a "fruitful significator" for
+  Chart 1.  Same for Chart 2.
+- This is how the combination logic ties multi-chart static
+  signification to the dynamic moment.
+
+If the astrologer's live location is unavailable (denied / unsupported),
+the same natal-fallback warning applies as single-chart: the RPs are
+computed at SOME location (typically the first chart's natal), and the
+output MUST explicitly state this with the same trust-pill colour code
+(red = natal fallback, amber = manual, green = auto-live).
+
 ---
 
 ## 8. Anti-patterns and guardrails

@@ -6027,3 +6027,406 @@ Analyze the muhurtha windows above and answer the question. Reference specific w
         diag_missed_tokens=_diag_missed,
     )
     return message.content[0].text
+
+
+# ════════════════════════════════════════════════════════════════════
+# MULTI-CHART ANALYSIS — PR MultiChart-Phase-2 (May 2026)
+# ════════════════════════════════════════════════════════════════════
+#
+# SACRED-REGION DISCIPLINE:
+#   - These are NEW functions.  `get_prediction`, `get_prediction_stream`,
+#     `get_match_prediction`, `get_muhurtha_prediction`, `get_system_prompt`,
+#     `format_chart_for_llm`, `format_match_for_llm` are ALL UNTOUCHED.
+#   - The new system prompt below is a NEW prompt — does not modify any
+#     existing prompt anywhere in the codebase.
+#   - The new KB file `multi_chart_analysis.md` is loaded ONLY by these
+#     functions; existing single-chart Analysis tab continues to load
+#     its Universal KB + topic KB stack unchanged.
+#
+# Flow:
+#   1. Caller (router) calls `multi_chart_engine.compute_multi_chart_context()`
+#      to build the structured context dict.
+#   2. Caller passes that + the question to `get_multi_chart_prediction_stream()`.
+#   3. This function loads the multi-chart KB + the relevant per-topic KB,
+#      builds the system prompt, formats per-chart compact summaries,
+#      streams the response.
+#
+
+def _load_multi_chart_kb() -> str:
+    """Load the multi-chart KB (kp_knowledge/multi_chart_analysis.md).
+
+    Cached in-memory after first read (same pattern as `_load_kb`).
+    The KB is ~12K tokens; loading once + caching is well worth the
+    saved I/O per request.
+    """
+    return _load_kb("multi_chart_analysis")
+
+
+def _build_multi_chart_system_prompt(
+    multi_context: dict,
+    language: str,
+) -> str:
+    """Build the NEW system prompt for multi-chart analysis.
+
+    Composes:
+      - The multi-chart KB (doctrinal source)
+      - The relevant per-topic KB (existing per-topic depth — same files
+        the single-chart Analysis tab uses, BUT we load the topic KB
+        based on the multi-chart context's topic, not a chat-typed topic)
+      - Instructions for combining per-chart verdicts using the playbook's
+        combination rule
+      - Output format scaffolding (per multi-chart KB §7.1)
+    """
+    multi_kb = _load_multi_chart_kb()
+    topic = multi_context.get("topic") or "general"
+    playbook = multi_context.get("playbook") or "general_compat"
+    rule = multi_context.get("combination_rule") or "synastry"
+    focus_houses = multi_context.get("focus_houses") or []
+    karakas = multi_context.get("karakas") or []
+    chart_count = multi_context.get("chart_count", 0)
+    chart_labels = multi_context.get("chart_labels") or []
+
+    # Load the relevant per-topic KB (reuses existing _load_kb + TOPIC_TO_FILE
+    # mapping; sacred — no modifications to those KBs).
+    topic_file = TOPIC_TO_FILE.get(topic, "general.txt").replace(".txt", "").replace(".md", "")
+    topic_kb = _load_kb(topic_file) or ""
+
+    # Universal KB block — DO NOT INCLUDE.  The multi-chart KB is the
+    # sole canonical source for combination logic; universal KB would
+    # bloat tokens and pull in single-chart prompt assumptions that
+    # don't apply.  Per-topic KB is loaded above for per-chart depth.
+
+    lang_directive = ""
+    if (language or "").startswith("te"):
+        lang_directive = """
+LANGUAGE: Write the final ANSWER + CLIENT SUMMARY sections in Telugu
+script mixed with English KP terms (Sub Lord, CSL, H7, etc.).
+Per-chart verdict labels (PROMISED/CONDITIONAL/DENIED) stay in English
+so they're scannable.  Use ONLY Telugu Unicode (U+0C00-U+0C7F),
+never Devanagari or any other script.
+"""
+
+    rule_directive = ""
+    if rule == "or":
+        rule_directive = (
+            "Apply the **OR-rule (Promise)** from KB §3.1: the event is "
+            "PROMISED if EITHER chart strongly signifies the event's "
+            "house group AND running dasha lord in EITHER chart is a "
+            "strong significator.  Used for shared aspirations "
+            "(both parties want the event)."
+        )
+    elif rule == "and":
+        rule_directive = (
+            "Apply the **AND-rule (Denial)** from KB §3.1: the event is "
+            "FULLY DENIED only if BOTH charts deny independently.  If "
+            "only one chart denies, the event is CONDITIONAL.  Used "
+            "for separation / exit / dispute resolution questions."
+        )
+    elif rule == "synastry":
+        rule_directive = (
+            "Apply the **Synastry-overlay rule** from KB §3.1: check "
+            "whether one chart's key planets fall in the OTHER chart's "
+            "relevant houses (Mercury for communication, Saturn for "
+            "stability, Jupiter for trust, Venus for harmony, Sun for "
+            "leadership, Moon for emotional comfort).  Used for "
+            "partnership / cooperation / compatibility questions."
+        )
+    elif rule == "or_with_match_redirect":
+        rule_directive = (
+            "Apply the **OR-rule (Promise)** for marriage questions, "
+            "BUT also note that the dedicated Match endpoint "
+            "(/compatibility/match) provides the precise 36-guna + "
+            "KP H7 sub-lord + D9 navamsha + Mangalik + joint precision "
+            "windows analysis.  Per KB §5.2, when the question is "
+            "specifically about marriage between two named people, "
+            "give a brief reading via OR-rule and recommend the user "
+            "open the dedicated Match tab for the full structured "
+            "worksheet."
+        )
+
+    # ─── Compose prompt ──────────────────────────────────────────────
+    return f"""You are a KP (Krishnamurti Paddhati) astrologer analyzing
+MULTIPLE charts simultaneously.
+
+═══════════════════════════════════════════════════════════════
+MULTI-CHART ANALYSIS KNOWLEDGE BASE (SOLE DOCTRINAL SOURCE)
+═══════════════════════════════════════════════════════════════
+{multi_kb}
+
+═══════════════════════════════════════════════════════════════
+PER-TOPIC KP DOCTRINE — {topic.upper()}
+═══════════════════════════════════════════════════════════════
+{topic_kb}
+
+═══════════════════════════════════════════════════════════════
+THIS REQUEST
+═══════════════════════════════════════════════════════════════
+Number of charts in this conversation: {chart_count}
+Charts: {", ".join(chart_labels)}
+Detected topic: {topic}
+Playbook (KB §5): {playbook}
+Combination rule (KB §3): {rule}
+Focus houses for this event: {focus_houses}
+Relevant karakas: {karakas}
+
+{rule_directive}
+
+═══════════════════════════════════════════════════════════════
+OUTPUT FORMAT (per KB §7.1)
+═══════════════════════════════════════════════════════════════
+Follow the 8-section template:
+  1. QUESTION INTERPRETATION
+  2. PER-CHART VERDICTS (one per chart, label them by chart label)
+  3. CROSS-CHART OVERLAY (when synastry is the rule)
+  4. COMBINED VERDICT (apply the rule, state final verdict + confidence)
+  5. TIMING (best window, avoid window, falsifiable check date)
+  6. RECOMMENDED ACTION (concrete steps; pathway)
+  7. CAVEATS / ALTERNATIVE READS (incl. Bhavat Bhavam confidence if any)
+  8. CLIENT SUMMARY (2-3 sentence plain-language wrap-up)
+
+Confidence (per KB §7.2): start at 95, subtract per the rule, floor 30.
+Cite the KB sections you use (e.g., "per KB §5.1 fertility playbook").
+
+Anti-patterns (KB §8):
+  - Never blend charts at data level
+  - Never apply Parashari doshas across charts
+  - Never invent compatibility scores
+  - Never predict death timing (RULE 15)
+  - Never predict specific named entities
+  - Never combine unrelated parties (skip irrelevant charts; say so)
+  - Never simulate a chart that's not provided
+{lang_directive}
+"""
+
+
+def _build_multi_chart_user_message(
+    multi_context: dict,
+    question: str,
+) -> str:
+    """Build the user message block — per-chart summaries + the question."""
+    per_chart = multi_context.get("per_chart") or []
+    rp_meta = multi_context.get("rp_meta") or {}
+    ruling_planets = multi_context.get("ruling_planets") or {}
+
+    parts: list[str] = []
+    parts.append("═══════════════════════════════════════════════")
+    parts.append("PER-CHART COMPACT SUMMARIES")
+    parts.append("═══════════════════════════════════════════════")
+    parts.extend(per_chart)
+
+    parts.append("")
+    parts.append("═══════════════════════════════════════════════")
+    parts.append("RULING PLANETS AT MOMENT OF QUERY")
+    parts.append("═══════════════════════════════════════════════")
+    parts.append(
+        f"Location: lat {rp_meta.get('lat')}, lon {rp_meta.get('lon')} "
+        f"({rp_meta.get('tz_name') or '?'}, UTC{rp_meta.get('tz_offset', '?'):+}) "
+        f"· source={rp_meta.get('source', '?')} "
+        f"· computed_at_local={rp_meta.get('computed_at_local', '?')}"
+    )
+    # Quote the 7-slot RP list verbatim from the engine.
+    rp_ctx = ruling_planets.get("rp_context", {}) or {}
+    slot_assignments = rp_ctx.get("slot_assignments", []) or []
+    if slot_assignments:
+        parts.append("7-slot Ruling Planets (per engine — quote verbatim):")
+        for slot in slot_assignments:
+            parts.append(f"  {slot.get('slot', '—')}: {slot.get('planet', '—')}")
+        all_rps = ruling_planets.get("ruling_planets", []) or []
+        if all_rps:
+            parts.append(f"All RPs (de-duplicated): {', '.join(all_rps)}")
+        strongest = rp_ctx.get("strongest", []) or []
+        if strongest:
+            parts.append(f"Strongest RPs (in 2+ slots): {', '.join(strongest)}")
+
+    parts.append("")
+    parts.append("═══════════════════════════════════════════════")
+    parts.append("ASTROLOGER'S QUESTION")
+    parts.append("═══════════════════════════════════════════════")
+    parts.append(question)
+    parts.append("")
+    parts.append("Analyze each chart in the focus houses, apply the "
+                 "combination rule per the KB, and produce the 8-section "
+                 "structured worksheet.")
+
+    return "\n".join(parts)
+
+
+def get_multi_chart_prediction(
+    multi_context: dict,
+    question: str,
+    history: list | None = None,
+    language: str = "telugu_english",
+) -> str:
+    """NON-streaming multi-chart prediction.  Synchronous; returns text.
+
+    Used by `/astrologer/multi-analyze` (non-streaming endpoint).
+    Mirrors `get_match_prediction` shape but loads the multi-chart KB
+    + per-topic KB instead of the marriage prompt stack.
+    """
+    history = history or []
+    system_prompt = _build_multi_chart_system_prompt(multi_context, language)
+    user_msg = _build_multi_chart_user_message(multi_context, question)
+
+    messages: list[dict] = []
+    # Replay history (compact — only question/answer text, no chart re-embed)
+    for h in history[-6:]:  # cap window — multi-chart can rack history quickly
+        q = h.get("question", "") if isinstance(h, dict) else ""
+        a = h.get("answer", "") if isinstance(h, dict) else ""
+        if q:
+            messages.append({"role": "user", "content": q})
+        if a:
+            messages.append({"role": "assistant", "content": a})
+    messages.append({"role": "user", "content": user_msg})
+
+    # Cache controls — system prompt is large + stable per request;
+    # mark it for ephemeral 1h cache so follow-up turns hit the cache.
+    system_blocks = [
+        {
+            "type": "text",
+            "text": system_prompt,
+            "cache_control": {"type": "ephemeral", "ttl": "1h"},
+        }
+    ]
+
+    # Cost-optimization arc — opt-in cache diagnostics (Smart-Routing-1.1 era).
+    from . import cache_diag as _diag
+    _ck_labels = "_".join(multi_context.get("chart_labels") or [])[:120]
+    _diag_key = _diag.session_key(
+        endpoint="llm.get_multi_chart_prediction",
+        chart_hash=_ck_labels,
+        topic=multi_context.get("topic"),
+        mode="multi_chart",
+        lang=language,
+    )
+    _diag_prev = _diag.get_prev_id(_diag_key)
+    _diag_kwargs = _diag.build_call_kwargs(_diag_prev)
+    _diag_reason, _diag_missed = None, 0
+
+    message = None
+    if _diag.is_enabled() and _diag_kwargs:
+        try:
+            message = client.beta.messages.create(
+                model="claude-sonnet-4-6",
+                max_tokens=6000,
+                temperature=0,
+                system=system_blocks,
+                messages=messages,
+                **_diag_kwargs,
+            )
+            _diag_reason, _diag_missed = _diag.extract(message)
+            _diag.set_prev_id(_diag_key, getattr(message, "id", None))
+        except Exception:
+            message = None
+    if message is None:
+        message = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=6000,
+            temperature=0,
+            system=system_blocks,
+            messages=messages,
+        )
+
+    log_anthropic_call(
+        endpoint="llm.get_multi_chart_prediction",
+        model="claude-sonnet-4-6",
+        mode="multi_chart",
+        usage=getattr(message, "usage", None),
+        note=f"playbook={multi_context.get('playbook')} rule={multi_context.get('combination_rule')} charts={multi_context.get('chart_count')}",
+        diag_reason=_diag_reason,
+        diag_missed_tokens=_diag_missed,
+    )
+    return message.content[0].text
+
+
+async def get_multi_chart_prediction_stream(
+    multi_context: dict,
+    question: str,
+    history: list | None = None,
+    language: str = "telugu_english",
+):
+    """Streaming multi-chart prediction.  Async generator yielding text chunks.
+
+    Used by `/astrologer/multi-analyze-stream` SSE endpoint.
+    Mirrors `get_prediction_stream` shape but uses the NEW
+    `_build_multi_chart_system_prompt` and per-chart compact format.
+    """
+    history = history or []
+    system_prompt = _build_multi_chart_system_prompt(multi_context, language)
+    user_msg = _build_multi_chart_user_message(multi_context, question)
+
+    messages: list[dict] = []
+    for h in history[-6:]:
+        q = h.get("question", "") if isinstance(h, dict) else ""
+        a = h.get("answer", "") if isinstance(h, dict) else ""
+        if q:
+            messages.append({"role": "user", "content": q})
+        if a:
+            messages.append({"role": "assistant", "content": a})
+    messages.append({"role": "user", "content": user_msg})
+
+    system_blocks = [
+        {
+            "type": "text",
+            "text": system_prompt,
+            "cache_control": {"type": "ephemeral", "ttl": "1h"},
+        }
+    ]
+
+    from . import cache_diag as _diag
+    _ck_labels = "_".join(multi_context.get("chart_labels") or [])[:120]
+    _diag_key = _diag.session_key(
+        endpoint="llm.get_multi_chart_prediction_stream",
+        chart_hash=_ck_labels,
+        topic=multi_context.get("topic"),
+        mode="multi_chart",
+        lang=language,
+    )
+    _diag_prev = _diag.get_prev_id(_diag_key)
+    _diag_kwargs = _diag.build_call_kwargs(_diag_prev)
+    _diag_reason, _diag_missed = None, 0
+
+    accumulated: list[str] = []
+    final_message = None
+    _stream_cm = None
+    if _diag.is_enabled() and _diag_kwargs:
+        try:
+            _stream_cm = async_client.beta.messages.stream(
+                model="claude-sonnet-4-6",
+                max_tokens=6000,
+                temperature=0,
+                system=system_blocks,
+                messages=messages,
+                **_diag_kwargs,
+            )
+        except Exception:
+            _stream_cm = None
+    if _stream_cm is None:
+        _stream_cm = async_client.messages.stream(
+            model="claude-sonnet-4-6",
+            max_tokens=6000,
+            temperature=0,
+            system=system_blocks,
+            messages=messages,
+        )
+
+    async with _stream_cm as stream:
+        async for text in stream.text_stream:
+            accumulated.append(text)
+            yield text
+        try:
+            final_message = await stream.get_final_message()
+        except Exception:
+            final_message = None
+    if final_message is not None:
+        _diag_reason, _diag_missed = _diag.extract(final_message)
+        _diag.set_prev_id(_diag_key, getattr(final_message, "id", None))
+
+    log_anthropic_call(
+        endpoint="llm.get_multi_chart_prediction_stream",
+        model="claude-sonnet-4-6",
+        mode="multi_chart",
+        usage=getattr(final_message, "usage", None) if final_message else None,
+        note=f"playbook={multi_context.get('playbook')} rule={multi_context.get('combination_rule')} charts={multi_context.get('chart_count')}",
+        diag_reason=_diag_reason,
+        diag_missed_tokens=_diag_missed,
+    )
