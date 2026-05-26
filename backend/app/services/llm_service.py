@@ -2873,7 +2873,36 @@ def resolve_effective_topic(topic: str | None, question: str) -> str:
     return detect_topic(question)
 
 
+# Smart-Routing-1.1 (May 2026) — in-process LRU cache for detect_topic.
+#
+# In production we saw the SAME question string trigger 2 back-to-back
+# Haiku detect_topic calls within a single user-facing request:
+#   1) router/astrologer.py `resolve_effective_topic()` calls detect_topic
+#      to upgrade frontend-sent "general"/"auto" into a concrete topic
+#   2) llm_service.py Phase 13.5 topic-switch detection calls detect_topic
+#      again on the SAME question to check if it differs from the now-
+#      passed topic (it doesn't — same question, same detection).
+#
+# Each call is ~$0.002 of Haiku + ~600ms latency.  At current free-form
+# typed-question volume this stacks up.  An in-process LRU keyed on the
+# verbatim question string short-circuits the second call to a dict
+# lookup — same answer, $0 cost, microseconds latency.
+#
+# Cache lifetime is the process lifetime (Railway restarts clear it),
+# which is fine because the only thing being cached is a deterministic
+# classification of "what topic does this question text belong to".
+# No PII risk beyond what's already in audit logs.
+from collections import OrderedDict as _OrderedDict
+_DETECT_TOPIC_CACHE: "_OrderedDict[str, str]" = _OrderedDict()
+_DETECT_TOPIC_CACHE_MAX = 512  # ~50 KB upper bound; LRU evicts past this.
+
+
 def detect_topic(question: str) -> str:
+    # Smart-Routing-1.1 (May 2026) — LRU dedupe on identical question text.
+    _q_key = (question or "").strip()
+    if _q_key and _q_key in _DETECT_TOPIC_CACHE:
+        _DETECT_TOPIC_CACHE.move_to_end(_q_key)
+        return _DETECT_TOPIC_CACHE[_q_key]
     # PR A1.3-fix-10 (#7) — list expanded to match TOPIC_TO_FILE.
     # PR A2.0b — added 18 new categories (business cluster, money_recovery cluster,
     # specific career states, second_marriage, hospitalization, etc.) that were
@@ -3043,7 +3072,7 @@ Reply with ONLY the single topic word."""
         detected = message.content[0].text.strip().lower().split()[0]
         # PR A1.3-fix-10 (#7) — synced with TOPIC_TO_FILE (full set).
         valid = list(TOPIC_TO_FILE.keys())
-        return detected if detected in valid else _keyword_fallback(question)
+        _result = detected if detected in valid else _keyword_fallback(question)
     except Exception as e:
         # PR A1.3-fix-24 — was bare `except:` which also catches
         # KeyboardInterrupt/SystemExit. Restrict to Exception + log so
@@ -3053,7 +3082,18 @@ Reply with ONLY the single topic word."""
         logging.getLogger("llm_service").warning(
             "detect_topic Haiku call failed: %s — falling back to keyword heuristic", e
         )
-        return _keyword_fallback(question)
+        _result = _keyword_fallback(question)
+    # Smart-Routing-1.1 (May 2026) — cache the result so a second
+    # detect_topic on the same question text (e.g. router's
+    # resolve_effective_topic + engine's Phase 13.5 topic-switch check)
+    # returns instantly without re-firing a Haiku call.  See module-
+    # level _DETECT_TOPIC_CACHE comment block for the full rationale.
+    if _q_key:
+        _DETECT_TOPIC_CACHE[_q_key] = _result
+        _DETECT_TOPIC_CACHE.move_to_end(_q_key)
+        while len(_DETECT_TOPIC_CACHE) > _DETECT_TOPIC_CACHE_MAX:
+            _DETECT_TOPIC_CACHE.popitem(last=False)
+    return _result
 
 
 def _keyword_fallback(question: str) -> str:

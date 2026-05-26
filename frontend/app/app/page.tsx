@@ -1995,12 +1995,14 @@ export default function Home() {
             user-typed question.  Hover a tick → tooltip shows the first
             ~80 chars of that question.  Click → smooth-scrolls to that
             message via scrollIntoView (the `id={chat-msg-${idx}}` is set
-            on each message wrapper above).  When the chat is short (1-2
-            messages) the index is harmless — when it grows past one
-            screen, it becomes the fast-jump table of contents the
-            astrologer asked for.  Hidden in full-screen "isMax" mode
-            so the read view stays clean. */}
-        {!isMax && analysisMessages.length > 1 && (
+            on each message wrapper above).
+            Update (May 2026 post-test): rendered in BOTH compact and
+            full-screen (isMax) modes — astrologer asked for the index
+            to follow them across both layouts so they can navigate
+            long conversations from either view.  Only suppressed when
+            the conversation has 0-1 messages (no navigation needed
+            then anyway). */}
+        {analysisMessages.length > 1 && (
           <div
             aria-label="Chat questions index"
             style={{
@@ -3740,6 +3742,20 @@ export default function Home() {
           savedSessions={savedSessions}
           onSwitchSession={handleSwitchSession}
           astrologerMode={true}
+          // Trust-2 (May 2026) — "YOUR LOCATION" pill pinned next to PDF.
+          // page.tsx mounts PersonHeroBanner in TWO places (user-mode
+          // path at ~L3278 + astrologer-mode path here at ~L3710); the
+          // slot prop must be passed in BOTH or the pill silently
+          // disappears in whichever path the user is currently on.
+          liveLocSlot={
+            <LiveLocationPill
+              location={liveLoc.location}
+              status={liveLoc.status}
+              error={liveLoc.error}
+              onOverride={liveLoc.override}
+              onRefresh={liveLoc.refresh}
+            />
+          }
         />
 
         {/* Browser-style Client Tabs Strip */}
