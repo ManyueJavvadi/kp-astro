@@ -1219,6 +1219,87 @@ export default function Home() {
     }
   };
 
+  // PR MultiChart-Phase-5 — smart routing helper.
+  //
+  // Mirrors streamAstrologerAnalysis but talks to /astrologer/analyze-stream
+  // using a SPECIFIC ChartSession's birth data, NOT the current workspaceData.
+  // This is the entry point for "@-mention narrows scope to one chart"
+  // routing: inside a multi-chart conversation, if the user @-mentions
+  // exactly ONE chart, we run the goated single-chart engine for THAT
+  // chart's birth data, regardless of which chart is currently primary.
+  const streamAstrologerAnalysisForSession = async (
+    session: ChartSession,
+    topic: string,
+    question: string,
+    history: { question: string; answer: string }[],
+    questionType: "full_topic" | "sub_question" | "auto" = "sub_question",
+    targetId?: string,
+  ): Promise<boolean> => {
+    // Reuse the canonical session→API converter so date/time/timezone
+    // conventions match exactly what single-chart analysis uses.
+    const apiBd = sessionToApiPerson(session);
+    analyzeStreamAbortRef.current?.abort();
+    const ac = new AbortController();
+    analyzeStreamAbortRef.current = ac;
+    let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+    try {
+      recordAiCall(`astrologer.analyze-stream:scoped:${topic}`);
+      const response = await fetch(`${API_URL}/astrologer/analyze-stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...apiBd,
+          topic, question, history, language: backendLang(),
+          question_type: questionType,
+          live_latitude: liveLoc.location?.latitude ?? null,
+          live_longitude: liveLoc.location?.longitude ?? null,
+          live_timezone_offset: liveLoc.location?.timezone_offset ?? null,
+        }),
+        signal: ac.signal,
+      });
+      if (!response.ok || !response.body) return false;
+      reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let nlIdx;
+        while ((nlIdx = buffer.indexOf("\n\n")) !== -1) {
+          const frame = buffer.slice(0, nlIdx);
+          buffer = buffer.slice(nlIdx + 2);
+          const lines = frame.split("\n");
+          let evtName = "message";
+          let dataStr = "";
+          for (const ln of lines) {
+            if (ln.startsWith("event:")) evtName = ln.slice(6).trim();
+            else if (ln.startsWith("data:")) dataStr += ln.slice(5).trim();
+          }
+          if (!dataStr) continue;
+          try {
+            const data = JSON.parse(dataStr);
+            if (evtName === "chunk" && typeof data.text === "string") {
+              setAnalysisMessages(prev => prev.map((m, i) => {
+                const isTarget = targetId ? m.id === targetId : i === prev.length - 1;
+                return isTarget ? { ...m, a: m.a + data.text } : m;
+              }));
+            } else if (evtName === "error") {
+              return false;
+            }
+          } catch { /* malformed SSE frame */ }
+        }
+      }
+      return true;
+    } catch (err) {
+      const isAbort = err instanceof DOMException && err.name === "AbortError";
+      return isAbort ? true : false;
+    } finally {
+      try { await reader?.cancel(); } catch { /* ignore */ }
+      if (analyzeStreamAbortRef.current === ac) analyzeStreamAbortRef.current = null;
+    }
+  };
+
   const handleTopicAnalysis = async (topic: string) => {
     if (!workspaceData) return;
     setActiveTopic(topic); setAnalysisLoading(true); setActiveTab("analysis");
@@ -1353,14 +1434,59 @@ export default function Home() {
       : `chat-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     setAnalysisMessages(prev => [...prev, { id: targetId, q, a: "", t: Date.now() }]);
 
-    // ── Multi-chart routing (PR MultiChart-Phase-3) ──────────────
-    // When ≥ 1 chart is pinned in chartsInContext, the workspace's
-    // primary chart + the pinned chart(s) go to the multi-chart
-    // endpoint.  Otherwise, fall through to the existing single-chart
-    // flow unchanged.
+    // ── Multi-chart routing (PR MultiChart-Phase-3 + Phase 5 scope) ──
+    // PHASE 5 SMART ROUTING:
+    // We now detect EXPLICIT @-mentions in the question and narrow the
+    // scope accordingly:
+    //   - No @-mention OR multiple @-mentions → all pinned charts → multi-chart
+    //   - Exactly ONE @-mention matching the primary or a pinned chart
+    //     → SINGLE chart only → route to GOATED single-chart engine,
+    //     regardless of how many charts are pinned in context
+    // This means mid-multi-chart conversations can ask "@manyue tell me
+    // about his career" and get the goated single-chart Analysis-tab-
+    // grade answer for JUST Manyue.
     let ok: boolean;
     const primary = workspaceData ? snapshotCurrentSession() : null;
-    if (chartsInContext.length > 0 && primary) {
+
+    // Detect explicit @-mentions (Option A — strict; only narrow scope
+    // on explicit user signal, never narrow via heuristic).
+    const mentionedNames: string[] = [];
+    const allKnownNames = [
+      ...(primary ? [primary.birthDetails?.name || ""] : []),
+      ...chartsInContext.map(c => c.birthDetails?.name || ""),
+    ].filter(n => n.length > 0);
+    const lowerQ = q.toLowerCase();
+    for (const name of allKnownNames) {
+      const at = `@${name.toLowerCase()}`;
+      if (lowerQ.includes(at) && !mentionedNames.includes(name)) {
+        mentionedNames.push(name);
+      }
+    }
+
+    // Resolve scope from mentions.
+    const scopeIsSingle = mentionedNames.length === 1;
+    const singleTarget = scopeIsSingle
+      ? (primary?.birthDetails?.name === mentionedNames[0]
+          ? primary
+          : chartsInContext.find(c => c.birthDetails?.name === mentionedNames[0]) || null)
+      : null;
+
+    if (singleTarget && scopeIsSingle) {
+      // SINGLE-CHART scope (Phase 5 smart routing) — even inside a
+      // multi-chart conversation.  Route to the goated single-chart
+      // Analysis engine for the @-mentioned chart only.
+      // We temporarily swap workspaceData if the @-mentioned chart
+      // isn't the primary; otherwise just run as-is.
+      ok = await streamAstrologerAnalysisForSession(
+        singleTarget,
+        activeTopic || "general",
+        q,
+        history,
+        "sub_question",
+        targetId,
+      );
+    } else if (chartsInContext.length > 0 && primary) {
+      // MULTI-CHART scope (existing routing).
       ok = await streamMultiChartAnalysis(
         primary,
         chartsInContext,
@@ -1369,6 +1495,7 @@ export default function Home() {
         targetId,
       );
     } else {
+      // SINGLE-CHART default (no pinned charts) — existing path.
       ok = await streamAstrologerAnalysis(
         activeTopic || "general",
         q,
