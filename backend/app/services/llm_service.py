@@ -6066,90 +6066,138 @@ def _build_multi_chart_system_prompt(
     multi_context: dict,
     language: str,
 ) -> str:
-    """Build the NEW system prompt for multi-chart analysis.
+    """Build the multi-chart system prompt (PR MultiChart-Phase-5).
 
-    Composes:
-      - The multi-chart KB (doctrinal source)
-      - The relevant per-topic KB (existing per-topic depth — same files
-        the single-chart Analysis tab uses, BUT we load the topic KB
-        based on the multi-chart context's topic, not a chat-typed topic)
-      - Instructions for combining per-chart verdicts using the playbook's
-        combination rule
-      - Output format scaffolding (per multi-chart KB §7.1)
+    KEY ARCHITECTURAL CHANGE FROM PHASE 4:
+
+    We now INHERIT the sacred single-chart system prompt verbatim via
+    `get_system_prompt()` — this gives multi-chart the EXACT same 24+
+    numbered RULES (5-tier verdict, Star-Sub Harmony, engine-emit-then-
+    quote, Rahu/Ketu proxy, ownership verification, etc.) that took
+    months to tune for single-chart Analysis quality.
+
+    Then we APPEND multi-chart-only extensions (MC1-MC10) that govern
+    the cross-chart layer: how to combine per-chart verdicts, how to
+    quote cross-chart engine primitives, joint-dasha timing rule,
+    confidence calculus, forbidden patterns, verification checklist.
+
+    Composition (top to bottom):
+      1. get_system_prompt() — sacred single-chart base (per-chart
+         depth comes from this; the 24+ RULES apply PER CHART)
+      2. Universal KB (already in get_system_prompt's loaded chain)
+      3. Per-topic KB (loaded fresh; same file single-chart loads)
+      4. Multi-chart KB v2 (NEW Phase 5 doctrine for cross-chart)
+      5. THIS REQUEST block (chart count + topic + playbook + rule + focus)
+      6. MC1-MC10 extensions (the discipline rules for the cross-chart
+         layer — equal rigor to single-chart's RULE 1-24)
+      7. Output template (8 sections) + verification checklist
+      8. Language directive (te/en/te_en)
     """
     multi_kb = _load_multi_chart_kb()
     topic = multi_context.get("topic") or "general"
     playbook = multi_context.get("playbook") or "general_compat"
     rule = multi_context.get("combination_rule") or "synastry"
     focus_houses = multi_context.get("focus_houses") or []
+    denial_houses = multi_context.get("denial_houses") or []
     karakas = multi_context.get("karakas") or []
+    relative_type = multi_context.get("relative_type")
     chart_count = multi_context.get("chart_count", 0)
     chart_labels = multi_context.get("chart_labels") or []
 
-    # Load the relevant per-topic KB (reuses existing _load_kb + TOPIC_TO_FILE
-    # mapping; sacred — no modifications to those KBs).
+    # Load the relevant per-topic KB (sacred — same files single-chart loads).
     topic_file = TOPIC_TO_FILE.get(topic, "general.txt").replace(".txt", "").replace(".md", "")
     topic_kb = _load_kb(topic_file) or ""
 
-    # Universal KB block — DO NOT INCLUDE.  The multi-chart KB is the
-    # sole canonical source for combination logic; universal KB would
-    # bloat tokens and pull in single-chart prompt assumptions that
-    # don't apply.  Per-topic KB is loaded above for per-chart depth.
+    # ── 1. Inherit the SACRED single-chart system prompt ─────────────
+    # This brings in: 24+ numbered RULES, Universal KB, output discipline,
+    # Star-Sub harmony, A/B/C/D significator levels, joint-period
+    # fructification, Bhukti-level precision, anti-Parashari guards,
+    # ownership verification, planet-position verification, the entire
+    # single-chart KSK discipline.  Applied PER CHART in multi-chart mode.
+    sacred_base = get_system_prompt()
 
+    # ── 2. Language directive ────────────────────────────────────────
     lang_directive = ""
-    if (language or "").startswith("te"):
+    lang_low = (language or "").lower()
+    if lang_low.startswith("te"):
         lang_directive = """
-LANGUAGE: Write the final ANSWER + CLIENT SUMMARY sections in Telugu
-script mixed with English KP terms (Sub Lord, CSL, H7, etc.).
-Per-chart verdict labels (PROMISED/CONDITIONAL/DENIED) stay in English
-so they're scannable.  Use ONLY Telugu Unicode (U+0C00-U+0C7F),
-never Devanagari or any other script.
+LANGUAGE: Final ANSWER + CLIENT SUMMARY in Telugu script mixed with
+English KP terms (Sub Lord, CSL, H7, etc.).  Per-chart verdict labels
+(PROMISED / CONDITIONAL / DENIED) stay in English so they're scannable.
+Use ONLY Telugu Unicode (U+0C00-U+0C7F), never Devanagari.
 """
 
-    rule_directive = ""
-    if rule == "or":
-        rule_directive = (
-            "Apply the **OR-rule (Promise)** from KB §3.1: the event is "
-            "PROMISED if EITHER chart strongly signifies the event's "
-            "house group AND running dasha lord in EITHER chart is a "
-            "strong significator.  Used for shared aspirations "
-            "(both parties want the event)."
+    # ── 3. Combination rule directive ────────────────────────────────
+    rule_directive_text = ""
+    if rule == "or" or rule == "or_with_match_redirect":
+        rule_directive_text = (
+            "OR-Promise rule: event PROMISED if (any chart PROMISED OR "
+            "any chart STRONGLY PROMISED) AND a joint dasha window exists. "
+            "If any chart is CONDITIONAL with joint window present → "
+            "CONDITIONAL-POSITIVE.  See MC3 below for mechanical formula."
         )
     elif rule == "and":
-        rule_directive = (
-            "Apply the **AND-rule (Denial)** from KB §3.1: the event is "
-            "FULLY DENIED only if BOTH charts deny independently.  If "
-            "only one chart denies, the event is CONDITIONAL.  Used "
-            "for separation / exit / dispute resolution questions."
+        rule_directive_text = (
+            "AND-Denial rule: event DENIED only if ALL N charts DENIED.  "
+            "If only some deny → CONDITIONAL.  Used for separation, "
+            "exit, dispute resolution.  See MC3."
         )
     elif rule == "synastry":
-        rule_directive = (
-            "Apply the **Synastry-overlay rule** from KB §3.1: check "
-            "whether one chart's key planets fall in the OTHER chart's "
-            "relevant houses (Mercury for communication, Saturn for "
-            "stability, Jupiter for trust, Venus for harmony, Sun for "
-            "leadership, Moon for emotional comfort).  Used for "
-            "partnership / cooperation / compatibility questions."
-        )
-    elif rule == "or_with_match_redirect":
-        rule_directive = (
-            "Apply the **OR-rule (Promise)** for marriage questions, "
-            "BUT also note that the dedicated Match endpoint "
-            "(/compatibility/match) provides the precise 36-guna + "
-            "KP H7 sub-lord + D9 navamsha + Mangalik + joint precision "
-            "windows analysis.  Per KB §5.2, when the question is "
-            "specifically about marriage between two named people, "
-            "give a brief reading via OR-rule and recommend the user "
-            "open the dedicated Match tab for the full structured "
-            "worksheet."
+        rule_directive_text = (
+            "Synastry-Overlay rule: assess fit via cross-chart planet "
+            "placements (Mercury/Saturn/Jupiter/Venus/Sun/Moon falling "
+            "in counterpart's relevant houses).  Engine emits "
+            "SYNASTRY OVERLAY MATRIX — count positive vs friction "
+            "overlays.  See MC3 for STRONG-FIT / WORKABLE / FRICTION / "
+            "INCOMPATIBLE thresholds."
         )
 
-    # ─── Compose prompt ──────────────────────────────────────────────
-    return f"""You are a KP (Krishnamurti Paddhati) astrologer analyzing
-MULTIPLE charts simultaneously.
+    if rule == "or_with_match_redirect":
+        rule_directive_text += (
+            "\n\nADDITIONAL: the dedicated Match endpoint "
+            "(/compatibility/match) provides precise 36-guna + KP H7 "
+            "sub-lord + D9 navamsha + joint precision windows.  When "
+            "the question is SPECIFICALLY marriage compatibility "
+            "between two named people, give a focused OR-rule reading "
+            "and recommend opening the Match tab for the full worksheet."
+        )
+
+    relative_directive = ""
+    if relative_type:
+        relative_directive = (
+            f"\n\nBHAVAT BHAVAM CROSS-VALIDATION: relative_type = '{relative_type}'. "
+            f"If the relative's natal chart is among the supplied charts, "
+            f"the cross-chart engine emits a BHAVAT BHAVAM CROSS-VALIDATION "
+            f"block under ⑤ in the primitives.  Cite both the rotated-frame "
+            f"verdict (from the questioner's chart) and the natal verdict "
+            f"(from the relative's chart).  Per MC6 — never silently pick one."
+        )
+
+    # ── 4. Compose the full prompt ───────────────────────────────────
+    return f"""{sacred_base}
 
 ═══════════════════════════════════════════════════════════════
-MULTI-CHART ANALYSIS KNOWLEDGE BASE (SOLE DOCTRINAL SOURCE)
+MULTI-CHART ANALYSIS MODE — PHASE 5 EXTENSIONS (MC1-MC10)
+═══════════════════════════════════════════════════════════════
+
+You are now analyzing {chart_count} chart(s) SIMULTANEOUSLY for a
+cross-person question.  The single-chart RULES 1-24 above STILL APPLY
+PER CHART — every per-chart verdict in Section 2 of your output
+must be at single-chart depth and discipline.  Below are the
+ADDITIONAL rules (MC1-MC10) that govern the cross-chart layer.
+
+Charts in conversation: {", ".join(chart_labels) if chart_labels else "—"}
+Detected topic: {topic}
+Playbook: {playbook}
+Combination rule: {rule}
+Focus houses for this event: {focus_houses}
+Denial houses for this event: {denial_houses}
+Relevant karakas: {karakas}
+
+{rule_directive_text}{relative_directive}
+
+═══════════════════════════════════════════════════════════════
+MULTI-CHART KP DOCTRINE (KB v2 — sole multi-chart doctrinal source)
 ═══════════════════════════════════════════════════════════════
 {multi_kb}
 
@@ -6159,94 +6207,228 @@ PER-TOPIC KP DOCTRINE — {topic.upper()}
 {topic_kb}
 
 ═══════════════════════════════════════════════════════════════
-THIS REQUEST
+MC1-MC10 — MULTI-CHART DISCIPLINE RULES (equal rigor to RULES 1-24)
 ═══════════════════════════════════════════════════════════════
-Number of charts in this conversation: {chart_count}
-Charts: {", ".join(chart_labels)}
-Detected topic: {topic}
-Playbook (KB §5): {playbook}
-Combination rule (KB §3): {rule}
-Focus houses for this event: {focus_houses}
-Relevant karakas: {karakas}
 
-{rule_directive}
+MC1 — SINGLE-CHART DISCIPLINE APPLIES PER CHART
+Every PER-CHART VERDICT in Section 2 must follow single-chart RULES
+1-24 verbatim:
+  - 5-tier verdict scale (RULE 5) per chart
+  - Star-Sub Harmony (RULE 16) named per chart: HARMONY / ALIGNED /
+    TENSION / CONTRA / DENIED
+  - Engine PLANET OWNERSHIP block (RULE 10) literally quoted per chart
+    on first use (e.g., "Per Pavithra's chart data: Venus owns H7, H12.")
+  - Pattern naming (RULE 19) per chart: cite M1/C2/J3/T1 patterns
+    AS THEY FIRE in each chart
+  - Conflicting-signals panel (fix-10 #5) when any chart shows
+    TENSION/CONTRA/MIXED
+
+If per-chart depth feels thinner here than a single-chart Analysis
+tab answer, STOP and re-do at full depth.  Multi-chart is depth × N,
+NOT summary × N.  The reader paid for ceiling-grade analysis per
+chart and the cross-chart layer on top.
+
+MC2 — CROSS-CHART FACTS COME FROM ENGINE PRIMITIVES ONLY
+The user message below contains 7 cross-chart engine primitive tables:
+  ① SYNASTRY OVERLAY MATRIX — A's planets → B's houses (both ways)
+  ② COMMON-SIGNIFICATOR SET — RP ∩ all charts' sigs for focus group
+  ③ JOINT DASHA INTERSECTION WINDOWS — top windows next 24mo, scored
+  ④ SUB-LORD CROSS-CHECK SUMMARY — H[focus] CSL chain per chart + 5-tier
+  ⑤ BHAVAT BHAVAM CROSS-VALIDATION — when relative chart present
+  ⑥ KARAKA ROLE DISTRIBUTION — for N≥3 partnerships
+  ⑦ COMBINATION RULE VERDICT — mechanical OR/AND/Synastry verdict
+
+Every cross-chart claim you cite MUST come from these tables verbatim.
+You may NOT:
+  ❌ Compute which house of B contains A's planet — use ① SYNASTRY OVERLAY
+  ❌ Compute RP ∩ both charts' sigs by hand — use ② COMMON-SIGNIFICATOR
+  ❌ Estimate joint dasha windows — use ③ JOINT DASHA INTERSECTION
+  ❌ Decide which combination rule applies — use ⑦ COMBINATION VERDICT
+
+Forbidden patterns (these are KP doctrine violations, not just style):
+  ❌ "Looking at the combined chart…" — KP has NO combined chart
+  ❌ "If I overlay the two charts…" — already done; cite the matrix
+  ❌ "The averaged Venus longitude of both charts…" — composite is rejected
+     in KP (sub-lord doctrine cannot be averaged)
+
+MC3 — COMBINATION RULE MECHANICAL FORMULA
+When engine emits combination_verdict.rule = "or" (or "or_with_match_redirect"):
+  - PROMISED if (any chart PROMISED or STRONGLY PROMISED) AND joint window exists
+  - CONDITIONAL if only PROMISED but no joint window in next 24mo
+  - CONDITIONAL-POSITIVE if any chart CONDITIONAL AND joint window exists
+  - CONDITIONAL if any chart CONDITIONAL but no joint window
+  - DENIED if all charts DENIED and no joint window
+
+When engine emits combination_verdict.rule = "and":
+  - DENIED only if ALL N charts DENIED
+  - CONDITIONAL if only some deny
+  - NOT-DENIED if no chart denies
+
+When engine emits combination_verdict.rule = "synastry":
+  - STRONG-FIT: ≥4 positive overlays AND ≤1 friction overlay
+  - WORKABLE:   2-3 positive, 1-2 friction
+  - FRICTION:   1 positive, ≥2 friction
+  - INCOMPATIBLE: 0 positive, ≥3 friction
+
+Engine has already applied this and emitted formula_trace.  State the
+rule + the formula_trace VERBATIM in Section 4.  Don't decide the
+rule; the engine decided it.  You apply.
+
+MC4 — JOINT-PERIOD MULTI-CHART TIMING RULE
+For an event involving N charts, the event fires in the window where:
+  - ALL N charts' running MD+AD+PAD+Sookshma lords signify the focus
+    house group (at any layer), AND
+  - At least one of today's RPs is a significator of focus group in
+    ≥N-1 of the charts.
+
+Engine pre-computes this in ③ JOINT DASHA INTERSECTION WINDOWS, scored
+0-100.  Cite the TOP 3 windows by score in Section 5 (TIMING).  For
+each, cite the per-chart active_layers + lords_signifying VERBATIM.
+Do NOT pick a "best" window by intuition — engine ranks them.
+
+MC5 — MULTI-CHART STAR-SUB HARMONY OVERLAY
+Single-chart RULE 16 applies per chart.  For the COMBINED verdict,
+compute a multi-chart harmony grade:
+  - COMBINED-HARMONY:  ALL N charts in HARMONY or ALIGNED
+  - COMBINED-MIXED:    charts disagree (some HARMONY, some TENSION/CONTRA)
+  - COMBINED-TENSION:  majority of charts in TENSION/CONTRA
+  - COMBINED-DENIED:   ALL N charts in DENIED
+
+Name this verdict in Section 4.  COMBINED-MIXED carries –10 confidence.
+
+MC6 — BHAVAT BHAVAM CROSS-VALIDATION DISCIPLINE
+When the relative's natal chart IS available AND the questioner's chart
+is also available, the engine emits ⑤ BHAVAT BHAVAM CROSS-VALIDATION:
+  - rotated_verdict (from questioner's chart via rotation, ~70% conf)
+  - natal_verdict (from relative's chart directly, ~95% conf)
+
+State BOTH in Section 2 under PER-CHART VERDICTS.
+  - Agree → upgrade combined confidence to 95%
+  - Disagree → trust the natal (relative's own chart), flag the
+    discrepancy in Section 7 (CAVEATS) as a learning signal
+NEVER silently pick one and ignore the other.
+
+MC7 — MULTI-CHART CONFIDENCE CALCULUS
+Mechanical, like single-chart RULE 18.  Base 95 if all conditions met.
+Subtract:
+  −10 per chart in TENSION/CONTRA (MC5)
+  −25 if Bhavat Bhavam rotation used for any chart (relative missing)
+  −10 if any chart's PAD within 2 weeks of transition
+  −5  if RP source is natal-fallback (not live location)
+  −5  if any chart's H[focus]-CSL has Rahu/Ketu in sub-sub-lord position
+Floor at 30.
+
+Cite this number VERBATIM in Section 4.  You CANNOT adjust it (same
+as single-chart RULE 18 — engine confidence is sacred).
+
+MC8 — FORBIDDEN PATTERNS (named live failures, May 2026 production tests)
+Each fired in production; each will cause an automated regression
+test failure if re-emitted:
+  ❌ Same chart, different planet position across turns (Pavithra's
+     Venus = Pisces in answer 1, Aquarius in answer 2 — May 22 bug)
+  ❌ Signified-houses list shorter than the engine's `signifies:` column
+     (Jupiter {{2,4}} when engine emits {{2,5,6,9}} — May 22 bug)
+  ❌ Mixed degree formats in one answer ("Taurus 54.67°" abs + "Taurus
+     24.67°" deg-in-sign — May 23 cosmetic bug)
+  ❌ "Data not surfaced for X" when the goated per-chart context HAS X
+     (this proves you're reading a compact summary instead of the full
+     context — Phase 5 deleted the compact summary; now there is only
+     the full goated context per chart)
+  ❌ "The combined Venus of both charts…" — no composite exists in KP
+  ❌ Skipping a chart silently — Section 1 MUST state included AND
+     excluded charts (e.g., "Charts in context: Manyue, Ramya, Vamsi.
+     Analysis uses: Manyue + Ramya.  Vamsi excluded — not relevant to
+     marriage compatibility question.")
+  ❌ Reduced per-chart depth vs single-chart (MC1 violation)
+
+MC9 — PER-RELATIONSHIP-TYPE PLAYBOOK
+The engine's PLAYBOOK_MAP has already selected focus_houses,
+denial_houses, combination_rule, and karakas for this question.  Honor
+these mechanically:
+  - focus_houses = the houses to check (cite by number, not by topic name)
+  - denial_houses = the houses that flag denial / friction
+  - combination_rule = what mechanical formula applies (MC3)
+  - karakas = quality modifiers (NOT promise determinants per RULE 12)
+
+Topics covered: marriage / 2nd_marriage / spouse / divorce / children /
+fertility / pregnancy / adoption / business / partnership / startup /
+job / career / layoff / retirement / property / wealth / money_recovery /
+litigation / civil_case / criminal_case / land_dispute / health /
+disease_risk / hospitalization / surgery / recovery / education /
+education_higher / exam / foreign_travel / foreign_settle / spirituality /
+father / mother / sibling / general.
+
+MC10 — VERIFICATION CHECKLIST (run silently before emitting Section 1)
+☐ I have read each chart's full goated context block (Section 2 will
+  be at single-chart depth for each chart)
+☐ I have read all 7 cross-chart engine primitive tables
+☐ I will quote engine values VERBATIM for cross-chart facts, not infer
+☐ I will run single-chart RULES 5/11/12/16 per chart at full depth
+☐ I will apply MC3 combination rule formula MECHANICALLY (rule is
+  already selected; I just apply)
+☐ I will cite the engine confidence VERBATIM, not adjust
+☐ I will include AND exclude charts explicitly in Section 1
+☐ I will run the conflicting-signals panel (fix-10 #5) per chart if
+  any chart shows TENSION/CONTRA
+☐ I will not blend, average, or composite any chart-level data
 
 ═══════════════════════════════════════════════════════════════
-VERBATIM-DATA DISCIPLINE (MultiChart-Phase-4 — NON-NEGOTIABLE)
+OUTPUT TEMPLATE (8 sections — fixed structure, every multi-chart answer)
 ═══════════════════════════════════════════════════════════════
-The per-chart compact summaries below contain pre-computed tables:
-  - PLANETARY POSITIONS (all 9 grahas — sign + deg-in-sign DMS + abs
-    longitude + house + nakshatra + star-lord + sub-lord + owns +
-    signifies 4-step union)
-  - HOUSE CUSPS (all 12 cusps — sign + deg-in-sign DMS + abs
-    longitude + nakshatra + star-lord + sub-lord)
-  - HOUSE SIGNIFICATORS for the focus houses (occupants +
-    in_star_of_occupants + house_lord + in_star_of_lord + 4-step union)
 
-RULES — apply to EVERY chart, EVERY turn, no exceptions:
+Section 1: QUESTION INTERPRETATION
+  - Restate the question in one line
+  - Identify the topic + focus house group + combination rule
+  - State explicitly: charts INCLUDED in this analysis, charts
+    EXCLUDED (and why if any are present-but-not-relevant)
 
-  R1. Every planet position you cite MUST come VERBATIM from the
-      PLANETARY POSITIONS table.  Quote the sign and deg-in-sign
-      as printed (e.g., "Venus in Aquarius 14°30'12\\" (H7)").
-      NEVER infer a planet's sign from absolute longitude.
-      NEVER quote a planet differently across two answers in the
-      same conversation — the chart does not change between turns.
+Section 2: PER-CHART VERDICTS
+  For EACH chart (label them by chart label):
+    - Native profile (name, gender, age — per RULE 17)
+    - H[focus] CSL chain at single-chart depth: STAR LAYER + SUB
+      LAYER + Star-Sub Harmony score
+    - 5-tier verdict for this chart
+    - PLANET OWNERSHIP block literal quote on first use (RULE 10)
+    - Pattern names that fired (RULE 19)
+    - Conflicting-signals panel if TENSION/CONTRA (fix-10 #5)
+    - Engine-confidence number for this chart (RULE 18)
 
-  R2. Every "houses signified by X" you cite MUST come from the
-      `signifies` column of that planet's row, OR from the
-      `4-step union` of a HOUSE SIGNIFICATORS row.  Do NOT walk
-      the 4-step rule by hand and re-derive.  The engine has done
-      the derivation; you are reading, not computing.
+Section 3: CROSS-CHART OVERLAY
+  - SYNASTRY OVERLAY MATRIX highlights (each chart's planets in
+    counterpart's relevant houses — quote from ① engine table)
+  - COMMON-SIGNIFICATOR SET highlights (intersection per focus
+    house, ∩ today's RPs — from ② engine table)
+  - KARAKA ROLE DISTRIBUTION (if N≥3 — from ⑥)
 
-  R3. House occupation for a planet MUST come from the `House`
-      column of the PLANETARY POSITIONS table.  Do NOT compute
-      "Aquarius from Leo Lagna = H7" by hand — the table already
-      says it.
+Section 4: COMBINED VERDICT
+  - Quote ⑦ COMBINATION RULE VERDICT formula_trace VERBATIM
+  - State combined verdict (PROMISED/CONDITIONAL-POSITIVE/CONDITIONAL/
+    DENIED, or STRONG-FIT/WORKABLE/FRICTION/INCOMPATIBLE for synastry)
+  - Cite MC5 COMBINED-HARMONY grade
+  - Cite engine confidence number VERBATIM (MC7)
 
-  R4. Cusp degrees you cite MUST come from the HOUSE CUSPS table.
-      Use the deg-in-sign DMS column (e.g., "H7 cusp at Aquarius
-      02°15'") — do NOT cite raw absolute longitudes mixed with
-      deg-in-sign in the same answer (one or the other, consistently).
+Section 5: TIMING
+  - Top 3 joint dasha windows by score (from ③ JOINT DASHA
+    INTERSECTION WINDOWS — quote start/end/score/per_chart layers/
+    RP overlap VERBATIM)
+  - Avoid windows if any of the top 3 carry friction
+  - Falsifiable check date (specific YYYY-MM-DD by which prediction
+    can be tested)
 
-  R5. If a fact you would normally cite is NOT in the tables
-      (e.g., a transit position, a dignity, a Shadbala score),
-      say "data not surfaced for this multi-chart view" and
-      proceed without it.  Do NOT fabricate.
+Section 6: RECOMMENDED ACTION
+  - Concrete steps the parties can take
+  - Pathway: natural / medical / legal / negotiated / etc.
 
-  R6. When comparing the same planet across charts (e.g., "is
-      Pavithra's Venus better than Ramya's Venus?"), pull from
-      each chart's PLANETARY POSITIONS table independently and
-      quote both rows side-by-side.  Never blend or paraphrase.
+Section 7: CAVEATS / ALTERNATIVE READS
+  - Bhavat Bhavam confidence note if any chart is missing or
+    discrepancy flagged (MC6)
+  - Engine errors if any (cross_chart_primitives.error field non-null)
+  - Honest alternative reads where doctrine allows two interpretations
 
-These rules exist because earlier versions hallucinated Venus in
-Pisces (correct: Aquarius) and Jupiter signifying {{2,4}} (correct:
-{{2,5,6,9}} per engine).  Both errors disappear when you quote
-verbatim from the tables.
-
-═══════════════════════════════════════════════════════════════
-OUTPUT FORMAT (per KB §7.1)
-═══════════════════════════════════════════════════════════════
-Follow the 8-section template:
-  1. QUESTION INTERPRETATION
-  2. PER-CHART VERDICTS (one per chart, label them by chart label)
-  3. CROSS-CHART OVERLAY (when synastry is the rule)
-  4. COMBINED VERDICT (apply the rule, state final verdict + confidence)
-  5. TIMING (best window, avoid window, falsifiable check date)
-  6. RECOMMENDED ACTION (concrete steps; pathway)
-  7. CAVEATS / ALTERNATIVE READS (incl. Bhavat Bhavam confidence if any)
-  8. CLIENT SUMMARY (2-3 sentence plain-language wrap-up)
-
-Confidence (per KB §7.2): start at 95, subtract per the rule, floor 30.
-Cite the KB sections you use (e.g., "per KB §5.1 fertility playbook").
-
-Anti-patterns (KB §8):
-  - Never blend charts at data level
-  - Never apply Parashari doshas across charts
-  - Never invent compatibility scores
-  - Never predict death timing (RULE 15)
-  - Never predict specific named entities
-  - Never combine unrelated parties (skip irrelevant charts; say so)
-  - Never simulate a chart that's not provided
+Section 8: CLIENT SUMMARY
+  - 2-3 sentence plain-language wrap-up
+  - Suitable for the astrologer to read VERBATIM to the client(s)
+  - No KP jargon ("CSL", "AD", "Sookshma" — translate to plain English)
 {lang_directive}
 """
 
@@ -6255,28 +6437,72 @@ def _build_multi_chart_user_message(
     multi_context: dict,
     question: str,
 ) -> str:
-    """Build the user message block — per-chart summaries + the question."""
-    per_chart = multi_context.get("per_chart") or []
+    """Build the user message block (PR MultiChart-Phase-5 rewrite).
+
+    Composition:
+      1. Per-chart GOATED context — format_chart_for_llm(chart_data)
+         on each chart in per_chart_raw, labelled with chart_label.
+         This is the SAME formatter single-chart Analysis tab uses,
+         giving identical depth × N.
+      2. Cross-chart engine primitives (the 7 fact-tables from
+         cross_chart_engine.compute_all) — formatted via
+         format_cross_chart_primitives_for_llm.
+      3. RPs at moment of query (location, source, 7-slot assignments).
+      4. The astrologer's question.
+
+    Phase 5 dropped the per-chart compact-summary approach entirely.
+    """
+    from app.services.cross_chart_engine import (
+        format_cross_chart_primitives_for_llm,
+    )
+
+    per_chart_raw = multi_context.get("per_chart_raw") or []
+    chart_labels = multi_context.get("chart_labels") or []
+    cross_chart = multi_context.get("cross_chart_primitives") or {}
     rp_meta = multi_context.get("rp_meta") or {}
     ruling_planets = multi_context.get("ruling_planets") or {}
 
     parts: list[str] = []
-    parts.append("═══════════════════════════════════════════════")
-    parts.append("PER-CHART COMPACT SUMMARIES")
-    parts.append("═══════════════════════════════════════════════")
-    parts.extend(per_chart)
 
+    # ── 1. Per-chart goated contexts ─────────────────────────────────
+    parts.append("═══════════════════════════════════════════════════════════════")
+    parts.append("PER-CHART GOATED CONTEXT (single-chart depth per chart)")
+    parts.append("═══════════════════════════════════════════════════════════════")
+    parts.append(
+        "Each block below is the FULL single-chart context (the same "
+        "format that powers the Analysis tab's goated single-chart answer). "
+        "Read each at full single-chart depth — RULES 1-24 apply per chart."
+    )
     parts.append("")
-    parts.append("═══════════════════════════════════════════════")
-    parts.append("RULING PLANETS AT MOMENT OF QUERY")
-    parts.append("═══════════════════════════════════════════════")
+    for idx, cd in enumerate(per_chart_raw, start=1):
+        label = chart_labels[idx - 1] if idx <= len(chart_labels) else f"Chart {idx}"
+        parts.append("─" * 70)
+        parts.append(f"{label}")
+        parts.append("─" * 70)
+        try:
+            parts.append(format_chart_for_llm(cd, mode="astrologer"))
+        except Exception as e:
+            parts.append(f"(format_chart_for_llm failed for {label}: {e})")
+        parts.append("")
+
+    # ── 2. Cross-chart engine primitives ─────────────────────────────
+    parts.append("")
+    if cross_chart:
+        parts.append(format_cross_chart_primitives_for_llm(cross_chart, chart_labels))
+
+    # ── 3. Ruling Planets at moment of query ─────────────────────────
+    parts.append("")
+    parts.append("═══════════════════════════════════════════════════════════════")
+    parts.append("RULING PLANETS AT MOMENT OF QUERY (shared across all charts)")
+    parts.append("═══════════════════════════════════════════════════════════════")
+    tz_off = rp_meta.get('tz_offset')
+    tz_off_str = f"{tz_off:+}" if isinstance(tz_off, (int, float)) else str(tz_off)
     parts.append(
         f"Location: lat {rp_meta.get('lat')}, lon {rp_meta.get('lon')} "
-        f"({rp_meta.get('tz_name') or '?'}, UTC{rp_meta.get('tz_offset', '?'):+}) "
+        f"({rp_meta.get('tz_name') or '?'}, UTC{tz_off_str}) "
         f"· source={rp_meta.get('source', '?')} "
         f"· computed_at_local={rp_meta.get('computed_at_local', '?')}"
     )
-    # Quote the 7-slot RP list verbatim from the engine.
     rp_ctx = ruling_planets.get("rp_context", {}) or {}
     slot_assignments = rp_ctx.get("slot_assignments", []) or []
     if slot_assignments:
@@ -6290,15 +6516,19 @@ def _build_multi_chart_user_message(
         if strongest:
             parts.append(f"Strongest RPs (in 2+ slots): {', '.join(strongest)}")
 
+    # ── 4. The astrologer's question ─────────────────────────────────
     parts.append("")
-    parts.append("═══════════════════════════════════════════════")
+    parts.append("═══════════════════════════════════════════════════════════════")
     parts.append("ASTROLOGER'S QUESTION")
-    parts.append("═══════════════════════════════════════════════")
+    parts.append("═══════════════════════════════════════════════════════════════")
     parts.append(question)
     parts.append("")
-    parts.append("Analyze each chart in the focus houses, apply the "
-                 "combination rule per the KB, and produce the 8-section "
-                 "structured worksheet.")
+    parts.append(
+        "Produce the 8-section structured worksheet per the OUTPUT TEMPLATE "
+        "in the system prompt.  Per-chart depth in Section 2 = single-chart "
+        "Analysis tab depth (MC1).  Cross-chart facts quoted VERBATIM from "
+        "the engine primitive tables above (MC2)."
+    )
 
     return "\n".join(parts)
 
