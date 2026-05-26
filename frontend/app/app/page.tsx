@@ -312,6 +312,32 @@ export default function Home() {
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const [showScrollUp, setShowScrollUp] = useState(false);
   const [showScrollDown, setShowScrollDown] = useState(false);
+
+  // ─── Multi-chart analysis state (PR MultiChart-Phase-3) ──────────
+  // chartsInContext holds ADDITIONAL charts pinned to the current AI
+  // conversation (the workspace's primary chart is always implicitly
+  // chart 1; this list is charts 2..N).  When this list has ≥ 1 entry,
+  // handleWorkspaceChat routes to /astrologer/multi-analyze-stream
+  // instead of the single-chart /analyze-stream.
+  //
+  // mentionPopoverOpen + mentionQuery drive the @-mention autocomplete
+  // that lets the astrologer type "@ramya" to add Ramya's saved chart
+  // to context.  Click the [+] button on the chip strip for the same
+  // result via dropdown.
+  //
+  // lastMultiChartMeta caches the latest meta payload from a
+  // /multi-analyze-stream response so we can render the chart-labels
+  // pill above each answer.
+  const [chartsInContext, setChartsInContext] = useState<ChartSession[]>([]);
+  const [mentionPopoverOpen, setMentionPopoverOpen] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [lastMultiChartMeta, setLastMultiChartMeta] = useState<{
+    chart_labels?: string[];
+    playbook?: string;
+    combination_rule?: string;
+    topic?: string;
+    rp_meta?: any;
+  } | null>(null);
   // Transit state
   const [transitData, setTransitData] = useState<any>(null);
   const [transitLoading, setTransitLoading] = useState(false);
@@ -1232,6 +1258,84 @@ export default function Home() {
   // /astrologer/quick-insights endpoint stays in the backend (no
   // longer hit by the frontend) — kept for any future opt-in surface.
 
+  // ── Multi-chart streaming consumer (PR MultiChart-Phase-3) ───────
+  // Mirrors streamAstrologerAnalysis but talks to
+  // /astrologer/multi-analyze-stream and consumes the additional
+  // "meta" event (which carries chart_labels + playbook + rp_meta).
+  // Sacred existing streamAstrologerAnalysis is UNTOUCHED so any
+  // existing single-chart flow keeps working identically.
+  const streamMultiChartAnalysis = async (
+    primary: ChartSession,
+    additionalCharts: ChartSession[],
+    question: string,
+    history: { question: string; answer: string }[],
+    targetId: string,
+  ): Promise<boolean> => {
+    analyzeStreamAbortRef.current?.abort();
+    const ac = new AbortController();
+    analyzeStreamAbortRef.current = ac;
+    let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+    try {
+      recordAiCall(`astrologer.multi-analyze-stream:${additionalCharts.length + 1}charts`);
+      const charts = [primary, ...additionalCharts].map(sessionToApiPerson);
+      const response = await fetch(`${API_URL}/astrologer/multi-analyze-stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          charts,
+          question,
+          history,
+          language: backendLang(),
+          live_latitude: liveLoc.location?.latitude ?? null,
+          live_longitude: liveLoc.location?.longitude ?? null,
+          live_timezone_offset: liveLoc.location?.timezone_offset ?? null,
+        }),
+        signal: ac.signal,
+      });
+      if (!response.ok || !response.body) return false;
+      reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let nlIdx;
+        while ((nlIdx = buffer.indexOf("\n\n")) !== -1) {
+          const frame = buffer.slice(0, nlIdx);
+          buffer = buffer.slice(nlIdx + 2);
+          const lines = frame.split("\n");
+          let evtName = "message";
+          let dataStr = "";
+          for (const ln of lines) {
+            if (ln.startsWith("event:")) evtName = ln.slice(6).trim();
+            else if (ln.startsWith("data:")) dataStr += ln.slice(5).trim();
+          }
+          if (!dataStr) continue;
+          try {
+            const data = JSON.parse(dataStr);
+            if (evtName === "meta") {
+              // Cache for the per-chart-labels pill above answers
+              setLastMultiChartMeta(data);
+            } else if (evtName === "chunk" && typeof data.text === "string") {
+              setAnalysisMessages(prev => prev.map(m =>
+                m.id === targetId ? { ...m, a: m.a + data.text } : m
+              ));
+            } else if (evtName === "error") {
+              return false;
+            }
+          } catch { /* malformed SSE — skip */ }
+        }
+      }
+      return true;
+    } catch (err) {
+      const isAbort = err instanceof DOMException && err.name === "AbortError";
+      return !!isAbort;
+    } finally {
+      try { reader?.releaseLock(); } catch { /* ignore */ }
+    }
+  };
+
   const handleWorkspaceChat = async () => {
     if (!chatQ.trim()) return;
     const q = chatQ; setChatQ(""); setAnalysisLoading(true); setActiveTab("analysis");
@@ -1248,13 +1352,31 @@ export default function Home() {
       ? crypto.randomUUID()
       : `chat-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     setAnalysisMessages(prev => [...prev, { id: targetId, q, a: "", t: Date.now() }]);
-    const ok = await streamAstrologerAnalysis(
-      activeTopic || "general",
-      q,
-      history,
-      "sub_question",  // PR A1.3-fix-23 — chat = Format B (5-section narrative)
-      targetId,
-    );
+
+    // ── Multi-chart routing (PR MultiChart-Phase-3) ──────────────
+    // When ≥ 1 chart is pinned in chartsInContext, the workspace's
+    // primary chart + the pinned chart(s) go to the multi-chart
+    // endpoint.  Otherwise, fall through to the existing single-chart
+    // flow unchanged.
+    let ok: boolean;
+    const primary = workspaceData ? snapshotCurrentSession() : null;
+    if (chartsInContext.length > 0 && primary) {
+      ok = await streamMultiChartAnalysis(
+        primary,
+        chartsInContext,
+        q,
+        history,
+        targetId,
+      );
+    } else {
+      ok = await streamAstrologerAnalysis(
+        activeTopic || "general",
+        q,
+        history,
+        "sub_question",  // PR A1.3-fix-23 — chat = Format B (5-section narrative)
+        targetId,
+      );
+    }
     if (!ok) {
       setAnalysisMessages(prev => prev.map(m =>
         m.id === targetId && !m.a ? { ...m, a: "Sorry, the analysis failed. Please try again." } : m
@@ -1874,6 +1996,36 @@ export default function Home() {
           }}
         >
           <div style={{ width: "100%", maxWidth: isMax ? "800px" : "100%", display: "flex", flexDirection: "column", gap: isMax ? 18 : 10 }}>
+            {/* PR MultiChart-Phase-3 — when the most recent answer came
+                from the multi-chart endpoint, show the per-chart pill
+                ABOVE the standard RP pill so the astrologer knows which
+                charts the analysis combined. */}
+            {lastMultiChartMeta?.chart_labels && lastMultiChartMeta.chart_labels.length > 0 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: isMax ? "0 0 4px 0" : "0 0 2px 0", flexWrap: "wrap" }}>
+                <span style={{ fontSize: isMax ? 10 : 9, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Charts analyzed:
+                </span>
+                <span style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "3px 10px",
+                  borderRadius: 999,
+                  border: "0.5px solid rgba(201,169,110,0.4)",
+                  background: "rgba(201,169,110,0.08)",
+                  color: "var(--accent)",
+                  fontSize: 11,
+                  fontWeight: 500,
+                }}>
+                  📊 {lastMultiChartMeta.chart_labels.join(" · ")}
+                </span>
+                {lastMultiChartMeta.playbook && (
+                  <span style={{ fontSize: 9.5, color: "var(--muted)", fontStyle: "italic" }}>
+                    playbook: {lastMultiChartMeta.playbook} · rule: {lastMultiChartMeta.combination_rule}
+                  </span>
+                )}
+              </div>
+            )}
             {/* PR Trust-1 — RP source pill at the top of every AI session
                 so the astrologer ALWAYS knows where the Ruling Planets
                 cited below came from. Pulls from workspaceData.rp_meta
@@ -2132,6 +2284,205 @@ export default function Home() {
           </button>
         )}
         </div>
+
+        {/* PR MultiChart-Phase-3 — multi-chart context chips bar.
+            Always visible above the input.  Renders the workspace's
+            primary chart as an implicit always-on chip + any pinned
+            additional charts (chartsInContext).  The [+] button opens
+            the chart picker to add another chart.  When ≥ 1 additional
+            chart is pinned, handleWorkspaceChat auto-routes to the
+            multi-chart endpoint.  This is THE entry point for the
+            multi-chart UX. */}
+        {workspaceData && (
+          <div
+            style={{
+              borderTop: "0.5px solid rgba(255,255,255,0.06)",
+              padding: isMax ? "6px 40px" : "6px 12px",
+              background: "rgba(13, 13, 22, 0.4)",
+              display: "flex",
+              gap: 6,
+              alignItems: "center",
+              flexShrink: 0,
+              flexWrap: "wrap",
+              position: "relative",
+            }}
+          >
+            <span style={{ fontSize: 9, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap", flexShrink: 0, marginRight: 4 }}>
+              Charts in chat:
+            </span>
+            {/* Primary chart — always implicit chart 1 */}
+            <span
+              title="Primary chart (the workspace you're in)"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "3px 10px",
+                borderRadius: 999,
+                border: "0.5px solid rgba(201,169,110,0.4)",
+                background: "rgba(201,169,110,0.10)",
+                color: "var(--accent)",
+                fontSize: 11,
+                fontWeight: 500,
+                whiteSpace: "nowrap",
+              }}
+            >
+              <span style={{ opacity: 0.7 }}>{birthDetails.gender === "male" ? "♂" : birthDetails.gender === "female" ? "♀" : "·"}</span>
+              {workspaceData.name}
+              <span style={{ fontSize: 8, opacity: 0.55, marginLeft: 2 }}>PRIMARY</span>
+            </span>
+            {/* Pinned additional charts */}
+            {chartsInContext.map((cs, idx) => {
+              const g = cs.birthDetails?.gender;
+              const gsym = g === "male" ? "♂" : g === "female" ? "♀" : "·";
+              return (
+                <span
+                  key={cs.id || idx}
+                  title={`${cs.name || cs.birthDetails?.name} — click ✕ to remove from this chat`}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    padding: "3px 4px 3px 10px",
+                    borderRadius: 999,
+                    border: "0.5px solid rgba(255,255,255,0.12)",
+                    background: "rgba(255,255,255,0.04)",
+                    color: "var(--text)",
+                    fontSize: 11,
+                    fontWeight: 500,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  <span style={{ opacity: 0.7 }}>{gsym}</span>
+                  {cs.name || cs.birthDetails?.name}
+                  <button
+                    type="button"
+                    aria-label={`Remove ${cs.name} from chat`}
+                    onClick={() => setChartsInContext(prev => prev.filter(c => c.id !== cs.id))}
+                    style={{
+                      marginLeft: 2,
+                      width: 16,
+                      height: 16,
+                      padding: 0,
+                      borderRadius: 999,
+                      border: "none",
+                      background: "transparent",
+                      color: "var(--muted)",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 12,
+                      lineHeight: 1,
+                    }}
+                    onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.color = "#f87171"}
+                    onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.color = "var(--muted)"}
+                  >
+                    ×
+                  </button>
+                </span>
+              );
+            })}
+            {/* + Add chart button — opens picker */}
+            {savedSessions.length > 0 && chartsInContext.length < 3 && (
+              <button
+                type="button"
+                onClick={() => setMentionPopoverOpen(v => !v)}
+                title="Add another saved chart to this chat"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  padding: "3px 10px",
+                  borderRadius: 999,
+                  border: "0.5px dashed rgba(201,169,110,0.45)",
+                  background: "transparent",
+                  color: "var(--accent)",
+                  fontSize: 10.5,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  fontFamily: "inherit",
+                }}
+              >
+                + Add chart
+              </button>
+            )}
+            {chartsInContext.length >= 3 && (
+              <span style={{ fontSize: 9.5, color: "var(--muted)", fontStyle: "italic" }}>
+                max 4 charts per chat
+              </span>
+            )}
+            {/* Mini-popover with savedSessions list */}
+            {mentionPopoverOpen && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 4px)",
+                  left: 0,
+                  right: 0,
+                  zIndex: 30,
+                  background: "rgba(13, 13, 22, 0.96)",
+                  backdropFilter: "blur(8px)",
+                  border: "0.5px solid rgba(201,169,110,0.3)",
+                  borderRadius: 8,
+                  padding: 8,
+                  maxHeight: 240,
+                  overflowY: "auto",
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+                }}
+              >
+                <div style={{ fontSize: 9, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
+                  Pick a saved chart to add
+                </div>
+                {savedSessions
+                  .filter(s => s.id !== currentSessionId && !chartsInContext.some(c => c.id === s.id))
+                  .map(s => {
+                    const g = s.birthDetails?.gender;
+                    const gsym = g === "male" ? "♂" : g === "female" ? "♀" : "·";
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => {
+                          setChartsInContext(prev => [...prev, s]);
+                          setMentionPopoverOpen(false);
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          width: "100%",
+                          padding: "8px 10px",
+                          borderRadius: 6,
+                          border: "none",
+                          background: "transparent",
+                          color: "var(--text)",
+                          fontSize: 12,
+                          textAlign: "left",
+                          cursor: "pointer",
+                          fontFamily: "inherit",
+                        }}
+                        onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = "rgba(201,169,110,0.08)"}
+                        onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = "transparent"}
+                      >
+                        <span style={{ opacity: 0.7 }}>{gsym}</span>
+                        <span style={{ fontWeight: 600 }}>{s.name || s.birthDetails?.name || "Unnamed"}</span>
+                        <span style={{ fontSize: 10, color: "var(--muted)", marginLeft: "auto" }}>
+                          {s.birthDetails?.date}
+                        </span>
+                      </button>
+                    );
+                  })}
+                {savedSessions.filter(s => s.id !== currentSessionId && !chartsInContext.some(c => c.id === s.id)).length === 0 && (
+                  <div style={{ fontSize: 11, color: "var(--muted)", padding: 8, textAlign: "center" }}>
+                    No other saved charts to add — generate more from the &quot;+ New Chart&quot; button.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Trust-2 (May 2026) — persistent compact Topic Quick Analysis
             strip pinned ABOVE the input field once the conversation has
