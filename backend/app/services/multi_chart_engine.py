@@ -1,29 +1,38 @@
 """
 multi_chart_engine.py — Multi-chart analysis orchestrator.
 
-PR MultiChart-Phase-2 (May 2026).
+PR MultiChart-Phase-2 (May 2026) — initial scaffolding.
+PR MultiChart-Phase-4 (May 2026) — added PLANETARY POSITIONS + HOUSE
+  CUSPS + HOUSE SIGNIFICATORS tables to the compact formatter (the
+  "verbatim discipline" fix for Venus / Jupiter / Shadbala bugs).
+PR MultiChart-Phase-5 (May 2026) — DELETED the compact formatter.
+  Per-chart context is now the goated single-chart format_chart_for_llm
+  output.  The "20% new" lives in cross_chart_engine.py + the multi-
+  chart system prompt extensions (MC1-MC10).
 
 This module is the orchestrator for the multi-chart analysis flow
 (`/astrologer/multi-analyze-stream`).  It takes 2-4 charts + a question
-and produces a structured "multi-chart context" dict that the new LLM
+and produces a structured "multi-chart context" dict that the LLM
 function `get_multi_chart_prediction()` consumes.
 
-Sacred-region discipline:
-  - Reuses `chart_pipeline.build_full_chart_data()` per chart UNCHANGED
-    (sacred — never modify the per-chart pipeline)
-  - Reuses `chart_pipeline.build_rp_meta()` for the SHARED rp_meta
-    (one rp_meta for the whole multi-chart conversation, computed at
-    the astrologer's live location at moment-of-query — see Trust-1)
-  - Reuses `detect_topic()` (with LRU cache, Smart-Routing-1.1) for
-    question→topic classification
-  - Adds NO new dependencies on existing sacred regions
+Architecture (post-Phase-5):
 
-What this module does NOT do:
-  - It does NOT build prompts.  That is `llm_service.get_multi_chart_prediction()`.
-  - It does NOT call Anthropic.  Same.
-  - It does NOT modify `format_chart_for_llm` (sacred).  It builds a
-    DIFFERENT, much smaller per-chart summary tailored to multi-chart
-    use (see `format_chart_compact_for_multi`).
+  LAYER 1: build_full_chart_data() per chart                  ← sacred
+  LAYER 2: cross_chart_engine.compute_all(...)                ← NEW Phase 5
+  LAYER 3: multi-chart KB + per-topic KB                      ← sacred-style
+  LAYER 4: get_system_prompt() + MC1-MC10 extensions          ← llm_service
+
+This module is responsible for LAYER 1 + LAYER 2 + assembling the
+context dict consumed by LAYER 4.
+
+Sacred-region discipline:
+  - Reuses chart_pipeline.build_full_chart_data() per chart UNCHANGED
+  - Reuses chart_pipeline.build_rp_meta() for SHARED rp_meta
+  - Reuses detect_topic() with LRU cache
+  - Calls cross_chart_engine.compute_all() for cross-chart primitives
+  - Does NOT modify format_chart_for_llm (the goated formatter)
+  - Does NOT build prompts (that is llm_service)
+  - Does NOT call Anthropic (that is llm_service)
 """
 from __future__ import annotations
 
@@ -36,115 +45,12 @@ from app.services.chart_pipeline import (
     build_rp_meta,
 )
 from app.services.llm_service import detect_topic
-from app.services.chart_engine import (
-    get_ruling_planets,
-    get_houses_owned_by_planet,
+from app.services.chart_engine import get_ruling_planets
+from app.services.cross_chart_engine import (
+    compute_all as compute_cross_chart_all,
 )
 
 _log = logging.getLogger("multi_chart_engine")
-
-
-# Canonical 9-graha order — used for stable table emission.
-GRAHA_ORDER = [
-    "Sun", "Moon", "Mars", "Mercury", "Jupiter",
-    "Venus", "Saturn", "Rahu", "Ketu",
-]
-
-
-# ────────────────────────────────────────────────────────────────────
-# Helpers — verbatim-data emission (MultiChart-Phase-4 universal fix).
-#
-# The single biggest source of multi-chart hallucinations (May 2026)
-# was the per-chart compact formatter omitting fields the LLM then
-# had to *infer*.  Symptoms observed:
-#   - Venus position quoted as Pisces in one answer, Aquarius in
-#     another (same chart, same conversation) — LLM was inferring
-#     the sign from absolute longitude across turns.
-#   - Jupiter signified houses quoted as {2, 4} when the engine's
-#     4-step rule gives {2, 5, 6, 9} — LLM was walking the rule by
-#     hand and dropping ownership + star-lord contributions.
-#   - Mixed degree formats (54.67° absolute vs 24.67° deg-in-sign).
-#
-# Universal fix: emit a complete PLANETARY POSITIONS table for ALL
-# 9 grahas, a complete HOUSE CUSPS table for ALL 12 cusps, and a
-# per-planet "houses signified" precompute pulled directly from the
-# engine's significator dict (no LLM recomputation, no inference).
-# Then instruct the prompt to QUOTE VERBATIM.
-# ────────────────────────────────────────────────────────────────────
-def _deg_in_sign_dms(abs_longitude: float | int | None) -> str:
-    """Format absolute zodiacal longitude as deg-in-sign DMS string.
-
-    e.g., 54.6700 (Taurus 24.67°) → "24°40'12\""
-    Returns "—" if the input is unparseable.
-    """
-    if abs_longitude is None:
-        return "—"
-    try:
-        lon = float(abs_longitude) % 360.0
-    except (TypeError, ValueError):
-        return "—"
-    in_sign = lon % 30.0
-    deg = int(in_sign)
-    minutes_full = (in_sign - deg) * 60.0
-    minutes = int(minutes_full)
-    seconds = int((minutes_full - minutes) * 60.0)
-    return f"{deg:02d}°{minutes:02d}'{seconds:02d}\""
-
-
-def _planet_house_from_positions(planet_name: str, planet_positions: dict[str, int]) -> str:
-    """Pull a planet's natal house from the precomputed planet_positions dict."""
-    if not planet_positions:
-        return "—"
-    h = planet_positions.get(planet_name)
-    return f"H{h}" if h else "—"
-
-
-def _invert_significators_for_planet(
-    planet_name: str, significators: dict[str, Any]
-) -> dict[str, list[int]]:
-    """Invert the per-house significator dict into a per-planet view.
-
-    Returns:
-        {
-          "occupies":             [houses where this planet is an occupant],
-          "in_star_of_occupants": [houses where this planet is in the star of an occupant],
-          "in_star_of_lord":      [houses where this planet is in the star of the cusp's sign lord],
-          "is_house_lord":        [houses whose cusp sign-lord is this planet],
-          "all_signified":        [4-step union, deduplicated, sorted asc],
-        }
-
-    Sourced from `chart_data["significators"]` — itself produced by
-    `chart_engine.get_all_house_significators()`.  This is the canonical
-    KP 4-step rule output; we just pivot it from house-keyed to planet-keyed
-    so the multi-chart prompt can list "houses signified by Jupiter" in
-    one line without the LLM having to recompute the rule.
-    """
-    occupies: list[int] = []
-    in_star_of_occupants: list[int] = []
-    in_star_of_lord: list[int] = []
-    is_house_lord: list[int] = []
-
-    for hn in range(1, 13):
-        s = significators.get(f"House_{hn}") or {}
-        if planet_name in (s.get("occupants") or []):
-            occupies.append(hn)
-        if planet_name in (s.get("planets_in_star_of_occupants") or []):
-            in_star_of_occupants.append(hn)
-        if planet_name in (s.get("planets_in_star_of_lord") or []):
-            in_star_of_lord.append(hn)
-        if s.get("house_lord") == planet_name:
-            is_house_lord.append(hn)
-
-    all_signified = sorted({
-        *occupies, *in_star_of_occupants, *in_star_of_lord, *is_house_lord,
-    })
-    return {
-        "occupies":             occupies,
-        "in_star_of_occupants": in_star_of_occupants,
-        "in_star_of_lord":      in_star_of_lord,
-        "is_house_lord":        is_house_lord,
-        "all_signified":        all_signified,
-    }
 
 
 # ────────────────────────────────────────────────────────────────────
@@ -155,66 +61,145 @@ MAX_CHARTS = 4
 
 # ────────────────────────────────────────────────────────────────────
 # Playbook selector — maps question topic (from detect_topic) to a
-# multi-chart playbook key + combination rule.  See
-# multi_chart_analysis.md §3.2 (Combination rule selector by event
-# type) for the doctrinal mapping.
+# multi-chart playbook entry: focus_houses + denial_houses + combination
+# rule + karakas + (optional) relative_type for Bhavat Bhavam cross-
+# validation.
 #
-# Playbook key → drives which sections of the KB the LLM prompt
-# emphasises + which per-chart fields are spotlighted.
+# All multi-chart logic flows through this table.  Adding a new topic
+# is a single-row config change — no engine code modification.
 #
-# Combination rule → drives which of OR-rule (promise) / AND-rule
-# (denial) / Synastry-overlay the LLM applies when merging per-chart
-# verdicts.  All three are documented in the KB (§3.1) so the LLM
-# applies the rule from the KB; this module just SIGNALS which rule
-# is relevant so the prompt can foreground it.
+# Source per row in parentheses:
+#   - Single-chart get_system_prompt() Rule 5 per-topic relevant/denial
+#     house lists (KSK Reader)
+#   - Multi-chart KB §2 catalogue (Bosmia KPRM / KP Sublord Speaks)
 # ────────────────────────────────────────────────────────────────────
 PLAYBOOK_MAP: dict[str, dict[str, Any]] = {
     # ─── Reproductive / family expansion ─────────────────────────────
-    "children":       {"playbook": "couple_fertility",  "rule": "or",       "focus_houses": [2, 5, 11], "karakas": ["Jupiter"]},
-    "fertility":      {"playbook": "couple_fertility",  "rule": "or",       "focus_houses": [2, 5, 11], "karakas": ["Jupiter"]},
-    "pregnancy":      {"playbook": "couple_fertility",  "rule": "or",       "focus_houses": [2, 5, 11], "karakas": ["Jupiter"]},
-    "adoption":       {"playbook": "couple_fertility",  "rule": "or",       "focus_houses": [5, 9],     "karakas": ["Jupiter"]},
-    # ─── Marriage / romance (delegate base compat to dedicated Match) ─
-    "marriage":         {"playbook": "marriage_compat",    "rule": "or_with_match_redirect", "focus_houses": [2, 7, 11], "karakas": ["Venus", "Jupiter"]},
-    "second_marriage":  {"playbook": "marriage_compat",    "rule": "or_with_match_redirect", "focus_houses": [2, 7, 9, 11], "karakas": ["Venus"]},
-    "spouse":           {"playbook": "marriage_compat",    "rule": "or_with_match_redirect", "focus_houses": [2, 7, 11], "karakas": ["Venus"]},
-    "divorce":          {"playbook": "marriage_compat",    "rule": "and",                    "focus_houses": [1, 6, 10, 12], "karakas": []},
+    "children":       {"playbook": "couple_fertility",  "rule": "or",
+                       "focus_houses": [2, 5, 11], "denial_houses": [1, 4, 10],
+                       "karakas": ["Jupiter"], "relative_type": "child"},
+    "fertility":      {"playbook": "couple_fertility",  "rule": "or",
+                       "focus_houses": [2, 5, 11], "denial_houses": [1, 4, 10],
+                       "karakas": ["Jupiter"], "relative_type": "child"},
+    "pregnancy":      {"playbook": "couple_fertility",  "rule": "or",
+                       "focus_houses": [2, 5, 11], "denial_houses": [1, 4, 10],
+                       "karakas": ["Jupiter"], "relative_type": "child"},
+    "adoption":       {"playbook": "couple_fertility",  "rule": "or",
+                       "focus_houses": [5, 9],     "denial_houses": [1, 4],
+                       "karakas": ["Jupiter"], "relative_type": "child"},
+    # ─── Marriage / romance ──────────────────────────────────────────
+    "marriage":         {"playbook": "marriage_compat",    "rule": "or_with_match_redirect",
+                         "focus_houses": [2, 7, 11], "denial_houses": [1, 6, 10, 12],
+                         "karakas": ["Venus", "Jupiter"], "relative_type": "spouse"},
+    "second_marriage":  {"playbook": "marriage_compat",    "rule": "or_with_match_redirect",
+                         "focus_houses": [2, 7, 9, 11], "denial_houses": [1, 6, 10, 12],
+                         "karakas": ["Venus"], "relative_type": "spouse"},
+    "spouse":           {"playbook": "marriage_compat",    "rule": "or_with_match_redirect",
+                         "focus_houses": [2, 7, 11], "denial_houses": [1, 6, 10, 12],
+                         "karakas": ["Venus"], "relative_type": "spouse"},
+    "divorce":          {"playbook": "marriage_compat",    "rule": "and",
+                         "focus_houses": [1, 6, 10, 12], "denial_houses": [2, 7, 11],
+                         "karakas": [], "relative_type": "spouse"},
     # ─── Business / partnership ──────────────────────────────────────
-    "business":         {"playbook": "business_partnership", "rule": "synastry", "focus_houses": [2, 6, 7, 10, 11], "karakas": ["Mercury", "Saturn", "Jupiter"]},
-    "career_business":  {"playbook": "business_partnership", "rule": "synastry", "focus_houses": [2, 6, 7, 10, 11], "karakas": ["Mercury", "Saturn", "Jupiter"]},
-    "partnership":      {"playbook": "business_partnership", "rule": "synastry", "focus_houses": [2, 6, 7, 10, 11], "karakas": ["Mercury", "Saturn", "Jupiter"]},
-    "startup":          {"playbook": "business_partnership", "rule": "synastry", "focus_houses": [2, 7, 10, 11], "karakas": ["Mercury", "Saturn"]},
-    # ─── Employment (boss + employee, or hiring candidates) ──────────
-    "job":              {"playbook": "employer_employee", "rule": "synastry", "focus_houses": [2, 6, 10, 11], "karakas": ["Mercury", "Saturn"]},
-    "career":           {"playbook": "employer_employee", "rule": "synastry", "focus_houses": [2, 6, 10, 11], "karakas": ["Mercury", "Saturn"]},
-    "layoff":           {"playbook": "employer_employee", "rule": "and",      "focus_houses": [1, 5, 6, 9], "karakas": []},
-    "retirement":       {"playbook": "employer_employee", "rule": "or",       "focus_houses": [1, 5, 9, 12], "karakas": ["Saturn"]},
+    "business":         {"playbook": "business_partnership", "rule": "synastry",
+                         "focus_houses": [2, 6, 7, 10, 11], "denial_houses": [1, 5, 8, 12],
+                         "karakas": ["Mercury", "Saturn", "Jupiter"]},
+    "career_business":  {"playbook": "business_partnership", "rule": "synastry",
+                         "focus_houses": [2, 6, 7, 10, 11], "denial_houses": [1, 5, 8, 12],
+                         "karakas": ["Mercury", "Saturn", "Jupiter"]},
+    "partnership":      {"playbook": "business_partnership", "rule": "synastry",
+                         "focus_houses": [2, 6, 7, 10, 11], "denial_houses": [1, 5, 8, 12],
+                         "karakas": ["Mercury", "Saturn", "Jupiter"]},
+    "startup":          {"playbook": "business_partnership", "rule": "synastry",
+                         "focus_houses": [2, 7, 10, 11], "denial_houses": [1, 5, 8, 12],
+                         "karakas": ["Mercury", "Saturn"]},
+    # ─── Employment ──────────────────────────────────────────────────
+    "job":              {"playbook": "employer_employee", "rule": "synastry",
+                         "focus_houses": [2, 6, 10, 11], "denial_houses": [1, 5, 9, 12],
+                         "karakas": ["Mercury", "Saturn"], "relative_type": "boss"},
+    "career":           {"playbook": "employer_employee", "rule": "synastry",
+                         "focus_houses": [2, 6, 10, 11], "denial_houses": [1, 5, 9, 12],
+                         "karakas": ["Mercury", "Saturn"]},
+    "layoff":           {"playbook": "employer_employee", "rule": "and",
+                         "focus_houses": [1, 5, 6, 9], "denial_houses": [2, 6, 10, 11],
+                         "karakas": []},
+    "retirement":       {"playbook": "employer_employee", "rule": "or",
+                         "focus_houses": [1, 5, 9, 12], "denial_houses": [2, 6, 10],
+                         "karakas": ["Saturn"]},
     # ─── Property / inheritance / sibling disputes ───────────────────
-    "property":         {"playbook": "family_property",  "rule": "and",      "focus_houses": [3, 4, 6, 8, 11, 12], "karakas": ["Mars"]},
-    "wealth":           {"playbook": "family_property",  "rule": "or",       "focus_houses": [2, 6, 10, 11], "karakas": []},
-    "money_recovery":   {"playbook": "family_property",  "rule": "synastry", "focus_houses": [2, 6, 8, 11], "karakas": ["Mars"]},
+    "property":         {"playbook": "family_property",  "rule": "and",
+                         "focus_houses": [3, 4, 6, 8, 11, 12], "denial_houses": [],
+                         "karakas": ["Mars"]},
+    "wealth":           {"playbook": "family_property",  "rule": "or",
+                         "focus_houses": [2, 6, 10, 11], "denial_houses": [1, 5, 9, 12],
+                         "karakas": []},
+    "money_recovery":   {"playbook": "family_property",  "rule": "synastry",
+                         "focus_houses": [2, 6, 8, 11], "denial_houses": [1, 5, 12],
+                         "karakas": ["Mars"]},
     # ─── Legal / litigation ──────────────────────────────────────────
-    "litigation":       {"playbook": "court_case",       "rule": "synastry", "focus_houses": [1, 6, 8, 10, 11, 12], "karakas": ["Mars", "Saturn"]},
-    "civil_case":       {"playbook": "court_case",       "rule": "synastry", "focus_houses": [1, 6, 8, 10, 11, 12], "karakas": ["Mars"]},
-    "criminal_case":    {"playbook": "court_case",       "rule": "synastry", "focus_houses": [1, 6, 8, 12], "karakas": ["Mars", "Saturn"]},
-    "land_dispute":     {"playbook": "family_property",  "rule": "synastry", "focus_houses": [3, 4, 6, 8, 11], "karakas": ["Mars"]},
-    # ─── Medical (patient + doctor / caregiver) ──────────────────────
-    "health":           {"playbook": "medical",          "rule": "synastry", "focus_houses": [1, 5, 6, 8, 11, 12], "karakas": ["Jupiter"]},
-    "disease_risk":     {"playbook": "medical",          "rule": "synastry", "focus_houses": [1, 6, 8, 12], "karakas": []},
-    "hospitalization":  {"playbook": "medical",          "rule": "synastry", "focus_houses": [1, 6, 11, 12], "karakas": ["Jupiter"]},
-    "surgery":          {"playbook": "medical",          "rule": "synastry", "focus_houses": [1, 6, 8, 11, 12], "karakas": ["Mars", "Jupiter"]},
-    "recovery":         {"playbook": "medical",          "rule": "or",       "focus_houses": [1, 5, 11], "karakas": ["Jupiter"]},
-    # ─── Education (student + teacher / parents) ─────────────────────
-    "education":        {"playbook": "teacher_student",  "rule": "synastry", "focus_houses": [4, 5, 9, 11], "karakas": ["Mercury", "Jupiter"]},
-    "education_higher": {"playbook": "teacher_student",  "rule": "synastry", "focus_houses": [4, 9, 11, 12], "karakas": ["Jupiter"]},
-    "exam":             {"playbook": "teacher_student",  "rule": "or",       "focus_houses": [4, 9, 11], "karakas": ["Mercury"]},
+    "litigation":       {"playbook": "court_case",       "rule": "synastry",
+                         "focus_houses": [1, 6, 8, 10, 11, 12], "denial_houses": [],
+                         "karakas": ["Mars", "Saturn"]},
+    "civil_case":       {"playbook": "court_case",       "rule": "synastry",
+                         "focus_houses": [1, 6, 8, 10, 11, 12], "denial_houses": [],
+                         "karakas": ["Mars"]},
+    "criminal_case":    {"playbook": "court_case",       "rule": "synastry",
+                         "focus_houses": [1, 6, 8, 12], "denial_houses": [11],
+                         "karakas": ["Mars", "Saturn"]},
+    "land_dispute":     {"playbook": "family_property",  "rule": "synastry",
+                         "focus_houses": [3, 4, 6, 8, 11], "denial_houses": [],
+                         "karakas": ["Mars"]},
+    # ─── Medical ─────────────────────────────────────────────────────
+    "health":           {"playbook": "medical",          "rule": "synastry",
+                         "focus_houses": [1, 5, 6, 8, 11, 12], "denial_houses": [],
+                         "karakas": ["Jupiter"]},
+    "disease_risk":     {"playbook": "medical",          "rule": "synastry",
+                         "focus_houses": [1, 6, 8, 12], "denial_houses": [11],
+                         "karakas": []},
+    "hospitalization":  {"playbook": "medical",          "rule": "synastry",
+                         "focus_houses": [1, 6, 11, 12], "denial_houses": [],
+                         "karakas": ["Jupiter"]},
+    "surgery":          {"playbook": "medical",          "rule": "synastry",
+                         "focus_houses": [1, 6, 8, 11, 12], "denial_houses": [],
+                         "karakas": ["Mars", "Jupiter"]},
+    "recovery":         {"playbook": "medical",          "rule": "or",
+                         "focus_houses": [1, 5, 11], "denial_houses": [6, 8, 12],
+                         "karakas": ["Jupiter"]},
+    # ─── Education ───────────────────────────────────────────────────
+    "education":        {"playbook": "teacher_student",  "rule": "synastry",
+                         "focus_houses": [4, 5, 9, 11], "denial_houses": [3, 8, 10],
+                         "karakas": ["Mercury", "Jupiter"], "relative_type": "guru"},
+    "education_higher": {"playbook": "teacher_student",  "rule": "synastry",
+                         "focus_houses": [4, 9, 11, 12], "denial_houses": [3, 8, 10],
+                         "karakas": ["Jupiter"]},
+    "exam":             {"playbook": "teacher_student",  "rule": "or",
+                         "focus_houses": [4, 9, 11], "denial_houses": [3, 8, 10],
+                         "karakas": ["Mercury"]},
     # ─── Foreign / travel ────────────────────────────────────────────
-    "foreign_travel":   {"playbook": "general_compat",   "rule": "or",       "focus_houses": [3, 9, 11, 12], "karakas": []},
-    "foreign_settle":   {"playbook": "general_compat",   "rule": "and",      "focus_houses": [7, 9, 11, 12], "karakas": []},
+    "foreign_travel":   {"playbook": "general_compat",   "rule": "or",
+                         "focus_houses": [3, 9, 11, 12], "denial_houses": [2, 4, 8],
+                         "karakas": []},
+    "foreign_settle":   {"playbook": "general_compat",   "rule": "and",
+                         "focus_houses": [7, 9, 11, 12], "denial_houses": [2, 4, 8],
+                         "karakas": []},
     # ─── Spiritual ──────────────────────────────────────────────────
-    "spirituality":     {"playbook": "teacher_student",  "rule": "synastry", "focus_houses": [5, 9, 12], "karakas": ["Jupiter"]},
+    "spirituality":     {"playbook": "teacher_student",  "rule": "synastry",
+                         "focus_houses": [5, 9, 12], "denial_houses": [6, 10],
+                         "karakas": ["Jupiter"], "relative_type": "guru"},
+    # ─── Family relationship questions ──────────────────────────────
+    "father":           {"playbook": "parent_child",     "rule": "or",
+                         "focus_houses": [9, 5], "denial_houses": [3, 6, 12],
+                         "karakas": ["Sun", "Jupiter"], "relative_type": "father"},
+    "mother":           {"playbook": "parent_child",     "rule": "or",
+                         "focus_houses": [4, 9], "denial_houses": [3, 6, 12],
+                         "karakas": ["Moon"], "relative_type": "mother"},
+    "sibling":          {"playbook": "parent_child",     "rule": "or",
+                         "focus_houses": [3, 11], "denial_houses": [6, 12],
+                         "karakas": ["Mars"], "relative_type": "younger_sibling"},
     # ─── Fallback ───────────────────────────────────────────────────
-    "general":          {"playbook": "general_compat",   "rule": "synastry", "focus_houses": [1, 7, 11], "karakas": []},
+    "general":          {"playbook": "general_compat",   "rule": "synastry",
+                         "focus_houses": [1, 7, 11], "denial_houses": [6, 8, 12],
+                         "karakas": []},
 }
 
 
@@ -231,235 +216,12 @@ def resolve_playbook(question_topic: str | None) -> dict[str, Any]:
 
 
 # ────────────────────────────────────────────────────────────────────
-# Per-chart compact summary — NEW formatter for the multi-chart path.
-#
-# DOES NOT touch `format_chart_for_llm` (sacred).  That formatter is
-# tuned for single-chart deep analysis with the full Universal KB
-# loaded; it emits ~5-10K tokens of chart context.  In a multi-chart
-# request we have 2-4 charts AND the (~12K) multi-chart KB AND the
-# per-topic KB — bloat would kill the prompt window.
-#
-# This formatter emits ~1.5-2K tokens per chart by spotlighting:
-#   - Native profile (name / gender / age / birth)
-#   - The focus houses (cusps + sub-lord chain) for the playbook
-#   - The relevant karaka planets (positions + significations)
-#   - The current dasha tree (MD/AD/PAD/Sookshma)
-#   - Lagna + Moon (always; KP cross-reference baseline)
-#
-# Skips: full transit bundle, full Tara/Chandra Bala, full advanced
-# compute output, full upcoming 9-AD tree.  These can be re-derived
-# if a follow-up question requires them.
-# ────────────────────────────────────────────────────────────────────
-def format_chart_compact_for_multi(
-    chart_data: dict[str, Any],
-    focus_houses: list[int],
-    karakas: list[str],
-    chart_label: str = "Chart",
-) -> str:
-    """Render a per-chart compact summary for the multi-chart prompt.
-
-    `chart_label` is the human display token used in the prompt and
-    output (e.g. "Chart 1 — ♂ Manyue").
-
-    MultiChart-Phase-4 (May 2026) — emits VERBATIM-quotable tables so
-    the LLM never has to infer planet positions, houses, or
-    significations across turns.  See module docstring for the bug
-    history this fixes.
-    """
-    lines: list[str] = []
-    lines.append(f"═════════════════════════════════════════════")
-    lines.append(f"{chart_label}")
-    lines.append(f"═════════════════════════════════════════════")
-
-    # ─── Native profile ──────────────────────────────────────────────
-    name = chart_data.get("name") or "—"
-    gender = chart_data.get("gender") or ""
-    age = chart_data.get("age_years")
-    birth_date = chart_data.get("birth_date") or ""
-    gsym = "♂" if gender == "male" else "♀" if gender == "female" else ""
-    lines.append(f"Native: {name} {gsym}  ·  born {birth_date}  ·  age {age}")
-
-    chart_summary = chart_data.get("chart_summary") or {}
-    cusps = chart_summary.get("cusps") or {}
-    planets = chart_summary.get("planets") or {}
-    planet_positions = chart_data.get("planet_positions") or {}
-    significators = chart_data.get("significators") or {}
-
-    # ─── Lagna + Moon baseline (with DMS) ────────────────────────────
-    lagna_cusp = cusps.get("House_1") or {}
-    moon_data = planets.get("Moon") or {}
-    lines.append("")
-    lines.append("LAGNA + MOON (baseline — quote verbatim):")
-    if lagna_cusp:
-        lon = lagna_cusp.get("cusp_longitude")
-        lines.append(
-            f"  Lagna (H1): {lagna_cusp.get('sign','')} {_deg_in_sign_dms(lon)} "
-            f"(abs {lon}°) "
-            f"· nakshatra {lagna_cusp.get('nakshatra','')} "
-            f"· star-lord {lagna_cusp.get('star_lord','')} "
-            f"· sub-lord {lagna_cusp.get('sub_lord','')}"
-        )
-    if moon_data:
-        lon = moon_data.get("longitude")
-        moon_house = planet_positions.get("Moon")
-        lines.append(
-            f"  Moon: {moon_data.get('sign','')} {_deg_in_sign_dms(lon)} "
-            f"(abs {lon}°) "
-            f"· house {'H'+str(moon_house) if moon_house else '—'} "
-            f"· nakshatra {moon_data.get('nakshatra','')} "
-            f"· star-lord {moon_data.get('star_lord','')} "
-            f"· sub-lord {moon_data.get('sub_lord','')}"
-        )
-
-    # ─── PLANETARY POSITIONS — all 9 grahas (UNIVERSAL FIX) ──────────
-    # Surfaces every fact the LLM needs to quote without inferring.
-    # Columns: sign + deg-in-sign (DMS), abs lon, house, nakshatra,
-    # star-lord, sub-lord, owns (sign-lordship), signifies (4-step union).
-    lines.append("")
-    lines.append("PLANETARY POSITIONS (9 grahas — quote VERBATIM, do not infer):")
-    lines.append("  Format: Planet | Sign deg-in-sign | abs-lon° | House | Nakshatra | StarLord | SubLord | Owns | Signifies")
-    for pname in GRAHA_ORDER:
-        p = planets.get(pname)
-        if not p:
-            continue
-        lon = p.get("longitude")
-        sign = p.get("sign", "")
-        nak = p.get("nakshatra", "")
-        sl = p.get("star_lord", "")
-        sbl = p.get("sub_lord", "")
-        ph = planet_positions.get(pname)
-        owned = get_houses_owned_by_planet(pname, cusps) if cusps else []
-        sigs = _invert_significators_for_planet(pname, significators)
-        all_sig = sigs["all_signified"]
-        lines.append(
-            f"  {pname:<8} | {sign} {_deg_in_sign_dms(lon)} | {lon}° | "
-            f"H{ph if ph else '—'} | {nak} | star:{sl} | sub:{sbl} | "
-            f"owns:{owned or '—'} | signifies:{all_sig or '—'}"
-        )
-
-    # ─── HOUSE CUSPS — all 12 (UNIVERSAL FIX) ────────────────────────
-    # Without this the LLM had to infer cusps for non-focus houses
-    # when a follow-up shifted the topic mid-conversation.
-    lines.append("")
-    lines.append("HOUSE CUSPS (12 cusps — quote VERBATIM, do not infer):")
-    lines.append("  Format: House | Sign deg-in-sign | abs-lon° | Nakshatra | StarLord | SubLord")
-    for hn in range(1, 13):
-        c = cusps.get(f"House_{hn}") or {}
-        if not c:
-            continue
-        lon = c.get("cusp_longitude")
-        lines.append(
-            f"  H{hn:<2} | {c.get('sign','')} {_deg_in_sign_dms(lon)} | {lon}° | "
-            f"{c.get('nakshatra','')} | star:{c.get('star_lord','')} | "
-            f"sub:{c.get('sub_lord','')}"
-        )
-
-    # ─── Focus houses — full CSL chain spotlight ─────────────────────
-    lines.append("")
-    lines.append(f"FOCUS HOUSES for this question (per playbook): {focus_houses}")
-    csl_chains = chart_data.get("csl_chains") or {}
-    for hn in focus_houses:
-        key_int = hn
-        key_str = f"H{hn}"
-        chain = (
-            csl_chains.get(key_int)
-            or csl_chains.get(key_str)
-            or csl_chains.get(str(hn))
-            or {}
-        )
-        cusp = cusps.get(f"House_{hn}") or {}
-        cusp_lon = cusp.get("cusp_longitude")
-        lines.append(
-            f"  H{hn}: cusp {cusp.get('sign','')} {_deg_in_sign_dms(cusp_lon)} "
-            f"(abs {cusp_lon}°)"
-        )
-        if chain:
-            lines.append(
-                f"    CSL: {chain.get('csl','')} "
-                f"in H{chain.get('csl_house','')} "
-                f"signifies {chain.get('csl_rules','')}"
-            )
-            lines.append(
-                f"    Star lord: {chain.get('csl_star_lord','')} "
-                f"in H{chain.get('csl_star_lord_house','')} "
-                f"signifies {chain.get('csl_star_lord_rules','')}"
-            )
-            lines.append(
-                f"    Sub lord: {chain.get('csl_sub_lord','')} "
-                f"in H{chain.get('csl_sub_lord_house','')}"
-            )
-            sigs = chain.get("all_significations")
-            if sigs:
-                lines.append(f"    4-step union of significations: {sigs}")
-
-    # ─── HOUSE SIGNIFICATORS for focus houses (engine-computed) ──────
-    # Pre-emits the canonical KP 4-level significator chain so the
-    # LLM doesn't recompute "who signifies H5" by hand mid-answer.
-    lines.append("")
-    lines.append("HOUSE SIGNIFICATORS for focus houses (engine-computed, quote VERBATIM):")
-    for hn in focus_houses:
-        s = significators.get(f"House_{hn}") or {}
-        if not s:
-            continue
-        lines.append(
-            f"  H{hn}: occupants={s.get('occupants') or '—'}, "
-            f"in_star_of_occupants={s.get('planets_in_star_of_occupants') or '—'}, "
-            f"house_lord={s.get('house_lord','—')}, "
-            f"in_star_of_lord={s.get('planets_in_star_of_lord') or '—'}, "
-            f"4-step union={s.get('all_significators') or '—'}"
-        )
-
-    # ─── Karakas spotlight (POINTERS into the table above) ───────────
-    # Karakas are now POINTERS into the PLANETARY POSITIONS table.
-    # No re-emit of fields → no risk of partial data → no inference.
-    if karakas:
-        lines.append("")
-        lines.append(
-            f"RELEVANT KARAKAS for this event: {karakas} — "
-            f"see PLANETARY POSITIONS table above for exact "
-            f"sign / deg / house / star+sub-lord / 4-step "
-            f"significations.  Do NOT paraphrase from memory."
-        )
-
-    # ─── Current dasha tree ──────────────────────────────────────────
-    cur = chart_data.get("current_dasha") or {}
-    md = cur.get("mahadasha") or {}
-    ad = cur.get("antardasha") or {}
-    pad = cur.get("pratyantardasha") or {}
-    sk = cur.get("sookshma") or {}
-    lines.append("")
-    lines.append("CURRENT DASHA TREE (today):")
-    if md:
-        lines.append(f"  MD: {md.get('lord','—')}  ·  {md.get('start','')} → {md.get('end','')}")
-    if ad:
-        lines.append(f"  AD: {ad.get('antardasha_lord','—')}  ·  {ad.get('start','')} → {ad.get('end','')}")
-    if pad:
-        lines.append(f"  PAD: {pad.get('pratyantardasha_lord','—')}  ·  {pad.get('start','')} → {pad.get('end','')}")
-    if sk:
-        lines.append(f"  Sookshma: {sk.get('sookshma_lord','—')}  ·  {sk.get('start','')} → {sk.get('end','')}")
-
-    # ─── Promise / timing flags (already computed per-chart) ─────────
-    promise = chart_data.get("promise_analysis") or {}
-    timing = chart_data.get("timing_analysis") or {}
-    if promise or timing:
-        lines.append("")
-        lines.append("ENGINE FLAGS:")
-        if promise:
-            lines.append(
-                f"  Promise: is_promised={promise.get('is_promised','?')} "
-                f"· basis={promise.get('basis','')}"
-            )
-        if timing:
-            lines.append(
-                f"  Timing: dasha_relevant={timing.get('is_relevant','?')} "
-                f"· lord_in_chain={timing.get('lord_in_chain','')}"
-            )
-
-    return "\n".join(lines)
-
-
-# ────────────────────────────────────────────────────────────────────
 # Main entrypoint — compute_multi_chart_context.
+#
+# Phase 5 rewrite: produces per-chart GOATED context (the same
+# format_chart_for_llm output single-chart consumes) + cross-chart
+# engine primitives.  The compact formatter is GONE — every per-chart
+# improvement single-chart ships now auto-flows into multi-chart.
 # ────────────────────────────────────────────────────────────────────
 def compute_multi_chart_context(
     charts: list[dict[str, Any]],
@@ -480,27 +242,27 @@ def compute_multi_chart_context(
              gender} matching the existing PersonDetails Pydantic model.
             Order is preserved (chart[0] = "Chart 1", chart[1] = "Chart 2", …).
         question: the astrologer's free-text question.
-        history: optional chat history for follow-up questions
-            (preserved across turns by the SSE endpoint).
+        history: optional chat history for follow-up questions.
         live_latitude / live_longitude / live_timezone_offset:
             astrologer's current location for RP-at-moment.  Same
-            Trust-1 contract as single-chart — falls back to chart[0]'s
-            natal coords if missing (with rp_meta.source flagged).
+            Trust-1 contract as single-chart.
 
     Returns: dict with keys:
-        topic                 — detected question topic
-        playbook              — selected multi-chart playbook key
-        combination_rule      — selected combination rule (or/and/synastry/or_with_match_redirect)
-        focus_houses          — list of houses to spotlight
-        karakas               — list of karaka planet names
-        chart_count           — N (2-4)
-        chart_labels          — list of "Chart i — ♂ Name" strings
-        per_chart             — list of per-chart compact summary strings
-        per_chart_raw         — list of full chart_data dicts (for downstream tools / fallback)
-        rp_meta               — shared rp_meta (Trust-1 contract)
-        ruling_planets        — shared RP slot list for moment-of-query
-
-    Side effects: none.  Pure function.  Logging only.
+        topic                    — detected question topic
+        playbook                 — selected multi-chart playbook key
+        combination_rule         — selected combination rule
+        focus_houses             — list of houses to spotlight
+        denial_houses            — list of houses that signal denial
+        karakas                  — list of karaka planet names
+        relative_type            — optional, for Bhavat Bhavam cross-val
+        chart_count              — N (2-4)
+        chart_labels             — list of "Chart i — ♂ Name" strings
+        per_chart_raw            — list of full goated chart_data dicts
+                                   (consumed by llm_service which calls
+                                    format_chart_for_llm on each)
+        cross_chart_primitives   — output of cross_chart_engine.compute_all
+        rp_meta                  — shared rp_meta (Trust-1 contract)
+        ruling_planets           — shared RP slot list for moment-of-query
     """
     if not charts:
         raise ValueError("multi_chart: charts list is empty")
@@ -508,27 +270,25 @@ def compute_multi_chart_context(
         raise ValueError(f"multi_chart: max {MAX_CHARTS} charts (got {len(charts)})")
     if len(charts) < 2:
         # Single chart through the multi-chart endpoint is allowed
-        # (e.g., user asks about a relative via Bhavat Bhavam — see KB §4).
-        # The combination logic just degrades to "single-chart with
-        # rotational frame" — same engine, same KB, just no second
-        # chart to combine with.
+        # (Bhavat Bhavam relative inquiry).
         _log.info("multi_chart: single-chart mode (likely Bhavat Bhavam relative inquiry)")
 
     history = history or []
 
-    # ── 1. Detect topic from the question (cached Haiku call per Smart-Routing-1.1) ──
+    # ── 1. Detect topic (cached Haiku call per Smart-Routing-1.1) ────
     topic = detect_topic(question) or "general"
 
-    # ── 2. Resolve playbook + combination rule from topic ────────────
+    # ── 2. Resolve playbook + combination rule + focus/denial houses ─
     play = resolve_playbook(topic)
     playbook = play["playbook"]
     rule = play["rule"]
     focus_houses: list[int] = play["focus_houses"]
+    denial_houses: list[int] = play.get("denial_houses") or []
     karakas: list[str] = play["karakas"]
+    relative_type: str | None = play.get("relative_type")
 
     # ── 3. Per-chart compute (reuses sacred chart_pipeline) ──────────
     per_chart_raw: list[dict[str, Any]] = []
-    per_chart_summaries: list[str] = []
     chart_labels: list[str] = []
     for idx, ch in enumerate(charts, start=1):
         try:
@@ -540,7 +300,7 @@ def compute_multi_chart_context(
                 longitude=float(ch["longitude"]),
                 timezone_offset=float(ch.get("timezone_offset", 5.5)),
                 gender=ch.get("gender", ""),
-                topic=topic,  # per-chart compute can use the topic for advanced_compute
+                topic=topic,
                 live_latitude=live_latitude,
                 live_longitude=live_longitude,
                 live_timezone_offset=live_timezone_offset,
@@ -549,29 +309,18 @@ def compute_multi_chart_context(
             _log.warning("multi_chart: build_full_chart_data failed for chart %d: %s", idx, e)
             raise
 
-        # Strip internal-only keys from the response (kept on the dict
-        # for in-process use but not echoed back).
-        cd.pop("_chart_raw", None)
+        # Strip internal-only keys for safe downstream use.  We keep
+        # _chart_raw on the dict because format_chart_for_llm needs it.
         cd.pop("_moon_longitude", None)
 
         gender = cd.get("gender", "")
         gsym = "♂" if gender == "male" else "♀" if gender == "female" else "·"
         label = f"Chart {idx} — {gsym} {cd.get('name', '—')}"
         chart_labels.append(label)
-
-        summary = format_chart_compact_for_multi(
-            cd,
-            focus_houses=focus_houses,
-            karakas=karakas,
-            chart_label=label,
-        )
-        per_chart_summaries.append(summary)
         per_chart_raw.append(cd)
 
     # ── 4. Shared RP meta + RP slots (moment-of-query, astrologer's
-    #       live location — see Trust-1 contract + KB §7.4) ────────
-    # Use first chart's natal coords as the natal-fallback if live_*
-    # is missing.  This matches single-chart behavior.
+    #       live location — see Trust-1 contract) ────────────────────
     first = per_chart_raw[0]
     first_lat = float(first.get("_natal_lat") or charts[0].get("latitude"))
     first_lon = float(first.get("_natal_lon") or charts[0].get("longitude"))
@@ -583,16 +332,47 @@ def compute_multi_chart_context(
     ruling_planets = get_ruling_planets(rp_lat, rp_lon, rp_tz)
     rp_meta = build_rp_meta(rp_lat, rp_lon, rp_tz, source=rp_source)
 
+    # ── 5. Cross-chart engine primitives (Phase 5) ───────────────────
+    # rps_today list extracted from ruling_planets for the engine.
+    rp_ctx = ruling_planets.get("rp_context", {}) or {}
+    rps_today = rp_ctx.get("strongest") or ruling_planets.get("ruling_planets") or []
+
+    try:
+        cross_chart_primitives = compute_cross_chart_all(
+            per_chart_raw,
+            focus_houses=focus_houses,
+            denial_houses=denial_houses,
+            combination_rule=rule,
+            karakas=karakas,
+            topic=topic,
+            relative_type=relative_type,
+            rps_today=list(rps_today),
+        )
+    except Exception as e:
+        _log.warning("multi_chart: cross_chart_engine.compute_all failed: %s", e)
+        cross_chart_primitives = {
+            "error": str(e),
+            "synastry_overlay": {},
+            "common_significators": {},
+            "joint_dasha_windows": [],
+            "sublord_crosscheck": {},
+            "bhavat_bhavam_crossval": None,
+            "karaka_roles": None,
+            "combination_verdict": {"rule": rule, "verdict": "UNKNOWN", "formula_trace": f"engine error: {e}"},
+        }
+
     return {
-        "topic":            topic,
-        "playbook":         playbook,
-        "combination_rule": rule,
-        "focus_houses":     focus_houses,
-        "karakas":          karakas,
-        "chart_count":      len(charts),
-        "chart_labels":     chart_labels,
-        "per_chart":        per_chart_summaries,
-        "per_chart_raw":    per_chart_raw,
-        "rp_meta":          rp_meta,
-        "ruling_planets":   ruling_planets,
+        "topic":                  topic,
+        "playbook":               playbook,
+        "combination_rule":       rule,
+        "focus_houses":           focus_houses,
+        "denial_houses":          denial_houses,
+        "karakas":                karakas,
+        "relative_type":          relative_type,
+        "chart_count":            len(charts),
+        "chart_labels":           chart_labels,
+        "per_chart_raw":          per_chart_raw,
+        "cross_chart_primitives": cross_chart_primitives,
+        "rp_meta":                rp_meta,
+        "ruling_planets":         ruling_planets,
     }
