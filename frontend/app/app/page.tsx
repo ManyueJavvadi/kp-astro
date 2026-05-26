@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import remarkGfm from "remark-gfm";
 import axios from "axios";
-import { ArrowRight, Loader2, CheckCircle, XCircle, MessageCircle, MapPin, ChevronLeft, ChevronRight, Sparkles, User, Clock, Globe2, Target, LayoutGrid, Home as HomeIcon, Hourglass, MessageSquare, Calendar, Heart, HelpCircle, Moon, Star, Sunrise, Sunset, MoonStar, Crown, TriangleAlert, Ban, CircleDashed, Sun, Briefcase, Plane, BookOpen, Stethoscope, Wallet, Car, HandHeart, Lock, Wand2, Dices, CheckCircle2, HeartPulse, Baby, Scale, Globe, TrendingUp, ChevronDown, RefreshCw, Compass, Orbit, Maximize2, Minimize2 } from "lucide-react";
+import { ArrowRight, Loader2, CheckCircle, XCircle, MessageCircle, MapPin, ChevronLeft, ChevronRight, Sparkles, User, Clock, Globe2, Target, LayoutGrid, Home as HomeIcon, Hourglass, MessageSquare, Calendar, Heart, HelpCircle, Moon, Star, Sunrise, Sunset, MoonStar, Crown, TriangleAlert, Ban, CircleDashed, Sun, Briefcase, Plane, BookOpen, Stethoscope, Wallet, Car, HandHeart, Lock, Wand2, Dices, CheckCircle2, HeartPulse, Baby, Scale, Globe, TrendingUp, ChevronDown, ChevronUp, RefreshCw, Compass, Orbit, Maximize2, Minimize2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { PLANET_COLORS } from "./components/constants";
 import { ContentCard } from "@/components/ui/content-card";
@@ -303,6 +303,15 @@ export default function Home() {
   // successful submit AND on any input change touching the relevant field.
   const [setupError, setSetupError] = useState<string>("");
   // (quick insights removed)
+  // Trust-2 (May 2026) — Analysis-tab chat scroll navigation state.
+  // chatScrollRef: ref to the messages scroll container so the scroll
+  //   navigation arrows + the side-index click-to-jump can imperatively
+  //   scroll without re-binding state on every render.
+  // showScrollUp / showScrollDown: drives visibility of the floating
+  //   arrow buttons.  Updated by the scroll container's onScroll handler.
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
+  const [showScrollUp, setShowScrollUp] = useState(false);
+  const [showScrollDown, setShowScrollDown] = useState(false);
   // Transit state
   const [transitData, setTransitData] = useState<any>(null);
   const [transitLoading, setTransitLoading] = useState(false);
@@ -1758,22 +1767,13 @@ export default function Home() {
             </div>
           </>
         )}
-        {/* PR Trust-1 — always-visible "YOUR LOCATION" pill so the
-            astrologer ALWAYS knows which location drives the Ruling
-            Planets that every tab cites. If geolocation is missing /
-            denied, the pill becomes an inline "Pick city" picker —
-            never silently falls back to the natal location. */}
-        <span style={{ opacity: 0.2 }}>|</span>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 9.5, fontWeight: 700, letterSpacing: "0.06em" }}>YOUR LOCATION:</span>
-          <LiveLocationPill
-            location={liveLoc.location}
-            status={liveLoc.status}
-            error={liveLoc.error}
-            onOverride={liveLoc.override}
-            onRefresh={liveLoc.refresh}
-          />
-        </div>
+        {/* Trust-2 (May 2026) — the "YOUR LOCATION" pill formerly lived
+            HERE has moved up into the PersonHeroBanner header (right
+            next to the PDF button), so it's always visible without
+            requiring the astrologer to scroll the natal-data strip on
+            smaller screens.  Clean separation: stats strip = natal
+            chart facts (DOB/TOB/PLACE/COORDS/DASHA); banner header =
+            current astrologer state (LiveLocation/PDF/Switch/+New). */}
       </div>
     );
   };
@@ -1844,10 +1844,24 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Scrollable messages area */}
+        {/* Scrollable messages area
+            Trust-2 (May 2026) — wrapped in a relative-positioned shell
+            so the scroll-to-top / scroll-to-bottom floating arrows can
+            anchor to the chat region instead of the viewport.  Buttons
+            render at the bottom of this block (after the scroll div).  */}
+        <div style={{ flex: 1, position: "relative", display: "flex", minHeight: 0 }}>
         <div
           data-lenis-prevent
           className="custom-scrollbar"
+          ref={(el) => { chatScrollRef.current = el; }}
+          onScroll={(e) => {
+            const t = e.currentTarget;
+            // 24-px tolerance so a near-bottom view still counts as "at bottom".
+            const atBottom = t.scrollHeight - t.scrollTop - t.clientHeight < 24;
+            const atTop = t.scrollTop < 200;
+            setShowScrollUp(!atTop);
+            setShowScrollDown(!atBottom);
+          }}
           style={{
             flex: 1,
             overflowY: "auto",
@@ -1915,7 +1929,11 @@ export default function Home() {
             )}
 
             {analysisMessages.map((msg, idx) => (
-              <div key={idx} style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 6 }}>
+              <div
+                key={idx}
+                id={`chat-msg-${idx}`}
+                style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 6, scrollMarginTop: 16 }}
+              >
                 <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                   <div
                     style={{
@@ -1972,6 +1990,215 @@ export default function Home() {
             )}
           </div>
         </div>
+        {/* Trust-2 (May 2026) — Notion-style chat side index.
+            Vertical column of small tick marks at the right edge, one per
+            user-typed question.  Hover a tick → tooltip shows the first
+            ~80 chars of that question.  Click → smooth-scrolls to that
+            message via scrollIntoView (the `id={chat-msg-${idx}}` is set
+            on each message wrapper above).  When the chat is short (1-2
+            messages) the index is harmless — when it grows past one
+            screen, it becomes the fast-jump table of contents the
+            astrologer asked for.  Hidden in full-screen "isMax" mode
+            so the read view stays clean. */}
+        {!isMax && analysisMessages.length > 1 && (
+          <div
+            aria-label="Chat questions index"
+            style={{
+              position: "absolute", top: 12, bottom: 64, right: 4,
+              width: 18,
+              display: "flex", flexDirection: "column", alignItems: "center",
+              gap: 4, padding: "4px 2px",
+              borderRadius: 999,
+              background: "rgba(255,255,255,0.015)",
+              zIndex: 4,
+              pointerEvents: "auto",
+            }}
+          >
+            {analysisMessages.map((msg, idx) => {
+              const preview = (msg.q || msg.a || "").trim().slice(0, 90);
+              return (
+                <button
+                  key={`toc-${idx}`}
+                  type="button"
+                  title={preview || `Message ${idx + 1}`}
+                  aria-label={`Jump to message ${idx + 1}: ${preview}`}
+                  onClick={() => {
+                    try {
+                      document.getElementById(`chat-msg-${idx}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    } catch {}
+                  }}
+                  style={{
+                    width: 12, height: 2, padding: 0,
+                    border: "none",
+                    borderRadius: 1,
+                    background: "rgba(201,169,110,0.35)",
+                    cursor: "pointer",
+                    transition: "all 140ms",
+                  }}
+                  onMouseEnter={e => {
+                    (e.currentTarget as HTMLButtonElement).style.width = "16px";
+                    (e.currentTarget as HTMLButtonElement).style.height = "3px";
+                    (e.currentTarget as HTMLButtonElement).style.background = "var(--accent)";
+                  }}
+                  onMouseLeave={e => {
+                    (e.currentTarget as HTMLButtonElement).style.width = "12px";
+                    (e.currentTarget as HTMLButtonElement).style.height = "2px";
+                    (e.currentTarget as HTMLButtonElement).style.background = "rgba(201,169,110,0.35)";
+                  }}
+                />
+              );
+            })}
+          </div>
+        )}
+
+        {/* Trust-2 (May 2026) — floating scroll-to-top + scroll-to-bottom
+            buttons.  Anchored to the relative-positioned wrapper added
+            above the scroll div.  Up arrow appears when scrolled >200px
+            from top; down arrow when not within 24px of bottom (the
+            same tolerance the auto-scroll uses). */}
+        {showScrollUp && (
+          <button
+            type="button"
+            aria-label="Jump to top of conversation"
+            title="Jump to top"
+            onClick={() => {
+              try { chatScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" }); } catch {}
+            }}
+            style={{
+              position: "absolute", right: 16, bottom: 64,
+              width: 32, height: 32, borderRadius: 999,
+              border: "0.5px solid rgba(201,169,110,0.4)",
+              background: "rgba(13, 13, 22, 0.85)",
+              backdropFilter: "blur(8px)",
+              color: "var(--accent)",
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", zIndex: 5,
+              boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
+              transition: "transform 120ms, background 120ms",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(201,169,110,0.18)";
+              e.currentTarget.style.transform = "translateY(-2px)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "rgba(13, 13, 22, 0.85)";
+              e.currentTarget.style.transform = "translateY(0)";
+            }}
+          >
+            <ChevronUp size={16} />
+          </button>
+        )}
+        {showScrollDown && (
+          <button
+            type="button"
+            aria-label="Jump to latest message"
+            title="Jump to latest"
+            onClick={() => {
+              try {
+                const t = chatScrollRef.current;
+                if (t) t.scrollTo({ top: t.scrollHeight, behavior: "smooth" });
+              } catch {}
+            }}
+            style={{
+              position: "absolute", right: 16, bottom: 20,
+              width: 32, height: 32, borderRadius: 999,
+              border: "0.5px solid rgba(201,169,110,0.4)",
+              background: "rgba(13, 13, 22, 0.85)",
+              backdropFilter: "blur(8px)",
+              color: "var(--accent)",
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", zIndex: 5,
+              boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
+              transition: "transform 120ms, background 120ms",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(201,169,110,0.18)";
+              e.currentTarget.style.transform = "translateY(-2px)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "rgba(13, 13, 22, 0.85)";
+              e.currentTarget.style.transform = "translateY(0)";
+            }}
+          >
+            <ChevronDown size={16} />
+          </button>
+        )}
+        </div>
+
+        {/* Trust-2 (May 2026) — persistent compact Topic Quick Analysis
+            strip pinned ABOVE the input field once the conversation has
+            started.  Before this, the topic chips disappeared as soon as
+            the astrologer typed their first question, forcing a scroll
+            back to the top of the chat to fire a fresh deep topic.  This
+            strip stays visible always.  Single horizontal scroll row of
+            small pills; clicking one fires `handleTopicAnalysis(topic.id)`
+            exactly the same as the full grid above.  Hidden when no
+            messages exist (the full grid above is the primary surface
+            then). */}
+        {analysisMessages.length > 0 && (
+          <div
+            className="custom-scrollbar"
+            style={{
+              borderTop: "0.5px solid rgba(255,255,255,0.06)",
+              padding: isMax ? "6px 40px" : "6px 12px",
+              background: "rgba(13, 13, 22, 0.4)",
+              display: "flex",
+              gap: 6,
+              alignItems: "center",
+              flexShrink: 0,
+              overflowX: "auto",
+              flexWrap: "nowrap",
+            }}
+          >
+            <span style={{ fontSize: 9, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap", flexShrink: 0, marginRight: 4 }}>
+              Topics:
+            </span>
+            {TOPICS.map(tp => {
+              const TopicIcon = TOPIC_ICONS[tp.id] || HelpCircle;
+              const isActive = activeTopic === tp.id;
+              return (
+                <button
+                  key={tp.id}
+                  onClick={() => handleTopicAnalysis(tp.id)}
+                  disabled={analysisLoading}
+                  title={lang === "en" ? tp.en : tp.te}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    padding: "4px 10px",
+                    borderRadius: 999,
+                    border: `0.5px solid ${isActive ? "var(--accent)" : "rgba(255,255,255,0.08)"}`,
+                    background: isActive ? "rgba(201,169,110,0.12)" : "rgba(255,255,255,0.02)",
+                    color: isActive ? "var(--accent)" : "var(--text)",
+                    fontSize: 10.5,
+                    fontWeight: 500,
+                    cursor: analysisLoading ? "default" : "pointer",
+                    fontFamily: "inherit",
+                    whiteSpace: "nowrap",
+                    flexShrink: 0,
+                    transition: "all 0.15s",
+                  }}
+                  onMouseEnter={e => {
+                    if (!isActive && !analysisLoading) {
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(201,169,110,0.3)";
+                      (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.04)";
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    if (!isActive && !analysisLoading) {
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.08)";
+                      (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.02)";
+                    }
+                  }}
+                >
+                  <TopicIcon size={12} />
+                  {lang === "en" ? tp.en : tp.te}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* Sidebar Ask input strip */}
         <div style={{ borderTop: "0.5px solid rgba(255,255,255,0.08)", padding: isMax ? "16px 40px" : "10px 12px", background: "rgba(13, 13, 22, 0.6)", display: "flex", gap: 8, alignItems: "center", flexShrink: 0, justifyContent: "center" }}>
@@ -3081,6 +3308,20 @@ export default function Home() {
         savedSessions={savedSessions}
         onSwitchSession={handleSwitchSession}
         astrologerMode={true}
+        // Trust-2 (May 2026) — "YOUR LOCATION" pill pinned to the
+        // top-right next to PDF so the astrologer ALWAYS sees the
+        // location feeding their Ruling Planets without scrolling
+        // the stats strip on small screens.  Replaces the in-strip
+        // copy that was lower down.
+        liveLocSlot={
+          <LiveLocationPill
+            location={liveLoc.location}
+            status={liveLoc.status}
+            error={liveLoc.error}
+            onOverride={liveLoc.override}
+            onRefresh={liveLoc.refresh}
+          />
+        }
       />
       <div className="workspace-layout kp-constellation" style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative" }}>
         {/* Drifting background cosmic nebulae */}

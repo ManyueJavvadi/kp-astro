@@ -34,12 +34,20 @@ interface PersonHeroBannerProps {
   onSwitchSession: (s: ChartSession) => void;
   astrologerMode?: boolean;
   onEditChart?: () => void;
+  /**
+   * Trust-2 (PR May 2026) — optional slot for the LiveLocationPill so
+   * the "YOUR LOCATION" trust signal sits next to the PDF button at
+   * the top of the workspace, always visible without scrolling the
+   * stats strip on small screens.  Parent (page.tsx) owns the
+   * useLiveLocation state; this component just provides the slot.
+   */
+  liveLocSlot?: React.ReactNode;
 }
 
 export default function PersonHeroBanner({
   birthDetails, onNewChart, onPdf, pdfLoading,
   savedSessions, onSwitchSession, astrologerMode,
-  onEditChart,
+  onEditChart, liveLocSlot,
 }: PersonHeroBannerProps) {
   const { t } = useLanguage();
   const [showSwitch, setShowSwitch] = useState(false);
@@ -161,9 +169,12 @@ export default function PersonHeroBanner({
         </div>
       </div>
 
-      {/* Action buttons — PDF, Switch, New Chart.
-          Same controls, slightly smaller heights to match 38px avatar. */}
+      {/* Action buttons — Live location pill, PDF, Switch, New Chart.
+          Same controls, slightly smaller heights to match 38px avatar.
+          Trust-2 (May 2026) — liveLocSlot pinned LEFT of PDF so the
+          astrologer's RP-driving location is always visible. */}
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+        {liveLocSlot}
         <button
           onClick={onPdf}
           disabled={pdfLoading}
