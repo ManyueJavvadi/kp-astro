@@ -36,9 +36,115 @@ from app.services.chart_pipeline import (
     build_rp_meta,
 )
 from app.services.llm_service import detect_topic
-from app.services.chart_engine import get_ruling_planets
+from app.services.chart_engine import (
+    get_ruling_planets,
+    get_houses_owned_by_planet,
+)
 
 _log = logging.getLogger("multi_chart_engine")
+
+
+# Canonical 9-graha order — used for stable table emission.
+GRAHA_ORDER = [
+    "Sun", "Moon", "Mars", "Mercury", "Jupiter",
+    "Venus", "Saturn", "Rahu", "Ketu",
+]
+
+
+# ────────────────────────────────────────────────────────────────────
+# Helpers — verbatim-data emission (MultiChart-Phase-4 universal fix).
+#
+# The single biggest source of multi-chart hallucinations (May 2026)
+# was the per-chart compact formatter omitting fields the LLM then
+# had to *infer*.  Symptoms observed:
+#   - Venus position quoted as Pisces in one answer, Aquarius in
+#     another (same chart, same conversation) — LLM was inferring
+#     the sign from absolute longitude across turns.
+#   - Jupiter signified houses quoted as {2, 4} when the engine's
+#     4-step rule gives {2, 5, 6, 9} — LLM was walking the rule by
+#     hand and dropping ownership + star-lord contributions.
+#   - Mixed degree formats (54.67° absolute vs 24.67° deg-in-sign).
+#
+# Universal fix: emit a complete PLANETARY POSITIONS table for ALL
+# 9 grahas, a complete HOUSE CUSPS table for ALL 12 cusps, and a
+# per-planet "houses signified" precompute pulled directly from the
+# engine's significator dict (no LLM recomputation, no inference).
+# Then instruct the prompt to QUOTE VERBATIM.
+# ────────────────────────────────────────────────────────────────────
+def _deg_in_sign_dms(abs_longitude: float | int | None) -> str:
+    """Format absolute zodiacal longitude as deg-in-sign DMS string.
+
+    e.g., 54.6700 (Taurus 24.67°) → "24°40'12\""
+    Returns "—" if the input is unparseable.
+    """
+    if abs_longitude is None:
+        return "—"
+    try:
+        lon = float(abs_longitude) % 360.0
+    except (TypeError, ValueError):
+        return "—"
+    in_sign = lon % 30.0
+    deg = int(in_sign)
+    minutes_full = (in_sign - deg) * 60.0
+    minutes = int(minutes_full)
+    seconds = int((minutes_full - minutes) * 60.0)
+    return f"{deg:02d}°{minutes:02d}'{seconds:02d}\""
+
+
+def _planet_house_from_positions(planet_name: str, planet_positions: dict[str, int]) -> str:
+    """Pull a planet's natal house from the precomputed planet_positions dict."""
+    if not planet_positions:
+        return "—"
+    h = planet_positions.get(planet_name)
+    return f"H{h}" if h else "—"
+
+
+def _invert_significators_for_planet(
+    planet_name: str, significators: dict[str, Any]
+) -> dict[str, list[int]]:
+    """Invert the per-house significator dict into a per-planet view.
+
+    Returns:
+        {
+          "occupies":             [houses where this planet is an occupant],
+          "in_star_of_occupants": [houses where this planet is in the star of an occupant],
+          "in_star_of_lord":      [houses where this planet is in the star of the cusp's sign lord],
+          "is_house_lord":        [houses whose cusp sign-lord is this planet],
+          "all_signified":        [4-step union, deduplicated, sorted asc],
+        }
+
+    Sourced from `chart_data["significators"]` — itself produced by
+    `chart_engine.get_all_house_significators()`.  This is the canonical
+    KP 4-step rule output; we just pivot it from house-keyed to planet-keyed
+    so the multi-chart prompt can list "houses signified by Jupiter" in
+    one line without the LLM having to recompute the rule.
+    """
+    occupies: list[int] = []
+    in_star_of_occupants: list[int] = []
+    in_star_of_lord: list[int] = []
+    is_house_lord: list[int] = []
+
+    for hn in range(1, 13):
+        s = significators.get(f"House_{hn}") or {}
+        if planet_name in (s.get("occupants") or []):
+            occupies.append(hn)
+        if planet_name in (s.get("planets_in_star_of_occupants") or []):
+            in_star_of_occupants.append(hn)
+        if planet_name in (s.get("planets_in_star_of_lord") or []):
+            in_star_of_lord.append(hn)
+        if s.get("house_lord") == planet_name:
+            is_house_lord.append(hn)
+
+    all_signified = sorted({
+        *occupies, *in_star_of_occupants, *in_star_of_lord, *is_house_lord,
+    })
+    return {
+        "occupies":             occupies,
+        "in_star_of_occupants": in_star_of_occupants,
+        "in_star_of_lord":      in_star_of_lord,
+        "is_house_lord":        is_house_lord,
+        "all_signified":        all_signified,
+    }
 
 
 # ────────────────────────────────────────────────────────────────────
@@ -154,6 +260,11 @@ def format_chart_compact_for_multi(
 
     `chart_label` is the human display token used in the prompt and
     output (e.g. "Chart 1 — ♂ Manyue").
+
+    MultiChart-Phase-4 (May 2026) — emits VERBATIM-quotable tables so
+    the LLM never has to infer planet positions, houses, or
+    significations across turns.  See module docstring for the bug
+    history this fixes.
     """
     lines: list[str] = []
     lines.append(f"═════════════════════════════════════════════")
@@ -168,29 +279,82 @@ def format_chart_compact_for_multi(
     gsym = "♂" if gender == "male" else "♀" if gender == "female" else ""
     lines.append(f"Native: {name} {gsym}  ·  born {birth_date}  ·  age {age}")
 
-    # ─── Lagna + Moon — always included (KP cross-reference) ─────────
     chart_summary = chart_data.get("chart_summary") or {}
     cusps = chart_summary.get("cusps") or {}
     planets = chart_summary.get("planets") or {}
+    planet_positions = chart_data.get("planet_positions") or {}
+    significators = chart_data.get("significators") or {}
+
+    # ─── Lagna + Moon baseline (with DMS) ────────────────────────────
     lagna_cusp = cusps.get("House_1") or {}
     moon_data = planets.get("Moon") or {}
     lines.append("")
-    lines.append("LAGNA + MOON (baseline):")
+    lines.append("LAGNA + MOON (baseline — quote verbatim):")
     if lagna_cusp:
+        lon = lagna_cusp.get("cusp_longitude")
         lines.append(
-            f"  Lagna (H1): {lagna_cusp.get('sign','')} {lagna_cusp.get('cusp_longitude','')}° "
+            f"  Lagna (H1): {lagna_cusp.get('sign','')} {_deg_in_sign_dms(lon)} "
+            f"(abs {lon}°) "
             f"· nakshatra {lagna_cusp.get('nakshatra','')} "
+            f"· star-lord {lagna_cusp.get('star_lord','')} "
             f"· sub-lord {lagna_cusp.get('sub_lord','')}"
         )
     if moon_data:
+        lon = moon_data.get("longitude")
+        moon_house = planet_positions.get("Moon")
         lines.append(
-            f"  Moon: {moon_data.get('sign','')} {moon_data.get('longitude','')}° "
+            f"  Moon: {moon_data.get('sign','')} {_deg_in_sign_dms(lon)} "
+            f"(abs {lon}°) "
+            f"· house {'H'+str(moon_house) if moon_house else '—'} "
             f"· nakshatra {moon_data.get('nakshatra','')} "
-            f"· house {moon_data.get('house','')} "
+            f"· star-lord {moon_data.get('star_lord','')} "
             f"· sub-lord {moon_data.get('sub_lord','')}"
         )
 
-    # ─── Focus houses — full CSL chain for each ──────────────────────
+    # ─── PLANETARY POSITIONS — all 9 grahas (UNIVERSAL FIX) ──────────
+    # Surfaces every fact the LLM needs to quote without inferring.
+    # Columns: sign + deg-in-sign (DMS), abs lon, house, nakshatra,
+    # star-lord, sub-lord, owns (sign-lordship), signifies (4-step union).
+    lines.append("")
+    lines.append("PLANETARY POSITIONS (9 grahas — quote VERBATIM, do not infer):")
+    lines.append("  Format: Planet | Sign deg-in-sign | abs-lon° | House | Nakshatra | StarLord | SubLord | Owns | Signifies")
+    for pname in GRAHA_ORDER:
+        p = planets.get(pname)
+        if not p:
+            continue
+        lon = p.get("longitude")
+        sign = p.get("sign", "")
+        nak = p.get("nakshatra", "")
+        sl = p.get("star_lord", "")
+        sbl = p.get("sub_lord", "")
+        ph = planet_positions.get(pname)
+        owned = get_houses_owned_by_planet(pname, cusps) if cusps else []
+        sigs = _invert_significators_for_planet(pname, significators)
+        all_sig = sigs["all_signified"]
+        lines.append(
+            f"  {pname:<8} | {sign} {_deg_in_sign_dms(lon)} | {lon}° | "
+            f"H{ph if ph else '—'} | {nak} | star:{sl} | sub:{sbl} | "
+            f"owns:{owned or '—'} | signifies:{all_sig or '—'}"
+        )
+
+    # ─── HOUSE CUSPS — all 12 (UNIVERSAL FIX) ────────────────────────
+    # Without this the LLM had to infer cusps for non-focus houses
+    # when a follow-up shifted the topic mid-conversation.
+    lines.append("")
+    lines.append("HOUSE CUSPS (12 cusps — quote VERBATIM, do not infer):")
+    lines.append("  Format: House | Sign deg-in-sign | abs-lon° | Nakshatra | StarLord | SubLord")
+    for hn in range(1, 13):
+        c = cusps.get(f"House_{hn}") or {}
+        if not c:
+            continue
+        lon = c.get("cusp_longitude")
+        lines.append(
+            f"  H{hn:<2} | {c.get('sign','')} {_deg_in_sign_dms(lon)} | {lon}° | "
+            f"{c.get('nakshatra','')} | star:{c.get('star_lord','')} | "
+            f"sub:{c.get('sub_lord','')}"
+        )
+
+    # ─── Focus houses — full CSL chain spotlight ─────────────────────
     lines.append("")
     lines.append(f"FOCUS HOUSES for this question (per playbook): {focus_houses}")
     csl_chains = chart_data.get("csl_chains") or {}
@@ -204,7 +368,11 @@ def format_chart_compact_for_multi(
             or {}
         )
         cusp = cusps.get(f"House_{hn}") or {}
-        lines.append(f"  H{hn}: cusp {cusp.get('sign','')} {cusp.get('cusp_longitude','')}°")
+        cusp_lon = cusp.get("cusp_longitude")
+        lines.append(
+            f"  H{hn}: cusp {cusp.get('sign','')} {_deg_in_sign_dms(cusp_lon)} "
+            f"(abs {cusp_lon}°)"
+        )
         if chain:
             lines.append(
                 f"    CSL: {chain.get('csl','')} "
@@ -224,21 +392,34 @@ def format_chart_compact_for_multi(
             if sigs:
                 lines.append(f"    4-step union of significations: {sigs}")
 
-    # ─── Karakas (event-relevant) ────────────────────────────────────
+    # ─── HOUSE SIGNIFICATORS for focus houses (engine-computed) ──────
+    # Pre-emits the canonical KP 4-level significator chain so the
+    # LLM doesn't recompute "who signifies H5" by hand mid-answer.
+    lines.append("")
+    lines.append("HOUSE SIGNIFICATORS for focus houses (engine-computed, quote VERBATIM):")
+    for hn in focus_houses:
+        s = significators.get(f"House_{hn}") or {}
+        if not s:
+            continue
+        lines.append(
+            f"  H{hn}: occupants={s.get('occupants') or '—'}, "
+            f"in_star_of_occupants={s.get('planets_in_star_of_occupants') or '—'}, "
+            f"house_lord={s.get('house_lord','—')}, "
+            f"in_star_of_lord={s.get('planets_in_star_of_lord') or '—'}, "
+            f"4-step union={s.get('all_significators') or '—'}"
+        )
+
+    # ─── Karakas spotlight (POINTERS into the table above) ───────────
+    # Karakas are now POINTERS into the PLANETARY POSITIONS table.
+    # No re-emit of fields → no risk of partial data → no inference.
     if karakas:
         lines.append("")
-        lines.append(f"RELEVANT KARAKAS for this event: {karakas}")
-        for k in karakas:
-            p = planets.get(k) or {}
-            if not p:
-                continue
-            lines.append(
-                f"  {k}: {p.get('sign','')} {p.get('longitude','')}° "
-                f"· house {p.get('house','')} "
-                f"· nakshatra {p.get('nakshatra','')} "
-                f"· dignity {p.get('dignity','')} "
-                f"· retrograde {p.get('retrograde', False)}"
-            )
+        lines.append(
+            f"RELEVANT KARAKAS for this event: {karakas} — "
+            f"see PLANETARY POSITIONS table above for exact "
+            f"sign / deg / house / star+sub-lord / 4-step "
+            f"significations.  Do NOT paraphrase from memory."
+        )
 
     # ─── Current dasha tree ──────────────────────────────────────────
     cur = chart_data.get("current_dasha") or {}

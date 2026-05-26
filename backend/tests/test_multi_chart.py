@@ -26,9 +26,12 @@ import pytest
 from app.services.multi_chart_engine import (
     MAX_CHARTS,
     PLAYBOOK_MAP,
+    GRAHA_ORDER,
     resolve_playbook,
     format_chart_compact_for_multi,
     compute_multi_chart_context,
+    _deg_in_sign_dms,
+    _invert_significators_for_planet,
 )
 
 
@@ -303,6 +306,181 @@ class TestPerChartCompactFormatter:
         )
         # No karakas section when list is empty (skipped cleanly)
         assert "RELEVANT KARAKAS" not in out
+
+
+# ────────────────────────────────────────────────────────────────────
+# MultiChart-Phase-4 universal-fix regression tests.
+#
+# These guard against the May 2026 multi-chart bugs:
+#   - Venus position contradiction across turns (Pisces vs Aquarius)
+#   - Jupiter signification error ({2,4} vs {2,5,6,9})
+#   - Mixed degree formats (54.67° absolute vs 24.67° deg-in-sign)
+#
+# The fix surfaces complete tables in the per-chart compact summary
+# so the LLM has zero excuse to infer.  These tests assert the
+# tables exist + contain the right shape, and that the system prompt
+# carries the "quote verbatim" discipline.
+# ────────────────────────────────────────────────────────────────────
+class TestPhase4VerbatimDataDiscipline:
+    def test_deg_in_sign_dms_basic(self):
+        # 54.67° absolute = Taurus 24.67° = 24°40'12" (within rounding)
+        out = _deg_in_sign_dms(54.67)
+        assert out.startswith("24°"), f"expected starts with 24°, got {out!r}"
+        # Format shape: DD°MM'SS"
+        assert "°" in out and "'" in out and out.endswith('"')
+
+    def test_deg_in_sign_dms_zero_in_sign(self):
+        # 30.0° absolute = Taurus 00°00'00"
+        assert _deg_in_sign_dms(30.0) == "00°00'00\""
+
+    def test_deg_in_sign_dms_handles_none_and_garbage(self):
+        assert _deg_in_sign_dms(None) == "—"
+        assert _deg_in_sign_dms("not a number") == "—"
+
+    def test_deg_in_sign_dms_wraps_360(self):
+        # 360.0° wraps to 0° = Aries 00°00'00"
+        assert _deg_in_sign_dms(360.0) == "00°00'00\""
+
+    def test_invert_significators_handles_empty(self):
+        out = _invert_significators_for_planet("Jupiter", {})
+        assert out["all_signified"] == []
+
+    def test_invert_significators_unions_4_steps(self):
+        # Synthetic significators dict: Jupiter is occupant of H5,
+        # in star of occupant of H2, in star of lord of H9, and is
+        # house lord of H6.  Union should be {2, 5, 6, 9}.
+        fake = {
+            "House_2": {"occupants": [], "planets_in_star_of_occupants": ["Jupiter"],
+                        "planets_in_star_of_lord": [], "house_lord": "Saturn"},
+            "House_5": {"occupants": ["Jupiter"], "planets_in_star_of_occupants": [],
+                        "planets_in_star_of_lord": [], "house_lord": "Sun"},
+            "House_6": {"occupants": [], "planets_in_star_of_occupants": [],
+                        "planets_in_star_of_lord": [], "house_lord": "Jupiter"},
+            "House_9": {"occupants": [], "planets_in_star_of_occupants": [],
+                        "planets_in_star_of_lord": ["Jupiter"], "house_lord": "Mars"},
+        }
+        out = _invert_significators_for_planet("Jupiter", fake)
+        assert out["occupies"] == [5]
+        assert out["in_star_of_occupants"] == [2]
+        assert out["in_star_of_lord"] == [9]
+        assert out["is_house_lord"] == [6]
+        assert out["all_signified"] == [2, 5, 6, 9]
+
+    def test_compact_summary_emits_all_9_planets_table(self, monkeypatch):
+        """Per-chart compact summary MUST emit the PLANETARY POSITIONS
+        table with ALL 9 grahas (root-cause of Venus contradiction)."""
+        from app.services.chart_pipeline import build_full_chart_data
+        cd = build_full_chart_data(**{**MANYUE, "topic": "marriage"})
+        out = format_chart_compact_for_multi(
+            cd, focus_houses=[2, 7, 11], karakas=["Venus", "Jupiter"],
+            chart_label="Chart 1",
+        )
+        assert "PLANETARY POSITIONS" in out
+        # Every graha must appear as a labelled row in the table.
+        for planet in GRAHA_ORDER:
+            # Each row begins "  Planet     | ..."
+            assert f"  {planet:<8} |" in out, (
+                f"PLANETARY POSITIONS table missing row for {planet}"
+            )
+
+    def test_compact_summary_emits_all_12_cusps(self, monkeypatch):
+        """HOUSE CUSPS table MUST emit all 12 rows (so non-focus cusps
+        are not silently absent — root-cause of cross-cusp inference)."""
+        from app.services.chart_pipeline import build_full_chart_data
+        cd = build_full_chart_data(**{**MANYUE, "topic": "marriage"})
+        out = format_chart_compact_for_multi(
+            cd, focus_houses=[7], karakas=[],
+            chart_label="Chart 1",
+        )
+        assert "HOUSE CUSPS" in out
+        for hn in range(1, 13):
+            assert f"  H{hn:<2} |" in out, f"HOUSE CUSPS missing H{hn}"
+
+    def test_compact_summary_emits_house_significators_for_focus(self, monkeypatch):
+        """Engine-computed HOUSE SIGNIFICATORS must precede the LLM
+        answer so it doesn't recompute (Jupiter {2,4} vs {2,5,6,9})."""
+        from app.services.chart_pipeline import build_full_chart_data
+        cd = build_full_chart_data(**{**MANYUE, "topic": "marriage"})
+        out = format_chart_compact_for_multi(
+            cd, focus_houses=[2, 7, 11], karakas=["Venus"],
+            chart_label="Chart 1",
+        )
+        assert "HOUSE SIGNIFICATORS" in out
+        for hn in [2, 7, 11]:
+            assert f"  H{hn}: occupants=" in out, (
+                f"HOUSE SIGNIFICATORS missing H{hn}"
+            )
+
+    def test_compact_summary_dms_format_used(self, monkeypatch):
+        """Planet + cusp rows must use deg-in-sign DMS, not raw absolute
+        longitude (fixes the 54.67° vs 24.67° mixed display)."""
+        from app.services.chart_pipeline import build_full_chart_data
+        cd = build_full_chart_data(**{**MANYUE, "topic": "marriage"})
+        out = format_chart_compact_for_multi(
+            cd, focus_houses=[1], karakas=[],
+            chart_label="Chart 1",
+        )
+        # At least one DMS-shaped token must appear in PLANETARY POSITIONS.
+        import re
+        # DMS pattern: NN°NN'NN" — must show up at least once.
+        assert re.search(r"\d{2}°\d{2}'\d{2}\"", out), (
+            "expected DMS token (NN°NN'NN\") somewhere in compact summary"
+        )
+
+    def test_compact_summary_planet_row_has_signifies_column(self, monkeypatch):
+        """Every planet row must end with a `signifies:[…]` column so
+        the LLM can quote the 4-step union verbatim."""
+        from app.services.chart_pipeline import build_full_chart_data
+        cd = build_full_chart_data(**{**MANYUE, "topic": "marriage"})
+        out = format_chart_compact_for_multi(
+            cd, focus_houses=[7], karakas=["Venus"],
+            chart_label="Chart 1",
+        )
+        # "signifies:" token must appear at least 9 times (once per graha)
+        assert out.count("signifies:") >= 9, (
+            "PLANETARY POSITIONS table must include 'signifies:' for each graha"
+        )
+
+    def test_compact_summary_planet_row_has_house_column(self, monkeypatch):
+        """Planet rows MUST surface the house — root-cause of Venus
+        position contradiction was an empty house field."""
+        from app.services.chart_pipeline import build_full_chart_data
+        cd = build_full_chart_data(**{**MANYUE, "topic": "marriage"})
+        out = format_chart_compact_for_multi(
+            cd, focus_houses=[7], karakas=["Venus"],
+            chart_label="Chart 1",
+        )
+        # At least 9 "| H<n> |" tokens (one per planet row).  None should
+        # be empty (the old bug emitted "| H |" with a blank house).
+        import re
+        house_tokens = re.findall(r"\| H\d{1,2} \|", out)
+        assert len(house_tokens) >= 9, (
+            f"expected ≥9 populated planet-house tokens, got {len(house_tokens)}"
+        )
+
+    def test_system_prompt_contains_verbatim_discipline(self):
+        """The multi-chart system prompt MUST carry the R1-R6 verbatim
+        discipline block (guards against future prompt regressions)."""
+        from app.services.llm_service import _build_multi_chart_system_prompt
+        ctx = {
+            "topic":            "marriage",
+            "playbook":         "marriage_compat",
+            "combination_rule": "or_with_match_redirect",
+            "focus_houses":     [2, 7, 11],
+            "karakas":          ["Venus", "Jupiter"],
+            "chart_count":      2,
+            "chart_labels":     ["Chart 1 — ♂ A", "Chart 2 — ♀ B"],
+        }
+        prompt = _build_multi_chart_system_prompt(ctx, language="english")
+        # Discipline anchor strings — any future refactor that removes
+        # them will fail the test and force a deliberate decision.
+        assert "VERBATIM-DATA DISCIPLINE" in prompt
+        assert "R1." in prompt and "R2." in prompt and "R3." in prompt
+        assert "R4." in prompt and "R5." in prompt and "R6." in prompt
+        # The rules must reference the actual data tables they govern.
+        assert "PLANETARY POSITIONS" in prompt
+        assert "HOUSE CUSPS" in prompt
+        assert "HOUSE SIGNIFICATORS" in prompt
 
 
 # ────────────────────────────────────────────────────────────────────

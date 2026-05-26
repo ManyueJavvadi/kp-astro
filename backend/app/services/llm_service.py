@@ -6172,6 +6172,58 @@ Relevant karakas: {karakas}
 {rule_directive}
 
 ═══════════════════════════════════════════════════════════════
+VERBATIM-DATA DISCIPLINE (MultiChart-Phase-4 — NON-NEGOTIABLE)
+═══════════════════════════════════════════════════════════════
+The per-chart compact summaries below contain pre-computed tables:
+  - PLANETARY POSITIONS (all 9 grahas — sign + deg-in-sign DMS + abs
+    longitude + house + nakshatra + star-lord + sub-lord + owns +
+    signifies 4-step union)
+  - HOUSE CUSPS (all 12 cusps — sign + deg-in-sign DMS + abs
+    longitude + nakshatra + star-lord + sub-lord)
+  - HOUSE SIGNIFICATORS for the focus houses (occupants +
+    in_star_of_occupants + house_lord + in_star_of_lord + 4-step union)
+
+RULES — apply to EVERY chart, EVERY turn, no exceptions:
+
+  R1. Every planet position you cite MUST come VERBATIM from the
+      PLANETARY POSITIONS table.  Quote the sign and deg-in-sign
+      as printed (e.g., "Venus in Aquarius 14°30'12\\" (H7)").
+      NEVER infer a planet's sign from absolute longitude.
+      NEVER quote a planet differently across two answers in the
+      same conversation — the chart does not change between turns.
+
+  R2. Every "houses signified by X" you cite MUST come from the
+      `signifies` column of that planet's row, OR from the
+      `4-step union` of a HOUSE SIGNIFICATORS row.  Do NOT walk
+      the 4-step rule by hand and re-derive.  The engine has done
+      the derivation; you are reading, not computing.
+
+  R3. House occupation for a planet MUST come from the `House`
+      column of the PLANETARY POSITIONS table.  Do NOT compute
+      "Aquarius from Leo Lagna = H7" by hand — the table already
+      says it.
+
+  R4. Cusp degrees you cite MUST come from the HOUSE CUSPS table.
+      Use the deg-in-sign DMS column (e.g., "H7 cusp at Aquarius
+      02°15'") — do NOT cite raw absolute longitudes mixed with
+      deg-in-sign in the same answer (one or the other, consistently).
+
+  R5. If a fact you would normally cite is NOT in the tables
+      (e.g., a transit position, a dignity, a Shadbala score),
+      say "data not surfaced for this multi-chart view" and
+      proceed without it.  Do NOT fabricate.
+
+  R6. When comparing the same planet across charts (e.g., "is
+      Pavithra's Venus better than Ramya's Venus?"), pull from
+      each chart's PLANETARY POSITIONS table independently and
+      quote both rows side-by-side.  Never blend or paraphrase.
+
+These rules exist because earlier versions hallucinated Venus in
+Pisces (correct: Aquarius) and Jupiter signifying {{2,4}} (correct:
+{{2,5,6,9}} per engine).  Both errors disappear when you quote
+verbatim from the tables.
+
+═══════════════════════════════════════════════════════════════
 OUTPUT FORMAT (per KB §7.1)
 ═══════════════════════════════════════════════════════════════
 Follow the 8-section template:
