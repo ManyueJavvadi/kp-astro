@@ -25,6 +25,7 @@ from app.services.llm_service import (
 from app.services.csl_chains import compute_csl_chains, format_csl_chains_for_llm
 from app.services.timezone_utils import resolve_timezone, resolve_birth_offset
 from app.services.chart_formatter import format_chart_for_frontend
+from app.services.chart_pipeline import _resolve_rp_triple, build_rp_meta
 
 router = APIRouter()
 
@@ -391,12 +392,15 @@ def get_workspace(request: WorkspaceRequest):
     pratyantardashas = calculate_pratyantardashas(current_ad)
     current_pad = get_current_pratyantardasha(pratyantardashas)
     all_significators = get_all_house_significators(chart["planets"], chart["cusps"])
-    # Determine coordinates to calculate ruling planets at live query moment
-    rp_lat = request.live_latitude if request.live_latitude is not None else request.latitude
-    rp_lon = request.live_longitude if request.live_longitude is not None else request.longitude
-    rp_tz  = request.live_timezone_offset if request.live_timezone_offset is not None else tz_offset
-
+    # Shared rp triple resolver — all-or-nothing on live (never mix live
+    # lat/lon with natal tz, see chart_pipeline._resolve_rp_triple docstring).
+    rp_lat, rp_lon, rp_tz, rp_source = _resolve_rp_triple(
+        natal_lat=request.latitude, natal_lon=request.longitude, natal_tz=tz_offset,
+        live_lat=request.live_latitude, live_lon=request.live_longitude,
+        live_tz=request.live_timezone_offset,
+    )
     ruling_planets = get_ruling_planets(rp_lat, rp_lon, rp_tz)
+    rp_meta = build_rp_meta(rp_lat, rp_lon, rp_tz, source=rp_source)
 
     cusp_longitudes = [data.get("cusp_longitude", 0) for data in chart["cusps"].values()]
 
@@ -522,6 +526,12 @@ def get_workspace(request: WorkspaceRequest):
             for p in pratyantardashas
         ],
         "ruling_planets": rp_formatted,
+        # rp_meta — see services/chart_pipeline.build_rp_meta. Frontend
+        # uses this to render the RP source pill + per-tab inline labels
+        # so the astrologer always knows where every RP citation came from
+        # (their live location vs the natal-fallback when geolocation is
+        # missing / denied).
+        "rp_meta": rp_meta,
         "panchangam_today": get_today_panchangam(tz_offset, request.latitude, request.longitude),
         "panchangam_birth": get_birth_panchangam(request.date, request.time, tz_offset, request.latitude, request.longitude),
         "csl_chains": compute_csl_chains(cusps_formatted, planets_formatted),
@@ -623,7 +633,13 @@ If you cannot write a word in Telugu, write it in English instead.
         question_type=request.question_type,  # PR A1.3-fix-23 — Format A vs B routing
     )
 
-    return {"topic": topic, "answer": answer, "promise": promise, "timing": timing}
+    # rp_meta — surface the RP location/time source so the frontend can
+    # render the source pill above this answer and warn the astrologer
+    # if natal-fallback was used instead of their live location.
+    return {
+        "topic": topic, "answer": answer, "promise": promise, "timing": timing,
+        "rp_meta": chart_data.get("rp_meta"),
+    }
 
 
 # ════════════════════════════════════════════════════════════════
@@ -726,6 +742,11 @@ If you cannot write a word in Telugu, write it in English instead.
         "topic": topic,
         "promise": promise,
         "timing": timing,
+        # rp_meta — surfaces in the SSE meta event so the Analysis tab
+        # can render the source pill above the streaming answer the
+        # moment the stream opens (before chunks arrive).  Frontend
+        # tolerates missing field gracefully.
+        "rp_meta": chart_data.get("rp_meta"),
     }
 
     async def event_stream():

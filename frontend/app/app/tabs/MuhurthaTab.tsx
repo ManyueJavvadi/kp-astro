@@ -31,6 +31,7 @@ import remarkGfm from "remark-gfm";
 import { useLanguage } from "@/lib/i18n";
 import { PageHero } from "@/components/ui/PageHero";
 import { PlacePicker } from "@/components/ui/place-picker";
+import { RpSourcePill } from "../components/RpSourcePill";
 import { PLANET_COLORS } from "../components/constants";
 import MuhurthaReasoningTrace from "../components/MuhurthaReasoningTrace";  // PR Mu15
 import { recordAiCall } from "@/lib/aiAudit";
@@ -852,6 +853,26 @@ export function MuhurthaTab(props: MuhurthaTabProps) {
                   )}
                 </div>
               )}
+
+              {/* PR Trust-1 — explicit "RPs computed at: <event location>"
+                  label.  Muhurtha windows use the event location (not the
+                  astrologer's live, not the chart's natal — though "same as
+                  birth" mode means natal == event by user choice).  Make
+                  this explicit so the astrologer trusts the timing math.  */}
+              <div style={{ marginTop: 10, marginBottom: 4 }}>
+                <RpSourcePill
+                  data={{
+                    source: "event",
+                    place_name: mEventLoc?.display || birthDetails?.place || "the chart's birthplace",
+                  }}
+                  compact
+                  title={
+                    mEventLoc?.display
+                      ? `Muhurtha windows below were computed at ${mEventLoc.display} (event location you selected). Day-lord + Lagna + per-window sunrise all use this location, with DST honoured per day.`
+                      : `Muhurtha windows below were computed at the chart's birthplace (${birthDetails?.place ?? "natal"}). If the event will happen elsewhere, set a different event location in Step 2.`
+                  }
+                />
+              </div>
 
               {/* ── BEST WINDOW — serif hero reveal ── */}
               {bestWindow && (

@@ -74,6 +74,89 @@ from app.services.csl_chains import (
 _log = logging.getLogger("chart_pipeline")
 
 
+# ────────────────────────────────────────────────────────────────────
+# Ruling-Planet source resolution + rp_meta helper (trust contract).
+# ────────────────────────────────────────────────────────────────────
+# Every chart-generating router used to do its own ad-hoc fallback:
+#
+#     rp_lat = req.live_latitude if req.live_latitude is not None else req.latitude
+#     rp_lon = req.live_longitude if req.live_longitude is not None else req.longitude
+#     rp_tz  = req.live_timezone_offset if req.live_timezone_offset is not None else tz_offset
+#
+# Two problems with that pattern:
+#
+#   1. **Partial mix.** If one live_* is missing, the router silently
+#      mixed live lat/lon with natal tz — which produces the WRONG
+#      day-lord (sunrise check uses tz) for the wrong location.
+#   2. **Silent source.** The router computed RPs and returned them
+#      without any signal of WHICH location/time they came from.  The
+#      AI system prompt (RULE 39) tells Claude "RPs are at the user's
+#      current location" — a lie when natal fallback fires, but the
+#      astrologer reading the answer has no way to know.
+#
+# `_resolve_rp_triple` enforces all-or-nothing live → consistent
+# triple, and `build_rp_meta` returns the metadata block the frontend
+# uses to render the source pill + inline labels everywhere RPs are
+# consumed.
+
+def _resolve_rp_triple(
+    *,
+    natal_lat: float, natal_lon: float, natal_tz: float,
+    live_lat: float | None, live_lon: float | None, live_tz: float | None,
+) -> tuple[float, float, float, str]:
+    """Return (rp_lat, rp_lon, rp_tz, source). All-or-nothing on live —
+    if any one of the three live_* is missing, we fall back to the natal
+    triple entirely (never mix)."""
+    if live_lat is not None and live_lon is not None and live_tz is not None:
+        return (live_lat, live_lon, live_tz, "live")
+    return (natal_lat, natal_lon, natal_tz, "natal_fallback")
+
+
+def build_rp_meta(
+    rp_lat: float, rp_lon: float, rp_tz: float, *, source: str,
+    place_name: str | None = None,
+) -> dict[str, Any]:
+    """Build the rp_meta block consumed by the frontend.
+
+    Fields:
+      source            "live" | "natal_fallback" | "event" | "partner_natal"
+                        (last two used by Muhurtha / Match call sites)
+      lat, lon, tz_offset   exact numbers that were passed to get_ruling_planets
+      tz_name           IANA name resolved via timezonefinder (may be None
+                        if lookup fails — non-fatal, frontend falls back
+                        to showing the offset).
+      place_name        Human display string if the caller knows one
+                        (frontend's `useLiveLocation` knows "Hyderabad,
+                        India"; pipeline only sees lat/lon).
+      computed_at_local "HH:MM" wall-clock at rp_tz, used in inline
+                        labels like "Hyderabad · 14:32".
+
+    All enrichment is wrapped in try/except — a name-lookup hiccup
+    cannot break workspace generation. Frontend treats missing fields
+    gracefully (falls back to coords / offset).
+    """
+    meta: dict[str, Any] = {
+        "source": source,
+        "lat": rp_lat,
+        "lon": rp_lon,
+        "tz_offset": rp_tz,
+        "tz_name": None,
+        "place_name": place_name,
+        "computed_at_local": None,
+    }
+    try:
+        from app.services.timezone_utils import resolve_timezone
+        from datetime import datetime as _dt_now, timezone as _dt_tz, timedelta as _td
+        _utc_now = _dt_now.now(_dt_tz.utc)
+        _, _tz_name = resolve_timezone(rp_lat, rp_lon, _utc_now)
+        meta["tz_name"] = _tz_name
+        _local_dt = _utc_now + _td(hours=rp_tz)
+        meta["computed_at_local"] = f"{_local_dt.hour:02d}:{_local_dt.minute:02d}"
+    except Exception as _e:  # noqa: BLE001 — non-critical metadata
+        _log.warning("rp_meta enrichment failed: %s", _e)
+    return meta
+
+
 def compute_age_years(birth_date_str: str) -> int:
     """Compute current age in whole years from a YYYY-MM-DD birth date."""
     try:
@@ -205,11 +288,18 @@ def build_full_chart_data(
     )
 
     # ── 5. RP + full significators + planet houses ──────────────────
-    rp_lat = live_latitude if live_latitude is not None else latitude
-    rp_lon = live_longitude if live_longitude is not None else longitude
-    rp_tz  = live_timezone_offset if live_timezone_offset is not None else timezone_offset
+    # Live location wins; natal lat/lon/tz is a fallback only — but we
+    # ALWAYS record which one was used (see build_rp_meta below) so the
+    # frontend can show the astrologer the exact source of every RP
+    # citation via the workspace header pill, the AI answer wrap, and
+    # every per-tab inline source label.
+    rp_lat, rp_lon, rp_tz, _rp_source = _resolve_rp_triple(
+        natal_lat=latitude, natal_lon=longitude, natal_tz=timezone_offset,
+        live_lat=live_latitude, live_lon=live_longitude, live_tz=live_timezone_offset,
+    )
 
     ruling_planets = get_ruling_planets(rp_lat, rp_lon, rp_tz)
+    rp_meta = build_rp_meta(rp_lat, rp_lon, rp_tz, source=_rp_source)
     all_significators = get_all_house_significators(chart["planets"], chart["cusps"])
     planet_positions = get_planet_house_positions(chart["planets"], chart["cusps"])
 
@@ -445,6 +535,11 @@ def build_full_chart_data(
         "sookshmas_current_ad": ranked_sookshmas_current_ad,
         "sookshmas_upcoming_ads": sookshmas_upcoming_ads,
         "ruling_planets": ruling_planets,
+        # rp_meta — surface which location & time were used to compute the
+        # RPs above.  Frontend uses this to render the source pill on the
+        # workspace header AND inline labels above every AI answer / RP
+        # block, so the astrologer always knows where the RPs came from.
+        "rp_meta": rp_meta,
         "significators": all_significators,
         "planet_positions": planet_positions,
         "advanced_compute": advanced,

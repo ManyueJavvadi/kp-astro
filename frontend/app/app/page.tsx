@@ -12,6 +12,7 @@ import { useLanguage } from "@/lib/i18n";
 import CommandOrb from "./components/CommandOrb";
 import UserModeUI from "./components/UserModeUI";
 import LiveLocationPill from "./components/LiveLocationPill";
+import { RpSourcePillFromMeta } from "./components/RpSourcePill";
 import RPContextStrip from "./components/RPContextStrip";
 import ClinicalFlagsStrip from "./components/ClinicalFlagsStrip";
 import HoraryMoonCard from "./components/HoraryMoonCard";
@@ -1757,6 +1758,22 @@ export default function Home() {
             </div>
           </>
         )}
+        {/* PR Trust-1 — always-visible "YOUR LOCATION" pill so the
+            astrologer ALWAYS knows which location drives the Ruling
+            Planets that every tab cites. If geolocation is missing /
+            denied, the pill becomes an inline "Pick city" picker —
+            never silently falls back to the natal location. */}
+        <span style={{ opacity: 0.2 }}>|</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 9.5, fontWeight: 700, letterSpacing: "0.06em" }}>YOUR LOCATION:</span>
+          <LiveLocationPill
+            location={liveLoc.location}
+            status={liveLoc.status}
+            error={liveLoc.error}
+            onOverride={liveLoc.override}
+            onRefresh={liveLoc.refresh}
+          />
+        </div>
       </div>
     );
   };
@@ -1843,6 +1860,33 @@ export default function Home() {
           }}
         >
           <div style={{ width: "100%", maxWidth: isMax ? "800px" : "100%", display: "flex", flexDirection: "column", gap: isMax ? 18 : 10 }}>
+            {/* PR Trust-1 — RP source pill at the top of every AI session
+                so the astrologer ALWAYS knows where the Ruling Planets
+                cited below came from. Pulls from workspaceData.rp_meta
+                (populated by /workspace + /analyze + /analyze-stream). */}
+            {workspaceData?.rp_meta && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: isMax ? "0 0 4px 0" : "0 0 2px 0", flexWrap: "wrap" }}>
+                <span style={{ fontSize: isMax ? 10 : 9, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  RPs in answers below:
+                </span>
+                <RpSourcePillFromMeta
+                  rpMeta={workspaceData.rp_meta}
+                  placeName={
+                    workspaceData.rp_meta.source === "live"
+                      ? (liveLoc.location?.display ?? null)
+                      : (birthDetails.place || null)
+                  }
+                  compact={!isMax}
+                  onClick={() => {
+                    // Clicking the pill opens the workspace-header pick-city
+                    // flow (LiveLocationPill is already there).  Smooth-scroll
+                    // to the top so the pill is in view, in case the astrologer
+                    // is deep in a scrolled-down conversation.
+                    try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch {}
+                  }}
+                />
+              </div>
+            )}
             {/* Topic cards inside sidebar */}
             {analysisMessages.length === 0 && (
               <div style={{ marginBottom: 12 }}>
@@ -2368,12 +2412,28 @@ export default function Home() {
                         {birthDetails.longitude.toFixed(4)}°
                       </span>
                     </span>
+                    {/* PR Trust-1 — never display the misleading "IST"
+                        default for non-IST birthplaces.  If timezoneIana
+                        wasn't resolved (place picker's reverse-geocode
+                        failed or hasn't completed), show an honest
+                        "auto-detecting" state.  The backend always
+                        re-resolves correctly from lat/lon regardless of
+                        what the frontend sends, so this is purely a
+                        display-honesty fix. */}
                     <span>
                       <span style={{ color: theme.text.dim }}>tz</span>{" "}
-                      <span style={{ color: theme.gold }}>{timezoneLabel}</span>{" "}
-                      <span style={{ color: theme.text.dim }}>
-                        (UTC{timezoneOffset >= 0 ? "+" : ""}{timezoneOffset})
-                      </span>
+                      {timezoneIana ? (
+                        <>
+                          <span style={{ color: theme.gold }}>{timezoneLabel}</span>{" "}
+                          <span style={{ color: theme.text.dim }}>
+                            (UTC{timezoneOffset >= 0 ? "+" : ""}{timezoneOffset})
+                          </span>
+                        </>
+                      ) : (
+                        <span style={{ color: theme.text.dim, fontStyle: "italic" }}>
+                          auto-detecting from coordinates…
+                        </span>
+                      )}
                     </span>
                   </div>
                 )}

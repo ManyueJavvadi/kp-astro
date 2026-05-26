@@ -36,6 +36,7 @@ import { useLanguage } from "@/lib/i18n";
 import { AnimatedScoreDonut } from "@/components/ui/AnimatedScoreDonut";
 import { PageHero } from "@/components/ui/PageHero";
 import { PlacePicker } from "@/components/ui/place-picker";
+import { RpSourcePill } from "../components/RpSourcePill";
 import { PLANET_COLORS } from "../components/constants";
 // PR R1-hotfix lesson — preserve SouthIndianChart alias.
 import RasiChart from "../components/RasiChart";
@@ -1458,6 +1459,22 @@ export function MatchTab(props: MatchTabProps) {
                     {t("Narrowest joint windows where BOTH partners' Pratyantar AND Sookshma lords signify marriage houses {2,7,11}. Days-precision dates — engagement / wedding candidates.",
                        "ఇరువురి Pratyantar + Sookshma {2,7,11}ని సూచించే అతి సూక్ష్మ ఉమ్మడి కిటికీలు. నిశ్చితార్థం / వివాహ తేదీ సూచనలు.")}
                   </div>
+                  {/* PR Trust-1 — Match windows' moment-RPs are computed at
+                      Person 1's birth location (event default).  Show the
+                      astrologer EXPLICITLY which location seeded those RPs
+                      so they don't assume it was their live location. */}
+                  {r.person1?.place && (
+                    <div style={{ marginBottom: 8 }}>
+                      <RpSourcePill
+                        data={{
+                          source: "partner_natal",
+                          place_name: r.person1.place,
+                        }}
+                        compact
+                        title={`Wedding-date Ruling Planets are computed at ${r.person1.place} (${r.person1.name}'s birthplace).\nFor precision, set the actual event location on a future Match update.`}
+                      />
+                    </div>
+                  )}
                   <div style={{ display: "flex", flexDirection: "column" as const, gap: 6 }}>
                     {(r.joint_precision_windows || []).slice(0, 6).map((w: any, i: number) => (
                       <div key={i} style={{ padding: "8px 12px", background: "rgba(201,169,110,0.06)", border: "0.5px solid rgba(201,169,110,0.30)", borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" as const, gap: 8 }}>

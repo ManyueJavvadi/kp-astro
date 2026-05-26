@@ -7,6 +7,7 @@ from app.services.chart_engine import (
     check_dasha_relevance, get_ruling_planets
 )
 from app.services.timezone_utils import resolve_birth_offset
+from app.services.chart_pipeline import _resolve_rp_triple, build_rp_meta
 
 router = APIRouter()
 
@@ -49,12 +50,15 @@ def get_chart(request: ChartRequest):
     antardashas = calculate_antardashas(current_md)
     current_ad = get_current_antardasha(antardashas)
     all_significators = get_all_house_significators(chart["planets"], chart["cusps"])
-    # Determine coordinates to calculate ruling planets at live query moment
-    rp_lat = request.live_latitude if request.live_latitude is not None else request.latitude
-    rp_lon = request.live_longitude if request.live_longitude is not None else request.longitude
-    rp_tz  = request.live_timezone_offset if request.live_timezone_offset is not None else tz_offset
-
+    # Shared rp triple resolver — all-or-nothing on live (never mix live
+    # lat/lon with natal tz, see chart_pipeline._resolve_rp_triple docstring).
+    rp_lat, rp_lon, rp_tz, rp_source = _resolve_rp_triple(
+        natal_lat=request.latitude, natal_lon=request.longitude, natal_tz=tz_offset,
+        live_lat=request.live_latitude, live_lon=request.live_longitude,
+        live_tz=request.live_timezone_offset,
+    )
     ruling_planets = get_ruling_planets(rp_lat, rp_lon, rp_tz)
+    rp_meta = build_rp_meta(rp_lat, rp_lon, rp_tz, source=rp_source)
 
     return {
         "name": request.name,
@@ -67,6 +71,9 @@ def get_chart(request: ChartRequest):
         },
         "significators": all_significators,
         "ruling_planets": ruling_planets,
+        # rp_meta — see services/chart_pipeline.build_rp_meta. Frontend
+        # uses this to render the RP source pill + per-tab inline labels.
+        "rp_meta": rp_meta,
     }
 
 
@@ -112,12 +119,15 @@ def analyze_topic(request: TopicRequest):
         request.topic, current_md, current_ad,
         chart["planets"], chart["cusps"]
     )
-    # Determine coordinates to calculate ruling planets at live query moment
-    rp_lat = request.live_latitude if request.live_latitude is not None else request.latitude
-    rp_lon = request.live_longitude if request.live_longitude is not None else request.longitude
-    rp_tz  = request.live_timezone_offset if request.live_timezone_offset is not None else tz_offset
-
+    # Shared rp triple resolver — all-or-nothing on live (see chart.py:/generate
+     # for the rationale; same pattern keeps the source signal consistent).
+    rp_lat, rp_lon, rp_tz, rp_source = _resolve_rp_triple(
+        natal_lat=request.latitude, natal_lon=request.longitude, natal_tz=tz_offset,
+        live_lat=request.live_latitude, live_lon=request.live_longitude,
+        live_tz=request.live_timezone_offset,
+    )
     ruling_planets = get_ruling_planets(rp_lat, rp_lon, rp_tz)
+    rp_meta = build_rp_meta(rp_lat, rp_lon, rp_tz, source=rp_source)
 
     return {
         "name": request.name,
@@ -132,5 +142,8 @@ def analyze_topic(request: TopicRequest):
             "mahadasha": current_md,
             "antardasha": current_ad
         },
-        "ruling_planets": ruling_planets
+        "ruling_planets": ruling_planets,
+        # rp_meta — see services/chart_pipeline.build_rp_meta. Frontend
+        # uses this to render the RP source pill + per-tab inline labels.
+        "rp_meta": rp_meta,
     }

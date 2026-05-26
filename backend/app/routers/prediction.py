@@ -132,6 +132,10 @@ def ask_prediction(request: PredictionRequest):
                 "planets": chart_raw["planets"],
                 "cusps": chart_raw["cusps"],
             },
+            # rp_meta — surfaces the RP source so user-mode UI can
+            # render the source pill above the answer (consistent with
+            # astrologer mode). See chart_pipeline.build_rp_meta.
+            "rp_meta": chart_data.get("rp_meta"),
         },
         "mode": request.mode,
         "detected_topic": topic,
@@ -211,6 +215,10 @@ async def ask_prediction_stream(request: PredictionRequest):
             "planets": chart_raw["planets"],
             "cusps": chart_raw["cusps"],
         },
+        # rp_meta — surfaces the RP source so user-mode UI can render
+        # the source pill the moment the SSE stream opens (before any
+        # text chunks arrive). See chart_pipeline.build_rp_meta.
+        "rp_meta": chart_data.get("rp_meta"),
     }
 
     # Phase 2 cache key inputs
