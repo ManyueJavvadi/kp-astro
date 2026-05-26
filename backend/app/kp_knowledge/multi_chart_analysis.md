@@ -866,6 +866,313 @@ same canonical-doctrine stack.
   group catalogue (10 sub-domains), 3 combination rules + selector,
   Bhavat Bhavam table, 10 per-relationship playbooks, 3 worked
   examples, output format conventions, 9 anti-patterns.
+- **v2 (2026-05-26 — Phase 5)** — Same 10 sections preserved.
+  Added §11 (cross-chart engine primitive specifications — the 7
+  fact-tables that the LLM quotes verbatim under MC2 discipline).
+  Added §12 (named live failures from May 2026 production tests —
+  the multi-chart equivalent of single-chart's "ANTI-PATTERNS THE
+  LLM HAS PRODUCED LIVE" section). Added §13 (multi-chart pattern
+  library cross-reference — companion to single-chart's
+  pattern_library.md).
 
-Future versions should preserve the v1 structure (10 sections); only
-extend in-section content.
+Future versions should preserve the v1 + v2 structure; only extend
+in-section content.
+
+---
+
+## 11. Cross-chart engine primitive specifications (Phase 5)
+
+This section is the LLM-facing contract for the 7 cross-chart engine
+primitives emitted by `cross_chart_engine.compute_all()`. The LLM
+sees these as structured fact tables in the user-message block and
+must quote VERBATIM under MC2 discipline.
+
+### ① SYNASTRY OVERLAY MATRIX
+
+**What it is**: For each ordered pair of charts (A, B) where A ≠ B,
+the engine emits a planet-to-house map: for each of A's 9 grahas,
+which house of B (using B's actual KP cusps) contains that planet's
+absolute longitude.
+
+**LLM consumption rules**:
+- When a synastry overlay is relevant (Section 3 of the output), cite
+  the SPECIFIC planet + the SPECIFIC house in B — e.g., "Pavithra's
+  Mars (Pisces 28°26'14") lands in Manyue's H4 (domestic / home)".
+- POSITIVE overlay if the landed house is in `focus_houses` for the
+  current topic. FRICTION overlay if in `denial_houses` or {6, 8, 12}.
+- The engine has done the math — never re-derive. Quote the matrix.
+
+**Doctrinal anchor**: KP H7/Lagna lord cross-placement rule
+(KP Reader IV) — "lagna or 7th lord of one partner placed in the
+other's lagna or 7th house" is a recognised compatibility signal.
+
+### ② COMMON-SIGNIFICATOR SET
+
+**What it is**: For each focus house, each chart's 4-step significators
+(per KP RULE 5 A/B/C/D levels), the intersection across all N charts,
+and the intersection with today's Ruling Planets.
+
+**LLM consumption rules**:
+- "Common significators with RP" are the "RIPE-to-manifest" planets —
+  the strongest timing signal in multi-chart KP. Cite them explicitly
+  in Section 5 (TIMING).
+- Empty intersection ≠ denial. It signals the event needs different
+  triggers (transit, single-chart promise dominance, etc.).
+- Quote sets verbatim — sorted lists, exact members.
+
+**Doctrinal anchor**: KSK Reader V "When the ruling planets and the
+significators for marriage in a chart become common significators, it
+is imminent that the marriage will take place during the harmonious
+Dasha periods." (Generalises beyond marriage to any event.)
+
+### ③ JOINT DASHA INTERSECTION WINDOWS
+
+**What it is**: Date ranges (next 24 months) where ALL N charts have
+at least one running dasha layer (MD/AD/PAD) signifying any focus
+house. Scored 0-100 (base = (sum_layers_signifying / max_layers) ×
+100; +10 bonus if any of today's RPs is a signifying lord). Ranked
+top 5.
+
+**LLM consumption rules**:
+- Cite the TOP 3 windows by score in Section 5 (TIMING).
+- For each window, quote per-chart active layers and signifying lords
+  VERBATIM — don't paraphrase as "Saturn period" when the engine
+  emits ['AD', 'PAD'] with lords ['Saturn', 'Mercury'].
+- RP overlap is the riper signal — flag it (e.g., "RP boost: Mars,
+  Mercury").
+- Empty list = "no joint window in next 24 months where all charts
+  fire focus group simultaneously". State this honestly; suggest
+  re-checking after the next major dasha shift.
+
+**Doctrinal anchor**: KSK Reader V joint-period principle (Pattern T1
+in single-chart pattern_library.md) extended to multi-chart: all N
+charts must fire focus-house significators in the same time bucket
+for the event to materialise.
+
+### ④ SUB-LORD CROSS-CHECK SUMMARY
+
+**What it is**: Per focus house, each chart's CSL chain side-by-side:
+CSL planet + CSL's house + CSL's signifies (4-step) + CSL's star-lord
++ star-lord's house + CSL's sub-lord + sub-lord's house + 4-step union
++ per-chart 5-tier verdict (STRONGLY PROMISED / PROMISED / CONDITIONAL
+/ WEAKLY PROMISED / DENIED / NEUTRAL).
+
+**LLM consumption rules**:
+- Use as the spine of Section 2 (PER-CHART VERDICTS). Cite the CSL
+  chain at single-chart depth for each chart.
+- The per-chart verdict from engine = the headline; you may elaborate
+  with Star-Sub Harmony (RULE 16) and Pattern naming (RULE 19) but
+  do NOT contradict the engine's verdict label.
+- Cite chain unions verbatim — these are the 4-step KP rule output.
+
+**Doctrinal anchor**: Single-chart RULE 5 + RULE 11 (KSK strict bhukti
+rule for dual signification) applied per chart, then combined per MC3.
+
+### ⑤ BHAVAT BHAVAM CROSS-VALIDATION
+
+**What it is**: When questioner's chart (index 0) AND relative's chart
+(index 1) are both present AND the playbook has a `relative_type`
+(spouse, child, father, mother, sibling, etc.), the engine emits both:
+- rotated_verdict from questioner's chart via rotation (~70% conf)
+- natal_verdict from relative's chart directly (~95% conf)
+
+**LLM consumption rules**:
+- Cite BOTH verdicts in Section 2 — never silently pick one.
+- AGREE → upgrade combined confidence to 95%, state this explicitly.
+- DISAGREE → trust the natal (relative's own chart). Flag the
+  rotated-verdict discrepancy in Section 7 (CAVEATS) as a learning
+  signal — it tells the astrologer how reliable Bhavat Bhavam is
+  for similar questions in the future.
+- If primitive is `null` (not applicable), don't fabricate one.
+
+**Doctrinal anchor**: Bhavat Bhavam axis table (multi-chart KB §4) —
+Bosmia KPRM parent-child + KP Reader IV (children section).
+
+### ⑥ KARAKA ROLE DISTRIBUTION
+
+**What it is**: For N≥3 partnership-style topics (business, partnership,
+startup, joint_venture, career_business), the engine ranks each chart's
+karaka strength (Mars=operator, Mercury=advisor, Saturn=discipline,
+Jupiter=trust, Venus=harmony) and assigns the strongest chart per role.
+
+Scoring per chart × karaka:
+- +20 if karaka signifies H10 or H11 (career/gain anchors)
+- +15 if karaka is self-significator (in own nakshatra)
+- −10 if karaka is in H8 or H12 (loss houses)
+
+**LLM consumption rules**:
+- Cite in Section 3 (CROSS-CHART OVERLAY) for N≥3 partnership queries.
+- Use the role assignments to give CONCRETE structural advice in
+  Section 6 (RECOMMENDED ACTION) — e.g., "Chart 2 carries Mars role
+  (operator) most strongly → likely best as the operations lead.
+  Chart 1's Mercury role (advisor) suggests strategy/negotiation seat."
+- If primitive is `null` (N<3 or non-partnership topic), don't
+  invent a karaka distribution.
+
+**Doctrinal anchor**: Bosmia KPRM partnership chapter (workshop
+examples assigning roles in N-person partnerships).
+
+### ⑦ COMBINATION RULE VERDICT
+
+**What it is**: The mechanical combined verdict the engine emits
+after applying OR-Promise / AND-Denial / Synastry-Overlay rule per
+MC3 to per-chart verdicts + joint windows.
+
+Fields:
+- `rule`: which rule was applied (selected by PLAYBOOK_MAP per topic)
+- `verdict`: combined verdict (PROMISED / CONDITIONAL-POSITIVE /
+  CONDITIONAL / DENIED / STRONG-FIT / WORKABLE / FRICTION /
+  INCOMPATIBLE / NOT-DENIED / UNKNOWN)
+- `formula_trace`: human-readable step-by-step showing the math
+
+**LLM consumption rules**:
+- This is the headline of Section 4 (COMBINED VERDICT). State VERBATIM:
+  "Per ⑦ Combination Rule Verdict: [verdict]. Formula trace:
+  [formula_trace]."
+- You may explain the verdict in plain English afterwards, but the
+  literal quote must appear first.
+- Do NOT override the verdict with intuition. Engine math is sacred
+  (same as single-chart RULE 18 engine confidence).
+
+**Doctrinal anchor**: Multi-chart KB §3 (OR/AND/Synastry rules) +
+MC3 (the mechanical formula).
+
+---
+
+## 12. Named live failures (May 2026 production tests)
+
+This section catalogues SPECIFIC failure modes observed in production
+multi-chart answers, with their root cause and the discipline rule
+that prevents recurrence. Modelled on single-chart's "ANTI-PATTERNS
+THE LLM HAS PRODUCED LIVE" section.
+
+### 12.1 Venus position contradiction across turns
+
+**Symptom**: In one multi-chart conversation, Pavithra's Venus was
+quoted as "Pisces (Revati nakshatra)" in answer 1, then "Aquarius
+(H7)" in answer 2.  Same chart, same conversation.
+
+**Root cause**: Phase 2/3 compact formatter omitted the `house` field
+from karaka rows (chart_engine's planet dict has no `house` key).  LLM
+saw "Venus: Aquarius 314.5° · house · …" with blank house and inferred
+per turn — sometimes from sign, sometimes from longitude.
+
+**Phase 5 fix**: format_chart_compact_for_multi is GONE.  Now per-
+chart context = goated format_chart_for_llm output with explicit
+"Per Pavithra's chart data: Venus owns H7, H12" + PLANET POSITIONS
+block ("Venus -> H10") — single source of truth.
+
+**Discipline rule**: MC2 (engine-emit-then-quote) + single-chart
+RULE 10 (placement verification) + MC8 forbidden pattern #1.
+
+### 12.2 Jupiter signified houses incomplete
+
+**Symptom**: Manyue's Jupiter quoted as "signifies {2, 4}" when the
+engine's 4-step union emits "{2, 5, 6, 9}".
+
+**Root cause**: Compact formatter never surfaced per-planet
+significations.  LLM recomputed the 4-step rule by hand and dropped
+contributions (the star-lord chain and sub-lord chain).
+
+**Phase 5 fix**: Goated context includes HOUSE SIGNIFICATORS block
+per house (occupants + in_star_of_occupants + house_lord +
+in_star_of_lord + 4-step union).  LLM reads, doesn't compute.
+
+**Discipline rule**: MC2 (engine-emit-then-quote) + single-chart
+RULE 10 (no inferring significations) + MC8 forbidden pattern #2.
+
+### 12.3 Mixed degree formats
+
+**Symptom**: In one answer: "Taurus 54.67°" (absolute longitude) and
+"Taurus 24.67°" (within-sign degree) — both for the same planet.
+
+**Root cause**: Compact formatter emitted only absolute longitude.
+LLM converted to within-sign sometimes, didn't other times.
+
+**Phase 5 fix**: Goated context formatter uses consistent DMS
+within-sign + parenthetical absolute longitude in the same line —
+e.g., "Taurus 24°40'12" (abs 54.67°)".  LLM has only one canonical
+form to quote.
+
+**Discipline rule**: MC8 forbidden pattern #3.
+
+### 12.4 "Data not surfaced for Shadbala"
+
+**Symptom**: LLM refused to discuss Venus's Shadbala saying "data
+not surfaced for this multi-chart view" — when in fact the goated
+single-chart context HAS Shadbala (it's in format_chart_for_llm's
+output for every chart).
+
+**Root cause**: Compact formatter omitted Shadbala (and dignity, and
+retrograde, and transits, and Tara Chakra, etc.) to "save tokens".
+LLM correctly applied MC2/R5 discipline ("data not surfaced → say so,
+don't fabricate") but the data WAS available in the goated context;
+the compact formatter dropped it.
+
+**Phase 5 fix**: Per-chart context is now the full goated context.
+Every field single-chart Analysis tab sees is present per chart.
+
+**Discipline rule**: MC8 forbidden pattern #4.  Phase 5 makes this
+impossible by design.
+
+### 12.5 Silent chart skipping
+
+**Symptom**: With Manyue + Pavithra + Ramya in conversation context,
+the LLM analyzed only Manyue + Pavithra for a marriage question and
+didn't mention Ramya at all.
+
+**Root cause**: No prompt rule required explicit included/excluded
+chart enumeration in Section 1.
+
+**Phase 5 fix**: MC8 forbidden pattern #6 + OUTPUT TEMPLATE Section 1
+explicitly requires: "Charts INCLUDED in this analysis, charts
+EXCLUDED (and why if any are present-but-not-relevant)".
+
+### 12.6 Per-chart depth shallower than single-chart
+
+**Symptom**: A multi-chart answer for "Manyue's career prospects?"
+(when 3 charts were in context) gave a 200-word per-chart verdict
+when the equivalent single-chart Analysis tab answer would have been
+2000 words with full Star-Sub Harmony breakdown.
+
+**Root cause**: No prompt rule enforced single-chart depth per chart
+in multi-chart mode.
+
+**Phase 5 fix**: MC1 explicit + smart routing (Commit 6) routes
+single-chart questions to /astrologer/analyze-stream automatically
+when scope=1 chart.
+
+---
+
+## 13. Multi-chart pattern library cross-reference
+
+Single-chart pattern_library.md catalogues patterns like M1 (marriage
+strong promise), C2 (children conditional), J3 (Jupiter-debility-yet-
+promise), T1 (joint-period fructification). These apply PER CHART in
+multi-chart analysis per MC1.
+
+Multi-chart-SPECIFIC patterns (catalogue grows as we observe them in
+production):
+
+| Pattern ID | Name | Conditions |
+|---|---|---|
+| MC-T1 | Joint fructification active | Top joint dasha window has score ≥80 AND RP overlap non-empty |
+| MC-T2 | Joint fructification dormant | No joint window in next 24mo (event waits for next major dasha shift) |
+| MC-S1 | Strong synastry | ≥4 positive overlays AND ≤1 friction overlay (Synastry rule → STRONG-FIT) |
+| MC-S2 | Asymmetric synastry | One direction strong, other weak (e.g., A's Venus in B's H7 but B's Venus in A's H6) |
+| MC-D1 | Universal denial | All N charts DENIED with no joint window (AND-rule + OR-rule both deny) |
+| MC-D2 | Asymmetric promise | One chart strongly PROMISED, others DENIED — combination depends on rule |
+| MC-B1 | Bhavat Bhavam agreement | Rotated verdict and natal verdict AGREE → 95% confidence |
+| MC-B2 | Bhavat Bhavam disagreement | Verdicts DISAGREE → trust natal, flag rotation discrepancy |
+| MC-K1 | Clear karaka distribution | (N≥3) Each role has a clearly strongest chart (gap ≥15 points) |
+| MC-K2 | Contested karaka | (N≥3) Two charts tied for a role — recommends explicit role assignment |
+| MC-RP1 | RP-rich joint window | Joint window has RP overlap ≥2 planets (very ripe) |
+| MC-RP2 | RP-empty common sigs | Common significators non-empty but none in today's RPs (event possible but not "today") |
+
+When a pattern fires in a multi-chart answer, name it explicitly:
+"Pattern MC-T1 fires — top joint window (2026-08-15 → 2026-11-22)
+scores 95 with RP overlap [Mars, Saturn]."
+
+This is the multi-chart equivalent of single-chart's "Pattern T1
+fires — Mercury AD is the supporting-cusp-sub-lord trigger" naming
+discipline. KSK-grade reading vs generic scan.
