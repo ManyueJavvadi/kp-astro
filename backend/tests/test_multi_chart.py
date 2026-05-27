@@ -373,12 +373,14 @@ class TestPhase5SystemPromptDiscipline:
         assert "RULE 16 — STAR" in prompt and "HARMONY" in prompt
         assert "RULE 10 — NEVER INVENT" in prompt
 
-    def test_system_prompt_carries_MC1_through_MC10(self, monkeypatch):
+    def test_system_prompt_carries_MC1_through_MC11(self, monkeypatch):
+        # Phase 6 added MC11 (astrologer voice rule).
         ctx = self._build_ctx_for_prompt(monkeypatch)
         from app.services.llm_service import _build_multi_chart_system_prompt
         prompt = _build_multi_chart_system_prompt(ctx, "en")
         for mc in ["MC1 —", "MC2 —", "MC3 —", "MC4 —", "MC5 —",
-                   "MC6 —", "MC7 —", "MC8 —", "MC9 —", "MC10 —"]:
+                   "MC6 —", "MC7 —", "MC8 —", "MC9 —", "MC10 —",
+                   "MC11 —"]:
             assert mc in prompt, f"multi-chart discipline rule {mc} missing"
 
     def test_system_prompt_includes_multi_chart_kb_v2(self, monkeypatch):
@@ -398,18 +400,28 @@ class TestPhase5SystemPromptDiscipline:
         assert "PER-TOPIC KP DOCTRINE" in prompt
         assert "MARRIAGE" in prompt
 
-    def test_system_prompt_8_section_output_template(self, monkeypatch):
+    def test_system_prompt_astrologer_voice_template(self, monkeypatch):
+        # Phase 6: 8-section worksheet template REMOVED in favor of
+        # the astrologer-thinking-aloud 6-block flow.  Old anchors
+        # ("Section 1: QUESTION INTERPRETATION", etc.) should NOT
+        # appear in the output template (they may appear elsewhere
+        # in legacy doc but the template block uses topic headers).
         ctx = self._build_ctx_for_prompt(monkeypatch)
         from app.services.llm_service import _build_multi_chart_system_prompt
         prompt = _build_multi_chart_system_prompt(ctx, "en")
-        assert "Section 1: QUESTION INTERPRETATION" in prompt
-        assert "Section 2: PER-CHART VERDICTS" in prompt
-        assert "Section 3: CROSS-CHART OVERLAY" in prompt
-        assert "Section 4: COMBINED VERDICT" in prompt
-        assert "Section 5: TIMING" in prompt
-        assert "Section 6: RECOMMENDED ACTION" in prompt
-        assert "Section 7: CAVEATS" in prompt
-        assert "Section 8: CLIENT SUMMARY" in prompt
+        # NEW Phase 6 template anchors (short topic headers, not Section N)
+        assert "How [Chart 1]'s chart reads" in prompt
+        assert "How [Chart 2]'s chart reads" in prompt
+        assert "Where they fit (or don't)" in prompt
+        assert "When this fires" in prompt
+        assert "The bottom line" in prompt
+        # Voice rule MC11 present
+        assert "MC11" in prompt
+        assert "ASTROLOGER THINKING ALOUD" in prompt
+        # Density target stated
+        assert "1500" in prompt and "2200" in prompt
+        # Conformance guard
+        assert "CONFORMANCE GUARD" in prompt
 
     def test_system_prompt_verification_checklist_present(self, monkeypatch):
         ctx = self._build_ctx_for_prompt(monkeypatch)

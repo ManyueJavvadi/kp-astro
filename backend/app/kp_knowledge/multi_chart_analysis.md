@@ -1176,3 +1176,87 @@ scores 95 with RP overlap [Mars, Saturn]."
 This is the multi-chart equivalent of single-chart's "Pattern T1
 fires — Mercury AD is the supporting-cusp-sub-lord trigger" naming
 discipline. KSK-grade reading vs generic scan.
+
+---
+
+## 14. Astrologer voice (Phase 6 — "thinking aloud" template)
+
+### 14.1 The problem this fixes
+
+Phase 5 used an 8-section numbered worksheet template (Section 1:
+QUESTION INTERPRETATION → Section 2: PER-CHART VERDICTS → ... →
+Section 8: CLIENT SUMMARY).  In practice this produced answers that:
+
+  - Read like a reference manual, not a senior astrologer's reasoning
+  - Dumped tables under every header (synastry tables of 18 overlays;
+    sub-bulleted STAR/SUB/4-step union under every chart)
+  - Hit max_tokens 6000 and truncated mid-sentence on N≥3 chart
+    queries (May 26 production observation)
+  - Buried the verdict in section 4 of 8 — a real astrologer leads
+    with the verdict
+
+A real senior KP astrologer, asked "Will Manyue and Ramya marry?",
+does NOT mentally enumerate 8 worksheet sections.  They:
+
+  1. Glance at both H7 sub-lords and form an initial impression
+  2. Walk the deciding gate (SUB layer) on each chart for confirmation
+  3. Note one or two decisive synastry placements
+  4. Check the next firing window
+  5. Deliver a verdict + the most actionable caveat
+
+Phase 6 captures that reasoning shape in the prompt template.
+
+### 14.2 The Phase 6 template (universal across topics)
+
+Every multi-chart answer now follows this 6-block flow:
+
+  1. **Title line** + date + chart labels
+  2. **Lead paragraph** (2-4 sentences) — the verdict + the single
+     most decisive reason + timing
+  3. **"How [Chart 1]'s chart reads"** — flowing prose, ~180-280 words
+  4. **"How [Chart 2]'s chart reads"** — flowing prose, ~180-280 words
+  5. **"Where they fit (or don't)"** — synastry, pick 3-5 decisive
+     overlays, ~180-250 words
+  6. **"When this fires"** — top 1-2 joint windows, ~120-180 words
+  7. **"The bottom line"** — verdict + confidence + caveat + action,
+     3-5 sentences, no jargon
+
+Block headers are SHORT topic phrases.  Not "Section 1/2/3".  Not
+sub-bulleted lists under every header.  Flowing PROSE that reveals
+the astrologer's reasoning.
+
+### 14.3 Voice rules (codified as MC11 in the system prompt)
+
+  - Lead with the verdict, then unpack reasoning (never the reverse)
+  - 1st person ("I'm watching Venus here because...")
+  - Flowing prose, not bullet lists everywhere
+  - Cite engine inline ("per the engine's joint window ranks...")
+  - Pick decisive signals; don't enumerate every one
+  - Target 1500-2200 words.  > 2500 = padding
+  - Discipline rules (MC1-MC10) still apply but weave into prose
+
+### 14.4 Failure modes the new template fixes
+
+Added to §12 named failures:
+
+  - 12.7 — 8 numbered worksheet sections (clinical, hard to read)
+  - 12.8 — Sub-bulleted STAR/SUB/4-step union dumps under every chart
+  - 12.9 — Tables for every synastry overlay (18-row dumps)
+  - 12.10 — Engine confidence re-quoted 3 times across sections
+  - 12.11 — Answer truncated at max_tokens because worksheet voice
+    generated >8K tokens of enumerated content
+
+### 14.5 Universal across topics
+
+The Phase 6 template is topic-agnostic.  It works for:
+
+  - "Will Manyue and Ramya marry?" → marriage focus houses
+  - "Should we three start a business together?" → partnership focus
+  - "Will I win this court case against my cousin?" → litigation focus
+  - "Will my father recover from surgery?" → medical + Bhavat Bhavam
+  - "Is this guru the right teacher for my child?" → teacher-student
+  - "Which of these 3 employees should we promote?" → employer-employee
+  - "Will my brothers and I resolve the property dispute?" → property/AND
+
+Same flow, same voice, only the topic-specific houses/karakas/
+combination-rule change.
