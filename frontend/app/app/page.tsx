@@ -4841,7 +4841,6 @@ export default function Home() {
           birthDetails={birthDetails}
           chartData={chartData}
           messages={messages}
-          setMessages={setMessages}
           question={question}
           setQuestion={setQuestion}
           loading={loading}
@@ -4853,15 +4852,6 @@ export default function Home() {
           handleFeedback={handleFeedback}
           handleNoteSubmit={handleNoteSubmit}
           isMobile={isMobile}
-          savedSessions={savedSessions}
-          currentSessionId={currentSessionId}
-          onSwitchSession={handleSwitchSession}
-          onRemoveSession={handleRemoveSession}
-          onAddSession={() => setNewChartModalOpen(true)}
-          onEditChart={handleEditChart}
-          liveLoc={liveLoc}
-          apiUrl={API_URL}
-          setToast={setToast}
         />
       )}
 
