@@ -568,6 +568,75 @@ export default function Home() {
       .catch(() => { /* fall back to chart-load snapshot — silent */ });
   }, [setupDone, liveLoc.location, liveTodayPanchang]);
 
+  // PR Phase 8.1 — RP-meta auto-refresh when live location changes.
+  //
+  // Bug fixed: open the app in incognito → browser geo denied or
+  // unavailable → first /astrologer/workspace fetch sends live_* = null →
+  // backend emits `rp_meta.source = "natal_fallback"`. User then manually
+  // picks a city via the top-bar LiveLocationPill → `liveLoc.location`
+  // updates BUT `workspaceData.rp_meta` is the snapshot from the original
+  // fetch. The AI Companion pill keeps showing "natal fallback" forever.
+  //
+  // Fix: when `liveLoc.location` no longer matches the location bound
+  // into `workspaceData.rp_meta`, silently re-fetch the workspace with
+  // the current live_* params. The refreshed `rp_meta` propagates to
+  // every consumer that reads `workspaceData.rp_meta` (AI Companion
+  // pill, header pill, per-tab inline labels, etc.) and the new RPs
+  // also propagate to any analyze-stream / chat call that follows.
+  //
+  // Same effect runs for both astrologer mode (workspaceData) and user
+  // mode (chartData) — both backends accept the same live_* params.
+  useEffect(() => {
+    if (!setupDone) return;
+    if (!liveLoc.location) return;
+    const lat = liveLoc.location.latitude;
+    const lon = liveLoc.location.longitude;
+    const tz = liveLoc.location.timezone_offset;
+
+    // Truth source: the rp_meta that arrived with the last workspace/chart
+    // response. If it already reflects the current live location, no work.
+    const currentRpMeta = (mode === "astrologer" ? workspaceData : chartData)?.rp_meta;
+    if (
+      currentRpMeta?.source === "live" &&
+      typeof currentRpMeta.lat === "number" &&
+      typeof currentRpMeta.lon === "number" &&
+      Math.abs(currentRpMeta.lat - lat) < 0.001 &&
+      Math.abs(currentRpMeta.lon - lon) < 0.001
+    ) {
+      return;
+    }
+    // Need a chart to re-fetch against.
+    if (!birthDetails.name || !birthDetails.date || !birthDetails.latitude) return;
+    const parts = birthDetails.date.split("/");
+    if (parts.length !== 3) return;
+    const formattedDate = `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+
+    const endpoint = mode === "astrologer"
+      ? `${API_URL}/astrologer/workspace`
+      : `${API_URL}/chart/generate`;
+    const payload: Record<string, unknown> = {
+      name: birthDetails.name,
+      date: formattedDate,
+      time: getTime24(),
+      latitude: birthDetails.latitude,
+      longitude: birthDetails.longitude,
+      timezone_offset: timezoneOffset,
+      gender: birthDetails.gender || "",
+      live_latitude: lat,
+      live_longitude: lon,
+      live_timezone_offset: tz,
+    };
+
+    axios.post(endpoint, payload).then(r => {
+      if (mode === "astrologer") setWorkspaceData(r.data);
+      else                       setChartData(r.data);
+      recordAiCall(`workspace.refresh:liveloc-change`);
+    }).catch(() => { /* silent — old rp_meta keeps showing until next interaction */ });
+    // ESLint deps: intentionally omit workspaceData/chartData to avoid loops —
+    // the early-return checks them by source-of-truth (rp_meta lat/lon match).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setupDone, liveLoc.location, mode, birthDetails, timezoneOffset]);
+
   // PR A1.3-fix-15 — listen for follow-up chip clicks from HeroVerdictCard.
   // Component dispatches a `user-followup-click` CustomEvent with the
   // suggested follow-up question; we drop it into the input box.
