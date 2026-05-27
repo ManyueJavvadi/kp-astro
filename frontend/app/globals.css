@@ -4820,6 +4820,41 @@ textarea:focus-visible {
   /* Give the app a bit of breathing room at the bottom for the orb +
      any iOS home-indicator / gesture safe area. */
   .workspace-main { padding-bottom: env(safe-area-inset-bottom, 0); }
+
+  /* PR Phase 8.3 — AI Companion sidebar mobile parity.
+     ---------------------------------------------------
+     Without this rule the desk-right-sidebar inherits height:auto from
+     the astrologer-desk-grid (which becomes single-column at ≤1024px)
+     and the AI Companion's internal flex:1 chat-scroll area expands to
+     fit ALL messages.  Consequences observed in production on phones:
+       - Chat messages stretch indefinitely down the page
+       - Multi-chart chips bar (the "+ Add chart" UI) sits at page-end,
+         invisible until the user scrolls deeply down
+       - Ask input bar is at the BOTTOM of the chat content, not pinned
+         to the viewport bottom — so it scrolls away
+       - No internal scroll within the chat (page-level scroll instead),
+         which feels wrong vs every chat app the astrologer has used
+     Fix: constrain AI sidebar to 75vh on mobile so flex:1 child
+     (the scroll area) gets proper bounds.  Then:
+       - Chat scrolls internally
+       - Chips bar (flex-shrink:0) stays visible just above input
+       - Input strip (flex-shrink:0) pinned to bottom of the 75vh box
+     User and dad and AP/Telangana KP-astrologer mobile market parity. */
+  .desk-right-sidebar {
+    width: 100% !important;
+    height: 75vh !important;
+    max-height: 75vh !important;
+    min-height: 420px !important;
+    border-radius: 12px !important;
+    margin: 8px 0 !important;
+  }
+  /* Multi-chart chips bar — tighter padding on mobile so the
+     "Charts in chat: ♂ manyue PRIMARY  [+ Add chart]" row doesn't
+     wrap awkwardly on 360-414px-wide phones. */
+  .desk-right-sidebar [data-multi-chart-chips] {
+    padding: 6px 10px !important;
+    gap: 5px !important;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════

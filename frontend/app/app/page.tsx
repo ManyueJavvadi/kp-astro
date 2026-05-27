@@ -2491,6 +2491,7 @@ export default function Home() {
             multi-chart UX. */}
         {workspaceData && (
           <div
+            data-multi-chart-chips
             style={{
               borderTop: "0.5px solid rgba(255,255,255,0.06)",
               padding: isMax ? "6px 40px" : "6px 12px",
