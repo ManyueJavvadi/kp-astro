@@ -1179,84 +1179,136 @@ discipline. KSK-grade reading vs generic scan.
 
 ---
 
-## 14. Astrologer voice (Phase 6 — "thinking aloud" template)
+## 14. Astrologer voice + trust mechanisms (Phase 7 — bolded-chunk template)
 
-### 14.1 The problem this fixes
+### 14.1 Evolution: Phase 5 → 6 → 7
 
-Phase 5 used an 8-section numbered worksheet template (Section 1:
-QUESTION INTERPRETATION → Section 2: PER-CHART VERDICTS → ... →
-Section 8: CLIENT SUMMARY).  In practice this produced answers that:
+**Phase 5** used an 8-section numbered worksheet template.  Produced
+~4000-word clinical reports that buried the verdict and dumped tables
+under every header.  Truncated at max_tokens on N≥3 queries.
 
-  - Read like a reference manual, not a senior astrologer's reasoning
-  - Dumped tables under every header (synastry tables of 18 overlays;
-    sub-bulleted STAR/SUB/4-step union under every chart)
-  - Hit max_tokens 6000 and truncated mid-sentence on N≥3 chart
-    queries (May 26 production observation)
-  - Buried the verdict in section 4 of 8 — a real astrologer leads
-    with the verdict
+**Phase 6** swapped to a 6-block "thinking aloud" flow with short
+topic headers (How Manyue's chart reads / Where they fit / When this
+fires).  Better — but user feedback (post-shipping): "too limited;
+we COMPUTE much more than we PRESENT, why waste it?"
 
-A real senior KP astrologer, asked "Will Manyue and Ramya marry?",
-does NOT mentally enumerate 8 worksheet sections.  They:
+**Phase 7** is the trust-maximized rewrite, grounded in research
+across 10+ real KP consultation sources (AstroVidhi, Suhasastrology,
+Jagannath Hora 5-step, KP 4-Step Theory, KP Ezine, Journal of
+Astrology, kpastrologypro.com health analysis, KP property cases,
+court case structures).  The template now:
 
-  1. Glance at both H7 sub-lords and form an initial impression
-  2. Walk the deciding gate (SUB layer) on each chart for confirmation
-  3. Note one or two decisive synastry placements
-  4. Check the next firing window
-  5. Deliver a verdict + the most actionable caveat
+  - Leads with the VERDICT (Phase 6's strongest call kept)
+  - Uses **bolded one-sentence insights** as chunk headers (not even
+    short topic headers — the bold sentence IS the navigation)
+  - Surfaces EVERY computed primitive that affects the verdict
+    (12 trust factors enumerated)
+  - Universal across all topics via PLAYBOOK_MAP parameters
 
-Phase 6 captures that reasoning shape in the prompt template.
+### 14.2 The Phase 7 template — 14 chunk-types
 
-### 14.2 The Phase 6 template (universal across topics)
+Every multi-chart answer is a flowing sequence of bolded-lead chunks:
 
-Every multi-chart answer now follows this 6-block flow:
+  ①  **VERDICT** (always first) — bolded headline + 2-4 sentences
+  ②  **GROUNDING per chart** — Lagna SL, Moon, dasha tree, Tara, Sade Sati
+  ③  **PRIMARY CUSP deep walk** per chart — 4-step chain + Star-Sub Harmony
+  ④  **SUPPORTING CUSPS brief** — 1 sentence per supporting cusp
+  ⑤  **A/B/C/D SIGNIFICATOR LEVELS** for deciding planets
+  ⑥  **KARAKA CONTEXT** — dignity, debilitation, combustion, retrograde
+  ⑦  **PATTERNS FIRED** — M5/M6/T1/MC-T1/MC-B1 etc. named
+  ⑧  **YOGINI CROSS-CHECK + SAV + SLOW TRANSIT** in focus houses
+  ⑨  **CROSS-CHART** (N≥2 only) — synastry / common sigs / karaka roles
+  ⑩  **COMBINATION VERDICT** (N≥2 only) — engine formula trace verbatim
+  ⑪  **TIMING** — top 2 joint windows + RP source + triangulation
+  ⑫  **TRUST CHUNKS** — borderline / why-not-alternative / negatives / what-changes
+  ⑬  **CONFIDENCE** — engine number verbatim + breakdown + Bhavat Bhavam
+  ⑭  **BOTTOM LINE** — plain English, concrete action, falsifiable date
 
-  1. **Title line** + date + chart labels
-  2. **Lead paragraph** (2-4 sentences) — the verdict + the single
-     most decisive reason + timing
-  3. **"How [Chart 1]'s chart reads"** — flowing prose, ~180-280 words
-  4. **"How [Chart 2]'s chart reads"** — flowing prose, ~180-280 words
-  5. **"Where they fit (or don't)"** — synastry, pick 3-5 decisive
-     overlays, ~180-250 words
-  6. **"When this fires"** — top 1-2 joint windows, ~120-180 words
-  7. **"The bottom line"** — verdict + confidence + caveat + action,
-     3-5 sentences, no jargon
+Optional 15th: **REMEDIES** (KP-doctrinal only — never Parashari).
 
-Block headers are SHORT topic phrases.  Not "Section 1/2/3".  Not
-sub-bulleted lists under every header.  Flowing PROSE that reveals
-the astrologer's reasoning.
+Each chunk = bolded lead sentence + 1-3 supporting sentences.  No
+sub-bullets, no enumerated section headers, no per-chunk tables.
+Total length: 1200-1600 words standard; up to 2000 for complex (3+
+chart) queries.
 
-### 14.3 Voice rules (codified as MC11 in the system prompt)
+### 14.3 The 12 trust factors (research-derived from real KP standards)
 
-  - Lead with the verdict, then unpack reasoning (never the reverse)
-  - 1st person ("I'm watching Venus here because...")
-  - Flowing prose, not bullet lists everywhere
-  - Cite engine inline ("per the engine's joint window ranks...")
-  - Pick decisive signals; don't enumerate every one
-  - Target 1500-2200 words.  > 2500 = padding
-  - Discipline rules (MC1-MC10) still apply but weave into prose
+Real KP consultation reports earn blind trust by surfacing all of:
 
-### 14.4 Failure modes the new template fixes
+  1. Cusp positions verbatim (sign + deg + nakshatra + star + sub)
+  2. A/B/C/D significator levels per RULE 5
+  3. Full 4-step CSL chain + Star-Sub Harmony
+  4. Full Vimshottari dasha tree with exact dates
+  5. RPs explicitly named for moment of judgment + source disclosure
+  6. Dasha + Transit + RP triangulation status stated
+  7. Borderline placement flag (sub-lord boundary within ~1°)
+  8. Verdict tied to a specific KP rule cited by name
+  9. "Why not [alternative verdict]" honest contrast
+ 10. Falsifiable check date (specific YYYY-MM-DD)
+ 11. Honest negatives — what's MISSING from the chart
+ 12. Honest confidence number (engine; never adjusted)
+
+The Phase 7 template surfaces each of these in 1-2 sentence chunks.
+The astrologer reading the answer can verify the entire read from
+the answer alone — no need to look elsewhere.
+
+### 14.4 Universal across all topics
+
+The 14-chunk template adapts to ANY topic via PLAYBOOK_MAP — only
+the cusps + karakas + denial-houses change:
+
+  | Topic | Primary cusps | Karakas |
+  |---|---|---|
+  | Marriage | H7 / H2 / H11 (denial H1/H6/H10/H12) | Venus, Jupiter |
+  | Children | H5 / H2 / H11 | Jupiter |
+  | Career / Job | H10 / H2 / H6 / H11 | Mercury, Saturn, Sun |
+  | Property buy | H4 / H11 / H12 | Mars |
+  | Property sell | H10 / H3 | Mars |
+  | Court case | H6 (win) / H7 (opponent) / H11 | Mars, Saturn |
+  | Health | H1 / H6 / H8 / H12 / H11 (recovery) | Jupiter, Mars |
+  | Education | H4 / H9 / H11 | Mercury, Jupiter |
+  | Foreign travel | H3 / H9 / H12 | (sign lord of H12) |
+  | Parent-child | Bhavat Bhavam (H5/H9 axis) | Jupiter, Sun |
+  | Partnership | H6 / H7 / H10 / H11 | Mercury, Saturn, Jupiter |
+
+Same template, same chunk-type sequence, same trust mechanisms.
+Only the cusps change.
+
+### 14.5 KP-doctrinal remedy guard (optional 15th chunk)
+
+If a remedy genuinely applies AND it's KP-doctrinal (not Parashari),
+include a single bolded **REMEDIES** chunk.  KP doctrine prescribes:
+
+  - **Gemstone rule (single-chart RULE 15)**: Ascendant or H11 sub
+    lord must NOT connect to H6, H8, or H12 for a gemstone to be
+    auspicious.  If this condition is met, the planet's gemstone
+    can be recommended.
+  - **Sub-lord remedy for delayed events**: when the deciding sub
+    lord is weak, suggest waiting for its strong dasha period (NOT
+    "do a puja").
+  - **Time-of-event muhurtha**: for action questions (when to start,
+    when to sign), suggest a favourable muhurtha based on Tara +
+    Chandra Bala + cusp sub-lord alignment.
+
+FORBIDDEN remedies (Parashari leak, never include):
+  - Mangalik fast / Kuja Dosha puja / Sade Sati upay
+  - Generic mantra recommendations not tied to specific cusp/planet
+  - "Wear red coral if Mars is malefic" (Parashari, not KP)
+  - "Donate to charity for Saturn" (Parashari)
+  - 36-Guna milan score (Parashari; the Match tab handles guna
+    properly with KP overlay)
+
+If no KP-doctrinal remedy applies, OMIT the chunk entirely.
+
+### 14.6 Failure modes Phase 7 fixes
 
 Added to §12 named failures:
 
-  - 12.7 — 8 numbered worksheet sections (clinical, hard to read)
-  - 12.8 — Sub-bulleted STAR/SUB/4-step union dumps under every chart
-  - 12.9 — Tables for every synastry overlay (18-row dumps)
-  - 12.10 — Engine confidence re-quoted 3 times across sections
-  - 12.11 — Answer truncated at max_tokens because worksheet voice
-    generated >8K tokens of enumerated content
-
-### 14.5 Universal across topics
-
-The Phase 6 template is topic-agnostic.  It works for:
-
-  - "Will Manyue and Ramya marry?" → marriage focus houses
-  - "Should we three start a business together?" → partnership focus
-  - "Will I win this court case against my cousin?" → litigation focus
-  - "Will my father recover from surgery?" → medical + Bhavat Bhavam
-  - "Is this guru the right teacher for my child?" → teacher-student
-  - "Which of these 3 employees should we promote?" → employer-employee
-  - "Will my brothers and I resolve the property dispute?" → property/AND
-
-Same flow, same voice, only the topic-specific houses/karakas/
-combination-rule change.
+  - 12.7 — 8-section numbered worksheet headers (Phase 5 voice)
+  - 12.8 — Sub-bulleted STAR/SUB/4-step union dumps (Phase 5 voice)
+  - 12.9 — 18-row synastry overlay tables under every section
+  - 12.10 — Engine confidence cited 3+ times across sections
+  - 12.11 — Mid-sentence truncation at max_tokens (Phase 5 N≥3 bug)
+  - 12.12 — Phase 6 lite voice that DROPPED computed primitives
+    (Yogini cross-check / SAV / Sade Sati / dignity flags / pattern
+    names) to save words — Phase 7 surfaces all of these

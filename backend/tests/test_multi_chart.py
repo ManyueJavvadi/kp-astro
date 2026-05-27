@@ -373,14 +373,15 @@ class TestPhase5SystemPromptDiscipline:
         assert "RULE 16 — STAR" in prompt and "HARMONY" in prompt
         assert "RULE 10 — NEVER INVENT" in prompt
 
-    def test_system_prompt_carries_MC1_through_MC11(self, monkeypatch):
-        # Phase 6 added MC11 (astrologer voice rule).
+    def test_system_prompt_carries_MC1_through_MC12(self, monkeypatch):
+        # Phase 6 added MC11 (voice).
+        # Phase 7 added MC12 (completeness + trust mechanisms).
         ctx = self._build_ctx_for_prompt(monkeypatch)
         from app.services.llm_service import _build_multi_chart_system_prompt
         prompt = _build_multi_chart_system_prompt(ctx, "en")
         for mc in ["MC1 —", "MC2 —", "MC3 —", "MC4 —", "MC5 —",
                    "MC6 —", "MC7 —", "MC8 —", "MC9 —", "MC10 —",
-                   "MC11 —"]:
+                   "MC11 —", "MC12 —"]:
             assert mc in prompt, f"multi-chart discipline rule {mc} missing"
 
     def test_system_prompt_includes_multi_chart_kb_v2(self, monkeypatch):
@@ -400,28 +401,34 @@ class TestPhase5SystemPromptDiscipline:
         assert "PER-TOPIC KP DOCTRINE" in prompt
         assert "MARRIAGE" in prompt
 
-    def test_system_prompt_astrologer_voice_template(self, monkeypatch):
-        # Phase 6: 8-section worksheet template REMOVED in favor of
-        # the astrologer-thinking-aloud 6-block flow.  Old anchors
-        # ("Section 1: QUESTION INTERPRETATION", etc.) should NOT
-        # appear in the output template (they may appear elsewhere
-        # in legacy doc but the template block uses topic headers).
+    def test_system_prompt_phase7_template(self, monkeypatch):
+        # Phase 7: bolded-chunk template with 14 chunk-types + trust
+        # mechanisms (replaces Phase 6 short-topic-header flow).
         ctx = self._build_ctx_for_prompt(monkeypatch)
         from app.services.llm_service import _build_multi_chart_system_prompt
         prompt = _build_multi_chart_system_prompt(ctx, "en")
-        # NEW Phase 6 template anchors (short topic headers, not Section N)
-        assert "How [Chart 1]'s chart reads" in prompt
-        assert "How [Chart 2]'s chart reads" in prompt
-        assert "Where they fit (or don't)" in prompt
-        assert "When this fires" in prompt
-        assert "The bottom line" in prompt
-        # Voice rule MC11 present
-        assert "MC11" in prompt
-        assert "ASTROLOGER THINKING ALOUD" in prompt
-        # Density target stated
-        assert "1500" in prompt and "2200" in prompt
+        # Phase 7 chunk-type anchors (14 chunks emitted as bolded leads)
+        for chunk_label in [
+            "VERDICT", "GROUNDING per chart", "PRIMARY CUSP deep walk",
+            "SUPPORTING CUSPS brief", "A/B/C/D SIGNIFICATOR LEVELS",
+            "KARAKA CONTEXT", "PATTERNS FIRED",
+            "YOGINI CROSS-CHECK", "CROSS-CHART", "COMBINATION VERDICT",
+            "TIMING", "TRUST CHUNKS", "CONFIDENCE", "BOTTOM LINE",
+        ]:
+            assert chunk_label in prompt, f"Phase 7 chunk-type {chunk_label!r} missing"
+        # MC11 (voice) + MC12 (completeness) present
+        assert "MC11" in prompt and "VERDICT-FIRST" in prompt
+        assert "MC12" in prompt and "COMPLETENESS" in prompt
+        # 12 trust factors enumerated
+        assert "12 TRUST FACTORS" in prompt
+        # Density target shifted: 1200-1600 standard, up to 2000 complex
+        assert "1200-1600" in prompt or "1200" in prompt
         # Conformance guard
         assert "CONFORMANCE GUARD" in prompt
+        # Universal-across-topics statement
+        assert "UNIVERSAL" in prompt
+        # KP-doctrinal remedy guard
+        assert "Parashari remedies" in prompt
 
     def test_system_prompt_verification_checklist_present(self, monkeypatch):
         ctx = self._build_ctx_for_prompt(monkeypatch)
