@@ -112,13 +112,27 @@ LEVEL 3: RULING PLANET CONFIRMATION
 ================================================================
 
 Ruling Planets (RPs) at the time of query confirm WHEN the event will happen.
-RPs consist of:
-  1. Day Lord (lord of the weekday)
-  2. Hora Lord (planetary hour at time of query)
-  3. Lagna Sign Lord (lord of the rising sign right now)
-  4. Lagna Star Lord (lord of the lagna nakshatra)
-  5. Moon Sign Lord (lord of Moon's current sign)
-  6. Moon Star Lord (lord of Moon's current nakshatra)
+
+CANONICAL RP SET — see kp_ruling_planets_deep.md §2 + §3 for full doctrine.
+
+KSK 5 originals (KSK Reader IV strict; strength order strongest to weakest):
+  1. Lagna Star Lord  (Asc Nakshatra Lord — STRONGEST)
+  2. Lagna Sign Lord  (Asc Rasi Adhipati)
+  3. Moon Star Lord   (Chandra Nakshatra Lord)
+  4. Moon Sign Lord   (Chandra Rasi Adhipati)
+  5. Day Lord         (Vara Adhipati — weakest of the 5)
+
+Extended 7 (modern KP practice — onlinejyotish, jagannatha hora, ksrinivas):
+  6. Lagna Sub Lord   (Asc Sub Adhipati)
+  7. Moon Sub Lord    (Chandra Sub Adhipati)
+
+NOT in RPs — common contamination to avoid:
+  ❌ Hora Lord (planetary hour) — this is a MUHURTA / HORA-SHASTRA concept
+     used for selecting auspicious hours WITHIN the day. It is NOT in
+     KSK's KP Ruling Planet definition.  Our muhurtha_engine computes
+     hora_lord for muhurta scoring; the RP engine (chart_engine.get_
+     ruling_planets) emits the 7 canonical slots ONLY.
+  ❌ Atmakaraka / Amatyakaraka — Jaimini concepts, not KP RPs.
 
 THE RULING PLANET CONFIRMATION METHOD:
 The event will happen in a dasha period where the ruling planets AT THE TIME
