@@ -44,7 +44,7 @@ const ORACLE_CATEGORIES = [
     textColor: "#f43f5e",
     questions: [
       "Is marriage promised in my chart, and what will my partner be like?",
-      "When is the most auspicious timing window for my marriage?",
+      "Which coming period looks most supportive for marriage?",
       "Is there any delay or friction in my relationship houses?"
     ]
   },
@@ -58,7 +58,7 @@ const ORACLE_CATEGORIES = [
     textColor: "#10b981",
     questions: [
       "Am I promised a successful career in job or business?",
-      "When will my next professional promotion or job shift occur?",
+      "Which coming period looks stronger for promotion or job change?",
       "Does my 10th cusp sub lord support a stable career?"
     ]
   },
@@ -71,7 +71,7 @@ const ORACLE_CATEGORIES = [
     borderColor: "rgba(245, 158, 11, 0.25)",
     textColor: "#f59e0b",
     questions: [
-      "When will my financial assets and income see a major jump?",
+      "Which coming period looks stronger for income and savings?",
       "Am I promised wealth inheritance or property purchase?",
       "Will I successfully recover my lent money or pending refunds?"
     ]
@@ -87,7 +87,7 @@ const ORACLE_CATEGORIES = [
     questions: [
       "Does my chart support foreign travel or permanent settlement?",
       "What does my 1st cusp sub lord say about my physical vitality?",
-      "When is the best timing for my next long-distance journey?"
+      "Which coming period looks more supportive for long-distance travel?"
     ]
   }
 ];
@@ -97,15 +97,17 @@ export function EmptyStateHero({ birthDetails, currentDasha, chartData, onPickQu
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   // Extract CSL structure from raw chart data
-  const lagna = chartData?.chart?.cusps?.House_1 || chartData?.cusps?.House_1;
-  const house2 = chartData?.chart?.cusps?.House_2 || chartData?.cusps?.House_2;
-  const house7 = chartData?.chart?.cusps?.House_7 || chartData?.cusps?.House_7;
-  const house10 = chartData?.chart?.cusps?.House_10 || chartData?.cusps?.House_10;
+  const cuspsList = chartData?.cusps || chartData?.chart?.cusps || [];
+  const cuspsArray = Array.isArray(cuspsList) ? cuspsList : Object.values(cuspsList);
+  const lagna = cuspsArray[0];
+  const house2 = cuspsArray[1];
+  const house7 = cuspsArray[6];
+  const house10 = cuspsArray[9];
 
   const md = currentDasha?.mahadasha || currentDasha?.current_mahadasha;
   const ad = currentDasha?.antardasha || currentDasha?.current_antardasha;
 
-  const lagnaSign = lagna?.sign ?? "";
+  const lagnaSign = lagna?.sign_en || lagna?.sign || "";
   const lagnaSignLord = SIGN_LORDS[lagnaSign] ?? "";
 
   return (
