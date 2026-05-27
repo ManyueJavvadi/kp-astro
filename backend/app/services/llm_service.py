@@ -3502,8 +3502,19 @@ Perform complete KP analysis. Format output for {mode.upper()} mode as instructe
         # The new RULE 39 + RULE 40 + pre-flight block + RULE 28 mandatory
         # intercepted-sign callouts add ~600-900 tokens of structural
         # content per answer. 4000 was hitting the cap mid-section.
-        # Sub_question stays at 2400 (Format B is narrative + tighter).
-        max_tokens = 2400 if resolved_qt == "sub_question" else 5000
+        #
+        # Phase 8.2 (2026-05-27) — sub_question bumped 2400 -> 5000 after
+        # live truncation report. The Phase 8 RULE 5 per-topic-promise-rule
+        # additions (foreign settle / education higher / litigation
+        # combination rules) + the standing structural blocks (RULE 16
+        # Star-Sub Harmony, RULE 19 pattern naming, RULE 28 intercepted
+        # signs, fix-10 conflicting-signals panel, multi-cusp confirmation)
+        # mean even "sub_question" chat answers produce deep structured
+        # output that overruns 2400. User report 2026-05-27: career
+        # interview question cut off mid-sentence at "RP" inside Section 4
+        # (Timing). 5000 matches full_topic ceiling — same prompt = same
+        # ceiling — and is well under model's 8K limit for Haiku 4.5.
+        max_tokens = 5000 if resolved_qt == "sub_question" else 5000
     else:
         max_tokens = 1200
 
@@ -3892,7 +3903,11 @@ Perform complete KP analysis. Format output for {mode.upper()} mode as instructe
     # astrologer.
     if mode == "astrologer":
         # Phase 17.1 — see rationale on the get_prediction twin above.
-        max_tokens = 2400 if early_resolved_qt == "sub_question" else 5000
+        # Phase 8.2 (2026-05-27) — sub_question bumped 2400 -> 5000 to
+        # match full_topic ceiling.  Same prompt depth + same Phase 8 RULE 5
+        # additions = same output cap needed.  See get_prediction twin
+        # above for the user-report citation that triggered this bump.
+        max_tokens = 5000 if early_resolved_qt == "sub_question" else 5000
     else:
         max_tokens = 1200
 
