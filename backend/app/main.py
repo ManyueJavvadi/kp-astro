@@ -25,6 +25,7 @@ from app.routers import transit
 from app.routers import pdf_export
 from app.routers import horary
 from app.routers import panchangam
+from app.routers import user_mode
 
 # ════════════════════════════════════════════════════════════════
 # Logging — structured-ish single-line records
@@ -251,6 +252,7 @@ app.include_router(transit.router, prefix="/transit", tags=["Transit"])
 app.include_router(pdf_export.router, prefix="/pdf", tags=["PDF"])
 app.include_router(horary.router, prefix="/horary", tags=["Horary"])
 app.include_router(panchangam.router, prefix="/panchangam", tags=["Panchangam"])
+app.include_router(user_mode.router, prefix="/user-mode", tags=["User Mode"])
 
 
 @app.get("/")
