@@ -320,11 +320,47 @@ def get_dasha_balance(moon_longitude: float) -> dict:
     }
 
 
+def _parse_period_start(period: dict):
+    """PR Phase 8 Gap 5 — read full-precision datetime from a dasha period dict.
+
+    Prefers `start_iso` (full ISO 8601 datetime) if present; falls back to
+    `start` (date-only `%Y-%m-%d`) for back-compat with any period dict
+    produced before the Phase 8 fix or by external callers.
+    """
+    from datetime import datetime
+    iso = period.get("start_iso")
+    if iso:
+        try:
+            return datetime.fromisoformat(iso)
+        except (ValueError, TypeError):
+            pass
+    return datetime.strptime(period["start"], "%Y-%m-%d")
+
+
+def _parse_period_end(period: dict):
+    """Companion to _parse_period_start (Phase 8 Gap 5)."""
+    from datetime import datetime
+    iso = period.get("end_iso")
+    if iso:
+        try:
+            return datetime.fromisoformat(iso)
+        except (ValueError, TypeError):
+            pass
+    return datetime.strptime(period["end"], "%Y-%m-%d")
+
+
 def calculate_dashas(birth_date: str, birth_time: str,
                      moon_longitude: float, timezone_offset: float = 5.5) -> list:
     """
     Calculate all Mahadasha periods from birth.
     Returns list of dashas with start and end dates.
+
+    PR Phase 8 Gap 5 (2026-05-27) — each period now ALSO carries
+    `start_iso` / `end_iso` fields (full ISO 8601 datetime preserving
+    birth-time precision through MD/AD/PAD/SD).  The `start` / `end`
+    fields stay as `%Y-%m-%d` for back-compat with date-level display
+    (user-mode default).  Downstream `_parse_period_start/end` helpers
+    prefer the ISO field when present.
     """
     from datetime import datetime, timedelta
 
@@ -349,8 +385,10 @@ def calculate_dashas(birth_date: str, birth_time: str,
     dashas.append({
         "lord": first_lord,
         "years": round(balance_years, 2),
-        "start": current_date.strftime("%Y-%m-%d"),
-        "end": end_date.strftime("%Y-%m-%d"),
+        "start":     current_date.strftime("%Y-%m-%d"),     # back-compat date
+        "end":       end_date.strftime("%Y-%m-%d"),         # back-compat date
+        "start_iso": current_date.isoformat(),               # Phase 8 Gap 5
+        "end_iso":   end_date.isoformat(),                   # Phase 8 Gap 5
         "is_balance": True
     })
 
@@ -366,8 +404,10 @@ def calculate_dashas(birth_date: str, birth_time: str,
         dashas.append({
             "lord": lord,
             "years": years,
-            "start": current_date.strftime("%Y-%m-%d"),
-            "end": end_date.strftime("%Y-%m-%d"),
+            "start":     current_date.strftime("%Y-%m-%d"),
+            "end":       end_date.strftime("%Y-%m-%d"),
+            "start_iso": current_date.isoformat(),
+            "end_iso":   end_date.isoformat(),
             "is_balance": False
         })
 
@@ -393,13 +433,19 @@ def get_current_dasha(dashas: list) -> dict:
 def calculate_antardashas(mahadasha: dict) -> list:
     """
     Calculate all Antardasha (sub-periods) within a Mahadasha.
+
+    PR Phase 8 Gap 5 — reads full-precision MD boundaries via
+    `_parse_period_start/end` (prefers `start_iso`/`end_iso` if present).
+    Emits both date-level (`start`/`end`) and full-precision
+    (`start_iso`/`end_iso`) on each AD entry.
     """
-    from datetime import datetime, timedelta
+    from datetime import timedelta
 
     md_lord = mahadasha["lord"]
-    md_start = datetime.strptime(mahadasha["start"], "%Y-%m-%d")
-    md_end = datetime.strptime(mahadasha["end"], "%Y-%m-%d")
-    md_total_days = (md_end - md_start).days
+    md_start = _parse_period_start(mahadasha)
+    md_end = _parse_period_end(mahadasha)
+    # Use timedelta.total_seconds() / 86400 to preserve sub-day precision
+    md_total_days = (md_end - md_start).total_seconds() / 86400.0
 
     # Antardasha sequence starts from mahadasha lord
     start_index = DASHA_SEQUENCE.index(md_lord)
@@ -418,8 +464,10 @@ def calculate_antardashas(mahadasha: dict) -> list:
         antardashas.append({
             "mahadasha_lord": md_lord,
             "antardasha_lord": ad_lord,
-            "start": current_date.strftime("%Y-%m-%d"),
-            "end": end_date.strftime("%Y-%m-%d")
+            "start":     current_date.strftime("%Y-%m-%d"),
+            "end":       end_date.strftime("%Y-%m-%d"),
+            "start_iso": current_date.isoformat(),
+            "end_iso":   end_date.isoformat(),
         })
 
         current_date = end_date
@@ -708,13 +756,38 @@ SIGN_LORDS = [
 #   - For topic name variants (career/job/profession), add to TOPIC_ALIASES
 #     instead of duplicating the data.
 
+# ─────────────────────────────────────────────────────────────────────
+# PR A2.0a / PR A2.10 (Phase 8 Gap-2 fix) — promise_rule metadata
+# ─────────────────────────────────────────────────────────────────────
+#
+# Default `promise_rule = "any"` (most KP topics — per KSK Reader IV
+# "any one relevant house in the 4-step union of the primary cusp's
+# CSL → promise"). Only topics where mainstream KP doctrine demands a
+# stricter combination get a different rule.
+#
+# Rule vocabulary (consumed by LLM via system prompt RULE 5; future
+# engine helpers can also read these fields):
+#
+#   "any"                       → at least 1 of `relevant` houses in chain
+#   "min_count" + promise_min_count=N → at least N of `relevant` houses in chain
+#   "primary_plus_support" + promise_support_min=M
+#                               → primary_cusp MUST appear in chain
+#                                 AND at least M other `relevant` houses
+#
+# Citation discipline: each non-"any" rule must cite the KP source that
+# requires the combination (KSK Reader chapter, KP Astrology Learning
+# page, Jagannath Hora method, etc.). If no source: default to "any".
+# ─────────────────────────────────────────────────────────────────────
+
 TOPIC_HOUSE_MAP_CANONICAL: dict = {
 
     # ── MARRIAGE FAMILY ─────────────────────────────────────────────
     "marriage": {
         "relevant": {2, 7, 11}, "denial": {1, 6, 10, 12}, "primary_cusp": 7,
+        "promise_rule": "any",
         "framing": "Will marriage happen / be promised?",
-        # KSK Reader I-II §marriage — H7 spouse gate, H2 family, H11 desire fulfilled
+        # KSK Reader I-II §marriage — H7 spouse gate, H2 family, H11 desire fulfilled.
+        # KSK Reader IV explicit: "ANY ONE of {2,7,11} in the H7 sub-lord's chain → marriage promised"
     },
     "divorce": {
         "relevant": {6, 10, 12}, "denial": {2, 7, 11}, "primary_cusp": 6,
@@ -774,8 +847,15 @@ TOPIC_HOUSE_MAP_CANONICAL: dict = {
     },
     "education_higher": {
         "relevant": {4, 9, 11}, "denial": {3, 8, 10, 12}, "primary_cusp": 9,
+        "promise_rule": "primary_plus_support",
+        "promise_support_min": 1,
         "framing": "Will higher education (college/research/PhD) complete?",
-        # KSK Reader — H9 primary for research/doctorate
+        # KSK Reader — H9 primary for research/doctorate. Doctrinal source:
+        # "K. Subramaniam, Astrology & Education" + KP 4-Step Theory (Neha case)
+        # consistently apply H9 in the CSL chain + at least one of {H4, H11}.
+        # H4 alone = primary education only; H11 alone = "gain" without the
+        # learning house = honorary / unearned (not actual higher ed completion).
+        # Per Phase 8 Gap 2 audit (2026-05-27).
     },
 
     # ── HEALTH ──────────────────────────────────────────────────────
@@ -893,18 +973,33 @@ TOPIC_HOUSE_MAP_CANONICAL: dict = {
         # H9 primary for long journeys (KSK)
     },
     "foreign_settle": {
-        "relevant": {3, 9, 12}, "denial": {2, 4, 11}, "primary_cusp": 12,
+        "relevant": {3, 9, 11, 12}, "denial": {2, 4, 8}, "primary_cusp": 12,
+        "promise_rule": "min_count",
+        "promise_min_count": 2,
         "framing": "Will I settle abroad (long-term)?",
-        # H12 primary for foreign land settlement (KSK)
+        # H12 primary for foreign land settlement (KSK). Doctrinal source:
+        # Jagannath Hora "Foreign Settlement in KP Astrology" + foreign.txt §6
+        # consistently require the H12 CSL chain to signify AT LEAST 2 of
+        # {H3, H9, H11, H12}. Single-house signification (e.g., only H3 in
+        # the chain) = travel/short-stay, NOT permanent settlement.
+        # H11 added to relevant set per KP doctrine (fulfillment of foreign desire);
+        # H8 added to denial (interruption / sudden return).
+        # Per Phase 8 Gap 2 audit (2026-05-27).
     },
 
     # ── LITIGATION ──────────────────────────────────────────────────
     "litigation": {
         "relevant": {6, 11}, "denial": {7, 8, 12}, "primary_cusp": 6,
+        "promise_rule": "primary_plus_support",
+        "promise_support_min": 1,
         "framing": "Will I WIN the court case?",
-        # WIN framing (KP Astrology Learning H6): H6 dispute, H11 victory
+        # WIN framing (KP Astrology Learning H6): H6 dispute, H11 victory.
+        # Doctrinal source: KP Astrology Learning H6 page verbatim — "H6 sub
+        # lord signifies 2, 6, 11 → win" — H6 ALONE in the chain = dispute
+        # exists / is active, but H11 in the chain is required for VICTORY.
+        # Therefore: H6 (primary) must appear + at least 1 of {H11} in chain.
         # Denial: H7 (opponent prevails), H8 (obstacle/stress), H12 (loss)
-        # CHANGED from legacy chart_engine which had LOSS framing relevant={6,8,12}
+        # Per Phase 8 Gap 2 audit (2026-05-27).
     },
     "litigation_loss": {
         "relevant": {7, 8, 12}, "denial": {6, 11}, "primary_cusp": 7,
@@ -1889,16 +1984,18 @@ def check_dasha_relevance(topic: str, current_mahadasha: dict,
 def calculate_pratyantardashas(antardasha: dict) -> list:
     """
     Calculate all Pratyantardasha (PAD / sub-sub-periods) within an Antardasha.
-    
+
     PAD duration = AD total duration × (PAD lord years / 120)
     Sequence starts from the AD lord itself.
+
+    PR Phase 8 Gap 5 — full-precision AD boundaries + full-precision PAD output.
     """
-    from datetime import datetime, timedelta
+    from datetime import timedelta
 
     ad_lord = antardasha["antardasha_lord"]
-    ad_start = datetime.strptime(antardasha["start"], "%Y-%m-%d")
-    ad_end = datetime.strptime(antardasha["end"], "%Y-%m-%d")
-    ad_total_days = (ad_end - ad_start).days
+    ad_start = _parse_period_start(antardasha)
+    ad_end = _parse_period_end(antardasha)
+    ad_total_days = (ad_end - ad_start).total_seconds() / 86400.0
 
     # PAD sequence starts from the AD lord
     start_index = DASHA_SEQUENCE.index(ad_lord)
@@ -1916,8 +2013,10 @@ def calculate_pratyantardashas(antardasha: dict) -> list:
             "mahadasha_lord": antardasha["mahadasha_lord"],
             "antardasha_lord": ad_lord,
             "pratyantardasha_lord": pad_lord,
-            "start": current_date.strftime("%Y-%m-%d"),
-            "end": end_date.strftime("%Y-%m-%d"),
+            "start":     current_date.strftime("%Y-%m-%d"),
+            "end":       end_date.strftime("%Y-%m-%d"),
+            "start_iso": current_date.isoformat(),
+            "end_iso":   end_date.isoformat(),
         })
 
         current_date = end_date
@@ -1953,13 +2052,17 @@ def calculate_sookshma_dashas(pratyantardasha: dict) -> list:
     used for AD inside MD and PAD inside AD).
 
     Typical scale: a 30-day PAD has Sookshmas of 2-5 days each.
+
+    PR Phase 8 Gap 5 — full-precision PAD boundaries + full-precision SD output.
+    Sookshma is the day-precision layer; sub-day precision becomes meaningful
+    at this scale (a 2-day sookshma can shift several hours based on birth time).
     """
-    from datetime import datetime, timedelta
+    from datetime import timedelta
 
     pad_lord = pratyantardasha["pratyantardasha_lord"]
-    pad_start = datetime.strptime(pratyantardasha["start"], "%Y-%m-%d")
-    pad_end = datetime.strptime(pratyantardasha["end"], "%Y-%m-%d")
-    pad_total_days = (pad_end - pad_start).days
+    pad_start = _parse_period_start(pratyantardasha)
+    pad_end = _parse_period_end(pratyantardasha)
+    pad_total_days = (pad_end - pad_start).total_seconds() / 86400.0
 
     start_index = DASHA_SEQUENCE.index(pad_lord)
 
@@ -1973,12 +2076,14 @@ def calculate_sookshma_dashas(pratyantardasha: dict) -> list:
         end_date = current_date + timedelta(days=sookshma_days)
 
         sookshmas.append({
-            "mahadasha_lord":      pratyantardasha.get("mahadasha_lord"),
-            "antardasha_lord":     pratyantardasha.get("antardasha_lord"),
+            "mahadasha_lord":       pratyantardasha.get("mahadasha_lord"),
+            "antardasha_lord":      pratyantardasha.get("antardasha_lord"),
             "pratyantardasha_lord": pad_lord,
-            "sookshma_lord":       sookshma_lord,
-            "start": current_date.strftime("%Y-%m-%d"),
-            "end":   end_date.strftime("%Y-%m-%d"),
+            "sookshma_lord":        sookshma_lord,
+            "start":     current_date.strftime("%Y-%m-%d"),
+            "end":       end_date.strftime("%Y-%m-%d"),
+            "start_iso": current_date.isoformat(),
+            "end_iso":   end_date.isoformat(),
         })
 
         current_date = end_date

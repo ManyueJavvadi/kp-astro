@@ -905,10 +905,21 @@ JOB/CAREER (H10 primary, H2/H6/H11 supporting):
   Denial = H1, H5, H9, H12
   (H1=12th from H2, H5=12th from H6, H9=12th from H10, H12=general loss)
 
-FOREIGN TRAVEL/SETTLE (H9/H12 primary, H3 supporting):
+FOREIGN TRAVEL (H9 primary, H3/H12 supporting):
   Relevant = H3, H9, H12 — ANY ONE = PROMISED
   Denial = H2, H8, H11
   (H2=12th from H3, H8=12th from H9, H11=12th from H12)
+
+FOREIGN SETTLE (H12 primary; STRICTER combination rule per Phase 8 Gap 2):
+  Relevant = H3, H9, H11, H12
+  Denial   = H2, H4, H8
+  PROMISE RULE — promise_rule="min_count", promise_min_count=2:
+    The H12 sub-lord's 4-step chain MUST signify AT LEAST 2 of {{H3, H9, H11, H12}}.
+    Source: Jagannath Hora "Foreign Settlement in KP" + foreign.txt §6.
+    Single-house signification (e.g., only H3 in chain) = travel/short-stay,
+    NOT permanent foreign settlement.
+    A chart whose H12 CSL chain touches ONLY H3 (or only H9) is PROMISED for
+    foreign travel but NOT for foreign settlement.
 
 HEALTH — DISEASE (H6 primary, H8/H12 supporting):
   Disease present = H6, H8, H12 signified
@@ -928,25 +939,54 @@ WEALTH (H2 primary, H6/H10/H11 supporting):
   Relevant = H2, H6, H10, H11 — ANY ONE = PROMISED
   Denial = H1, H5, H9, H12
 
-LITIGATION (H6 primary, H1/H11 for winning):
-  Win relevant = H1, H6, H11
-  Loss/denial of win = H7, H12 (opponent wins)
+LITIGATION — WINNING (H6 primary; STRICTER combination rule per Phase 8 Gap 2):
+  Relevant = H6, H11
+  Denial   = H7, H8, H12 (opponent wins / loss / stress)
+  PROMISE RULE — promise_rule="primary_plus_support", promise_support_min=1:
+    H6 (primary cusp) MUST appear in the H6 sub-lord's chain
+    AND at least 1 of {{H11}} also in the chain.
+    Source: KP Astrology Learning H6 page verbatim — "H6 sub lord signifies
+    2, 6, 11 → win". H6 ALONE in chain = dispute exists and is ACTIVE but
+    the WIN itself requires H11 in the chain.
+    A chart with only H6 in chain = active litigant, but win NOT promised.
 
-EDUCATION (H9 primary for higher, H4 for basic, H11 for success):
+EDUCATION — BASIC (H4 primary, H9/H11 supporting):
   Relevant = H4, H9, H11 — ANY ONE = PROMISED
   For competitive exams also include H6 (victory over competition)
   Denial = H3, H8, H10
   (H3=12th from H4, H8=12th from H9, H10=12th from H11)
 
-QUALITY MODIFIER (promise is binary, quality is cumulative):
-  ANY ONE relevant house = PROMISED. This does not change.
-  Quality/smoothness = determined by:
+EDUCATION — HIGHER (H9 primary; STRICTER combination rule per Phase 8 Gap 2):
+  Relevant = H4, H9, H11
+  Denial   = H3, H8, H10, H12
+  PROMISE RULE — promise_rule="primary_plus_support", promise_support_min=1:
+    H9 (primary cusp) MUST appear in the H9 sub-lord's chain
+    AND at least 1 of {{H4, H11}} also in the chain.
+    Source: K. Subramaniam "Astrology & Education" + KP 4-Step Theory (Neha
+    case). H4 alone = primary education only; H11 alone = honorary/unearned
+    "gain" without the actual learning house in chain. Completion of higher
+    education requires H9 + supporting house.
+
+QUALITY MODIFIER (promise binary per topic's rule, quality is cumulative):
+  Default promise_rule = "any" — any 1 relevant house in chain = PROMISED.
+    Marriage / children / wealth / job / property / mother / father / etc.
+    all use this default per KSK Reader IV doctrine.
+  Stricter per-topic rules apply where mainstream KP doctrine demands a
+  combination — see FOREIGN SETTLE, LITIGATION, EDUCATION-HIGHER above.
+
+  For "any"-rule topics, quality/smoothness is determined by:
   1. Total count of relevant houses signified (more = smoother event)
   2. Karaka strength (Venus for marriage, Jupiter for children/wealth,
      Mars for property, Mercury for education/job)
   A sub lord touching only H2 for marriage is still PROMISED — the event
   happens but may be driven by family/financial context rather than
   deep romantic connection. The wedding still happens.
+
+  For "min_count" or "primary_plus_support" topics, falling SHORT of the
+  minimum is NOT promised even if a relevant house is touched. State the
+  rule explicitly when delivering the verdict (e.g., "H12 CSL signifies
+  only H3 — foreign travel promised but foreign SETTLEMENT requires at
+  least 2 of {{H3, H9, H11, H12}} in chain per Phase 8 doctrine; not met").
 
 NEUTRAL MODIFIER HOUSES:
 Houses not listed as relevant or denial for a topic are neutral modifiers.
