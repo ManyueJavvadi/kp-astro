@@ -7386,6 +7386,14 @@ body.has-mobile-bottom-nav main {
 body.has-mobile-bottom-nav .ai-call-badge {
   bottom: calc(56px + env(safe-area-inset-bottom, 0) + 8px) !important;
 }
+/* Phase 9.10d — hide the badge entirely while the BottomDrawer is
+   open. The badge's z-index (9000) intentionally puts it above almost
+   everything, but the drawer is the user's focus surface and the
+   badge was floating over significator rows. BottomDrawer.tsx toggles
+   the body class. */
+body.has-bottom-drawer-open .ai-call-badge {
+  display: none !important;
+}
 
 /* PersonHeroBanner — on mobile let the action row (PDF / Switch /
    +New Chart) wrap onto its own line under the avatar+name row so

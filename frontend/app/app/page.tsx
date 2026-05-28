@@ -18,6 +18,11 @@ import MobileAiOrb from "./components/mobile/MobileAiOrb";
 // PR Phase 9.10c — multi-chart switcher visible on mobile (the desktop
 // workspace-sidebar is hidden by the responsive shell).
 import MobileChartPillStrip from "./components/mobile/MobileChartPillStrip";
+// PR Phase 9.10d — mobile parity for desktop's "+ Add chart" + @ pin
+// chips bar inside the AI chat. Mounted above the persistent "Ask a
+// deeper question" input on mobile so multi-chart context works the
+// same way it does on desktop.
+import MobileChatChipsBar from "./components/mobile/MobileChatChipsBar";
 import UserModeUI from "./components/UserModeUI";
 import LiveLocationPill from "./components/LiveLocationPill";
 import { RpSourcePillFromMeta } from "./components/RpSourcePill";
@@ -4446,6 +4451,24 @@ export default function Home() {
               />
             )}
           </div>
+          {/* Phase 9.10d — mobile multi-chart chips bar. Sits just
+              above the persistent input so the astrologer can pin
+              up to 3 additional charts to the current chat (same
+              behavior as the desktop sidebar). Mobile-only: desktop
+              users already see this bar inside the AI Companion
+              sidebar (page.tsx ~L2575). */}
+          {isMobile && workspaceData && activeTab !== "horary" && activeTab !== "panchang" && activeTab !== "muhurtha" && !selectedHouse && (
+            <MobileChatChipsBar
+              workspaceData={workspaceData as WorkspaceData}
+              birthDetails={birthDetails}
+              savedSessions={savedSessions}
+              currentSessionId={currentSessionId}
+              chartsInContext={chartsInContext}
+              setChartsInContext={setChartsInContext}
+              mentionPopoverOpen={mentionPopoverOpen}
+              setMentionPopoverOpen={setMentionPopoverOpen}
+            />
+          )}
           {activeTab !== "horary" && activeTab !== "panchang" && activeTab !== "muhurtha" && !selectedHouse && (
             <div style={{ borderTop: "0.5px solid var(--border)", padding: "0.75rem 1.25rem", background: "var(--surface)", display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
               <input
