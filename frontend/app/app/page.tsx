@@ -32,6 +32,9 @@ import BottomDrawer from "./components/mobile/BottomDrawer";
 // entity mentions ("Venus", "H7", "MD Rahu") in tappable chips that
 // drive the global SelectionContext (drawer + glow).
 import MarkdownWithEntityChips from "./components/mobile/MarkdownWithEntityChips";
+// PR Phase 9.6 — pinned-entity tray. Self-gated to render nothing when
+// pinned[] is empty. Per-chart scoped via chartScopeKey bridge below.
+import PinTray from "./components/mobile/PinTray";
 // Phase 3 — Today panchang strip + per-tab chart context strip.
 // These pull data OUT of the slim header and the sidebar so each
 // surface has one job (#A, #B, #F).
@@ -257,6 +260,10 @@ export default function Home() {
   // HousePanel) don't need to change. Underneath: state lives in one place
   // and cross-component / cross-tab consumers will see updates via
   // useSelection() without prop drilling.
+  //
+  // PR Phase 9.6 — also use the chart-scope bridge: push the chart
+  // identity (name + DOB) into SelectionContext so pin-tray localStorage
+  // scopes pins per-chart (no leak across charts).
   const _sel = useSelection();
   const selectedHouse: number | null =
     _sel.selected?.type === "house" ? _sel.selected.value : null;
@@ -598,6 +605,30 @@ export default function Home() {
       })
       .catch(() => { /* fall back to chart-load snapshot — silent */ });
   }, [setupDone, liveLoc.location, liveTodayPanchang]);
+
+  // PR Phase 9.6 — chart-scope bridge for SelectionContext.
+  // Compute a stable chart identity from birthDetails (name + date)
+  // and push it into SelectionContext via setChartScopeKey. This scopes
+  // the pin tray's localStorage so pins survive page reload but don't
+  // leak across charts.
+  // Key shape: `${normalizedName}_${normalizedDate}` — same chart
+  // produces the same key across sessions.
+  useEffect(() => {
+    if (!setupDone) {
+      _sel.setChartScopeKey(null);
+      return;
+    }
+    const name = (birthDetails.name || "").trim().toLowerCase();
+    const date = (birthDetails.date || "").trim();
+    if (!name || !date) {
+      _sel.setChartScopeKey(null);
+      return;
+    }
+    _sel.setChartScopeKey(`${name}_${date}`);
+    // _sel methods are stable (useCallback); only re-fire when chart
+    // identity actually changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setupDone, birthDetails.name, birthDetails.date]);
 
   // PR Phase 8.1 — RP-meta auto-refresh when live location changes.
   //
@@ -4990,6 +5021,26 @@ export default function Home() {
           their actions. Click to expand the last-10 call log.
           Counts every Anthropic-billing fetch this browser session. */}
       <AiCallBadge />
+
+      {/* PR Phase 9.6 — pinned-entity tray. Sits as a fixed strip at
+          the very bottom of the viewport, above the BottomDrawer and
+          (future Phase 9.9) bottom tab nav. Self-gated to render
+          nothing when no pins. Visible on desktop AND mobile so users
+          on both surfaces benefit from manual cross-reference holding. */}
+      <div
+        style={{
+          position: "fixed",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 55, /* above orb (50) + below BottomDrawer (60) */
+          pointerEvents: "none", /* container is invisible; PinTray re-enables */
+        }}
+      >
+        <div style={{ pointerEvents: "auto" }}>
+          <PinTray />
+        </div>
+      </div>
 
       {/* PR Phase 9.2 — global BottomDrawer for mobile cross-reference
           design language. Self-gated: renders nothing if not mobile

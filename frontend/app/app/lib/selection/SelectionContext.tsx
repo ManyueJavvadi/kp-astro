@@ -72,6 +72,11 @@ interface SelectionContextValue {
    * when chart switches.
    */
   chartScopeKey: string | null;
+  /**
+   * Update the chart scope key from within the provider tree (e.g.,
+   * from page.tsx when workspaceData loads). Phase 9.6 bridge.
+   */
+  setChartScopeKey: (key: string | null) => void;
 }
 
 const SelectionContext = createContext<SelectionContextValue | null>(null);
@@ -91,11 +96,29 @@ interface SelectionProviderProps {
 // ── §3. Provider implementation ───────────────────────────────────
 export function SelectionProvider({
   children,
-  chartScopeKey = null,
+  chartScopeKey: chartScopeKeyProp = null,
 }: SelectionProviderProps) {
   const [selected, setSelected] = useState<SelectedEntity>(null);
   const [history, setHistory]   = useState<SelectionHistoryEntry[]>([]);
   const [pinned, setPinned]     = useState<SelectedEntity[]>([]);
+
+  // Phase 9.6 — chartScopeKey is now controllable from within the
+  // provider tree (via the setChartScopeKey context method) so page.tsx
+  // can push the chart identity up when workspaceData loads. The prop
+  // (chartScopeKeyProp) acts as the initial value + an "external override"
+  // that re-syncs the internal state when it changes.
+  const [chartScopeKey, setChartScopeKeyState] = useState<string | null>(chartScopeKeyProp);
+
+  // Re-sync internal state if the prop changes externally (rare but
+  // possible — e.g., if the layout decides to push a chart identity
+  // from a future auth/CRM context).
+  useEffect(() => {
+    setChartScopeKeyState(chartScopeKeyProp);
+  }, [chartScopeKeyProp]);
+
+  const setChartScopeKey = useCallback((key: string | null) => {
+    setChartScopeKeyState(key);
+  }, []);
 
   // Ref to the previous chartScopeKey so we detect chart-switch (vs
   // initial mount).
@@ -242,13 +265,13 @@ export function SelectionProvider({
       selected, select, clear,
       history, jumpToHistory, clearHistory,
       pinned, pin, unpin, clearPins,
-      chartScopeKey,
+      chartScopeKey, setChartScopeKey,
     }),
     [
       selected, select, clear,
       history, jumpToHistory, clearHistory,
       pinned, pin, unpin, clearPins,
-      chartScopeKey,
+      chartScopeKey, setChartScopeKey,
     ],
   );
 
@@ -302,6 +325,7 @@ export function useSelectionSafe(): SelectionContextValue {
       unpin: () => {},
       clearPins: () => {},
       chartScopeKey: null,
+      setChartScopeKey: () => {},
     };
   }
   return ctx;
