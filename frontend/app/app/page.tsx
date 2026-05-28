@@ -28,6 +28,10 @@ import { formatMaskedDate, formatMaskedTime } from "./lib/maskedInput";
 import { useSelection } from "./lib/selection";
 // PR Phase 9.2 — mobile BottomDrawer (self-gated to mobile + non-null selection).
 import BottomDrawer from "./components/mobile/BottomDrawer";
+// PR Phase 9.5 — drop-in <ReactMarkdown> replacement that wraps KP
+// entity mentions ("Venus", "H7", "MD Rahu") in tappable chips that
+// drive the global SelectionContext (drawer + glow).
+import MarkdownWithEntityChips from "./components/mobile/MarkdownWithEntityChips";
 // Phase 3 — Today panchang strip + per-tab chart context strip.
 // These pull data OUT of the slim header and the sidebar so each
 // surface has one job (#A, #B, #F).
@@ -2348,7 +2352,7 @@ export default function Home() {
                         </span>
                       </div>
                     )}
-                    <div className="markdown-body" style={{ maxWidth: "100%", lineHeight: 1.6 }}><ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.a}</ReactMarkdown></div>
+                    <div className="markdown-body" style={{ maxWidth: "100%", lineHeight: 1.6 }}><MarkdownWithEntityChips remarkPlugins={[remarkGfm]}>{msg.a}</MarkdownWithEntityChips></div>
                     {msg.t && <div style={{ fontSize: 9, color: "var(--muted)", marginTop: 6, textAlign: "right" }}>{formatDate(new Date(msg.t).toISOString())}</div>}
                   </div>
                 </div>
