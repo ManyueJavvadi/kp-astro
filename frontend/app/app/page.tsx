@@ -26,6 +26,8 @@ import { formatMaskedDate, formatMaskedTime } from "./lib/maskedInput";
 // PR Phase 9.1 — global SelectionContext (mounted in /app/layout.tsx).
 // Backs `selectedHouse` and (later phases) every cross-reference primitive.
 import { useSelection } from "./lib/selection";
+// PR Phase 9.2 — mobile BottomDrawer (self-gated to mobile + non-null selection).
+import BottomDrawer from "./components/mobile/BottomDrawer";
 // Phase 3 — Today panchang strip + per-tab chart context strip.
 // These pull data OUT of the slim header and the sidebar so each
 // surface has one job (#A, #B, #F).
@@ -4984,6 +4986,12 @@ export default function Home() {
           their actions. Click to expand the last-10 call log.
           Counts every Anthropic-billing fetch this browser session. */}
       <AiCallBadge />
+
+      {/* PR Phase 9.2 — global BottomDrawer for mobile cross-reference
+          design language. Self-gated: renders nothing if not mobile
+          (>=820px) OR if SelectionContext has no selection. Shows
+          placeholder content in 9.2; Phase 9.3+ enrich it. */}
+      <BottomDrawer />
     </div>
   );
 }
