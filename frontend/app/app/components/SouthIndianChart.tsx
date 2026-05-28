@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { PLANET_COLORS } from "./constants";
 import { useLanguage } from "@/lib/i18n";
 // PR Phase 9.3 — global SelectionContext for cross-component brushing.
@@ -9,12 +9,38 @@ import { useLanguage } from "@/lib/i18n";
 // because the parent ALSO calls setSelectedHouse which goes through
 // SelectionContext via the Phase 9.1 adapter.
 import { useSelection } from "../lib/selection";
+// PR Phase 9.8 — KP-doctrinal relation tier drives a 3-tier glow on
+// planet glyphs AND house cells. Selecting a planet lights up its
+// star/sub-lord planets at .glow-related, occupied house cell at
+// .glow-related, and two-hop kin at .glow-distant.
+import { computeRelation, relationClass, type RelationWorkspace } from "../lib/selection/relation";
 
 export default function SouthIndianChart({ planets, cusps, onHouseClick, selectedHouse }: { planets: any[]; cusps: any[]; onHouseClick?: (h: number) => void; selectedHouse?: number | null }) {
   const { lang } = useLanguage();
   const [hoveredPlanet, setHoveredPlanet] = useState<string | null>(null);
   const { selected, select } = useSelection();
   const selectedPlanet = selected?.type === "planet" ? selected.value : null;
+
+  // PR Phase 9.8 — memoize the relation workspace so we don't re-pack
+  // it on every render. Shapes the upstream `any[]` props into the
+  // minimum surface the relation engine needs.
+  const relationWorkspace = useMemo<RelationWorkspace>(
+    () => ({
+      planets: (planets ?? []).map(p => ({
+        planet_en: p.planet_en,
+        house: p.house,
+        star_lord_en: p.star_lord_en,
+        sub_lord_en: p.sub_lord_en,
+      })),
+      cusps: (cusps ?? []).map(c => ({
+        house: c.house,
+        sign_en: c.sign_en,
+        sub_lord_en: c.sub_lord_en,
+        star_lord_en: c.star_lord_en,
+      })),
+    }),
+    [planets, cusps],
+  );
 
   useEffect(() => {
     const handlePlanetHover = (e: Event) => {
@@ -47,18 +73,30 @@ export default function SouthIndianChart({ planets, cusps, onHouseClick, selecte
         const cusp = cusps[house - 1];
         const isLagna = house === 1;
         const isSelected = selectedHouse === house;
+        // PR Phase 9.8 — house cell relation to currently-focused entity.
+        // E.g. selecting a planet lights up the house it occupies, the
+        // house whose cusp sub-lord IS this planet, etc.
+        const houseRelation = selected && !isSelected
+          ? computeRelation(
+              selected,
+              { type: "house", value: house },
+              relationWorkspace,
+            )
+          : "none";
+        const houseRelClass = relationClass(houseRelation);
         return (
           <div key={idx}
+            className={!isSelected ? houseRelClass : ""}
             onClick={() => onHouseClick?.(house)}
-            style={{ 
-              background: isSelected ? "rgba(212,175,55,0.18)" : isLagna ? "rgba(212,175,55,0.07)" : "rgba(212,175,55,0.015)", 
-              border: `0.5px solid ${isSelected ? "rgba(212,175,55,0.7)" : isLagna ? "rgba(212,175,55,0.3)" : "rgba(212,175,55,0.1)"}`, 
-              padding: "4px 5px", 
-              minHeight: 90, 
-              display: "flex", 
-              flexDirection: "column", 
-              transition: "background 0.15s, border-color 0.15s", 
-              cursor: onHouseClick ? "pointer" : "default" 
+            style={{
+              background: isSelected ? "rgba(212,175,55,0.18)" : isLagna ? "rgba(212,175,55,0.07)" : "rgba(212,175,55,0.015)",
+              border: `0.5px solid ${isSelected ? "rgba(212,175,55,0.7)" : isLagna ? "rgba(212,175,55,0.3)" : "rgba(212,175,55,0.1)"}`,
+              padding: "4px 5px",
+              minHeight: 90,
+              display: "flex",
+              flexDirection: "column",
+              transition: "background 0.15s, border-color 0.15s",
+              cursor: onHouseClick ? "pointer" : "default"
             }}
             onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = "rgba(212,175,55,0.1)"; }}
             onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = isLagna ? "rgba(212,175,55,0.07)" : "rgba(212,175,55,0.015)"; }}>
@@ -74,8 +112,29 @@ export default function SouthIndianChart({ planets, cusps, onHouseClick, selecte
                 const deg = typeof p.degree_in_sign === "number" ? p.degree_in_sign : 0;
                 const isHovered = hoveredPlanet === p.planet_en;
                 const isSelected = selectedPlanet === p.planet_en;
+                // PR Phase 9.8 — relation tier from focused entity to
+                // this planet glyph. Only applies when something else is
+                // focused (not this same planet).
+                const planetRelation = selected && !isSelected
+                  ? computeRelation(
+                      selected,
+                      { type: "planet", value: p.planet_en },
+                      relationWorkspace,
+                    )
+                  : "none";
+                const planetRelClass = relationClass(planetRelation);
+                // Layer the filter halo on top of the relation glow CSS
+                // class so cross-component brushing stays subtle but
+                // visible even on the small chart glyphs.
+                const relationFilter =
+                  planetRelation === "related"
+                    ? "drop-shadow(0 0 3px rgba(212,175,55,0.55))"
+                    : planetRelation === "distant"
+                      ? "drop-shadow(0 0 2px rgba(212,175,55,0.3))"
+                      : "none";
                 return (
                   <div key={p.planet_en}
+                    className={!isSelected ? planetRelClass : ""}
                     title={`${p.planet_en} | ${p.nakshatra_en ?? ""} | ${deg.toFixed(1)}° | Star: ${p.star_lord_en ?? ""} | Sub: ${p.sub_lord_en ?? ""}`}
                     onClick={(e) => {
                       // Stop propagation so the house cell's onClick
@@ -102,7 +161,7 @@ export default function SouthIndianChart({ planets, cusps, onHouseClick, selecte
                           ? "drop-shadow(0 0 6px rgba(212,175,55,1))"
                           : isHovered
                             ? "drop-shadow(0 0 4px rgba(212,175,55,0.8))"
-                            : "none",
+                            : relationFilter,
                     }}
                   >
                     <span style={{ fontSize: 11, fontWeight: 700, color: PLANET_COLORS[p.planet_en] || "#888" }}>{p.planet_short}{p.retrograde ? "℞" : ""}</span>

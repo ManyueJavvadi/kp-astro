@@ -136,7 +136,7 @@ export function ChartTab({ workspaceData, selectedHouse, setSelectedHouse }: Cha
               }}>Star → Sub Lord</span>
             </div>
             <div style={{ background: "var(--card)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 14, overflow: "hidden" }}>
-              <PlanetList planets={workspaceData.planets} />
+              <PlanetList planets={workspaceData.planets} cusps={workspaceData.cusps as any} />
             </div>
           </div>
         )}
@@ -165,7 +165,7 @@ export function ChartTab({ workspaceData, selectedHouse, setSelectedHouse }: Cha
           <div style={{ flex: 1, minWidth: 260 }}>
             <SectionEyebrow te="గ్రహ స్థాన పట్టిక" en="Planet Positions · KP" />
             <div style={{ background: "var(--card)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 14, overflow: "hidden" }}>
-              <PlanetList planets={workspaceData.planets} />
+              <PlanetList planets={workspaceData.planets} cusps={workspaceData.cusps as any} />
             </div>
           </div>
         )}

@@ -1,10 +1,16 @@
 "use client";
-import React from "react";
+import React, { useMemo } from "react";
 import { PLANET_COLORS } from "../constants";
 import { Planet, Cusp, HOUSE_TOPICS, HOUSE_TOPICS_TE } from "../../types/workspace";
 import { useLanguage } from "@/lib/i18n";
 // Phase 15.3 — 12 house cards now cascade in on tab load (60ms gap).
 import { StaggerChildren, StaggerItem } from "@/components/motion";
+// PR Phase 9.8 — KP-doctrinal relation glow on house cards. When the
+// user has tapped a planet (or a dasha lord), the houses doctrinally
+// connected to it (the planet's occupied house, the houses whose cusp
+// sub-lord is this planet, etc.) light up at .glow-related.
+import { useSelection } from "../../lib/selection";
+import { computeRelation, relationClass, type RelationWorkspace } from "../../lib/selection/relation";
 
 // Backend returns cusps as array with house_num field
 interface CuspItem {
@@ -40,6 +46,30 @@ export default function HouseOverviewGrid({
   cusps, planets, selectedHouse, onHouseClick,
 }: HouseOverviewGridProps) {
   const { lang } = useLanguage();
+  // PR Phase 9.8 — focused entity drives the relation glow tier.
+  const { selected } = useSelection();
+  const cuspsArrayForRel = useMemo(
+    () => (Array.isArray(cusps) ? cusps : Object.values(cusps)),
+    [cusps],
+  );
+  const relationWorkspace = useMemo<RelationWorkspace>(
+    () => ({
+      planets: (planets ?? []).map(p => ({
+        planet_en: p.planet_en,
+        house: p.house,
+        star_lord_en: p.star_lord_en,
+        sub_lord_en: p.sub_lord_en,
+      })),
+      cusps: cuspsArrayForRel.map((c: CuspItem) => ({
+        house: (c.house_num ?? c.house) as number | undefined,
+        sign_en: c.sign_en,
+        sub_lord_en: c.sub_lord_en,
+        star_lord_en: c.star_lord_en,
+      })),
+    }),
+    [planets, cuspsArrayForRel],
+  );
+
   if (!cusps || Object.keys(cusps).length === 0) return null;
 
   const houses = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -67,6 +97,16 @@ export default function HouseOverviewGrid({
         const isSelected  = selectedHouse === h;
         const topic       = topicLabel(h);
         const signSym     = SIGN_SYMBOLS[cusp.sign_en] ?? "";
+        // PR Phase 9.8 — non-selected houses that are KP-related to the
+        // currently-focused entity get a softer ambient glow.
+        const houseRelation = selected && !isSelected
+          ? computeRelation(
+              selected,
+              { type: "house", value: h },
+              relationWorkspace,
+            )
+          : "none";
+        const houseRelClass = relationClass(houseRelation);
 
         return (
           <StaggerItem
@@ -76,6 +116,7 @@ export default function HouseOverviewGrid({
             // onClick lives on the inner div retained from the original;
             // wrapping at StaggerItem level keeps the variant cascade.
           ><div onClick={() => onHouseClick(h)}
+            className={!isSelected ? houseRelClass : ""}
             style={{
               background: isSelected ? "rgba(201,169,110,0.08)" : "var(--card)",
               border: isSelected

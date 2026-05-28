@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { PLANET_COLORS } from "../constants";
 import { Planet, PLANET_SYMBOLS } from "../../types/workspace";
 import { useLanguage } from "@/lib/i18n";
@@ -10,9 +10,27 @@ import { StaggerChildren, StaggerItem } from "@/components/motion";
 // Hover continues to fire the existing planet-hover window event for
 // per-component synchronized hover highlight (back-compat).
 import { useSelection } from "../../lib/selection";
+// PR Phase 9.8 — KP-doctrinal relation tier (direct / related / distant
+// / none) drives a 3-tier glow hierarchy so non-selected planets that
+// are doctrinally connected to the focused entity (e.g. star-lord,
+// same-house occupant, sign lord of the focused house cusp) also light
+// up at progressively lower visual intensity.
+import { computeRelation, relationClass, type RelationWorkspace } from "../../lib/selection/relation";
 
 interface PlanetListProps {
   planets: Planet[];
+  /**
+   * Optional cusps array — when provided, enables house↔planet relation
+   * glow (focused house lights up the planets occupying it, sign-lord
+   * of its cusp, sub-lord, etc.). Without cusps, only planet↔planet and
+   * dasha↔planet relations resolve.
+   */
+  cusps?: Array<{
+    house?: number;
+    sign_en?: string;
+    sub_lord_en?: string;
+    star_lord_en?: string;
+  }>;
 }
 
 function hexToRgba(hex: string, alpha: number): string {
@@ -22,7 +40,7 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-export default function PlanetList({ planets }: PlanetListProps) {
+export default function PlanetList({ planets, cusps }: PlanetListProps) {
   const { lang } = useLanguage();
   const [hoveredPlanet, setHoveredPlanet] = useState<string | null>(null);
   // PR Phase 9.3 — read global selection for tap-driven highlight.
@@ -30,6 +48,21 @@ export default function PlanetList({ planets }: PlanetListProps) {
   const { selected, select } = useSelection();
   const selectedPlanet =
     selected?.type === "planet" ? selected.value : null;
+
+  // PR Phase 9.8 — assemble a minimal RelationWorkspace from props.
+  // Memoized so we don't churn relation lookups on every parent render.
+  const relationWorkspace = useMemo<RelationWorkspace>(
+    () => ({
+      planets: planets.map(p => ({
+        planet_en: p.planet_en,
+        house: p.house,
+        star_lord_en: p.star_lord_en,
+        sub_lord_en: p.sub_lord_en,
+      })),
+      cusps: cusps,
+    }),
+    [planets, cusps],
+  );
 
   useEffect(() => {
     const handlePlanetHover = (e: Event) => {
@@ -62,11 +95,25 @@ export default function PlanetList({ planets }: PlanetListProps) {
         // .glow-direct (the gold-bordered, glowing tier) outranks the
         // transient .synced-hover-highlight when both are active.
         const isSelected = selectedPlanet === p.planet_en;
+        // PR Phase 9.8 — KP-doctrinal relation tier. When the user has
+        // focused some OTHER entity (a house, another planet, a dasha
+        // lord), this planet may still light up at .glow-related or
+        // .glow-distant intensity if the doctrine connects them.
+        const relation = selected
+          ? computeRelation(
+              selected,
+              { type: "planet", value: p.planet_en },
+              relationWorkspace,
+            )
+          : "none";
+        const relGlow = relationClass(relation);
         const glowClass = isSelected
           ? "glow-direct"
-          : isHovered
-            ? "synced-hover-highlight"
-            : "";
+          : relGlow
+            ? relGlow
+            : isHovered
+              ? "synced-hover-highlight"
+              : "";
         return (
           <StaggerItem key={p.planet_en}>
             <div
