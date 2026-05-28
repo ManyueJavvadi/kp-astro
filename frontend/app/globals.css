@@ -7364,8 +7364,20 @@ textarea:focus-visible {
    of content isn't tucked behind the fixed 56px nav strip + safe-area
    inset. Only applies when isMobile mounts the nav (gate is the body
    class set by page.tsx). */
-body.has-mobile-bottom-nav main {
-  padding-bottom: calc(56px + env(safe-area-inset-bottom, 0) + 12px);
+/* Reserve space at the bottom of the workspace-layout so its last
+   flex child (the "Ask a deeper question" input bar + chips bar)
+   isn't tucked behind the 56px fixed bottom nav. Was previously
+   targeting `main` which doesn't exist in this app — silent no-op,
+   real bug surfaced in real-device testing.
+
+   2026-05-27 — also target the standalone landing/onboarding
+   pages by adding `<body>` padding so future routes that don't
+   live inside workspace-layout still get clearance. */
+body.has-mobile-bottom-nav .workspace-layout {
+  padding-bottom: calc(56px + env(safe-area-inset-bottom, 0));
+}
+body.has-mobile-bottom-nav {
+  padding-bottom: calc(56px + env(safe-area-inset-bottom, 0));
 }
 
 /* ═══ PHASE 9.10 — mobile real-device polish (post-9.9 testing) ═════
@@ -7381,17 +7393,13 @@ body.has-mobile-bottom-nav main {
    apply only when the mobile nav is actually mounted. No JS branches
    in the components themselves. */
 
-/* AI-calls badge — lift above the bottom nav so the left rail can
-   stack cleanly: nav → badge → MobileAiOrb. */
+/* AI-calls badge — hidden entirely on mobile (it's a desktop-only
+   billing-monitoring affordance). On a 430px viewport it kept
+   colliding with: the first nav cell, the multi-chart chips bar,
+   and the BottomDrawer content (z-index 9000 beats everything).
+   Astrologers don't need a live AI-call counter on their phone.
+   Desktop users still see the badge for cost monitoring. */
 body.has-mobile-bottom-nav .ai-call-badge {
-  bottom: calc(56px + env(safe-area-inset-bottom, 0) + 8px) !important;
-}
-/* Phase 9.10d — hide the badge entirely while the BottomDrawer is
-   open. The badge's z-index (9000) intentionally puts it above almost
-   everything, but the drawer is the user's focus surface and the
-   badge was floating over significator rows. BottomDrawer.tsx toggles
-   the body class. */
-body.has-bottom-drawer-open .ai-call-badge {
   display: none !important;
 }
 

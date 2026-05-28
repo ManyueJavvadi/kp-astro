@@ -26,6 +26,14 @@ export const viewport: Viewport = {
   maximumScale: 5,
   viewportFit: "cover",
   themeColor: "#09090f",
+  // 2026-05-27 — `resizes-content` tells iOS Safari + Chrome Android
+  // to RESIZE the layout viewport when the on-screen keyboard opens
+  // (rather than overlaying it). Without this, the chat input bar
+  // gets covered by the keyboard and the user can't see what they're
+  // typing on the Analysis tab. With it, 100dvh containers shrink
+  // and our fixed bottom nav + input naturally lift above the
+  // keyboard.
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({
