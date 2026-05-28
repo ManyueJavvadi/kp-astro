@@ -7246,6 +7246,18 @@ textarea:focus-visible {
   }
 }
 
+/* PR Phase 9.4 — EntityPeek tooltip fade-in animation */
+@keyframes entity-peek-fade-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(4px) scale(0.97); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0)   scale(1);    }
+}
+@media (prefers-reduced-motion: reduce) {
+  @keyframes entity-peek-fade-in {
+    from { opacity: 1; transform: translateX(-50%); }
+    to   { opacity: 1; transform: translateX(-50%); }
+  }
+}
+
 /* Dynamic slider and top status ticker glow classes */
 .ticker-pulse-active {
   background: rgba(16, 185, 129, 0.12) !important;
