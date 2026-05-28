@@ -10,6 +10,11 @@ import { PlacePicker } from "@/components/ui/place-picker";
 import { theme, styles as uiStyles } from "@/lib/theme";
 import { useLanguage } from "@/lib/i18n";
 import CommandOrb from "./components/CommandOrb";
+// PR Phase 9.9 — primary mobile nav + AI shortcut. Replaces CommandOrb's
+// tab-switching role with a persistent 4-tab bottom strip (+ overflow
+// sheet) and a Notion-style floating round AI button.
+import MobileBottomNav, { MOBILE_NAV_HEIGHT } from "./components/mobile/MobileBottomNav";
+import MobileAiOrb from "./components/mobile/MobileAiOrb";
 import UserModeUI from "./components/UserModeUI";
 import LiveLocationPill from "./components/LiveLocationPill";
 import { RpSourcePillFromMeta } from "./components/RpSourcePill";
@@ -577,6 +582,19 @@ export default function Home() {
   // endpoint the Panchang tab uses, so the cosmos backing the Today
   // strip is identical to what the Panchang tab shows.
   // Caches the lat/lon we last fetched for so we don't re-call on
+  // PR Phase 9.9 — toggle a body class so `body.has-mobile-bottom-nav`
+  // can drive a global `padding-bottom` on the main scroll area. This
+  // keeps the last row of tab content visible above the persistent
+  // 56px bottom nav strip. Class is added only when the nav is
+  // actually mounted (mobile + setupDone) and cleaned up on unmount.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const active = isMobile && setupDone;
+    if (active) document.body.classList.add("has-mobile-bottom-nav");
+    else        document.body.classList.remove("has-mobile-bottom-nav");
+    return () => { document.body.classList.remove("has-mobile-bottom-nav"); };
+  }, [isMobile, setupDone]);
+
   // every render — only when the live location actually changes.
   useEffect(() => {
     if (!setupDone) return;
@@ -4987,9 +5005,20 @@ export default function Home() {
         />
       )}
 
-      {/* PR20 — Mobile Command Orb. Renders only on mobile viewports,
-          only after the chart is set up (no point showing nav during
-          onboarding). Provides draggable tab access + power actions. */}
+      {/* PR Phase 9.9 — Mobile nav rewrite.
+          - <MobileBottomNav>: persistent 4-tab strip (Chart/Dasha/
+            Muhurtha/Horary) + overflow "More" sheet for secondary
+            tabs and power actions. Replaces the CommandOrb's
+            tab-switching role.
+          - <MobileAiOrb>: floating round AI shortcut (Notion-style).
+            Self-gates off on the Analysis tab and when the
+            BottomDrawer is showing a selection.
+          - <MobileChartSheet>: untouched; mounted whenever the user
+            opens the chart overview overlay.
+          CommandOrb is intentionally NOT mounted alongside the new
+          nav — having two floating nav surfaces would be confusing.
+          Kept in the import tree only so its file isn't dead code
+          while we evaluate the new design on real devices. */}
       {setupDone && isMobile && (
         <>
           <MobileChartSheet
@@ -5001,18 +5030,20 @@ export default function Home() {
             selectedHouse={selectedHouse}
           />
 
-          {!selectedHouse && !mobileChartSheetOpen && (
-            <CommandOrb
-              tabs={TABS}
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-              onNewChart={handleNewChart}
-              sessions={savedSessions}
-              currentSessionId={currentSessionId}
-              onSwitchSession={handleSwitchSession}
-              onShowChartOverlay={() => setMobileChartSheetOpen(true)}
-            />
-          )}
+          <MobileBottomNav
+            tabs={TABS}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            onNewChart={handleNewChart}
+            sessions={savedSessions}
+            currentSessionId={currentSessionId}
+            onSwitchSession={handleSwitchSession}
+          />
+
+          <MobileAiOrb
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+          />
         </>
       )}
 
@@ -5024,15 +5055,19 @@ export default function Home() {
 
       {/* PR Phase 9.6 — pinned-entity tray. Sits as a fixed strip at
           the very bottom of the viewport, above the BottomDrawer and
-          (future Phase 9.9) bottom tab nav. Self-gated to render
-          nothing when no pins. Visible on desktop AND mobile so users
-          on both surfaces benefit from manual cross-reference holding. */}
+          (Phase 9.9) bottom tab nav. Self-gated to render nothing
+          when no pins. Visible on desktop AND mobile so users on both
+          surfaces benefit from manual cross-reference holding.
+          Phase 9.9: on mobile we lift it by MOBILE_NAV_HEIGHT + safe
+          area so it doesn't sit underneath the persistent tab strip. */}
       <div
         style={{
           position: "fixed",
           left: 0,
           right: 0,
-          bottom: 0,
+          bottom: (isMobile && setupDone)
+            ? `calc(${MOBILE_NAV_HEIGHT}px + env(safe-area-inset-bottom, 0))`
+            : 0,
           zIndex: 55, /* above orb (50) + below BottomDrawer (60) */
           pointerEvents: "none", /* container is invisible; PinTray re-enables */
         }}

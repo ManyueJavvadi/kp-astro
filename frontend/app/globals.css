@@ -7331,3 +7331,40 @@ textarea:focus-visible {
 }
 
 
+/* ═══ MOBILE BOTTOM NAV + AI ORB (Phase 9.9) ═══════════════════════
+   The bottom nav reserves a 56px strip at the bottom of the viewport
+   on mobile. Pages that render scroll regions need padding-bottom so
+   their last row isn't hidden beneath the nav. The .mobile-bottom-nav
+   class is set by MobileBottomNav.tsx; the page-level offset is
+   controlled by the .has-mobile-nav helper on <body>.
+
+   The AI orb sits on top of everything except the bottom drawer and
+   pin tray. It has a gentle 4.4s gold breath so it advertises itself
+   as a live entry point without being obnoxious. */
+
+@keyframes mobile-ai-orb-breath {
+  0%, 100% {
+    box-shadow:
+      0 6px 22px rgba(201, 169, 110, 0.35),
+      0 0 0 4px rgba(201, 169, 110, 0.08);
+  }
+  50% {
+    box-shadow:
+      0 8px 28px rgba(201, 169, 110, 0.55),
+      0 0 0 8px rgba(201, 169, 110, 0.14);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Add bottom padding to the main scrollable surfaces so the last row
+   of content isn't tucked behind the fixed 56px nav strip + safe-area
+   inset. Only applies when isMobile mounts the nav (gate is the body
+   class set by page.tsx). */
+body.has-mobile-bottom-nav main {
+  padding-bottom: calc(56px + env(safe-area-inset-bottom, 0) + 12px);
+}
+
