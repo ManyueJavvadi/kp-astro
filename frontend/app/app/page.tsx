@@ -23,6 +23,9 @@ import HoraryRpDashaStrip from "./components/HoraryRpDashaStrip";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useLiveLocation } from "@/hooks/useLiveLocation";
 import { formatMaskedDate, formatMaskedTime } from "./lib/maskedInput";
+// PR Phase 9.1 — global SelectionContext (mounted in /app/layout.tsx).
+// Backs `selectedHouse` and (later phases) every cross-reference primitive.
+import { useSelection } from "./lib/selection";
 // Phase 3 — Today panchang strip + per-tab chart context strip.
 // These pull data OUT of the slim header and the sidebar so each
 // surface has one job (#A, #B, #F).
@@ -242,7 +245,29 @@ export default function Home() {
   const [analysisLang, setAnalysisLang] = useState<"english" | "telugu_english">("english");
   const [showLangModal, setShowLangModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [selectedHouse, setSelectedHouse] = useState<number | null>(null);
+  // PR Phase 9.1 — selectedHouse is now backed by the global SelectionContext
+  // (mounted in /app/layout.tsx). The local-looking API stays identical so
+  // downstream consumers (ChartTab / HousesTab / HouseOverviewGrid /
+  // HousePanel) don't need to change. Underneath: state lives in one place
+  // and cross-component / cross-tab consumers will see updates via
+  // useSelection() without prop drilling.
+  const _sel = useSelection();
+  const selectedHouse: number | null =
+    _sel.selected?.type === "house" ? _sel.selected.value : null;
+  const setSelectedHouse = useCallback(
+    (updater: number | null | ((prev: number | null) => number | null)) => {
+      const nextValue =
+        typeof updater === "function"
+          ? (updater as (prev: number | null) => number | null)(selectedHouse)
+          : updater;
+      if (nextValue === null) {
+        _sel.clear();
+      } else {
+        _sel.select({ type: "house", value: nextValue });
+      }
+    },
+    [_sel, selectedHouse],
+  );
   const [savedSessions, setSavedSessions] = useState<ChartSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string>("");
   // New-chart floating modal: kept separate from the initial `!setupDone`

@@ -14,6 +14,7 @@ import { Logo } from "@/components/ui/logo";
 import { LanguageToggle } from "@/components/ui/language-toggle";
 import { LanguageProvider, useLanguage } from "@/lib/i18n";
 import { theme } from "@/lib/theme";
+import { SelectionProvider } from "./lib/selection";
 
 export default function AppLayout({
   children,
@@ -22,7 +23,15 @@ export default function AppLayout({
 }) {
   return (
     <LanguageProvider>
-      <AppShell>{children}</AppShell>
+      {/* PR Phase 9.1 — mount SelectionProvider here (above page.tsx) so
+          every consumer inside /app routes can call useSelection() without
+          page.tsx needing structural restructure.
+          chartScopeKey stays null at the layout level; page.tsx will set
+          it via a small bridge component once chart is loaded (Phase 9.6
+          when pin tray persistence ships). */}
+      <SelectionProvider chartScopeKey={null}>
+        <AppShell>{children}</AppShell>
+      </SelectionProvider>
     </LanguageProvider>
   );
 }
