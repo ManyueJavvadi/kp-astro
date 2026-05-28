@@ -5079,9 +5079,20 @@ export default function Home() {
 
       {/* PR Phase 9.2 — global BottomDrawer for mobile cross-reference
           design language. Self-gated: renders nothing if not mobile
-          (>=820px) OR if SelectionContext has no selection. Shows
-          placeholder content in 9.2; Phase 9.3+ enrich it. */}
-      <BottomDrawer />
+          (>=820px) OR if SelectionContext has no selection.
+          Phase 9.10b — workspace prop wires the live chart data
+          through so the drawer renders real KP content (HousePanelContent
+          for houses, PlanetDetailCard for planets, etc.) instead of
+          the original Phase 9.2 placeholder text. */}
+      <BottomDrawer
+        workspace={workspaceData ? {
+          cusps: (workspaceData as any).cusps,
+          significators: (workspaceData as any).significators,
+          planets: (workspaceData as any).planets,
+          rulingPlanets: (workspaceData as any).ruling_planets?.all_en || [],
+          antardashas: (workspaceData as any).antardashas || [],
+        } : undefined}
+      />
     </div>
   );
 }

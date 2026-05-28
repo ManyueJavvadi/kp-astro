@@ -45,8 +45,33 @@ import { useSelection, entityLabel, type SelectedEntity } from "../../lib/select
 // PR Phase 9.7 — drill-down breadcrumb shown between header and content.
 // Self-gated: renders nothing when history is empty.
 import BreadcrumbStrip from "./BreadcrumbStrip";
+// Phase 9.10b — real KP-doctrine house body inside the drawer (replaces
+// the Phase 9.2 placeholder text). Same component the desktop HousePanel
+// embeds, so what the astrologer sees on tablet/desktop is byte-identical
+// here on the phone.
+import HousePanelContent from "../workspace/HousePanelContent";
 
-export default function BottomDrawer() {
+/**
+ * Optional workspace data the drawer needs to render rich KP content
+ * (occupants, significators, sub-lord chain, dasha overlays). When
+ * absent the drawer falls back to a minimal label-only view — used as
+ * a graceful degradation when the chart hasn't loaded yet.
+ */
+export interface BottomDrawerData {
+  cusps?: any[];
+  significators?: any;
+  planets?: any[];
+  rulingPlanets?: string[];
+  antardashas?: any[];
+}
+
+interface BottomDrawerProps {
+  /** Live workspace data from page.tsx — passed so the drawer can
+   *  render the full HousePanel content body. */
+  workspace?: BottomDrawerData;
+}
+
+export default function BottomDrawer({ workspace }: BottomDrawerProps = {}) {
   const isMobile = useIsMobile();
   const { selected, clear } = useSelection();
   const { snap, setSnap, dragProps, sheetStyle, dragging } = useDrawerSnap({
@@ -236,7 +261,7 @@ export default function BottomDrawer() {
           lineHeight: 1.55,
         }}
       >
-        {renderContent(selected)}
+        {renderContent(selected, workspace)}
       </div>
     </div>
   );
@@ -256,28 +281,83 @@ function entityTypeLabel(e: NonNullable<SelectedEntity>): string {
 /**
  * Per-entity content renderer.
  *
- * Phase 9.2 — this is INTENTIONALLY placeholder content. Each subsequent
- * phase will fill in richer rendering:
- *   - Phase 9.4 EntityPeek: long-press tooltip uses the same data shape
- *   - Phase 9.5 EntityChip: inline chip uses entityLabel only
- *   - Phase 9.7 BreadcrumbStrip: adds the breadcrumb at the top of this content
- *   - Phase 9.8 glow hierarchy: doesn't change drawer; affects external glow
+ * Phase 9.10b — replaces the Phase 9.2 placeholder text with the real
+ * KP-doctrine surfaces. Each entity type now shows the same data that
+ * the desktop overlay panels show, optimized for the drawer's vertical
+ * scroll context:
  *
- * Future enhancement: pull live workspaceData here via context bridge
- * so the drawer shows the same data the existing HousePanel shows on
- * desktop. For now we show the entity identity + a CTA.
+ *   - house      → <HousePanelContent /> — cusp, sub-lord chain,
+ *                  occupants, 4-level significators, fruitful, active
+ *                  dasha periods. Identical sections to desktop
+ *                  HousePanel overlay.
+ *   - planet     → planet identity + house/sign/star/sub lord card
+ *                  (full PlanetList row data, vertical layout).
+ *   - dasha_lord → which dasha layer (MD/AD/PAD/SD) + lord planet's
+ *                  natal placement (house/sign/star/sub).
+ *   - nakshatra  → name + sign + lord planet.
+ *   - sub_lord   → name only (sub-lord is identified by planet —
+ *                  pivot to that planet's detail).
+ *
+ * When `workspace` is undefined or missing required fields (e.g. the
+ * chart hasn't finished loading), the renderer degrades to a minimal
+ * identity card — never a hard error.
  */
-function renderContent(e: NonNullable<SelectedEntity>) {
+function renderContent(
+  e: NonNullable<SelectedEntity>,
+  workspace?: { cusps?: any[]; significators?: any; planets?: any[]; rulingPlanets?: string[]; antardashas?: any[] },
+) {
+  // House — embed the shared HousePanelContent.
+  if (e.type === "house" && typeof e.value === "number") {
+    if (workspace?.cusps && workspace?.planets) {
+      return (
+        <HousePanelContent
+          house={e.value}
+          cusps={workspace.cusps}
+          significators={workspace.significators ?? {}}
+          planets={workspace.planets}
+          rulingPlanets={workspace.rulingPlanets ?? []}
+          antardashas={workspace.antardashas ?? []}
+          bottomPad={24}
+        />
+      );
+    }
+    return <MinimalIdentity e={e} note="House data is loading…" />;
+  }
+
+  // Planet — show natal placement card (house, sign, star lord, sub lord).
+  if (e.type === "planet" && workspace?.planets) {
+    const p = workspace.planets.find((x: any) => x.planet_en === e.value);
+    if (p) return <PlanetDetailCard p={p} />;
+    return <MinimalIdentity e={e} note="Planet not found in this chart." />;
+  }
+
+  // Dasha lord — show which layer + the lord's natal placement.
+  if (e.type === "dasha_lord" && workspace?.planets) {
+    const p = workspace.planets.find((x: any) => x.planet_en === e.value);
+    return (
+      <div>
+        <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 8 }}>
+          Currently focused dasha layer: <strong style={{ color: "var(--accent)" }}>{e.layer}</strong>
+        </div>
+        {p ? <PlanetDetailCard p={p} /> : <MinimalIdentity e={e} note="Lord planet data unavailable." />}
+      </div>
+    );
+  }
+
+  // Nakshatra / sub_lord — minimal identity card for now (these need
+  // their own data shapes; will enrich in a follow-up).
+  return <MinimalIdentity e={e} />;
+}
+
+// ── Minimal identity fallback ───────────────────────────────────────
+function MinimalIdentity({ e, note }: { e: NonNullable<SelectedEntity>; note?: string }) {
   return (
     <div>
-      <p style={{ marginTop: 0, marginBottom: 12, color: "var(--muted)" }}>
-        {/* Phase 9.2 placeholder — Phase 9.3+ will populate with the
-            real per-entity detail (4-step CSL chain for houses, full
-            signification list for planets, dasha tree for dasha lords, etc.) */}
-        Full {e.type === "house" ? "house" : e.type === "planet" ? "planet" : "entity"} detail
-        will render here as Phase 9 progresses. For now this is a
-        placeholder so the drawer mechanics can be verified on real devices.
-      </p>
+      {note && (
+        <p style={{ marginTop: 0, marginBottom: 10, color: "var(--muted)", fontSize: 12 }}>
+          {note}
+        </p>
+      )}
       <div
         style={{
           padding: 12,
@@ -289,15 +369,64 @@ function renderContent(e: NonNullable<SelectedEntity>) {
         }}
       >
         <div style={{ fontWeight: 600, color: "var(--accent)", marginBottom: 4 }}>
-          Entity: {entityLabel(e)}
+          {entityLabel(e)}
         </div>
         <div>Type: <code>{e.type}</code></div>
         {"layer" in e && (
-          <div>
-            Dasha layer: <code>{e.layer}</code>
-          </div>
+          <div>Dasha layer: <code>{e.layer}</code></div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ── Planet detail card — vertical mobile layout ─────────────────────
+function PlanetDetailCard({ p }: { p: any }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <span style={{
+          fontSize: 22, fontWeight: 700,
+          color: "var(--accent)",
+          fontFamily: "'DM Serif Display', serif",
+        }}>
+          {p.planet_en}{p.retrograde ? " ℞" : ""}
+        </span>
+        <span style={{
+          fontSize: 10, padding: "2px 8px", borderRadius: 999,
+          background: "rgba(201,169,110,0.1)",
+          color: "var(--accent)",
+          border: "0.5px solid rgba(201,169,110,0.3)",
+        }}>
+          H{p.house}
+        </span>
+      </div>
+
+      <FieldRow label="Sign"   value={`${p.sign_en} ${p.degree_in_sign?.toFixed(2)}°`} />
+      <FieldRow label="Nakshatra" value={p.nakshatra_en} />
+      <FieldRow label="Star Lord"  value={p.star_lord_en} accent />
+      <FieldRow label="Sub Lord"   value={p.sub_lord_en}  accent />
+    </div>
+  );
+}
+
+function FieldRow({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+      <span style={{
+        fontSize: 9, color: "var(--muted)",
+        textTransform: "uppercase" as const, letterSpacing: "0.08em",
+        minWidth: 84,
+      }}>
+        {label}
+      </span>
+      <span style={{
+        fontSize: 13,
+        fontWeight: accent ? 700 : 500,
+        color: accent ? "var(--accent)" : "var(--text)",
+      }}>
+        {value}
+      </span>
     </div>
   );
 }

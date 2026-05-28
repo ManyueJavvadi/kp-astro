@@ -24,6 +24,7 @@
 import { useState } from "react";
 import { LayoutGrid, Target } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { PageHero } from "@/components/ui/PageHero";
 // PR R1-hotfix — was importing the legacy ./components/SouthIndianChart
 // (the old 56-line south-only renderer). The pre-R1 page.tsx used a
@@ -57,6 +58,11 @@ type ChartViewMode = "chart" | "planets";
 
 export function ChartTab({ workspaceData, selectedHouse, setSelectedHouse }: ChartTabProps) {
   const { t } = useLanguage();
+  // Phase 9.10b — gate the HousePanel overlay off on mobile so the
+  // BottomDrawer (which now renders the same HousePanelContent) is the
+  // single house-detail surface. Otherwise both render on top of each
+  // other and the user sees a placeholder + an overlay simultaneously.
+  const isMobile = useIsMobile();
   // Tab-local state — no other tab cares about chart-vs-planets toggle.
   const [chartView, setChartView] = useState<ChartViewMode>("chart");
 
@@ -148,7 +154,7 @@ export function ChartTab({ workspaceData, selectedHouse, setSelectedHouse }: Cha
             We re-loosen via `any` cast to maintain zero behavior change.
             Fixing the underlying data-shape mismatch is a separate concern
             for a later PR (out of scope for the proof-of-pattern refactor). */}
-        {selectedHouse && (
+        {selectedHouse && !isMobile && (
           <HousePanel
             house={selectedHouse}
             cusps={workspaceData.cusps as any}

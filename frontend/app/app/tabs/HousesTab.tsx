@@ -29,6 +29,7 @@
 import { useState } from "react";
 import { Compass } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { PageHero } from "@/components/ui/PageHero";
 import TaraChakraWidget from "../components/TaraChakraWidget";
 import HousePanel from "../components/HousePanel";
@@ -50,6 +51,10 @@ interface HousesTabProps {
 
 export function HousesTab({ workspaceData, selectedHouse, setSelectedHouse }: HousesTabProps) {
   const { t, lang } = useLanguage();
+  // Phase 9.10b — on mobile the BottomDrawer handles the per-house
+  // detail surface (same HousePanelContent body). Hide the inline
+  // HousePanel mounts here so we don't double-render the same data.
+  const isMobile = useIsMobile();
   // Tab-local state — only Houses tab cares about these.
   const [housesSubTab, setHousesSubTab] = useState<HousesSubTab>("overview");
   const [cslSelectedHouse, setCslSelectedHouse] = useState<number | null>(null);
@@ -156,17 +161,19 @@ export function HousesTab({ workspaceData, selectedHouse, setSelectedHouse }: Ho
                   houseNum={cslSelectedHouse}
                   chain={wd.csl_chains[String(cslSelectedHouse)]}
                 />
-                <div style={{ marginTop: 8 }}>
-                  <HousePanel
-                    house={cslSelectedHouse}
-                    cusps={wd.cusps}
-                    significators={wd.significators}
-                    planets={wd.planets}
-                    rulingPlanets={wd.ruling_planets?.all_en || []}
-                    antardashas={wd.antardashas || []}
-                    onClose={() => setCslSelectedHouse(null)}
-                  />
-                </div>
+                {!isMobile && (
+                  <div style={{ marginTop: 8 }}>
+                    <HousePanel
+                      house={cslSelectedHouse}
+                      cusps={wd.cusps}
+                      significators={wd.significators}
+                      planets={wd.planets}
+                      rulingPlanets={wd.ruling_planets?.all_en || []}
+                      antardashas={wd.antardashas || []}
+                      onClose={() => setCslSelectedHouse(null)}
+                    />
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -220,7 +227,7 @@ export function HousesTab({ workspaceData, selectedHouse, setSelectedHouse }: Ho
               </tbody>
             </table>
           </div>
-          {selectedHouse && (
+          {selectedHouse && !isMobile && (
             <div style={{ width: 280, flexShrink: 0 }}>
               <HousePanel
                 house={selectedHouse}
@@ -330,7 +337,7 @@ export function HousesTab({ workspaceData, selectedHouse, setSelectedHouse }: Ho
               })}
             </div>
           </div>
-          {selectedHouse && (
+          {selectedHouse && !isMobile && (
             <div style={{ width: 280, flexShrink: 0 }}>
               <HousePanel
                 house={selectedHouse}
