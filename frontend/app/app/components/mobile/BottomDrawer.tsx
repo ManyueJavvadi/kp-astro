@@ -42,6 +42,9 @@ import { ChevronDown, X } from "lucide-react";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useDrawerSnap } from "@/hooks/useDrawerSnap";
 import { useSelection, entityLabel, type SelectedEntity } from "../../lib/selection";
+// PR Phase 9.7 — drill-down breadcrumb shown between header and content.
+// Self-gated: renders nothing when history is empty.
+import BreadcrumbStrip from "./BreadcrumbStrip";
 
 export default function BottomDrawer() {
   const isMobile = useIsMobile();
@@ -218,6 +221,9 @@ export default function BottomDrawer() {
           </button>
         </div>
       </div>
+
+      {/* PR Phase 9.7 — drill-down breadcrumb (self-gated when empty) */}
+      <BreadcrumbStrip />
 
       {/* Content area — scrolls within the drawer */}
       <div
