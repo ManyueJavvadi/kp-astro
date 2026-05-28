@@ -15,6 +15,9 @@ import CommandOrb from "./components/CommandOrb";
 // sheet) and a Notion-style floating round AI button.
 import MobileBottomNav, { MOBILE_NAV_HEIGHT } from "./components/mobile/MobileBottomNav";
 import MobileAiOrb from "./components/mobile/MobileAiOrb";
+// PR Phase 9.10c — multi-chart switcher visible on mobile (the desktop
+// workspace-sidebar is hidden by the responsive shell).
+import MobileChartPillStrip from "./components/mobile/MobileChartPillStrip";
 import UserModeUI from "./components/UserModeUI";
 import LiveLocationPill from "./components/LiveLocationPill";
 import { RpSourcePillFromMeta } from "./components/RpSourcePill";
@@ -4079,6 +4082,20 @@ export default function Home() {
           />
         }
       />
+      {/* Phase 9.10c — multi-chart pill strip on mobile only. Mirrors
+          the desktop workspace-sidebar (which is hidden on mobile)
+          so the astrologer can see all loaded charts at a glance and
+          tap to switch without opening the More sheet. Self-gated to
+          mobile + ≥2 charts in play. */}
+      {isMobile && (
+        <MobileChartPillStrip
+          savedSessions={savedSessions}
+          currentSessionId={currentSessionId}
+          activeName={workspaceData?.name}
+          activeGender={birthDetails.gender}
+          onSwitchSession={handleSwitchSession}
+        />
+      )}
       <div className="workspace-layout kp-constellation" style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative" }}>
         {/* Drifting background cosmic nebulae */}
         <div className="celestial-nebula-blue" />
@@ -4511,6 +4528,19 @@ export default function Home() {
             />
           }
         />
+
+        {/* Phase 9.10c — multi-chart pill strip on mobile (this is the
+            second PersonHeroBanner mount site — the user-mode path).
+            Same self-gates as the astrologer mount above. */}
+        {isMobile && (
+          <MobileChartPillStrip
+            savedSessions={savedSessions}
+            currentSessionId={currentSessionId}
+            activeName={workspaceData?.name}
+            activeGender={birthDetails.gender}
+            onSwitchSession={handleSwitchSession}
+          />
+        )}
 
         {/* Browser-style Client Tabs Strip */}
         <div className="client-tabs-bar" style={{ display: "flex", gap: 6, padding: "8px 12px", borderBottom: "0.5px solid var(--border)", background: "var(--surface)", alignItems: "center", flexShrink: 0, overflowX: "auto" }}>
