@@ -7368,3 +7368,61 @@ body.has-mobile-bottom-nav main {
   padding-bottom: calc(56px + env(safe-area-inset-bottom, 0) + 12px);
 }
 
+/* ═══ PHASE 9.10 — mobile real-device polish (post-9.9 testing) ═════
+   Bugs found at live 430px viewport:
+     #1  PersonHeroBanner action row (PDF / Switch / +New Chart) clipped
+         off the right edge — buttons jammed on a single row.
+     #2  AI-calls badge sat on top of the first bottom-nav cell.
+     #6/7/8  Lagna/dasha/RPS pill strips wrap to 3 lines instead of
+         scrolling horizontally — wastes vertical space.
+     #12 Header action row needs to break to its own row on narrow
+         viewports.
+   These fixes live here, gated by body.has-mobile-bottom-nav, so they
+   apply only when the mobile nav is actually mounted. No JS branches
+   in the components themselves. */
+
+/* AI-calls badge — lift above the bottom nav so the left rail can
+   stack cleanly: nav → badge → MobileAiOrb. */
+body.has-mobile-bottom-nav .ai-call-badge {
+  bottom: calc(56px + env(safe-area-inset-bottom, 0) + 8px) !important;
+}
+
+/* PersonHeroBanner — on mobile let the action row (PDF / Switch /
+   +New Chart) wrap onto its own line under the avatar+name row so
+   the +New Chart button stops getting clipped off the right edge. */
+body.has-mobile-bottom-nav .person-hero-banner {
+  padding: 10px 14px !important;
+  gap: 10px !important;
+}
+body.has-mobile-bottom-nav .person-hero-banner > div:last-child {
+  /* Action row was flexShrink:0 — release it so it can break onto
+     its own line on narrow viewports without clipping. */
+  flex-basis: 100% !important;
+  flex-shrink: 1 !important;
+  justify-content: flex-start !important;
+  flex-wrap: wrap !important;
+}
+
+/* ChartContextStrip + RPContextStrip — convert the wrap-to-3-rows
+   chip strips into single-line horizontal scrollers on mobile. */
+body.has-mobile-bottom-nav .chart-context-strip,
+body.has-mobile-bottom-nav .rp-context-strip,
+body.has-mobile-bottom-nav .chart-context-group {
+  flex-wrap: nowrap !important;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+body.has-mobile-bottom-nav .chart-context-strip::-webkit-scrollbar,
+body.has-mobile-bottom-nav .rp-context-strip::-webkit-scrollbar,
+body.has-mobile-bottom-nav .chart-context-group::-webkit-scrollbar {
+  display: none;
+}
+/* Chips inside the strips must not shrink — otherwise text wraps
+   inside each chip and the scroller has nothing to scroll. */
+body.has-mobile-bottom-nav .chart-context-strip > *,
+body.has-mobile-bottom-nav .rp-context-strip > *,
+body.has-mobile-bottom-nav .chart-context-group > * {
+  flex-shrink: 0;
+}
+

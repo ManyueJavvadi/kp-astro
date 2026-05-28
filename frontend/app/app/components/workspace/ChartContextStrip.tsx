@@ -96,6 +96,7 @@ export function ChartContextStrip({ workspaceData }: Props) {
     <div
       role="region"
       aria-label={t("Chart context", "చార్ట్ సందర్భం")}
+      className="chart-context-strip"
       style={{
         display: "flex",
         flexWrap: "wrap",
@@ -144,6 +145,7 @@ export function ChartContextStrip({ workspaceData }: Props) {
       {/* Group 3 — ruling planets at birth */}
       {rulingPlanets.length > 0 && (
         <div
+          className="chart-context-group"
           style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}
           title="Ruling planets at the native's moment of birth — frequency-sorted (planets in 2+ KP slots are flagged with ★). Houses → Ruling shows the canonical KSK strength order."
         >

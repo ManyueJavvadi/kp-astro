@@ -66,6 +66,7 @@ export default function PersonHeroBanner({
 
   return (
     <div
+      className="person-hero-banner"
       style={{
         background: "var(--hero-gradient)",
         borderBottom: "0.5px solid rgba(201,169,110,0.15)",

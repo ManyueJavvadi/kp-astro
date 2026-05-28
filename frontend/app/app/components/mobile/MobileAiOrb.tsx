@@ -69,14 +69,21 @@ export default function MobileAiOrb({ activeTab, onTabChange }: MobileAiOrbProps
       className="mobile-ai-orb"
       style={{
         position: "fixed",
-        right: 14,
-        // Sits a comfortable distance above the bottom nav, accounting
-        // for the iOS safe-area inset so it never sits under the home
-        // indicator.
-        bottom: `calc(${MOBILE_NAV_HEIGHT}px + env(safe-area-inset-bottom, 0) + 14px)`,
+        // 2026-05-27 — moved from right→left edge per real-device feedback
+        // (was overlapping the SE chart cell where Su/Ma typically sit and
+        // covering the "East" chart-style toggle). Lives above the
+        // AI-calls badge in the left rail so the entire chart canvas +
+        // right edge stay unobstructed.
+        left: 12,
+        // Sits above the AI-calls badge (which is itself lifted above
+        // the bottom nav via CSS). Stack order, bottom→top:
+        //   bottom nav → AI-calls badge → MobileAiOrb.
+        bottom: `calc(${MOBILE_NAV_HEIGHT}px + env(safe-area-inset-bottom, 0) + 48px)`,
         zIndex: 53,
-        width: 52,
-        height: 52,
+        // Shrunk 52→44 so the floating control feels lighter against
+        // dense chart content.
+        width: 44,
+        height: 44,
         borderRadius: "50%",
         border: "0.5px solid rgba(201, 169, 110, 0.5)",
         background:
@@ -107,7 +114,7 @@ export default function MobileAiOrb({ activeTab, onTabChange }: MobileAiOrbProps
         (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
       }}
     >
-      <Sparkles size={22} strokeWidth={2} />
+      <Sparkles size={19} strokeWidth={2} />
     </button>
   );
 }

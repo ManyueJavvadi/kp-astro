@@ -62,8 +62,12 @@ interface MobileBottomNavProps {
  * Primary 4 tabs (left → right). The "More" cell at position 5 is
  * synthesized at render time. Keep this list to exactly 4 ids for
  * even spacing.
+ *
+ * 2026-05-27 — per real-device feedback, Houses replaced Dasha in the
+ * primary set. Dasha is still one tap away inside the More sheet, but
+ * Houses sees more taps in the KP-astrologer workflow.
  */
-const PRIMARY_TAB_IDS = ["chart", "dasha", "muhurtha", "horary"];
+const PRIMARY_TAB_IDS = ["chart", "houses", "muhurtha", "horary"];
 
 /** Width-baseline height for the strip — 56px is the iOS / Material tab-bar default. */
 export const MOBILE_NAV_HEIGHT = 56;

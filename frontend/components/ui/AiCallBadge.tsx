@@ -33,6 +33,7 @@ export function AiCallBadge() {
 
   return (
     <div
+      className="ai-call-badge"
       style={{
         position: "fixed",
         left: 12,
