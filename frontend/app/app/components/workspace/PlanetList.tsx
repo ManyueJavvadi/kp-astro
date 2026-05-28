@@ -6,6 +6,10 @@ import { useLanguage } from "@/lib/i18n";
 // Phase 15.3 — planet rows now cascade in (tight 30ms gap for a snappy
 // data-table feel rather than the bigger 60ms for cards).
 import { StaggerChildren, StaggerItem } from "@/components/motion";
+// PR Phase 9.3 — click any planet → updates global SelectionContext.
+// Hover continues to fire the existing planet-hover window event for
+// per-component synchronized hover highlight (back-compat).
+import { useSelection } from "../../lib/selection";
 
 interface PlanetListProps {
   planets: Planet[];
@@ -21,6 +25,11 @@ function hexToRgba(hex: string, alpha: number): string {
 export default function PlanetList({ planets }: PlanetListProps) {
   const { lang } = useLanguage();
   const [hoveredPlanet, setHoveredPlanet] = useState<string | null>(null);
+  // PR Phase 9.3 — read global selection for tap-driven highlight.
+  // Tap a planet anywhere (here, in chart, in dasha tree) → glow here.
+  const { selected, select } = useSelection();
+  const selectedPlanet =
+    selected?.type === "planet" ? selected.value : null;
 
   useEffect(() => {
     const handlePlanetHover = (e: Event) => {
@@ -49,10 +58,25 @@ export default function PlanetList({ planets }: PlanetListProps) {
         const sym   = PLANET_SYMBOLS[p.planet_en] ?? p.planet_en[0];
         const isLast = i === planets.length - 1;
         const isHovered = hoveredPlanet === p.planet_en;
+        // PR Phase 9.3 — tap-driven persistent highlight via SelectionContext.
+        // .glow-direct (the gold-bordered, glowing tier) outranks the
+        // transient .synced-hover-highlight when both are active.
+        const isSelected = selectedPlanet === p.planet_en;
+        const glowClass = isSelected
+          ? "glow-direct"
+          : isHovered
+            ? "synced-hover-highlight"
+            : "";
         return (
           <StaggerItem key={p.planet_en}>
             <div
-              className={isHovered ? "synced-hover-highlight" : ""}
+              className={glowClass}
+              onClick={() => {
+                // Toggle: tapping the already-selected planet clears selection
+                // (drawer dismisses). Otherwise this planet becomes the focus.
+                if (isSelected) select(null);
+                else            select({ type: "planet", value: p.planet_en });
+              }}
               onMouseEnter={() => {
                 window.dispatchEvent(new CustomEvent("planet-hover", { detail: { planet: p.planet_en } }));
               }}

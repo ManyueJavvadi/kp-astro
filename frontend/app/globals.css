@@ -7203,6 +7203,49 @@ textarea:focus-visible {
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   PR Phase 9.3 — Global brushing-and-linking glow primitive.
+   See .claude/research/mobile-cross-reference-design.md §1.⑧.
+
+   Three intensity tiers driven by useEntityRelation() (Phase 9.8):
+     .glow-direct  = the entity IS the global selection (strongest)
+     .glow-related = direct KP relation (lord, occupant, sub-lord, etc.)
+     .glow-distant = two-hop relation (lord's lord, etc.)
+     .glow-none    = no relation (default — no class applied)
+
+   Phase 9.3 ships the CSS scaffold + uses .glow-direct from
+   PlanetList / SouthIndianChart whenever the selected entity matches
+   the rendered planet/house. Phase 9.8 wires the .glow-related and
+   .glow-distant tiers via useEntityRelation().
+
+   Reduced-motion users (prefers-reduced-motion: reduce) get static
+   highlights with no animation.
+   ═══════════════════════════════════════════════════════════════ */
+.glow-direct {
+  background: rgba(212, 175, 55, 0.18) !important;
+  border-color: rgba(212, 175, 55, 0.65) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(212, 175, 55, 0.4),
+    0 0 16px rgba(212, 175, 55, 0.25) !important;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+.glow-related {
+  background: rgba(212, 175, 55, 0.08) !important;
+  border-color: rgba(212, 175, 55, 0.35) !important;
+  box-shadow: inset 0 0 6px rgba(212, 175, 55, 0.10) !important;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+.glow-distant {
+  background: rgba(212, 175, 55, 0.03) !important;
+  border-color: rgba(212, 175, 55, 0.18) !important;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .glow-direct, .glow-related, .glow-distant {
+    transition: none !important;
+  }
+}
+
 /* Dynamic slider and top status ticker glow classes */
 .ticker-pulse-active {
   background: rgba(16, 185, 129, 0.12) !important;

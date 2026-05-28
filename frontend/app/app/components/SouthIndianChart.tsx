@@ -2,10 +2,19 @@
 import React, { useState, useEffect } from "react";
 import { PLANET_COLORS } from "./constants";
 import { useLanguage } from "@/lib/i18n";
+// PR Phase 9.3 — global SelectionContext for cross-component brushing.
+// Tap a planet glyph here → SelectionContext updates → PlanetList +
+// future drawer + future glow all react. Tap a house cell continues
+// to fire the existing onHouseClick prop (parent decides what to do)
+// because the parent ALSO calls setSelectedHouse which goes through
+// SelectionContext via the Phase 9.1 adapter.
+import { useSelection } from "../lib/selection";
 
 export default function SouthIndianChart({ planets, cusps, onHouseClick, selectedHouse }: { planets: any[]; cusps: any[]; onHouseClick?: (h: number) => void; selectedHouse?: number | null }) {
   const { lang } = useLanguage();
   const [hoveredPlanet, setHoveredPlanet] = useState<string | null>(null);
+  const { selected, select } = useSelection();
+  const selectedPlanet = selected?.type === "planet" ? selected.value : null;
 
   useEffect(() => {
     const handlePlanetHover = (e: Event) => {
@@ -64,27 +73,40 @@ export default function SouthIndianChart({ planets, cusps, onHouseClick, selecte
               {hp.map((p: any) => {
                 const deg = typeof p.degree_in_sign === "number" ? p.degree_in_sign : 0;
                 const isHovered = hoveredPlanet === p.planet_en;
+                const isSelected = selectedPlanet === p.planet_en;
                 return (
-                  <div key={p.planet_en} 
-                    title={`${p.planet_en} | ${p.nakshatra_en ?? ""} | ${deg.toFixed(1)}° | Star: ${p.star_lord_en ?? ""} | Sub: ${p.sub_lord_en ?? ""}`} 
+                  <div key={p.planet_en}
+                    title={`${p.planet_en} | ${p.nakshatra_en ?? ""} | ${deg.toFixed(1)}° | Star: ${p.star_lord_en ?? ""} | Sub: ${p.sub_lord_en ?? ""}`}
+                    onClick={(e) => {
+                      // Stop propagation so the house cell's onClick
+                      // doesn't also fire (would select the house too).
+                      e.stopPropagation();
+                      if (isSelected) select(null);
+                      else            select({ type: "planet", value: p.planet_en });
+                    }}
                     onMouseEnter={() => {
                       window.dispatchEvent(new CustomEvent("planet-hover", { detail: { planet: p.planet_en } }));
                     }}
                     onMouseLeave={() => {
                       window.dispatchEvent(new CustomEvent("planet-hover", { detail: { planet: null } }));
                     }}
-                    style={{ 
-                      display: "flex", 
-                      alignItems: "center", 
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
                       gap: 2,
                       cursor: "pointer",
                       transition: "transform 0.15s, filter 0.15s",
-                      transform: isHovered ? "scale(1.12)" : "scale(1)",
-                      filter: isHovered ? "drop-shadow(0 0 4px rgba(212,175,55,0.8))" : "none",
+                      transform: isSelected ? "scale(1.18)" : isHovered ? "scale(1.12)" : "scale(1)",
+                      filter:
+                        isSelected
+                          ? "drop-shadow(0 0 6px rgba(212,175,55,1))"
+                          : isHovered
+                            ? "drop-shadow(0 0 4px rgba(212,175,55,0.8))"
+                            : "none",
                     }}
                   >
                     <span style={{ fontSize: 11, fontWeight: 700, color: PLANET_COLORS[p.planet_en] || "#888" }}>{p.planet_short}{p.retrograde ? "℞" : ""}</span>
-                    <span className="celestial-mono" style={{ fontSize: 7.5, color: isHovered ? "rgba(212,175,55,0.9)" : `${PLANET_COLORS[p.planet_en]}80` }}>{deg.toFixed(0)}°</span>
+                    <span className="celestial-mono" style={{ fontSize: 7.5, color: (isSelected || isHovered) ? "rgba(212,175,55,0.95)" : `${PLANET_COLORS[p.planet_en]}80` }}>{deg.toFixed(0)}°</span>
                   </div>
                 );
               })}
