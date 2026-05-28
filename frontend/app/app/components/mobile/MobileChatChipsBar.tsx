@@ -35,7 +35,8 @@
  *     extra wiring needed.
  */
 
-import React from "react";
+import React, { useRef, useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import type { WorkspaceData } from "../../types/workspace";
 import type { BirthDetails, ChartSession } from "../../types";
 
@@ -59,6 +60,31 @@ export default function MobileChatChipsBar({
   chartsInContext, setChartsInContext,
   mentionPopoverOpen, setMentionPopoverOpen,
 }: MobileChatChipsBarProps) {
+  // Phase 9.10f — anchor ref for the popover. The bar itself has
+  // overflow-x: auto for horizontal scrolling of chips, which would
+  // CLIP an absolutely-positioned popover. So we measure the bar's
+  // rect and render the popover via a portal at `position: fixed`
+  // outside the overflow container.
+  const barRef = useRef<HTMLDivElement | null>(null);
+  const [popRect, setPopRect] = useState<DOMRect | null>(null);
+
+  useEffect(() => {
+    if (!mentionPopoverOpen || !barRef.current) {
+      setPopRect(null);
+      return;
+    }
+    const update = () => {
+      if (barRef.current) setPopRect(barRef.current.getBoundingClientRect());
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [mentionPopoverOpen]);
+
   // Hide the entire bar when there's nothing to show or add — no point
   // taking vertical real-estate on a fresh single-chart session that
   // has no other charts available to pin.
@@ -70,7 +96,9 @@ export default function MobileChatChipsBar({
   );
 
   return (
+    <>
     <div
+      ref={barRef}
       data-mobile-multi-chart-chips
       style={{
         position: "relative",
@@ -176,31 +204,49 @@ export default function MobileChatChipsBar({
         </span>
       )}
 
-      {/* Popover — list of pickable saved sessions. Same shape as the
-          desktop sidebar version, just positioned to overflow the bar
-          instead of expanding inline (mobile bar is single-line scroll). */}
-      {mentionPopoverOpen && (
+    </div>
+
+    {/* Phase 9.10f — popover rendered via portal so it escapes the
+        bar's `overflow-x: auto` clipping context. Positioned via
+        fixed coords from the bar's bounding rect. Anchored ABOVE
+        the bar (i.e. its bottom edge sits 4px above the bar's top)
+        so it never falls behind the bottom nav. Backdrop click
+        anywhere outside closes the popover. */}
+    {mentionPopoverOpen && popRect && typeof document !== "undefined" && createPortal(
+      <>
         <div
+          aria-hidden
+          onClick={() => setMentionPopoverOpen(false)}
           style={{
-            position: "absolute",
-            top: "calc(100% + 4px)",
-            left: 8, right: 8,
-            zIndex: 30,
+            position: "fixed", inset: 0,
+            zIndex: 71,
+            background: "transparent",
+          }}
+        />
+        <div
+          role="dialog"
+          aria-label="Pick a saved chart to add"
+          style={{
+            position: "fixed",
+            left: Math.max(8, popRect.left + 8),
+            right: Math.max(8, window.innerWidth - popRect.right + 8),
+            bottom: window.innerHeight - popRect.top + 4,
+            zIndex: 72,
             background: "rgba(13, 13, 22, 0.96)",
             backdropFilter: "blur(8px)",
             WebkitBackdropFilter: "blur(8px)",
             border: "0.5px solid rgba(201,169,110,0.3)",
-            borderRadius: 8,
+            borderRadius: 10,
             padding: 8,
-            maxHeight: 280,
+            maxHeight: "min(320px, 50vh)",
             overflowY: "auto",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+            boxShadow: "0 12px 32px rgba(0,0,0,0.5)",
           }}
         >
           <div style={{
             fontSize: 9, color: "var(--muted)",
             textTransform: "uppercase" as const, letterSpacing: "0.08em",
-            marginBottom: 6,
+            marginBottom: 6, padding: "0 4px",
           }}>
             Pick a saved chart to add
           </div>
@@ -214,11 +260,11 @@ export default function MobileChatChipsBar({
               }}
               style={{
                 display: "flex", alignItems: "center", gap: 8,
-                width: "100%", padding: "10px 12px",
-                borderRadius: 6, border: "none", background: "transparent",
+                width: "100%", padding: "12px",
+                borderRadius: 8, border: "none", background: "transparent",
                 color: "var(--text)", fontSize: 13,
                 textAlign: "left", cursor: "pointer",
-                fontFamily: "inherit",
+                fontFamily: "inherit", minHeight: 44,
               }}
               onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = "rgba(201,169,110,0.08)"}
               onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = "transparent"}
@@ -231,12 +277,14 @@ export default function MobileChatChipsBar({
             </button>
           ))}
           {addable.length === 0 && (
-            <div style={{ fontSize: 11, color: "var(--muted)", padding: 8, textAlign: "center" }}>
+            <div style={{ fontSize: 11, color: "var(--muted)", padding: 12, textAlign: "center" }}>
               No other saved charts to add — tap &quot;+ New Chart&quot; in the header.
             </div>
           )}
         </div>
-      )}
-    </div>
+      </>,
+      document.body,
+    )}
+    </>
   );
 }

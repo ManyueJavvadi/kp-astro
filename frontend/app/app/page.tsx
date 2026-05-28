@@ -9,10 +9,12 @@ import { ContentCard } from "@/components/ui/content-card";
 import { PlacePicker } from "@/components/ui/place-picker";
 import { theme, styles as uiStyles } from "@/lib/theme";
 import { useLanguage } from "@/lib/i18n";
-import CommandOrb from "./components/CommandOrb";
 // PR Phase 9.9 — primary mobile nav + AI shortcut. Replaces CommandOrb's
 // tab-switching role with a persistent 4-tab bottom strip (+ overflow
 // sheet) and a Notion-style floating round AI button.
+// Phase 9.10f — CommandOrb import removed entirely (it was kept in the
+// import tree as a "fallback" in Phase 9.9 but never mounted; dead code).
+// CommandOrb.tsx file is preserved for git history / potential rollback.
 import MobileBottomNav, { MOBILE_NAV_HEIGHT } from "./components/mobile/MobileBottomNav";
 import MobileAiOrb from "./components/mobile/MobileAiOrb";
 // PR Phase 9.10c — multi-chart switcher visible on mobile (the desktop
@@ -23,6 +25,10 @@ import MobileChartPillStrip from "./components/mobile/MobileChartPillStrip";
 // deeper question" input on mobile so multi-chart context works the
 // same way it does on desktop.
 import MobileChatChipsBar from "./components/mobile/MobileChatChipsBar";
+// PR Phase 9.10f — the missing toast renderer. setToast() was being
+// called from 9 places but nothing ever rendered the state — silent
+// failures since forever. AppToast closes the gap.
+import AppToast from "./components/AppToast";
 import UserModeUI from "./components/UserModeUI";
 import LiveLocationPill from "./components/LiveLocationPill";
 import { RpSourcePillFromMeta } from "./components/RpSourcePill";
@@ -1848,6 +1854,14 @@ export default function Home() {
     // computed for the PREVIOUS chart. Throw it all out so the
     // astrologer doesn't read a verdict from the wrong person.
     invalidateDownstreamResults(`switched to ${target.name || "another chart"}`);
+    // Phase 9.10f — also clear the multi-chart "in this chat" pins.
+    // Without this, a chart pinned to the OLD primary's chat lingers
+    // and gets re-sent to the multi-analyze endpoint as additional
+    // context for the NEW primary — wrong-chart contamination.
+    // (Specifically: if the target chart IS one of the pinned ones,
+    // it'd appear as both primary AND pinned — duplicate context.)
+    setChartsInContext([]);
+    setMentionPopoverOpen(false);
     
     let wsData = target.workspaceData;
     if (!wsData) {
@@ -5068,10 +5082,9 @@ export default function Home() {
             BottomDrawer is showing a selection.
           - <MobileChartSheet>: untouched; mounted whenever the user
             opens the chart overview overlay.
-          CommandOrb is intentionally NOT mounted alongside the new
-          nav — having two floating nav surfaces would be confusing.
-          Kept in the import tree only so its file isn't dead code
-          while we evaluate the new design on real devices. */}
+          CommandOrb is no longer in the import tree at all
+          (Phase 9.10f removed the dead import — the file is preserved
+          for git history / rollback but isn't referenced anywhere). */}
       {setupDone && isMobile && (
         <>
           <MobileChartSheet
@@ -5129,6 +5142,12 @@ export default function Home() {
           <PinTray />
         </div>
       </div>
+
+      {/* Phase 9.10f — toast renderer (FINALLY). setToast() has been
+          called from 9 sites since long before mobile but nothing
+          ever rendered it. Auto-dismisses on the existing 5s timer
+          in page.tsx; the close × dismisses early. */}
+      <AppToast toast={toast} onClose={() => setToast(null)} />
 
       {/* PR Phase 9.2 — global BottomDrawer for mobile cross-reference
           design language. Self-gated: renders nothing if not mobile

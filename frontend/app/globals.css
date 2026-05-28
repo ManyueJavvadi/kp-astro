@@ -2049,6 +2049,29 @@ textarea:focus-visible {
 .muhurtha-event-card:hover .muhurtha-event-meaning {
   opacity: 1; transform: translateY(0);
 }
+/* Phase 9.10f — touch devices have no hover, so the meaning tooltip
+   would be permanently hidden on phones. Two changes for mobile:
+     1. Always-show the meaning inline (below the card) on touch
+        primary input devices.
+     2. Also reveal it on the active card on tap so the user gets
+        immediate KP-doctrine context without needing hover.
+   Desktop hover behavior unchanged. */
+@media (hover: none), (max-width: 819px) {
+  .muhurtha-event-meaning {
+    position: static;
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+    margin-top: 6px;
+    padding: 6px 8px;
+    background: rgba(201,169,110,0.05);
+    border-color: rgba(201,169,110,0.18);
+    font-size: 10.5px;
+  }
+}
+.muhurtha-event-card.is-active .muhurtha-event-meaning {
+  opacity: 1; transform: translateY(0);
+}
 
 /* Best Window serif hero — the reveal moment on Step 3 results. */
 @keyframes muhurtha-best-enter {
@@ -7358,6 +7381,15 @@ textarea:focus-visible {
 @keyframes fade-in {
   from { opacity: 0; }
   to   { opacity: 1; }
+}
+
+/* Phase 9.10f — AppToast entrance + mobile lift above bottom nav. */
+@keyframes app-toast-in {
+  from { opacity: 0; transform: translate(-50%, 16px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+body.has-mobile-bottom-nav .app-toast {
+  bottom: calc(56px + env(safe-area-inset-bottom, 0) + 12px) !important;
 }
 
 /* Add bottom padding to the main scrollable surfaces so the last row

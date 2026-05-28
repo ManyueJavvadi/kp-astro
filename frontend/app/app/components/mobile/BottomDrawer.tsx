@@ -90,18 +90,6 @@ export default function BottomDrawer({ workspace }: BottomDrawerProps = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected]);
 
-  // Phase 9.10d — body class so the AI-calls badge (which lives at
-  // z-index 9000) can hide itself while the drawer is up. Without
-  // this, the badge floats over drawer content (e.g. the
-  // significators list) and obscures real KP data.
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    const open = isMobile && selected != null;
-    if (open) document.body.classList.add("has-bottom-drawer-open");
-    else      document.body.classList.remove("has-bottom-drawer-open");
-    return () => { document.body.classList.remove("has-bottom-drawer-open"); };
-  }, [isMobile, selected]);
-
   // Render gate: mobile-only, only when something is selected.
   if (!isMobile || selected == null) return null;
 

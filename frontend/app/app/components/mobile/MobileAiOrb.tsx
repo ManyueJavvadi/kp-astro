@@ -74,7 +74,10 @@ export default function MobileAiOrb({ activeTab, onTabChange }: MobileAiOrbProps
         // covering the "East" chart-style toggle). Lives above the
         // AI-calls badge in the left rail so the entire chart canvas +
         // right edge stay unobstructed.
-        left: 12,
+        // 2026-05-27 (Phase 9.10f) — bumped 12→18px so the orb sits
+        // clear of iOS's left-edge swipe-back gesture region (≤ ~16px
+        // from edge tends to compete with the navigation gesture).
+        left: 18,
         // Sits above the AI-calls badge (which is itself lifted above
         // the bottom nav via CSS). Stack order, bottom→top:
         //   bottom nav → AI-calls badge → MobileAiOrb.

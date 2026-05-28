@@ -35,6 +35,7 @@
  */
 
 import React from "react";
+import { useLanguage } from "@/lib/i18n";
 import type { ChartSession } from "../../types";
 
 interface MobileChartPillStripProps {
@@ -56,6 +57,10 @@ const genderGlyph = (g?: string) =>
 export default function MobileChartPillStrip({
   savedSessions, currentSessionId, activeName, activeGender, onSwitchSession,
 }: MobileChartPillStripProps) {
+  // Phase 9.10f — Telugu lord names in the MD subtitle. Was always
+  // English (mahadasha.lord_en) regardless of user language setting.
+  const { lang } = useLanguage();
+
   // Hidden when there's only one chart in play.
   const total = savedSessions.length + (activeName ? 1 : 0);
   if (total < 2) return null;
@@ -86,7 +91,7 @@ export default function MobileChartPillStrip({
       {/* Active chart — first, highlighted, non-interactive */}
       {activeName && (
         <PillButton
-          name={activeName.split(" ")[0]}
+          name={(activeName.trim().split(" ")[0]) || "Chart"}
           glyph={genderGlyph(activeGender)}
           active
           ariaCurrent
@@ -95,9 +100,16 @@ export default function MobileChartPillStrip({
 
       {/* Other saved sessions — tap to switch */}
       {others.map(s => {
-        const name = (s.name || "—").split(" ")[0];
+        // Phase 9.10f — fall back to "Chart" if name is empty/null
+        // rather than rendering a literal "—" pill label.
+        const rawName = (s.name || s.birthDetails?.name || "").trim();
+        const name = rawName ? rawName.split(" ")[0] : "Chart";
         const gender = s.birthDetails?.gender;
-        const dasha = s.workspaceData?.mahadasha?.lord_en || "";
+        // Phase 9.10f — Telugu lord name in Telugu mode (was always _en).
+        const md: any = s.workspaceData?.mahadasha;
+        const dashaEn = md?.lord_en || "";
+        const dashaTe = md?.lord_te || md?.lord_en || "";
+        const dasha = lang === "en" ? dashaEn : dashaTe;
         return (
           <PillButton
             key={s.id}

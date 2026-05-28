@@ -112,8 +112,15 @@ export default function MobileBottomNav({
           left: 0,
           right: 0,
           bottom: 0,
-          height: MOBILE_NAV_HEIGHT,
+          // Phase 9.10f — height is the icon row only (56px). The
+          // home-indicator safe-area is added BELOW the row via
+          // paddingBottom so iPhone X+ devices don't squash the icons
+          // up into the 56px to make room for the indicator. Total
+          // strip height = 56 + safe-area, matched by globals.css
+          // padding-bottom that reserves layout space.
+          height: MOBILE_NAV_HEIGHT + "px",
           paddingBottom: "env(safe-area-inset-bottom, 0)",
+          boxSizing: "content-box",
           zIndex: 52,
           display: "grid",
           gridTemplateColumns: "repeat(5, 1fr)",

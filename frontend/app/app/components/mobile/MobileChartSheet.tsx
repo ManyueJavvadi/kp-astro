@@ -56,15 +56,24 @@ export default function MobileChartSheet({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Lock body scrolling when overlay is active
+  // Lock body scrolling when overlay is active.
+  // Phase 9.10f — ref-counted via a body class + global counter so
+  // multiple components (current + future modals/drawers) can request
+  // the lock without stepping on each other's cleanup. Mutating
+  // `body.style.overflow` directly is unsafe when N components do it
+  // independently — last unmount wins and wipes the lock other
+  // components still need.
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
+    if (!isOpen) return;
+    const KEY = "__bodyScrollLockCount";
+    const w = window as unknown as Record<string, number>;
+    w[KEY] = (w[KEY] || 0) + 1;
+    document.body.style.overflow = "hidden";
     return () => {
-      document.body.style.overflow = "";
+      w[KEY] = Math.max(0, (w[KEY] || 1) - 1);
+      if (w[KEY] === 0) {
+        document.body.style.overflow = "";
+      }
     };
   }, [isOpen]);
 
