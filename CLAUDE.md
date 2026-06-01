@@ -10,9 +10,43 @@ queue, business model, Option A stance) and `.claude/DAILY_LOG.md`
 
 ---
 
-## 🔒 CURRENT DIRECTION (as of 2026-05-24) — current UI IS the target
+## 🔒 CURRENT DIRECTION (as of 2026-05-28) — Sept 9 astrologer launch
 
-**The v2 inquiry-driven-canvas + workspace-model plan is CANCELLED.** User
+**Public launch date: Sept 9, 2026. Astrologers only — NOT general
+public.** Consumer launch is deferred to a separate later milestone.
+This deadline is user-set, ~14 weeks out as of doc creation.
+
+**Canonical sources of truth for launch work** (read in order):
+1. `.claude/research/launch-tracker-2026-09-09.md` — P0/P1/P2
+   checklist + 14-week sequencing.
+2. `.claude/HANDOFF-2026-05-28-launch-prep.md` — strategic
+   handoff from the 2026-05-28 strategy session.
+3. `.claude/research/client-portal-spec.md` — the killer
+   differentiator (per-client unique URLs).
+4. `.claude/research/matching-network-spec.md` — Phase M
+   (post-launch v1.5, Nov 2026).
+
+**Active focus until Sept 9:**
+- Auth + Neon DB + DB migration (Weeks 1-2)
+- Route segment refactor (Weeks 3-4, conditional on user decision)
+- Client portal pages (Weeks 5-7)
+- Razorpay subscription + email (Weeks 8-9)
+- SEO + monitoring + polish (Weeks 10-11)
+- QA + soft launch (Weeks 12-14)
+
+**Cancelled / paused / out of scope for Sept 9:**
+
+- **General-user mode v1 (Phase G)** — paused 2026-05-28 after 8
+  iterations failed to converge. Code stays on develop (gated
+  behind `mode === "user"`). Do NOT touch without explicit reopen.
+- **3 home-screen concepts (Almanac / Oracle / Compass)** — rejected
+  by user 2026-05-28. *"lets build simple dashboard… simple clear
+  easy navigation."* Prototypes in `.claude/research/prototypes/`
+  are historical reference only.
+
+### Earlier direction (still applies for non-launch work)
+
+The v2 inquiry-driven-canvas + workspace-model plan is CANCELLED. User
 direction 2026-05-24: "current UI is perfect, if we do anything we do on
 top of it." No architecture pivot pending. Future work is **polish-and-add
 on top of the existing 8-tab UI**, not a redesign.

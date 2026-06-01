@@ -5,6 +5,29 @@
 
 ---
 
+## ⭐ ACTIVE FOCUS (2026-05-28): Sept 9 astrologer launch
+
+**Public launch date: Sept 9, 2026. Astrologers only — not general public.**
+
+Canonical sources of truth for all launch work:
+1. `.claude/research/launch-tracker-2026-09-09.md` — checklist + 14-week plan
+2. `.claude/HANDOFF-2026-05-28-launch-prep.md` — strategic context
+3. `.claude/research/client-portal-spec.md` — killer feature for launch
+4. `.claude/research/matching-network-spec.md` — post-launch Phase M
+
+When tracking shipped work for launch, use the "Shipped" log inside
+`launch-tracker-2026-09-09.md`, not this file's Shipped log (which
+remains the historical record of Tracks A/B/C work).
+
+**Paused / cancelled (do NOT touch without explicit reopen):**
+- General-user mode v1 (`Phase G`) — paused after 8 hotfix iterations
+  on 2026-05-28. Code stays on develop, gated behind `mode === "user"`.
+- 3 home-screen concept prototypes (Almanac / Oracle / Compass) —
+  rejected by user 2026-05-28.
+- v2 SaaS rewrite (`developv2@146a919`) — cancelled per `CLAUDE.md`.
+
+---
+
 ## How to use this file
 
 **Claude on session start**: read this entire file, then tail the last 60 lines of `.claude/DAILY_LOG.md`. Do NOT assume prior conversation context — it's compressed or lost. These two files are the source of truth.

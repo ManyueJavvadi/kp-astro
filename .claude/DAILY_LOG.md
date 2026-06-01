@@ -719,3 +719,112 @@ shipped yet, just captured):
   picks if/when any get worked on.
 - **TransitWheel.tsx exists now** (added in 66aba57) — verify what
   state it's in before proposing "add a transit wheel."
+
+---
+
+## 2026-05-28 (IST) — Sept 9 launch planning + Phase G pause
+
+Multi-thread strategy day. Several substantial outcomes:
+
+### 1. General-user mode (Phase G) — paused after 8 commits
+
+Spent the morning building a consumer Dashboard tab + 6-tab IA wired
+through the existing astrologer workspace shell. Pushed G1 → G1
+hotfix v1/v2/v3/v4/v5 + G2. Each iteration revealed another
+astrologer-only chrome piece I hadn't gated (TIME SHIFT ticker,
+permanent left chart panel, multi-chart pills, etc.).
+
+User after 8 iterations: *"its my bad to ask you, lets not work on
+user mode now."* → **paused.** All code stays on develop, gated
+behind `mode === "user"`. Don't touch without explicit reopen.
+
+Lesson logged in handoff doc: grep ALL render sites before editing
+ONE; don't ship in iterative discovery mode for substantial UI work.
+
+### 2. Custom domain: `devastroai.com` is live
+
+User bought via Namecheap, configured Vercel. `devastroai.vercel.app`
+still works as a 307 redirect, will be removed later. When removal
+happens, grep codebase for hardcoded `vercel.app` references.
+
+### 3. Sept 9, 2026 = astrologer launch date confirmed
+
+User-set deadline. ~14 weeks out as of today. **Astrologers only**;
+consumer launch is a separate later milestone. All consumer-mode work
+deferred.
+
+### 4. Two new strategic features approved
+
+**Client portal pages (KILLER differentiator — in scope for launch):**
+- Per-client unique URL: `devastroai.com/c/<uuid>`
+- Read-only for client, live editable for astrologer
+- Doctor-portal analogy (Toronto doctors writing visit notes)
+- Replaces PDF handoff; persistent; living document
+- Built-in viral loop (clients see DevAstroAI brand in footer)
+- Full spec: `.claude/research/client-portal-spec.md`
+- 7 design decisions pending from user
+
+**Cross-astrologer matching network (Phase M — post-launch v1.5):**
+- User's privacy refinement is elegant: NO client data crosses
+  astrologer boundaries; we only connect astrologers professionally.
+- Astrologer X searches → system finds match silently → notifies
+  Astrologer Y → both decide whether to connect → if both accept,
+  chat opens → they share details with each other professionally.
+- Full spec: `.claude/research/matching-network-spec.md`
+- Pre-launch prep: add `matching_opt_in` column to clients table
+  (free; unlocks everything later).
+- Target: v1.5 November 2026, v2.0 Q1 2027.
+
+### 5. Architectural concerns surfaced
+
+**Back button always returns to /landing.** Root cause: the entire
+app is one Next.js page at `/app/page.tsx`; all tabs render
+conditionally; browser back goes to last URL (which is `/landing`).
+G2 fix added `?t=tab` query params + `history.pushState` — works
+but is a hack. **Real fix: route segment refactor (`/app/chart`,
+`/app/ask`, etc.). User decision pending.**
+
+**Supabase project dormant.** Auto-paused after 7 days inactivity,
+RLS warning. User was correctly frustrated with careless original
+setup. **Recommended: delete dormant Supabase, migrate to Neon
+PostgreSQL free tier (no auto-pause, 3 GB). User decision pending.**
+
+**SEO + Google indexing pending.** Need meta tags, OG, sitemap.xml,
+robots.txt, Schema.org JSON-LD before launch.
+
+### 6. Docs created/updated this session
+
+- New: `.claude/research/launch-tracker-2026-09-09.md`
+- New: `.claude/research/client-portal-spec.md`
+- New: `.claude/research/matching-network-spec.md`
+- New: `.claude/research/general-user-vision.md` (consumer vision, deferred)
+- New: `.claude/research/general-user-home-concepts.md` (cancelled, kept as ref)
+- New: `.claude/research/kundaligpt-observations.md` (competitor walk)
+- New: `.claude/research/prototypes/{almanac,oracle,compass}-v1.html` (cancelled)
+- New: `.claude/HANDOFF-2026-05-28-launch-prep.md`
+- Updated: `CLAUDE.md` § "CURRENT DIRECTION" → Sept 9 launch
+- Updated: `.claude/BACKLOG.md` → added "ACTIVE FOCUS" block at top
+
+### 7. Pending — picks up in next session
+
+User said: *"then we will discuss rest"* — next strategic conversation
+covers:
+- Payment integration (Razorpay vs Stripe, pricing structure, debit
+  cards in India, GST, subscription vs per-use)
+- Workspace features: astrologer notes per client, prediction accuracy
+  tracking over time, today's appointments view
+- Specific design of workspace navigation post-launch
+- Any remaining decisions from the 14 pending items in handoff doc
+
+### 8. Notes for future Claude
+
+- **NEVER restart Phase G (general user mode)** without explicit
+  reopen. User said "its my bad to ask you."
+- **Sept 9 is astrologer-only.** Don't mix consumer work in.
+- **Client portal pages = killer feature.** Treat as P0 for launch.
+- **Matching network = approved but post-launch.** Add
+  `matching_opt_in` to DB during launch prep (free, no extra scope).
+- **Database = Neon** (pending user confirm). DO NOT use Supabase
+  free tier ever again — auto-pause is unacceptable for paying users.
+- **Route refactor is the right architectural fix** for the back
+  button issue. Pending user decision.
