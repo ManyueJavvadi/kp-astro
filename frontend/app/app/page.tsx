@@ -4840,7 +4840,11 @@ export default function Home() {
           {/* CENTER workspace: responsive tab selector and scrolling tab calculations */}
           <div className="desk-center-workspace celestial-glass celestial-panel" data-lenis-prevent style={{ display: "flex", flexDirection: "column", gridColumn: activeTab === "match" ? "span 2" : "span 1", borderRadius: 12 }}>
             <div className="tab-bar" style={{ display: "flex", borderBottom: "0.5px solid rgba(255,255,255,0.08)", background: "rgba(13, 13, 22, 0.45)", overflowX: "auto", flexShrink: 0 }}>
-              {activeTabs.filter(tab => tab.id !== "analysis").map(tab => {
+              {/* G1 hotfix v4 — astrologer mode filters out "analysis"
+                  because it has the dedicated AI Companion right
+                  sidebar; user mode has NO sidebar, so the Ask tab
+                  must appear in the nav or there's no AI access. */}
+              {activeTabs.filter(tab => mode === "user" ? true : tab.id !== "analysis").map(tab => {
                 const TabIcon = tab.Icon;
                 const active = activeTab === tab.id;
                 return (
@@ -4905,6 +4909,20 @@ export default function Home() {
 
             {/* Scrollable calculations wrapper */}
             <div style={{ flex: 1, overflow: "auto", padding: "1.25rem" }}>
+              {/* G1 hotfix v4 — Dashboard render branch was missing
+                  in the wide-desktop layout. Without this, user-mode
+                  desktop users landed on activeTab="dashboard" but
+                  saw an empty center column. Now mirrors the compact
+                  layout's render branch (line ~4382). */}
+              {activeTab === "dashboard" && workspaceData && (
+                <DashboardTab
+                  workspaceData={workspaceData as WorkspaceData}
+                  birthDetails={birthDetails}
+                  recentMessages={analysisMessages.map((m: any) => ({ q: m.q, a: m.a, t: m.t }))}
+                  onJumpToTab={setActiveTab}
+                  rulingPlanets={(workspaceData as any)?.ruling_planets?.all_en || []}
+                />
+              )}
               {activeTab === "chart" && workspaceData && (
                 <ChartTab
                   workspaceData={workspaceData as WorkspaceData}
@@ -5044,6 +5062,28 @@ export default function Home() {
                 />
               )}
 
+              {/* G1 hotfix v4 — Analysis (Ask) render branch in the
+                  wide-desktop layout. Astrologer mode reaches AI via
+                  the right Companion sidebar; user mode has no
+                  sidebar, so the Ask tab must render content inline
+                  here. */}
+              {activeTab === "analysis" && (
+                <AnalysisTab
+                  analysisMessages={analysisMessages as any}
+                  setAnalysisMessages={setAnalysisMessages as any}
+                  analysisLoading={analysisLoading}
+                  setAnalysisLoading={setAnalysisLoading}
+                  activeTopic={activeTopic}
+                  setActiveTopic={setActiveTopic}
+                  analysisLang={analysisLang}
+                  setAnalysisLang={setAnalysisLang}
+                  setChatQ={setChatQ}
+                  handleTopicAnalysis={handleTopicAnalysis}
+                  askStreamAbortRef={askStreamAbortRef}
+                  analyzeStreamAbortRef={analyzeStreamAbortRef}
+                  chatEndRef={chatEndRef}
+                />
+              )}
               {activeTab === "horary" && (
                 <HoraryTab
                   workspaceData={workspaceData}
