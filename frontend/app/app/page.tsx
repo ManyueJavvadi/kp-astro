@@ -3231,7 +3231,14 @@ export default function Home() {
       )}
 
       {/* ── SETUP SCREEN ── */}
-      {!setupDone && (
+      {/* G1 hotfix v2 — onboarding gate broadened so any state where
+          workspaceData is null falls back to onboarding, not a blank
+          page. Previously the gate was just `!setupDone`. If
+          setupDone was true but workspaceData was null (stuck state
+          from a stale React render or an error path), neither the
+          onboarding nor the workspace shell rendered → blank screen.
+          Now: render onboarding whenever there's no live workspace. */}
+      {(!setupDone || !workspaceData) && (
         <main style={{ flex: 1, position: "relative", zIndex: 5, maxWidth: 720, margin: "0 auto", width: "100%", padding: "24px 20px 40px" }}>
           {/* Phase 15.2 — Onboarding hero with entrance cascade.
               G1-hotfix (2026-05-28) — compacted so hero + form fit
