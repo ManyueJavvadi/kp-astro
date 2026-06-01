@@ -108,6 +108,12 @@ import { AnalysisTab } from "./tabs/AnalysisTab";
 import { HoraryTab } from "./tabs/HoraryTab";
 import { MatchTab } from "./tabs/MatchTab";
 import { MuhurthaTab } from "./tabs/MuhurthaTab";
+// Phase G1 (2026-05-28) — general-user mode home. Lands on the
+// Dashboard tab when mode === "user". Uses the same workspace shell
+// as astrologer mode but with a 6-tab consumer IA (Dashboard / Chart
+// / Ask / Muhurta / Horary / Match), no expert sidebars, and
+// creative content presentation per the vision doc.
+import { DashboardTab } from "./tabs/DashboardTab";
 import { PanchangTab } from "./tabs/PanchangTab";
 import { SectionEyebrow } from "./components/SectionEyebrow";
 import { TOPICS, TOPIC_EMOJI } from "./lib/topics";
@@ -590,6 +596,17 @@ export default function Home() {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [setupDone, showKbHelp]);
+
+  // Phase G1 — when consumer-mode user finishes setup, land them on
+  // the new Dashboard tab (not the technical Chart). Only fires on
+  // mode/setupDone transitions; not on every activeTab change so the
+  // user can freely navigate away from Dashboard afterwards.
+  useEffect(() => {
+    if (mode === "user" && setupDone && activeTab === "chart") {
+      setActiveTab("dashboard");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, setupDone]);
 
   // Phase 10 / PR 27 — fetch live panchang for the Today strip whenever
   // useLiveLocation has a value. Reuses the same `/panchangam/location`
@@ -1954,6 +1971,27 @@ export default function Home() {
     { id: "match",    te: "సరిపోలన",    en: "Match",     Icon: Heart },
     { id: "horary",   te: "ప్రశ్న",     en: "Horary",    Icon: HelpCircle },
   ];
+
+  // Phase G1 — consumer-mode tab set. Simpler 6-tab IA, no Houses /
+  // Dasha / Panchang surfaced as primary nav (folded into Dashboard +
+  // Chart). The IDs match the existing tab content rendering branches
+  // wherever possible — we render <DashboardTab> for "dashboard" and
+  // re-use the existing ChartTab / AnalysisTab / MuhurthaTab /
+  // HoraryTab / MatchTab components for the rest, just under
+  // consumer-mode chrome.
+  const CONSUMER_TABS = [
+    { id: "dashboard", te: "హోమ్",       en: "Home",      Icon: HomeIcon },
+    { id: "chart",     te: "చార్ట్",     en: "Chart",     Icon: LayoutGrid },
+    { id: "analysis",  te: "అడగండి",     en: "Ask",       Icon: MessageSquare },
+    { id: "muhurtha",  te: "ముహూర్త",    en: "Muhurta",   Icon: Target },
+    { id: "horary",    te: "ప్రశ్న",     en: "Horary",    Icon: HelpCircle },
+    { id: "match",     te: "సరిపోలన",    en: "Match",     Icon: Heart },
+  ];
+
+  // The tab list to render — swaps based on mode so user-mode never
+  // sees the expert Houses / Dasha / Panchang primary tabs (those
+  // engines still feed the Dashboard / Chart tabs as data).
+  const activeTabs = mode === "user" ? CONSUMER_TABS : TABS;
 
   // TOPICS + TOPIC_EMOJI moved to ./lib/topics.ts in PR R4 (Phase A refactor).
   // Imported at top of file. Shared with tabs/AnalysisTab.tsx so they
@@ -4040,7 +4078,7 @@ export default function Home() {
         </div>
       )}
 
-{setupDone && mode === "astrologer" && workspaceData && (
+{setupDone && (mode === "astrologer" || mode === "user") && workspaceData && (
   isMobile ? (
     <div
       style={{
@@ -4119,7 +4157,10 @@ export default function Home() {
         {/* Drifting background cosmic nebulae */}
         <div className="celestial-nebula-blue" />
         <div className="celestial-nebula-gold" />
-        {!sidebarOpen && (
+        {/* Phase G1 — left workspace sidebar (chart history list) is
+            an astrologer-only feature; consumer users see a clean
+            tab-only layout. */}
+        {!sidebarOpen && mode === "astrologer" && (
           <button
             type="button"
             aria-label="Open sidebar"
@@ -4151,7 +4192,7 @@ export default function Home() {
             <ChevronRight size={16} />
           </button>
         )}
-        {sidebarOpen && (
+        {sidebarOpen && mode === "astrologer" && (
           <div className="workspace-sidebar" style={{ width: 210, borderRight: "0.5px solid var(--border)", background: "var(--surface)", display: "flex", flexDirection: "column", overflow: "auto", flexShrink: 0, transition: "width 0.2s" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 10px 8px", borderBottom: "0.5px solid var(--border)", flexShrink: 0 }}>
               <span style={{ fontSize: 9, color: "var(--muted)", letterSpacing: "0.12em", textTransform: "uppercase" as const, fontWeight: 500 }}>Workspace</span>
@@ -4247,7 +4288,7 @@ export default function Home() {
             />
           )}
           <div className="tab-bar" style={{ display: "flex", borderBottom: "0.5px solid var(--border)", background: "var(--surface)", overflowX: "auto", flexShrink: 0 }}>
-            {TABS.map(tab => {
+            {activeTabs.map(tab => {
               const TabIcon = tab.Icon;
               const active = activeTab === tab.id;
               return (
@@ -4288,6 +4329,16 @@ export default function Home() {
             <ChartContextStrip workspaceData={workspaceData as WorkspaceData} />
           )}
           <div style={{ flex: 1, overflow: "auto", padding: "1.25rem" }}>
+            {/* Phase G1 — Dashboard tab (consumer-mode home). */}
+            {activeTab === "dashboard" && workspaceData && (
+              <DashboardTab
+                workspaceData={workspaceData as WorkspaceData}
+                birthDetails={birthDetails}
+                recentMessages={analysisMessages.map((m: any) => ({ q: m.q, a: m.a, t: m.t }))}
+                onJumpToTab={setActiveTab}
+                rulingPlanets={(workspaceData as any)?.ruling_planets?.all_en || []}
+              />
+            )}
             {activeTab === "chart" && workspaceData && (
               <ChartTab
                 workspaceData={workspaceData as WorkspaceData}
@@ -4740,7 +4791,7 @@ export default function Home() {
           {/* CENTER workspace: responsive tab selector and scrolling tab calculations */}
           <div className="desk-center-workspace celestial-glass celestial-panel" data-lenis-prevent style={{ display: "flex", flexDirection: "column", gridColumn: activeTab === "match" ? "span 2" : "span 1", borderRadius: 12 }}>
             <div className="tab-bar" style={{ display: "flex", borderBottom: "0.5px solid rgba(255,255,255,0.08)", background: "rgba(13, 13, 22, 0.45)", overflowX: "auto", flexShrink: 0 }}>
-              {TABS.filter(tab => tab.id !== "analysis").map(tab => {
+              {activeTabs.filter(tab => tab.id !== "analysis").map(tab => {
                 const TabIcon = tab.Icon;
                 const active = activeTab === tab.id;
                 return (
@@ -4777,27 +4828,30 @@ export default function Home() {
                 );
               })}
 
-              {/* AI sidebar toggle button */}
-              <button
-                type="button"
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                style={{
-                  marginLeft: "auto",
-                  padding: "10px 16px",
-                  background: "transparent",
-                  border: "none",
-                  color: sidebarOpen ? "var(--accent)" : "var(--muted)",
-                  cursor: "pointer",
-                  fontSize: 11,
-                  fontFamily: "inherit",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6
-                }}
-              >
-                <MessageSquare size={14} style={{ color: sidebarOpen ? "var(--accent)" : "inherit" }} />
-                <span>{sidebarOpen ? t("Close AI", "AI మూసివేయి") : t("AI Companion", "AI తోడు")}</span>
-              </button>
+              {/* AI sidebar toggle button — astrologer-only; consumer
+                  users use the "Ask" tab directly. */}
+              {mode === "astrologer" && (
+                <button
+                  type="button"
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  style={{
+                    marginLeft: "auto",
+                    padding: "10px 16px",
+                    background: "transparent",
+                    border: "none",
+                    color: sidebarOpen ? "var(--accent)" : "var(--muted)",
+                    cursor: "pointer",
+                    fontSize: 11,
+                    fontFamily: "inherit",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6
+                  }}
+                >
+                  <MessageSquare size={14} style={{ color: sidebarOpen ? "var(--accent)" : "inherit" }} />
+                  <span>{sidebarOpen ? t("Close AI", "AI మూసివేయి") : t("AI Companion", "AI తోడు")}</span>
+                </button>
+              )}
             </div>
 
             {/* Scrollable calculations wrapper */}
@@ -4986,8 +5040,10 @@ export default function Home() {
             )}
           </div>
 
-          {/* RIGHT panel: Collapsible AI Companion Sidebar */}
-          {sidebarOpen && !aiMaximized && (
+          {/* RIGHT panel: Collapsible AI Companion Sidebar (astrologer-only).
+              Phase G1 — consumer users have the inline "Ask" tab; the
+              dedicated AI sidebar adds nothing for them. */}
+          {sidebarOpen && !aiMaximized && mode === "astrologer" && (
             <div
               className="desk-right-sidebar celestial-glass celestial-panel"
               style={{
@@ -5005,8 +5061,8 @@ export default function Home() {
 
         </div> {/* Closes astrologer-desk-grid */}
 
-        {/* Centered floating Notion-style AI companion */}
-        {sidebarOpen && aiMaximized && (
+        {/* Centered floating Notion-style AI companion (astrologer-only) */}
+        {sidebarOpen && aiMaximized && mode === "astrologer" && (
           <div
             style={{
               position: "fixed",
@@ -5046,31 +5102,15 @@ export default function Home() {
 )}
 
 
-      {/* ── USER CHAT ── */}
-      {/* PR A1.3-fix-15 — User-mode UI revamp.
-          The old 130-line inline JSX was replaced by the UserModeUI
-          component which delivers a 2-column premium layout (chat +
-          chart panel), HeroVerdictCard rendering, TimingStrip,
-          ActiveAnalysisPanel, EmptyStateHero with categorized starter
-          questions, and mobile bottom-sheet collapse. */}
-      {setupDone && mode === "user" && (
-        <UserModeUI
-          birthDetails={birthDetails}
-          chartData={chartData}
-          messages={messages}
-          question={question}
-          setQuestion={setQuestion}
-          loading={loading}
-          handleAsk={handleAsk}
-          activeNote={activeNote}
-          setActiveNote={setActiveNote}
-          noteInput={noteInput}
-          setNoteInput={setNoteInput}
-          handleFeedback={handleFeedback}
-          handleNoteSubmit={handleNoteSubmit}
-          isMobile={isMobile}
-        />
-      )}
+      {/* Phase G1 (2026-05-28) — UserModeUI mount removed.
+          Consumer users now render through the SAME workspace shell as
+          astrologer mode (line 4043 condition broadened to include
+          mode === "user"), with a smaller CONSUMER_TABS tab set, no
+          left workspace-sidebar (chart history), no right AI Companion
+          sidebar, and the new <DashboardTab> as the landing surface.
+          The deprecated <UserModeUI> + its sub-components are still in
+          the repo for git history; this top-level mount is the only
+          place they were referenced. */}
 
       {/* PR Phase 9.9 — Mobile nav rewrite.
           - <MobileBottomNav>: persistent 4-tab strip (Chart/Dasha/
@@ -5097,7 +5137,7 @@ export default function Home() {
           />
 
           <MobileBottomNav
-            tabs={TABS}
+            tabs={activeTabs}
             activeTab={activeTab}
             onTabChange={setActiveTab}
             onNewChart={handleNewChart}
