@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Oracle concept — DevAstroAI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: #050507;
+    font-family: 'DM Sans', sans-serif;
+    color: #f0f0f0;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+  body {
+    display: flex;
+    justify-content: center;
+    padding: 40px 20px;
+    background:
+      radial-gradient(ellipse 800px 400px at 50% 50%, rgba(201,169,110,0.04), transparent),
+      #050507;
+  }
+  .label-outer {
+    position: absolute;
+    top: -28px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #666;
+    white-space: nowrap;
+  }
+  .phone {
+    width: 430px;
+    height: 900px;
+    background: #09090f;
+    border-radius: 36px;
+    overflow: hidden;
+    box-shadow: 0 30px 100px rgba(0,0,0,0.6), 0 0 0 1px rgba(201,169,110,0.08);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Status bar */
+  .status {
+    flex-shrink: 0;
+    padding: 12px 24px 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: #f0f0f0;
+  }
+  .status-icons { display: inline-flex; gap: 4px; opacity: 0.7; font-size: 11px; }
+
+  /* Whisper of panchang at very top */
+  .whisper {
+    flex-shrink: 0;
+    padding: 18px 24px 8px;
+    text-align: center;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #555566;
+  }
+  .whisper .pulse {
+    display: inline-block;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: #c9a96e;
+    box-shadow: 0 0 6px rgba(201,169,110,0.8);
+    margin: 0 6px 0 4px;
+    animation: pulse 2.4s ease-in-out infinite;
+    vertical-align: middle;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.5; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.4); }
+  }
+
+  /* The prompt — center of gravity */
+  .prompt-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0 32px;
+    margin-top: -40px;
+  }
+  .prompt-h {
+    font-family: 'DM Serif Display', serif;
+    font-style: italic;
+    font-size: 36px;
+    line-height: 1.15;
+    color: #f0f0f0;
+    text-align: center;
+    margin-bottom: 38px;
+    letter-spacing: -0.01em;
+  }
+  .prompt-h .accent { color: #c9a96e; font-style: normal; }
+
+  .input-wrap {
+    position: relative;
+    padding: 18px 18px 18px 22px;
+    border-radius: 18px;
+    background: rgba(255,255,255,0.025);
+    border: 0.5px solid rgba(201,169,110,0.25);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 0 0 0 rgba(201,169,110,0.10);
+    transition: border-color 200ms;
+  }
+  .input-wrap:focus-within {
+    border-color: rgba(201,169,110,0.55);
+    box-shadow: 0 0 0 6px rgba(201,169,110,0.06);
+  }
+  .input-wrap input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #f0f0f0;
+    font-family: inherit;
+    font-size: 15px;
+    outline: none;
+  }
+  .input-wrap input::placeholder {
+    color: #555566;
+    font-style: italic;
+  }
+  .ask-btn {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #e8c98a, #c9a96e);
+    border: none;
+    color: #1a1410;
+    font-size: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 0 18px rgba(201,169,110,0.30);
+  }
+
+  /* Ghost suggestions */
+  .ghosts {
+    margin-top: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+  }
+  .ghost {
+    font-style: italic;
+    color: #555566;
+    font-size: 13px;
+    padding: 2px 4px;
+    cursor: pointer;
+  }
+  .ghost:hover { color: #888899; }
+
+  /* Open questions list — bottom area */
+  .open-q-section {
+    flex-shrink: 0;
+    padding: 18px 28px 28px;
+    border-top: 0.5px solid rgba(255,255,255,0.04);
+  }
+  .open-q-title {
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #666677;
+    margin-bottom: 12px;
+  }
+  .open-q {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 0.5px solid rgba(255,255,255,0.04);
+  }
+  .open-q:last-child { border-bottom: none; }
+  .open-q .when {
+    font-size: 9px;
+    color: #555566;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+    min-width: 56px;
+    padding-top: 3px;
+  }
+  .open-q .body {
+    flex: 1;
+    font-size: 12.5px;
+    color: #b0b0c0;
+    line-height: 1.35;
+  }
+  .open-q .body .verdict {
+    color: #c9a96e;
+    font-weight: 600;
+    font-size: 11.5px;
+    margin-top: 4px;
+    letter-spacing: 0.02em;
+  }
+  .open-q .status-pip {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    margin-top: 6px;
+    flex-shrink: 0;
+  }
+  .open-q .status-pip.resolving { background: #fbbf24; box-shadow: 0 0 6px rgba(251,191,36,0.5); }
+  .open-q .status-pip.answered { background: #34d399; }
+  .open-q .status-pip.pending { background: #888899; }
+
+  /* Bottom nav placeholder */
+  .nav-hint {
+    text-align: center;
+    padding: 8px 0 16px;
+    font-size: 9px;
+    color: #444455;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    border-top: 0.5px solid rgba(255,255,255,0.04);
+  }
+</style>
+</head>
+<body>
+  <div style="position:relative;">
+    <span class="label-outer">Concept B · The Oracle</span>
+    <div class="phone">
+
+      <!-- Fake status bar -->
+      <div class="status">
+        <span>9:41</span>
+        <span class="status-icons">• • • Wi-Fi 87%</span>
+      </div>
+
+      <!-- Whisper of today's panchang -->
+      <div class="whisper">
+        WED 28 MAY · SHUKLA DWADASHI · CHITRA <span class="pulse"></span> MERCURY+VENUS RULING
+      </div>
+
+      <!-- The prompt — center of gravity -->
+      <div class="prompt-area">
+        <div class="prompt-h">
+          What do you want<br/>
+          <span style="font-style:normal;">to <span class="accent">know?</span></span>
+        </div>
+
+        <div class="input-wrap">
+          <input type="text" placeholder="Ask anything…" />
+          <button class="ask-btn">→</button>
+        </div>
+
+        <div class="ghosts">
+          <span class="ghost">Will I get this job?</span>
+          <span class="ghost">When will I marry?</span>
+          <span class="ghost">Best date for new business?</span>
+          <span class="ghost">Am I compatible with…</span>
+        </div>
+      </div>
+
+      <!-- Open questions -->
+      <div class="open-q-section">
+        <div class="open-q-title">Your open questions</div>
+
+        <div class="open-q">
+          <div class="when">Tue 4:12pm</div>
+          <div class="body">
+            "Will I get the Bangalore offer?"
+            <div class="verdict">YES · DELAYED · JUNE</div>
+          </div>
+          <div class="status-pip resolving"></div>
+        </div>
+
+        <div class="open-q">
+          <div class="when">Sun 11am</div>
+          <div class="body">
+            "Best muhurtha to start the course?"
+            <div class="verdict">JUNE 14 · 11:42 AM</div>
+          </div>
+          <div class="status-pip pending"></div>
+        </div>
+
+        <div class="open-q">
+          <div class="when">May 17</div>
+          <div class="body">
+            "Am I compatible with Ramya?"
+            <div class="verdict">BONDED · WITH ONE WATCHPOINT</div>
+          </div>
+          <div class="status-pip answered"></div>
+        </div>
+
+      </div>
+
+      <div class="nav-hint">↑ Pull up · Chart · Today · More</div>
+
+    </div>
+  </div>
+</body>
+</html>

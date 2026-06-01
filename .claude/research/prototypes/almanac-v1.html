@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Almanac concept — DevAstroAI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: #050507;
+    font-family: 'DM Sans', sans-serif;
+    color: #f0f0f0;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+  body {
+    display: flex;
+    justify-content: center;
+    padding: 40px 20px;
+    background:
+      radial-gradient(ellipse 800px 400px at 50% 0%, rgba(201,169,110,0.04), transparent),
+      #050507;
+  }
+  .phone {
+    width: 430px;
+    height: 900px;
+    background: #09090f;
+    border-radius: 36px;
+    overflow: hidden;
+    box-shadow: 0 30px 100px rgba(0,0,0,0.6), 0 0 0 1px rgba(201,169,110,0.08);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+  .label {
+    position: absolute;
+    top: -28px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #888;
+    white-space: nowrap;
+  }
+  /* Status bar — fake iOS chrome */
+  .status {
+    flex-shrink: 0;
+    padding: 12px 24px 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: #f0f0f0;
+  }
+  .status-icons { display: inline-flex; gap: 4px; opacity: 0.7; font-size: 11px; }
+
+  /* Header strip — today's panchang + RP pulse */
+  .top-strip {
+    flex-shrink: 0;
+    padding: 12px 22px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 0.5px solid rgba(201,169,110,0.10);
+  }
+  .top-strip .pan-bits {
+    font-size: 10px;
+    color: #888899;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    line-height: 1.5;
+  }
+  .top-strip .pan-bits b { color: #c9a96e; font-weight: 600; }
+  .now-pulse {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(201,169,110,0.06);
+    border: 0.5px solid rgba(201,169,110,0.25);
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    color: #c9a96e;
+  }
+  .now-pulse .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #c9a96e;
+    box-shadow: 0 0 8px rgba(201,169,110,0.8);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.5; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.3); }
+  }
+
+  /* Scrolling timeline */
+  .timeline {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 22px 80px;
+    scrollbar-width: none;
+  }
+  .timeline::-webkit-scrollbar { display: none; }
+
+  /* Day card */
+  .day {
+    margin-bottom: 28px;
+    opacity: 0.32;
+    transition: opacity 240ms ease;
+  }
+  .day.today {
+    opacity: 1;
+  }
+  .day .date-strip {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+  .day .date {
+    font-family: 'DM Serif Display', serif;
+    font-size: 32px;
+    color: #f0f0f0;
+    line-height: 1;
+    font-style: italic;
+  }
+  .day.today .date {
+    color: #c9a96e;
+  }
+  .day .dow {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: #888899;
+  }
+  .day.today .dow { color: #c9a96e; }
+
+  /* Today's hero verdict line */
+  .day .verdict-line {
+    font-family: 'DM Serif Display', serif;
+    font-style: italic;
+    font-size: 17px;
+    line-height: 1.4;
+    color: #f0f0f0;
+    margin-top: 10px;
+    margin-bottom: 14px;
+    padding-right: 12px;
+  }
+  .day .verdict-line .accent { color: #c9a96e; font-style: normal; }
+
+  /* Panchang chip row */
+  .pan-chips {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+  .pan-chip {
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.03);
+    border: 0.5px solid rgba(255,255,255,0.06);
+    font-size: 10.5px;
+    color: #b0b0c0;
+    letter-spacing: 0.02em;
+  }
+  .pan-chip b {
+    color: #f0f0f0;
+    font-weight: 600;
+    margin-left: 2px;
+  }
+  .pan-chip.warn {
+    background: rgba(248,113,113,0.06);
+    border-color: rgba(248,113,113,0.25);
+    color: #f87171;
+  }
+
+  /* Glance cards (3 small cards under today) */
+  .glances {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 7px;
+    margin-bottom: 18px;
+  }
+  .glance {
+    background: rgba(255,255,255,0.025);
+    border: 0.5px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 12px 10px;
+    text-align: left;
+  }
+  .glance .label {
+    position: static;
+    transform: none;
+    font-size: 8.5px;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    color: #666677;
+    display: block;
+    margin-bottom: 6px;
+  }
+  .glance .value {
+    font-family: 'DM Serif Display', serif;
+    font-size: 18px;
+    color: #f0f0f0;
+    line-height: 1.1;
+  }
+  .glance .sub {
+    font-size: 9.5px;
+    color: #888899;
+    margin-top: 3px;
+    letter-spacing: 0.02em;
+  }
+  .glance.gold {
+    background: linear-gradient(140deg, rgba(201,169,110,0.10), rgba(201,169,110,0.02));
+    border-color: rgba(201,169,110,0.30);
+  }
+  .glance.gold .value { color: #c9a96e; }
+
+  /* Pinch-zoom hint */
+  .zoom-hint {
+    text-align: center;
+    margin: 24px 0 12px;
+    font-size: 10px;
+    color: #555566;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+  }
+  .zoom-hint::before, .zoom-hint::after {
+    content: '·';
+    margin: 0 8px;
+    color: #333;
+  }
+
+  /* Future day card (compact) */
+  .day.future, .day.past {
+    padding-top: 12px;
+  }
+  .day.future .verdict-line, .day.past .verdict-line {
+    font-size: 13px;
+    margin-bottom: 0;
+    color: #888899;
+  }
+  .day .planet-glyphs {
+    margin-top: 4px;
+    font-size: 10px;
+    color: #666677;
+    letter-spacing: 0.04em;
+  }
+
+  /* Pull-down to ask hint */
+  .pull-ask {
+    position: absolute;
+    top: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #555566;
+    opacity: 0.6;
+    pointer-events: none;
+  }
+  .pull-ask::before {
+    content: '↓ ';
+    color: #c9a96e;
+  }
+
+  /* Pinned chart ribbon (multi-chart) */
+  .ribbon {
+    margin: 2px 0 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(232, 201, 138, 0.04);
+    border: 0.5px solid rgba(232, 201, 138, 0.15);
+    font-size: 10.5px;
+    color: #888899;
+    width: fit-content;
+  }
+  .ribbon .label-r { color: rgba(232,201,138,0.8); font-weight: 600; }
+
+  /* Bottom hint card */
+  .scroll-hint {
+    margin: 32px 4px 8px;
+    padding: 16px;
+    border-radius: 14px;
+    border: 0.5px dashed rgba(201,169,110,0.18);
+    text-align: center;
+    color: #888899;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+  }
+  .scroll-hint b {
+    color: #c9a96e;
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+  <div style="position:relative;">
+    <span class="label" style="position:absolute; top:-28px; left:50%; transform:translateX(-50%); font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:#666;">Concept A · The Almanac</span>
+    <div class="phone">
+
+      <!-- Fake status bar -->
+      <div class="status">
+        <span>9:41</span>
+        <span class="status-icons">• • • Wi-Fi 87%</span>
+      </div>
+
+      <!-- Pull-down to ask hint -->
+      <span class="pull-ask">Pull down to ask the stars</span>
+
+      <!-- Top strip — today's panchang state + Now-Planets pulse -->
+      <div class="top-strip">
+        <div class="pan-bits">
+          Toronto · 28 May 2026<br/>
+          <b>Shukla Dwadashi · Chitra</b>
+        </div>
+        <span class="now-pulse">
+          <span class="dot"></span>
+          NOW · MERCURY + VENUS RULING
+        </span>
+      </div>
+
+      <!-- Vertical scrollable timeline -->
+      <div class="timeline">
+
+        <!-- Yesterday (faded) -->
+        <div class="day past">
+          <div class="date-strip">
+            <span class="date">27</span>
+            <span class="dow">Wed · Ekadashi</span>
+          </div>
+          <div class="verdict-line">A clean day. Sun in star of Jupiter; favorable for father / authority matters.</div>
+        </div>
+
+        <!-- TODAY -->
+        <div class="day today">
+          <div class="date-strip">
+            <span class="date">28</span>
+            <span class="dow">Thu · Dwadashi</span>
+          </div>
+
+          <div class="verdict-line">
+            Mercury rules today. Your <span class="accent">Saturn Bhukti</span> continues — patience over speed. Auspicious 32-minute window at <span class="accent">11:42 AM</span>.
+          </div>
+
+          <!-- Panchang chips -->
+          <div class="pan-chips">
+            <span class="pan-chip">Hora <b>Sun</b></span>
+            <span class="pan-chip warn">Rahu Kalam <b>13:15–15:09</b></span>
+            <span class="pan-chip">Abhijit <b>12:05–12:48</b></span>
+          </div>
+
+          <!-- 3 glance cards -->
+          <div class="glances">
+            <div class="glance gold">
+              <span class="label">Dasha</span>
+              <div class="value">Saturn–Jupiter</div>
+              <div class="sub">until Jun 2027</div>
+            </div>
+            <div class="glance">
+              <span class="label">Lagna</span>
+              <div class="value">Scorpio</div>
+              <div class="sub">25° · Jyeshtha</div>
+            </div>
+            <div class="glance">
+              <span class="label">Open Qs</span>
+              <div class="value">3</div>
+              <div class="sub">2 resolving</div>
+            </div>
+          </div>
+
+          <!-- Multi-chart ribbon -->
+          <div class="ribbon">
+            <span class="label-r">+ RAMYA:</span> her Venus Bhukti starts today
+          </div>
+        </div>
+
+        <!-- Pinch-zoom hint -->
+        <div class="zoom-hint">PINCH TO ZOOM · WEEK · MONTH · YEAR · LIFE</div>
+
+        <!-- Tomorrow -->
+        <div class="day future">
+          <div class="date-strip">
+            <span class="date">29</span>
+            <span class="dow">Fri · Trayodashi</span>
+          </div>
+          <div class="verdict-line">Venus rules. Cautious — Saturn aspects Moon. Avoid major commitments after 14:30.</div>
+        </div>
+
+        <!-- Day after -->
+        <div class="day future">
+          <div class="date-strip">
+            <span class="date">30</span>
+            <span class="dow">Sat · Chaturdashi</span>
+          </div>
+          <div class="verdict-line">Mars day. Action-favored window 09:15–11:08. Good for new starts.</div>
+        </div>
+
+        <!-- Hint at deeper scroll -->
+        <div class="scroll-hint">
+          <b>Scroll deeper</b> → next week · month · your Jupiter MD in 2040
+        </div>
+
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Compass concept — DevAstroAI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: #050507;
+    font-family: 'DM Sans', sans-serif;
+    color: #f0f0f0;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+  body {
+    display: flex;
+    justify-content: center;
+    padding: 40px 20px;
+    background:
+      radial-gradient(ellipse 800px 400px at 50% 30%, rgba(201,169,110,0.05), transparent),
+      #050507;
+  }
+  .label-outer {
+    position: absolute;
+    top: -28px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #666;
+    white-space: nowrap;
+  }
+  .phone {
+    width: 430px;
+    height: 900px;
+    background:
+      radial-gradient(ellipse 500px 500px at 50% 38%, rgba(201,169,110,0.06), transparent),
+      #09090f;
+    border-radius: 36px;
+    overflow: hidden;
+    box-shadow: 0 30px 100px rgba(0,0,0,0.6), 0 0 0 1px rgba(201,169,110,0.08);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+  .status {
+    flex-shrink: 0;
+    padding: 12px 24px 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: #f0f0f0;
+  }
+  .status-icons { display: inline-flex; gap: 4px; opacity: 0.7; font-size: 11px; }
+
+  /* Greeting at top */
+  .greet {
+    flex-shrink: 0;
+    padding: 14px 28px 0;
+    text-align: center;
+  }
+  .greet .small {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #666677;
+    margin-bottom: 4px;
+  }
+  .greet .name {
+    font-family: 'DM Serif Display', serif;
+    font-style: italic;
+    font-size: 22px;
+    color: #f0f0f0;
+  }
+  .greet .name .accent { color: #c9a96e; }
+
+  /* The compass */
+  .compass-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  .compass {
+    width: 320px;
+    height: 320px;
+    position: relative;
+  }
+  .ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 0.5px solid rgba(201,169,110,0.20);
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .ring.outer  { width: 320px; height: 320px; border-color: rgba(201,169,110,0.12); }
+  .ring.middle { width: 240px; height: 240px; border-color: rgba(201,169,110,0.18); border-style: dashed; }
+  .ring.inner  { width: 160px; height: 160px; border-color: rgba(201,169,110,0.28); }
+
+  /* Cardinal labels */
+  .cardinal {
+    position: absolute;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #888899;
+    font-weight: 600;
+    text-align: center;
+    pointer-events: auto;
+  }
+  .cardinal .label-l {
+    display: block;
+    font-size: 8.5px;
+    letter-spacing: 0.18em;
+    color: #555566;
+    margin-top: 3px;
+    font-weight: 500;
+  }
+  .cardinal.north {
+    top: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #c9a96e;
+  }
+  .cardinal.south {
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  .cardinal.east {
+    right: -36px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .cardinal.west {
+    left: -42px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .cardinal.north::after {
+    content: '';
+    position: absolute;
+    top: 18px; left: 50%;
+    width: 2px; height: 10px;
+    transform: translateX(-50%);
+    background: #c9a96e;
+    box-shadow: 0 0 8px rgba(201,169,110,0.7);
+  }
+
+  /* Center disc — your current dasha */
+  .center-disc {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 130px; height: 130px;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 30% 30%, rgba(232,201,138,0.30), rgba(140,110,60,0.15) 70%),
+      #1a1410;
+    border: 1px solid rgba(201,169,110,0.40);
+    box-shadow:
+      0 0 40px rgba(201,169,110,0.20),
+      inset 0 0 30px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 6px;
+  }
+  .center-disc .you {
+    font-size: 8.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #c9a96e;
+    margin-bottom: 4px;
+    opacity: 0.7;
+  }
+  .center-disc .lord {
+    font-family: 'DM Serif Display', serif;
+    font-size: 26px;
+    color: #f0f0f0;
+    line-height: 1;
+  }
+  .center-disc .sub {
+    font-size: 9.5px;
+    color: #888899;
+    margin-top: 5px;
+    letter-spacing: 0.04em;
+  }
+
+  /* Now planet dots — inner ring */
+  .now-dot {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    box-shadow: 0 0 12px currentColor;
+  }
+  .now-dot::after {
+    content: attr(data-label);
+    position: absolute;
+    top: -16px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 8.5px;
+    color: currentColor;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+    text-transform: uppercase;
+    opacity: 0.85;
+  }
+  .now-dot.d1 { transform: translate(-50%, -50%) rotate(-30deg) translateY(-80px); color: #fbbf24; }
+  .now-dot.d2 { transform: translate(-50%, -50%) rotate(40deg)  translateY(-80px); color: #34d399; }
+  .now-dot.d3 { transform: translate(-50%, -50%) rotate(120deg) translateY(-80px); color: #c084fc; }
+  .now-dot.d4 { transform: translate(-50%, -50%) rotate(-110deg) translateY(-80px); color: #60a5fa; }
+  .now-dot.d5 { transform: translate(-50%, -50%) rotate(170deg) translateY(-80px); color: #f87171; }
+  .now-dot { animation: planet-pulse 2.6s ease-in-out infinite; }
+  @keyframes planet-pulse {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 1; }
+  }
+
+  /* The needle */
+  .needle {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 3px;
+    height: 105px;
+    background: linear-gradient(to top, transparent 8%, rgba(201,169,110,0.0) 8%, rgba(201,169,110,0.95) 70%, #e8c98a 100%);
+    transform-origin: 50% 100%;
+    transform: translate(-50%, -100%) rotate(-15deg);
+    transition: transform 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+    border-radius: 2px 2px 0 0;
+    box-shadow: 0 0 14px rgba(201,169,110,0.6);
+  }
+  .needle::before {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 8px solid #e8c98a;
+    filter: drop-shadow(0 0 6px rgba(232,201,138,0.8));
+  }
+
+  /* Context strip below compass */
+  .context {
+    flex-shrink: 0;
+    padding: 8px 24px 22px;
+    text-align: center;
+  }
+  .context .direction {
+    font-family: 'DM Serif Display', serif;
+    font-size: 16px;
+    color: #f0f0f0;
+    font-style: italic;
+    margin-bottom: 14px;
+    line-height: 1.45;
+  }
+  .context .direction .accent { color: #c9a96e; font-style: normal; }
+  .context .pan-line {
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #666677;
+    margin-bottom: 8px;
+  }
+  .context .pan-line b { color: #c9a96e; font-weight: 600; }
+
+  /* Time-scrub track */
+  .time-track {
+    margin-top: 18px;
+    padding: 12px 8px;
+    background: rgba(255,255,255,0.02);
+    border-radius: 12px;
+    border: 0.5px solid rgba(255,255,255,0.05);
+  }
+  .time-track .label-t {
+    font-size: 8.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #555566;
+    margin-bottom: 6px;
+  }
+  .time-track .track {
+    height: 8px;
+    border-radius: 999px;
+    background: linear-gradient(90deg,
+      rgba(96,165,250,0.4) 0%,
+      rgba(96,165,250,0.4) 40%,
+      #c9a96e 42%, #c9a96e 44%,
+      rgba(192,132,252,0.4) 46%, rgba(192,132,252,0.4) 100%
+    );
+    position: relative;
+  }
+  .time-track .marker {
+    position: absolute;
+    top: -3px;
+    left: 43%;
+    width: 14px; height: 14px;
+    background: #f0f0f0;
+    border-radius: 50%;
+    border: 2px solid #c9a96e;
+    box-shadow: 0 0 8px rgba(201,169,110,0.6);
+  }
+  .time-track .labels-row {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-size: 8.5px;
+    color: #555566;
+    letter-spacing: 0.04em;
+  }
+</style>
+</head>
+<body>
+  <div style="position:relative;">
+    <span class="label-outer">Concept C · The Compass</span>
+    <div class="phone">
+
+      <div class="status">
+        <span>9:41</span>
+        <span class="status-icons">• • • Wi-Fi 87%</span>
+      </div>
+
+      <div class="greet">
+        <div class="small">Thu 28 May · Toronto</div>
+        <div class="name">Where are you, <span class="accent">Manyue?</span></div>
+      </div>
+
+      <div class="compass-wrap">
+        <div class="compass">
+          <div class="ring outer"></div>
+          <div class="ring middle"></div>
+          <div class="ring inner"></div>
+
+          <!-- Now-planet dots on the inner ring -->
+          <span class="now-dot d1" data-label="Me"></span>
+          <span class="now-dot d2" data-label="Ve"></span>
+          <span class="now-dot d3" data-label="Ju"></span>
+          <span class="now-dot d4" data-label="Mo"></span>
+          <span class="now-dot d5" data-label="Ma"></span>
+
+          <!-- Cardinal points -->
+          <div class="cardinal north">
+            Ask
+            <span class="label-l">Horary</span>
+          </div>
+          <div class="cardinal east">
+            Bond
+            <span class="label-l">Compat.</span>
+          </div>
+          <div class="cardinal south">
+            Life Tape
+            <span class="label-l">Dasha</span>
+          </div>
+          <div class="cardinal west">
+            Muhurta
+            <span class="label-l">Timing</span>
+          </div>
+
+          <!-- Center disc -->
+          <div class="center-disc">
+            <div class="you">You are here</div>
+            <div class="lord">Saturn</div>
+            <div class="sub">Mahadasha · yr 8 of 19</div>
+          </div>
+
+          <!-- Needle -->
+          <div class="needle"></div>
+
+        </div>
+      </div>
+
+      <div class="context">
+        <div class="direction">
+          Today, Mercury rules — needle points to <span class="accent">Ask</span>.<br/>
+          Auspicious window <span class="accent">11:42 AM</span>.
+        </div>
+        <div class="pan-line">
+          DWADASHI · CHITRA · HORA <b>SUN</b>
+        </div>
+
+        <div class="time-track">
+          <div class="label-t">Drag to scrub time</div>
+          <div class="track">
+            <div class="marker"></div>
+          </div>
+          <div class="labels-row">
+            <span>Saturn MD</span>
+            <span style="color:#c9a96e">NOW</span>
+            <span>Mercury MD →</span>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</body>
+</html>
