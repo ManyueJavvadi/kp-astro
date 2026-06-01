@@ -4172,12 +4172,15 @@ export default function Home() {
         pdfLoading={pdfLoading}
         savedSessions={savedSessions}
         onSwitchSession={handleSwitchSession}
-        astrologerMode={true}
+        astrologerMode={mode === "astrologer"}
         // Trust-2 (May 2026) — "YOUR LOCATION" pill pinned to the
         // top-right next to PDF so the astrologer ALWAYS sees the
         // location feeding their Ruling Planets without scrolling
         // the stats strip on small screens.  Replaces the in-strip
         // copy that was lower down.
+        // G1 hotfix v5 — astrologerMode={mode === "astrologer"} so
+        // PersonHeroBanner hides the Switch-chart dropdown when the
+        // consumer user is signed in (consumers have one chart).
         liveLocSlot={
           <LiveLocationPill
             location={liveLoc.location}
@@ -4192,8 +4195,11 @@ export default function Home() {
           the desktop workspace-sidebar (which is hidden on mobile)
           so the astrologer can see all loaded charts at a glance and
           tap to switch without opening the More sheet. Self-gated to
-          mobile + ≥2 charts in play. */}
-      {isMobile && (
+          mobile + ≥2 charts in play.
+          G1 hotfix v5 — also astrologer-only. Consumer users have
+          one chart (their own); multi-chart switching is a pro
+          workflow (comparing client charts). */}
+      {isMobile && mode === "astrologer" && (
         <MobileChartPillStrip
           savedSessions={savedSessions}
           currentSessionId={currentSessionId}
@@ -4666,10 +4672,11 @@ export default function Home() {
           }
         />
 
-        {/* Phase 9.10c — multi-chart pill strip on mobile (this is the
-            second PersonHeroBanner mount site — the user-mode path).
-            Same self-gates as the astrologer mount above. */}
-        {isMobile && (
+        {/* Phase 9.10c — multi-chart pill strip on mobile.
+            G1 hotfix v5 — also astrologer-only (this mount lives in
+            the second PersonHeroBanner path; multi-chart switching
+            is a pro workflow). */}
+        {isMobile && mode === "astrologer" && (
           <MobileChartPillStrip
             savedSessions={savedSessions}
             currentSessionId={currentSessionId}
@@ -4782,13 +4789,28 @@ export default function Home() {
           </button>
         </div>
 
-        {renderClientStatusTicker()}
+        {/* G1 hotfix v5 — TIME SHIFT / ACTIVE DASHA / COORDS stats
+            ticker is an astrologer power-tool (rectification timing
+            controls). Consumer mode never needs to nudge birth time
+            by ±1/5 minutes. */}
+        {mode === "astrologer" && renderClientStatusTicker()}
 
-        {/* Three-panel desktop grid layout */}
-        <div className={`astrologer-desk-grid ${(sidebarOpen && !aiMaximized) ? "astrologer-desk-grid-with-sidebar" : ""}`}>
+        {/* Three-panel desktop grid layout.
+            G1 hotfix v5 — user mode collapses to a single full-width
+            column because the left chart panel + right AI sidebar
+            are both astrologer-only. Without this override, the grid
+            would reserve a 340px left column that's now empty. */}
+        <div
+          className={`astrologer-desk-grid ${(sidebarOpen && !aiMaximized) ? "astrologer-desk-grid-with-sidebar" : ""}`}
+          style={mode === "user" ? { gridTemplateColumns: "1fr" } : undefined}
+        >
 
-          {/* LEFT anchored panel: Chart + active dasha + live ruling planets */}
-          {activeTab !== "match" && (
+          {/* LEFT anchored panel: Chart + active dasha + live ruling planets.
+              G1 hotfix v5 — astrologer-only. Consumer mode users
+              reach the chart via the dedicated Chart tab; having
+              the chart permanently visible on the left collides
+              with the new Dashboard layout and clutters the UX. */}
+          {activeTab !== "match" && mode === "astrologer" && (
             <div className="desk-left-panel celestial-glass celestial-panel" data-lenis-prevent style={{ padding: "1.2rem", borderRadius: 12 }}>
               <SectionEyebrow te="జన్మ చార్ట్" en="Natal Birth Chart" />
               <SouthIndianChart
