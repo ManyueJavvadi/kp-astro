@@ -1,5 +1,10 @@
 "use client";
 import React, { useState, useRef, useEffect, useCallback } from "react";
+// G2 (2026-05-28) — per-tab URL routing via window.history.pushState
+// (no next/navigation hooks needed). Each tab gets its own URL
+// (?t=dashboard, ?t=chart, ?t=ask, etc.) so the browser back button
+// steps through tab history instead of jumping straight to /landing.
+// Deep links work, shareable URLs work, history persists.
 import remarkGfm from "remark-gfm";
 import axios from "axios";
 import { ArrowRight, Loader2, CheckCircle, XCircle, MessageCircle, MapPin, ChevronLeft, ChevronRight, Sparkles, User, Clock, Globe2, Target, LayoutGrid, Home as HomeIcon, Hourglass, MessageSquare, Calendar, Heart, HelpCircle, Moon, Star, Sunrise, Sunset, MoonStar, Crown, TriangleAlert, Ban, CircleDashed, Sun, Briefcase, Plane, BookOpen, Stethoscope, Wallet, Car, HandHeart, Lock, Wand2, Dices, CheckCircle2, HeartPulse, Baby, Scale, Globe, TrendingUp, ChevronDown, ChevronUp, RefreshCw, Compass, Orbit, Maximize2, Minimize2 } from "lucide-react";
@@ -247,7 +252,39 @@ export default function Home() {
   const [manualCoords, setManualCoords] = useState(false);
   const [manualLat, setManualLat] = useState("");
   const [manualLon, setManualLon] = useState("");
-  const [activeTab, setActiveTab] = useState("chart");
+  // G2 (2026-05-28) — per-tab URL routing.
+  // - URL shape: `/app?t=dashboard` / `/app?t=chart` / `/app?t=ask` / etc.
+  // - Tab changes push a new history entry → browser back button steps
+  //   through tab history instead of jumping straight to /landing.
+  // - Deep links work: visiting `/app?t=ask` lands on the Ask tab.
+  // - Initial tab defaults to "chart" (SSR-safe); a client-only
+  //   useEffect below syncs from the URL on mount.
+  const [activeTab, _setActiveTab] = useState("chart");
+  const setActiveTab = useCallback((tab: string | ((prev: string) => string)) => {
+    _setActiveTab(prev => {
+      const next = typeof tab === "function" ? tab(prev) : tab;
+      if (typeof window !== "undefined" && next !== prev) {
+        const url = new URL(window.location.href);
+        url.searchParams.set("t", next);
+        window.history.pushState({ tab: next }, "", url.toString());
+      }
+      return next;
+    });
+  }, []);
+  // Sync initial activeTab from URL on mount + listen for browser
+  // back/forward (popstate) so the user can step through their tab
+  // history naturally.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const readTab = () => {
+      const url = new URL(window.location.href);
+      const t = url.searchParams.get("t");
+      if (t) _setActiveTab(t);
+    };
+    readTab(); // initial mount sync
+    window.addEventListener("popstate", readTab);
+    return () => window.removeEventListener("popstate", readTab);
+  }, []);
   // Phase 8 / PR 23 — keyboard shortcut help overlay state. Toggled by
   // pressing `?`; closed by Escape or any tab-switch key.
   const [showKbHelp, setShowKbHelp] = useState(false);
@@ -3195,40 +3232,43 @@ export default function Home() {
 
       {/* ── SETUP SCREEN ── */}
       {!setupDone && (
-        <main style={{ flex: 1, position: "relative", zIndex: 5, maxWidth: 720, margin: "0 auto", width: "100%", padding: "48px 20px 64px" }}>
+        <main style={{ flex: 1, position: "relative", zIndex: 5, maxWidth: 720, margin: "0 auto", width: "100%", padding: "24px 20px 40px" }}>
           {/* Phase 15.2 — Onboarding hero with entrance cascade.
-              Three sibling reveals (eyebrow / headline / subcopy), then
-              the form card fades in below at 0.4s. Total ~700ms. */}
+              G1-hotfix (2026-05-28) — compacted so hero + form fit
+              in a 700px viewport without scrolling. Previously the
+              hero alone took ~300px, pushing the form below the fold
+              on common laptop viewports and giving the impression of
+              a blank screen. */}
           <FadeIn distance="medium" duration="slow">
-          {/* Intro (eyebrow + headline) */}
-          <div style={{ textAlign: "center", marginBottom: 36 }}>
+          {/* Intro (eyebrow + headline) — compacted */}
+          <div style={{ textAlign: "center", marginBottom: 20 }}>
             <span
               style={{
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 6,
-                padding: "5px 14px",
+                padding: "4px 12px",
                 borderRadius: 999,
                 background: "rgba(0,200,255,0.08)",
                 border: "1px solid rgba(0,200,255,0.2)",
                 color: "#00C8FF",
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: 500,
                 letterSpacing: "0.08em",
                 textTransform: "uppercase",
-                marginBottom: 20,
+                marginBottom: 12,
               }}
             >
-              <Sparkles size={12} /> Krishnamurti Paddhati System
+              <Sparkles size={11} /> Krishnamurti Paddhati System
             </span>
             <h1
               style={{
                 fontFamily: "'DM Serif Display', serif",
-                fontSize: "clamp(2rem, 5vw, 3rem)",
+                fontSize: "clamp(1.5rem, 4vw, 2.25rem)",
                 lineHeight: 1.15,
                 color: theme.text.primary,
                 letterSpacing: "-0.01em",
-                margin: "0 0 14px",
+                margin: "0 0 8px",
               }}
             >
               Decode the cosmos,
@@ -3237,10 +3277,10 @@ export default function Home() {
             </h1>
             <p
               style={{
-                fontSize: 14,
+                fontSize: 13,
                 color: theme.text.muted,
-                lineHeight: 1.65,
-                maxWidth: 440,
+                lineHeight: 1.55,
+                maxWidth: 420,
                 margin: "0 auto",
               }}
             >
@@ -3252,7 +3292,7 @@ export default function Home() {
 
           {/* Birth details card — slides up after the hero fades in */}
           <FadeIn distance="medium" duration="slow" delay={0.4}>
-          <ContentCard style={{ padding: 28, boxShadow: theme.shadow.md }}>
+          <ContentCard style={{ padding: 20, boxShadow: theme.shadow.md }}>
             <div
               style={{
                 display: "flex",
