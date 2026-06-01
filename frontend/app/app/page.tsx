@@ -1122,29 +1122,29 @@ export default function Home() {
     setChartLoading(true);
     try {
       let resultData = null;
-      if (mode === "astrologer") {
-        const res = await axios.post(`${API_URL}/astrologer/workspace`, {
-          name: birthDetails.name, date: formattedDate, time: getTime24(),
-          latitude: birthDetails.latitude, longitude: birthDetails.longitude,
-          timezone_offset: timezoneOffset, gender: birthDetails.gender || "",
-          live_latitude: liveLoc.location?.latitude ?? null,
-          live_longitude: liveLoc.location?.longitude ?? null,
-          live_timezone_offset: liveLoc.location?.timezone_offset ?? null,
-        });
-        setWorkspaceData(res.data);
-        resultData = res.data;
-      } else {
-        const res = await axios.post(`${API_URL}/chart/generate`, {
-          name: birthDetails.name, date: formattedDate, time: getTime24(),
-          latitude: birthDetails.latitude, longitude: birthDetails.longitude,
-          timezone_offset: timezoneOffset,
-          live_latitude: liveLoc.location?.latitude ?? null,
-          live_longitude: liveLoc.location?.longitude ?? null,
-          live_timezone_offset: liveLoc.location?.timezone_offset ?? null,
-        });
-        setChartData(res.data);
-        resultData = res.data;
-      }
+      // G1-hotfix v3 (2026-05-28) — both user and astrologer modes
+      // now call /astrologer/workspace so consumer mode gets the same
+      // accurate KP data structure (workspaceData) the Dashboard /
+      // Chart / Ask tabs need. Previously user mode called the slim
+      // /chart/generate and stored in chartData, leaving workspaceData
+      // null — which made the new Dashboard tab unable to render and
+      // bounced the user back to the onboarding form.
+      // Per user direction: "the backend is same as astrologer mode
+      // (so accuracy is guaranteed)" — this is the architectural fix.
+      const res = await axios.post(`${API_URL}/astrologer/workspace`, {
+        name: birthDetails.name, date: formattedDate, time: getTime24(),
+        latitude: birthDetails.latitude, longitude: birthDetails.longitude,
+        timezone_offset: timezoneOffset, gender: birthDetails.gender || "",
+        live_latitude: liveLoc.location?.latitude ?? null,
+        live_longitude: liveLoc.location?.longitude ?? null,
+        live_timezone_offset: liveLoc.location?.timezone_offset ?? null,
+      });
+      setWorkspaceData(res.data);
+      // Keep chartData populated for any legacy code path that still
+      // reads it (defensive — UserModeUI is no longer mounted, but
+      // some helpers may still touch chartData).
+      setChartData(res.data);
+      resultData = res.data;
       setSetupDone(true);
       // Phase 16 — Moment #1: 3.5-second cinematic chart reveal ceremony.
       // The overlay self-dismisses via its own onComplete prop, so we
@@ -3231,14 +3231,16 @@ export default function Home() {
       )}
 
       {/* ── SETUP SCREEN ── */}
-      {/* G1 hotfix v2 — onboarding gate broadened so any state where
-          workspaceData is null falls back to onboarding, not a blank
-          page. Previously the gate was just `!setupDone`. If
-          setupDone was true but workspaceData was null (stuck state
-          from a stale React render or an error path), neither the
-          onboarding nor the workspace shell rendered → blank screen.
-          Now: render onboarding whenever there's no live workspace. */}
-      {(!setupDone || !workspaceData) && (
+      {/* G1 hotfix v3 (2026-05-28) — reverted to the simple `!setupDone`
+          gate. The v2 broadening was masking the real bug: user-mode
+          handleSetup wasn't setting workspaceData (it called
+          /chart/generate instead of /astrologer/workspace), so
+          workspaceData stayed null and the v2 gate kept bouncing
+          users back to the onboarding form after Generate — looked
+          like the form just silently re-rendered.
+          Now that handleSetup correctly sets workspaceData for both
+          modes (above), we don't need the defensive bounce. */}
+      {!setupDone && (
         <main style={{ flex: 1, position: "relative", zIndex: 5, maxWidth: 720, margin: "0 auto", width: "100%", padding: "24px 20px 40px" }}>
           {/* Phase 15.2 — Onboarding hero with entrance cascade.
               G1-hotfix (2026-05-28) — compacted so hero + form fit
