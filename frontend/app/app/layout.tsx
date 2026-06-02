@@ -15,6 +15,13 @@ import { LanguageToggle } from "@/components/ui/language-toggle";
 import { LanguageProvider, useLanguage } from "@/lib/i18n";
 import { theme } from "@/lib/theme";
 import { SelectionProvider } from "./lib/selection";
+// Commit A of route-segment-refactor (2026-06-01) — WorkspaceProvider
+// holds the truly-global state lifted out of /app/page.tsx. Lives here
+// so future route segments (/app/chart, /app/horary, etc.) can each
+// consume the same workspace state instead of remounting it per route.
+// See .claude/research/architecture-decisions-2026-06-01.md (ADR-004)
+// and ./_lib/workspace-context.tsx for the lifted state surface.
+import { WorkspaceProvider } from "./_lib/workspace-context";
 
 export default function AppLayout({
   children,
@@ -30,7 +37,15 @@ export default function AppLayout({
           it via a small bridge component once chart is loaded (Phase 9.6
           when pin tray persistence ships). */}
       <SelectionProvider chartScopeKey={null}>
-        <AppShell>{children}</AppShell>
+        {/* WorkspaceProvider — scaffolding-only in this commit. page.tsx
+            still holds its own copies of mode/birthDetails/etc. The next
+            commit (B) deletes those local useState calls and reads from
+            useWorkspace() instead, making this provider the single source
+            of truth. Adding the provider FIRST without rewiring means we
+            can ship in safe slices without a giant atomic refactor. */}
+        <WorkspaceProvider>
+          <AppShell>{children}</AppShell>
+        </WorkspaceProvider>
       </SelectionProvider>
     </LanguageProvider>
   );
