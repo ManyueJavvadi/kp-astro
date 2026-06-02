@@ -35,18 +35,24 @@ This deadline is user-set, ~14 weeks out as of doc creation.
 **Active focus (Sept 9 is the target, but quality > deadline — if work
 slips, we postpone the launch rather than ship temporary hacks):**
 
-1. Auth + Railway Postgres + DB migration ← **NEXT**
-2. Full route segment refactor — properly. Removes the G2
+1. Auth + Railway Postgres + DB migration — **CODE DONE 2026-06-01;
+   awaiting user dashboard setup per SETUP-PHASE-1.md.**
+   Backend: SQLAlchemy 2.0 + Alembic + 7 tables + Supabase JWT verify
+   + /me + /chart-sessions routers. Frontend: AuthProvider +
+   QueryProvider + /auth/signup/login/reset/confirm pages +
+   useChartSessions hook + SessionsBridge read-side sync.
+2. **Phase 1.5b** — Write-side mutation pass-through (page.tsx's
+   create/update/delete chart sessions calls → API). Focused next commit.
+3. Full route segment refactor — properly. Removes the G2
    `pushState`/`popstate` hack entirely, moves ~80 tab-local state
    pieces into respective tab files, creates real Next.js route
    segments. Foundation (WorkspaceContext, commits A+B) already on
-   develop. Sequenced after auth/DB because URLs like
-   `/app/clients/[id]/chart` need DB persistence anyway.
-3. Client portal pages (the killer differentiator)
-4. Razorpay subscription + email
-5. SEO + monitoring + polish
-6. QA + soft launch
-7. Launch (Sept 9 target — postponed if we'd otherwise ship hacks)
+   develop.
+4. Client portal pages (the killer differentiator)
+5. Razorpay subscription + email
+6. SEO + monitoring + polish
+7. QA + soft launch
+8. Launch (Sept 9 target — postponed if we'd otherwise ship hacks)
 
 User direction (2026-06-01): *"lets not compromise on anything, lets
 build strong... i want you to complete the route also i dont need the

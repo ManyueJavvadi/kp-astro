@@ -1078,3 +1078,97 @@ Updated:
     explicit "quality > deadline" rule
 
 Next action remains the same: start auth + Railway Postgres setup.
+
+---
+
+## 2026-06-01 (late night) — Phase 1 (auth + DB) shipped to branch
+
+Full-focus end-to-end Phase 1 build. Branch:
+`claude/auth-and-db-phase-1` → 4 commits → ready to merge to develop
+after final review. User explicitly asked to complete Phase 1 fully
+before pivoting to anything else; quality > Sept 9 deadline rule
+applies.
+
+### Commits on the branch
+
+1. **9ee3fcb** — Backend DB foundation: Pydantic Settings + SQLAlchemy
+   2.0 async + Alembic + 7 ORM models + hand-written initial migration
+   (astrologers, clients, chart_sessions, client_notes, subscriptions,
+   usage_events, audit_log). Verified migration renders correct DDL via
+   `alembic upgrade head --sql`.
+
+2. **e93a464** — Backend auth: Supabase JWT verification dependency
+   (HS256, offline, ~0ms RTT) + /me (profile read/update with lazy
+   first-touch row provisioning) + /chart-sessions full CRUD +
+   /chart-sessions/migrate for bulk import. Defense-in-depth ownership
+   filter (404 on cross-astrologer access, not 403, to avoid leaking
+   row existence). /health gains database + auth subsystem checks.
+   New deps: sqlalchemy[asyncio], alembic, asyncpg, pydantic-settings,
+   email-validator.
+
+3. **206ad0f** — Frontend auth + state foundation: @supabase/supabase-js
+   + @tanstack/react-query + zustand + openapi-typescript (dev).
+   AuthProvider with full signIn/signUp/signOut/reset/confirm flows.
+   QueryProvider with sensible defaults (30s stale, no refetch on focus,
+   1 retry queries / 0 mutations). API client wrapper auto-injecting
+   Authorization headers. Centralized TanStack Query hooks for all
+   Phase 1 endpoints. 4 auth pages (/auth/login, /auth/signup,
+   /auth/reset-password, /auth/confirm) in shared AuthShell aesthetic
+   (serif title + cosmic dark + gold accents). OpenAPI codegen script
+   (npm run types:gen) ready. All 9 routes prerender cleanly.
+
+4. **6836232** — SessionsBridge: DB → WorkspaceContext read-sync.
+   When authenticated, sidebar reflects DB chart_sessions. No-op when
+   anonymous. Write-side mutation pass-through is explicitly the next
+   focused commit (P1.5b) because it touches ~5 page.tsx sites with
+   subtle semantics each (Match/Muhurtha/Horary invalidation, edit
+   modal stash, etc.).
+
+### Setup checklist for user
+
+Created **SETUP-PHASE-1.md** at repo root. 4 steps, ~20 min total,
+all on third-party dashboards (no code):
+
+1. Delete dormant Supabase project (`sbhutroxbbqenmdqeyhd`)
+2. Create fresh Supabase project (auth-only); copy URL + anon key +
+   JWT secret + service_role key
+3. Add Postgres to Railway; wire DATABASE_URL via Variable Reference
+   so backend service sees it; run `alembic upgrade head` once
+4. Set env vars in Railway (backend: SUPABASE_URL, SUPABASE_JWT_SECRET,
+   DATABASE_URL, ENVIRONMENT) and Vercel (frontend:
+   NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY)
+
+Also created `backend/.env.example` and `frontend/.env.example`.
+
+### Decisions made today
+
+- Read sync and write sync deliberately split into two commits.
+  Read = isolated, low risk, verified. Write = touches page.tsx,
+  separate verification pass needed.
+- /chart-sessions/migrate endpoint is defensive (no current data to
+  migrate — PR25 already wiped localStorage for savedSessions per
+  CLAUDE.md history). Available for future bulk imports.
+- Astrologer-mode "must be logged in" gate intentionally NOT added in
+  Phase 1. /app continues to work without login (anonymous mode =
+  in-memory like today). Hard gate happens when astrologer mode
+  formally becomes login-required (post-Phase-2 / pre-Razorpay).
+- Lazy first-touch Astrologer row provisioning: signup happens 100%
+  on Supabase; backend joins the loop on first authenticated request
+  via get_current_astrologer dependency. Avoids signup-time webhook
+  races forever.
+
+### Updates to canonical docs
+
+- launch-tracker.md P0 items #1, #2, #3, #6 marked DONE / PARTIAL
+  with explicit pointers to SETUP-PHASE-1.md for the dashboard work
+- CLAUDE.md CURRENT DIRECTION block: numbered focus list updated to
+  reflect Phase 1 code-done state + Phase 1.5b (write sync) as next
+- This DAILY_LOG entry
+
+### Next session
+
+After user completes SETUP-PHASE-1.md and tests on Vercel:
+1. Phase 1.5b: write-side mutation pass-through (page.tsx
+   create/update/delete chart sessions → API)
+2. THEN proceed to full route segment refactor as per the
+   "quality > deadline" decision
