@@ -158,6 +158,13 @@ _RATE_LIMITS: Dict[str, tuple[int, int]] = {
     "/astrologer/quick-insights": (10, 60),
     "/compatibility/analyze":   (15, 60),
     "/muhurtha/analyze":        (15, 60),
+    # Phase 3 Slice 4 (2026-06-02) — public client portal endpoint.
+    # Per client-portal-spec: 60 req/min per IP. Single endpoint surface
+    # so the prefix matches all /c/<uuid> requests. UUID-level dedup
+    # would need a custom key extractor (current limiter is IP-based);
+    # 60/min/IP is sufficient for v1 — brute-forcing UUID v4 space at
+    # that rate is infeasible (centuries to enumerate).
+    "/c/":                      (60, 60),
 }
 # Per-IP request timestamps, deque per limit key
 _request_log: Dict[str, Deque[float]] = {}
