@@ -3313,7 +3313,7 @@ export default function Home() {
           legacy onboarding form for `unconfigured` state keeps local
           dev working before SETUP-PHASE-1.md is complete. */}
       {!setupDone && authCtx.status === "authenticated" && (
-        <CrmHome onOpenSession={handleSwitchSession} />
+        <CrmHome />
       )}
 
       {/* ── LEGACY SETUP SCREEN ──
