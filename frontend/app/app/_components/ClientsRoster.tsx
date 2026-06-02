@@ -16,8 +16,8 @@
  */
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Search, ChevronRight, Plus, MapPin, Calendar } from "lucide-react";
+import Link from "next/link";
+import { Search, ChevronRight, Plus, MapPin, Calendar, Link2 } from "lucide-react";
 import { useClients, type ClientPublic } from "@/lib/api/hooks";
 import { theme } from "@/lib/theme";
 
@@ -326,7 +326,42 @@ function ClientRow({
               {client.chart_session_count} chart{client.chart_session_count === 1 ? "" : "s"}
             </div>
           )}
+          {client.note_count > 0 && (
+            <div style={{ marginTop: 2, opacity: 0.7 }}>
+              {client.note_count} note{client.note_count === 1 ? "" : "s"}
+            </div>
+          )}
         </div>
+        {/* Portal admin link — Phase 3 Slice 4. stopPropagation so the
+            row click doesn't ALSO fire (opening the workspace). */}
+        <Link
+          href={`/app/clients/${client.id}/portal`}
+          onClick={(e) => e.stopPropagation()}
+          title="Open portal admin (compose notes + share URL with client)"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 28,
+            height: 28,
+            borderRadius: 6,
+            border: "1px solid rgba(255,255,255,0.06)",
+            color: theme.text.muted,
+            transition: "all 120ms",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = "#c9a96e";
+            e.currentTarget.style.borderColor = "rgba(201,169,110,0.3)";
+            e.currentTarget.style.background = "rgba(201,169,110,0.04)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = theme.text.muted;
+            e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)";
+            e.currentTarget.style.background = "transparent";
+          }}
+        >
+          <Link2 size={12} />
+        </Link>
         <ChevronRight size={14} style={{ flexShrink: 0 }} />
       </div>
     </li>
