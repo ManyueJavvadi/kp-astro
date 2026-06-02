@@ -46,12 +46,12 @@ pool. Public consumer launch later, separate roadmap.
 
 | # | Item | Effort | Owner | Notes |
 |---|---|---|---|---|
-| 1 | **Astrologer signup + login** | 1 wk | TBD | Email + password (no Google OAuth v1). Reset-password flow. Confirm-email flow. |
-| 2 | **Real database (decide: Neon recommended)** | 3 days | TBD | Replaces localStorage. Neon free tier, no auto-pause, 3GB. Connection from Railway backend. |
-| 3 | **Migrate chart sessions to DB** | 3 days | TBD | Astrologer's saved clients persist server-side. Cross-device sync falls out of this. |
-| 4 | **Client portal pages** (per-client URL) | 2 wk | TBD | The killer differentiator. See `client-portal-spec.md` for details. |
-| 5 | **Razorpay subscription + checkout** | 1 wk | TBD | Subscription flow + UPI Autopay + question-counter wiring. Pricing locked: see [pricing-payment-business-spec.md](./pricing-payment-business-spec.md) |
-| 6 | **Email auth + reset password + system emails** | 3 days | TBD | Account confirm, password reset, billing receipt. Use Resend or similar. |
+| 1 | **Astrologer signup + login** | ✅ **CODE DONE 2026-06-01** | Claude | Frontend pages at `/auth/login`, `/auth/signup`, `/auth/reset-password`, `/auth/confirm`. Backend JWT verification via `app/auth/supabase_jwt.py`. **Needs user to do SETUP-PHASE-1.md dashboard steps to activate.** |
+| 2 | **Real database (Railway Postgres)** | ✅ **CODE DONE 2026-06-01** | Claude | SQLAlchemy 2.0 async + Alembic. 7 tables migration ready (`backend/alembic/versions/20260601_0001_initial_schema.py`). Needs user to add Postgres add-on to Railway + run migration (steps in SETUP-PHASE-1.md). |
+| 3 | **Migrate chart sessions to DB** | ⏳ **PARTIAL** | Claude | Read-side sync DONE (sidebar reflects DB sessions when authenticated). Write-side mutation pass-through is the next focused commit (P1.5b — touches ~5 sites in page.tsx). Migration endpoint `/chart-sessions/migrate` ready for future bulk imports. |
+| 4 | **Client portal pages** (per-client URL) | 2 wk | TBD | The killer differentiator. See `client-portal-spec.md` for details. Schema already in place (`clients.portal_slug`, `client_notes` table with `is_private` flag). |
+| 5 | **Razorpay subscription + checkout** | 1 wk | TBD | Subscription flow + UPI Autopay + question-counter wiring. Pricing locked: see [pricing-payment-business-spec.md](./pricing-payment-business-spec.md). Schema in place (`subscriptions` table with plan/status/topup_credits/razorpay_subscription_id). |
+| 6 | **Email auth + reset password + system emails** | ✅ **AUTH DONE 2026-06-01** | Claude | Supabase Auth handles signup/confirm/reset emails out of the box. Custom system emails (billing receipts, portal-opened notifications) deferred to later. |
 | 7 | **Terms of Service + Privacy Policy** | 1 day | TBD | Polish the stubs at `/privacy` + `/terms`. Add astrologer-data-handling clauses. |
 | 8 | **SEO basics** (meta, OG, robots, sitemap) | 2 days | TBD | Discoverable from day 1 on "KP astrology app" / "AI astrology" searches. |
 | 9 | **Error monitoring** | 1 day | TBD | Sentry free tier. Capture front-end + back-end errors. |

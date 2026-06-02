@@ -25,6 +25,11 @@ from app.routers import transit
 from app.routers import pdf_export
 from app.routers import horary
 from app.routers import panchangam
+# Phase 1 (2026-06-01) — auth-gated routers per ADR-001/002.
+# These return 503 if DB or auth env vars aren't configured (graceful
+# degradation; the chart/horary/etc. read-only endpoints still work).
+from app.routers import me as me_router
+from app.routers import chart_sessions as chart_sessions_router
 
 # ════════════════════════════════════════════════════════════════
 # Logging — structured-ish single-line records
@@ -251,6 +256,13 @@ app.include_router(transit.router, prefix="/transit", tags=["Transit"])
 app.include_router(pdf_export.router, prefix="/pdf", tags=["PDF"])
 app.include_router(horary.router, prefix="/horary", tags=["Horary"])
 app.include_router(panchangam.router, prefix="/panchangam", tags=["Panchangam"])
+# Phase 1 — auth-gated routes (per ADR-001/002).
+app.include_router(me_router.router, prefix="/me", tags=["Astrologer Profile"])
+app.include_router(
+    chart_sessions_router.router,
+    prefix="/chart-sessions",
+    tags=["Chart Sessions"],
+)
 
 
 @app.get("/")
@@ -357,12 +369,85 @@ def health():
         "detail": "key configured" if _anthropic_set else "ANTHROPIC_API_KEY not set",
     }
 
+    # Check 4 (Phase 1) — database: round-trip a SELECT 1 to verify the
+    # connection works. NON-CRITICAL while we phase auth/DB in — read-only
+    # chart endpoints still serve traffic without DB.
+    try:
+        from app.config import get_settings as _gs
+        _settings = _gs()
+        if not _settings.database_configured:
+            checks["database"] = {
+                "status": "fail",
+                "detail": "DATABASE_URL not set (auth-gated endpoints will 503)",
+            }
+        else:
+            # Lazy import so health endpoint doesn't pay engine creation
+            # cost when DB isn't configured.
+            from app.db.engine import get_engine as _ge
+            from sqlalchemy import text as _text
+            import asyncio as _asyncio
+
+            async def _check_db():
+                eng = _ge()
+                async with eng.connect() as conn:
+                    result = await conn.execute(_text("SELECT 1"))
+                    return result.scalar()
+
+            # FastAPI runs in async; we're in a sync handler — open a
+            # short-lived loop. asyncio.run() refuses to nest inside an
+            # already-running loop; use get_event_loop + run_until_complete
+            # equivalent via new loop.
+            try:
+                loop = _asyncio.new_event_loop()
+                _val = loop.run_until_complete(_check_db())
+                loop.close()
+                checks["database"] = {
+                    "status": "ok" if _val == 1 else "fail",
+                    "detail": f"SELECT 1 returned {_val}",
+                }
+            except Exception as e:
+                checks["database"] = {
+                    "status": "fail",
+                    "detail": f"DB query failed: {type(e).__name__}: {str(e)[:120]}",
+                }
+    except Exception as e:
+        checks["database"] = {
+            "status": "fail",
+            "detail": f"DB check setup failed: {type(e).__name__}: {str(e)[:120]}",
+        }
+
+    # Check 5 (Phase 1) — auth: SUPABASE_JWT_SECRET is set?
+    # NON-CRITICAL — auth-gated endpoints return 503 if missing; read-only
+    # endpoints unaffected.
+    try:
+        from app.config import get_settings as _gs2
+        _settings2 = _gs2()
+        checks["auth"] = {
+            "status": "ok" if _settings2.auth_configured else "fail",
+            "detail": (
+                "SUPABASE_URL + SUPABASE_JWT_SECRET configured"
+                if _settings2.auth_configured
+                else "SUPABASE_URL or SUPABASE_JWT_SECRET unset "
+                "(auth-gated endpoints will 503)"
+            ),
+        }
+    except Exception as e:
+        checks["auth"] = {
+            "status": "fail",
+            "detail": f"auth config check failed: {type(e).__name__}",
+        }
+
     # Decide overall status + HTTP code.
-    # CRITICAL checks: ephemeris, chart_compute. Non-critical: anthropic_key.
+    # CRITICAL checks: ephemeris, chart_compute (the app fundamentally
+    # cannot serve charts without these).
+    # NON-CRITICAL: anthropic_key, database, auth (degrade gracefully —
+    # subsets of endpoints fail with informative errors).
     critical_failed = any(
         checks[c]["status"] == "fail" for c in ("ephemeris", "chart_compute")
     )
-    non_critical_failed = checks["anthropic_key"]["status"] == "fail"
+    non_critical_failed = any(
+        checks[c]["status"] == "fail" for c in ("anthropic_key", "database", "auth")
+    )
 
     if critical_failed:
         overall_status = "down"

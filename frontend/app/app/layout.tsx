@@ -22,6 +22,11 @@ import { SelectionProvider } from "./lib/selection";
 // See .claude/research/architecture-decisions-2026-06-01.md (ADR-004)
 // and ./_lib/workspace-context.tsx for the lifted state surface.
 import { WorkspaceProvider } from "./_lib/workspace-context";
+// Phase 1.5 (read-side) — DB → WorkspaceContext sync for chart sessions.
+// When the user is authenticated, replaces the sidebar's in-memory
+// savedSessions with their server-side list. No-op when anonymous.
+// See sessions-bridge.tsx for the write-side TODO.
+import { SessionsBridge } from "./_lib/sessions-bridge";
 
 export default function AppLayout({
   children,
@@ -44,6 +49,10 @@ export default function AppLayout({
             of truth. Adding the provider FIRST without rewiring means we
             can ship in safe slices without a giant atomic refactor. */}
         <WorkspaceProvider>
+          {/* SessionsBridge mounts inside WorkspaceProvider so it can
+              call useWorkspace().setSavedSessions on auth-state changes.
+              Renders nothing — pure side-effect component. */}
+          <SessionsBridge />
           <AppShell>{children}</AppShell>
         </WorkspaceProvider>
       </SelectionProvider>

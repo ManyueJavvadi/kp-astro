@@ -1,0 +1,164 @@
+"use client";
+
+/**
+ * /auth/login — astrologer sign-in.
+ *
+ * Forms post to Supabase Auth via AuthContext.signIn. On success the
+ * AuthProvider sees the new session via its onAuthStateChange listener
+ * and updates status → "authenticated". This page redirects to /app
+ * once that happens (effect watches status).
+ */
+
+import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "@/lib/auth/auth-context";
+import { isSupabaseConfigured } from "@/lib/auth/supabase-client";
+import {
+  AuthShell,
+  FormField,
+  inputStyle,
+  buttonPrimaryStyle,
+  buttonDisabledStyle,
+} from "../_shell";
+import { theme } from "@/lib/theme";
+
+// useSearchParams() requires a Suspense boundary for static prerender
+// (Next.js App Router rule). Page export wraps the actual form.
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<AuthShell title="Loading…">{null}</AuthShell>}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { status, signIn } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const redirectTo = searchParams.get("redirect") || "/app";
+
+  // Auto-redirect if already signed in.
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.replace(redirectTo);
+    }
+  }, [status, router, redirectTo]);
+
+  if (!isSupabaseConfigured) {
+    return (
+      <AuthShell
+        title="Auth not configured yet"
+        subtitle="The backend has not been wired to Supabase. See SETUP-PHASE-1.md."
+      >
+        <div style={{ fontSize: 13, lineHeight: 1.6, color: theme.text.muted }}>
+          Set <code>NEXT_PUBLIC_SUPABASE_URL</code> and{" "}
+          <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> in your Vercel project,
+          redeploy, and the login form will activate.
+        </div>
+      </AuthShell>
+    );
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    const { error } = await signIn(email, password);
+    setSubmitting(false);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    // Redirect happens via the useEffect above when status flips.
+  }
+
+  return (
+    <AuthShell title="Welcome back" subtitle="Sign in to your DevAstroAI workspace.">
+      <form onSubmit={handleSubmit}>
+        <FormField label="Email" htmlFor="email">
+          <input
+            id="email"
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            style={inputStyle}
+            disabled={submitting}
+          />
+        </FormField>
+
+        <FormField label="Password" htmlFor="password">
+          <input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={inputStyle}
+            disabled={submitting}
+          />
+        </FormField>
+
+        {error && (
+          <div
+            style={{
+              fontSize: 12,
+              color: "#f87171",
+              marginBottom: 12,
+              padding: "8px 12px",
+              background: "rgba(248,113,113,0.06)",
+              border: "1px solid rgba(248,113,113,0.2)",
+              borderRadius: 6,
+            }}
+          >
+            {error}
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={submitting || !email || !password}
+          style={
+            submitting || !email || !password
+              ? buttonDisabledStyle
+              : buttonPrimaryStyle
+          }
+        >
+          {submitting ? "Signing in…" : "Sign in"}
+        </button>
+      </form>
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          marginTop: 18,
+          fontSize: 12,
+          color: theme.text.muted,
+        }}
+      >
+        <Link
+          href="/auth/reset-password"
+          style={{ color: "#c9a96e", textDecoration: "none" }}
+        >
+          Forgot password?
+        </Link>
+        <Link
+          href="/auth/signup"
+          style={{ color: "#c9a96e", textDecoration: "none" }}
+        >
+          Create account
+        </Link>
+      </div>
+    </AuthShell>
+  );
+}
