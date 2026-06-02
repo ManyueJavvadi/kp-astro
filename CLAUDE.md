@@ -32,17 +32,26 @@ This deadline is user-set, ~14 weeks out as of doc creation.
 6. `.claude/research/matching-network-spec.md` — Phase M
    (post-launch v1.5, Nov 2026).
 
-**Active focus until Sept 9:**
-- Auth + Railway Postgres + DB migration (Weeks 1-2) ← NEXT
-- ~~Route segment refactor (Weeks 3-4)~~ DEFERRED 2026-06-01 to
-  post-auth/DB. Existing G2 pushState already gives each tab its own
-  URL + working browser back; full migration revisited after DB lands
-  because URLs like `/app/clients/[id]/chart` need it. Foundation
-  (WorkspaceContext) shipped on develop in commits A+B.
-- Client portal pages (Weeks 3-5, accelerated since route refactor freed time)
-- Razorpay subscription + email (Weeks 6-8)
-- SEO + monitoring + polish (Weeks 9-11)
-- QA + soft launch (Weeks 12-14)
+**Active focus (Sept 9 is the target, but quality > deadline — if work
+slips, we postpone the launch rather than ship temporary hacks):**
+
+1. Auth + Railway Postgres + DB migration ← **NEXT**
+2. Full route segment refactor — properly. Removes the G2
+   `pushState`/`popstate` hack entirely, moves ~80 tab-local state
+   pieces into respective tab files, creates real Next.js route
+   segments. Foundation (WorkspaceContext, commits A+B) already on
+   develop. Sequenced after auth/DB because URLs like
+   `/app/clients/[id]/chart` need DB persistence anyway.
+3. Client portal pages (the killer differentiator)
+4. Razorpay subscription + email
+5. SEO + monitoring + polish
+6. QA + soft launch
+7. Launch (Sept 9 target — postponed if we'd otherwise ship hacks)
+
+User direction (2026-06-01): *"lets not compromise on anything, lets
+build strong... i want you to complete the route also i dont need the
+temporary G1/G2 hotfix."* Treat this as a standing rule for the rest
+of the launch prep — never trade quality for the date.
 
 **2026-06-01 — WorkspaceContext shipped on develop:**
 - `frontend/app/app/_lib/workspace-context.tsx` holds the truly-global

@@ -56,7 +56,7 @@ pool. Public consumer launch later, separate roadmap.
 | 8 | **SEO basics** (meta, OG, robots, sitemap) | 2 days | TBD | Discoverable from day 1 on "KP astrology app" / "AI astrology" searches. |
 | 9 | **Error monitoring** | 1 day | TBD | Sentry free tier. Capture front-end + back-end errors. |
 | 10 | **DB backup verification** | 1 day | TBD | Confirm Neon's PITR works; test a restore. |
-| 11 | **Route segment refactor** | DEFERRED | — | 2026-06-01: deferred to post-auth/DB phase. G2 pushState already gives each tab its own URL + working browser back, so the UX win is already in. Full migration moved to "after auth+DB" because URLs like `/app/clients/[id]/chart` need the DB anyway. Foundation (WorkspaceContext) shipped on develop. |
+| 11 | **Route segment refactor** | SEQUENCED post-auth/DB | TBD | 2026-06-01 (clarified by user): IS in scope. Sequenced AFTER auth+DB, not cancelled. When we do it, we do it RIGHT — remove the G2 `pushState`/`popstate` hack entirely, move ~80 tab-local state pieces into respective tab files, create real Next.js route segments. No shortcuts. Foundation (WorkspaceContext, commits A+B) already shipped on develop as prep work. If this slips Sept 9, we postpone the launch rather than ship the temporary hack. |
 | 12 | **Custom domain (devastroai.com)** | ✅ done | — | 2026-05-28 |
 | 13 | **AppToast for error visibility** | ✅ done | — | 2026-05 |
 | 14 | **Mobile responsive shell** | ✅ done | — | Phase 9 work |
@@ -99,7 +99,7 @@ discussed in depth and are now spec'd separately in
 
 | # | Decision | Status |
 |---|---|---|
-| 1 | Route segment refactor (yes / defer)? | ✅ **DECIDED 2026-06-01: DEFERRED to post-auth/DB.** WorkspaceContext foundation (lifted 10 global state pieces) shipped on develop as commits A+B of `claude/route-segment-refactor` branch (merged). Full migration revisited after URLs like `/app/clients/[id]/chart` become meaningful (i.e., after DB persistence ships). |
+| 1 | Route segment refactor — when? | ✅ **DECIDED 2026-06-01: SEQUENCED post-auth/DB, NOT cancelled.** User: "i want you to complete the route also, i don't need the temporary G1/G2 hotfix." When we do it, full migration: remove pushState hack, move ~80 tab-local state pieces into tab files, real Next.js route segments. If this slips Sept 9, we postpone the launch rather than compromise. Foundation (WorkspaceContext) already shipped on develop as commits A+B. |
 | 2 | Database (Neon / Railway / other)? | _pending_ — recommend Neon free tier |
 | 3 | **Pricing tiers + AI quotas** | ✅ **DECIDED 2026-06-01.** Plus ₹499/mo (5 AI q), Pro ₹1,499/mo (30 AI q), top-up packs ₹200/500/1000. See pricing spec. |
 | 4 | **Free trial length** | ✅ **DECIDED 2026-06-01.** 30 days of Plus, no credit card upfront. |

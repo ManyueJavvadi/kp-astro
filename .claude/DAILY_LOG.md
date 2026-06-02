@@ -1054,3 +1054,27 @@ This is ~2 weeks of focused work and unlocks the rest of the launch
 tracker (client portal pages need DB, Razorpay needs DB, email needs
 auth, etc.)
 
+
+### 2026-06-01 (clarification, evening) — quality > deadline
+
+User clarified my earlier read of the route refactor decision:
+
+- Route segment refactor is NOT cancelled — it's SEQUENCED after
+  auth+DB. We will come back to it and do it RIGHT (remove the
+  temporary G2 pushState/popstate hack entirely, move ~80 tab-local
+  state pieces into tab files, create real Next.js route segments).
+- Sept 9 is the target, but if quality demands more time, we postpone
+  the launch rather than ship hacks.
+- User quote: "lets not compromise on anything, lets build strong...
+  i want you to complete the route also i dont need the temporary
+  G1/G2 hotfix."
+- Standing rule for the rest of launch prep: never trade quality
+  for the date.
+
+Updated:
+  - launch-tracker P0 item #11: "SEQUENCED post-auth/DB" (not deferred)
+  - launch-tracker decisions table #1: same clarification
+  - CLAUDE.md CURRENT DIRECTION block: numbered active-focus list with
+    explicit "quality > deadline" rule
+
+Next action remains the same: start auth + Railway Postgres setup.
