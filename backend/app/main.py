@@ -311,7 +311,7 @@ _PROCESS_START_TIME = _time.time()
 
 
 @app.get("/health")
-def health():
+async def health():
     """Deep health check (PR F2 — Phase A foundation).
 
     Exercises the critical paths so UptimeRobot can distinguish
@@ -322,21 +322,29 @@ def health():
       ephemeris      — swisseph can compute a planet position
       chart_compute  — chart_engine can build a real chart
       anthropic_key  — env var is set (does NOT call the API)
+      database       — round-trips a SELECT 1 (async, in current loop)
+      auth           — SUPABASE env vars set
       version        — git commit info
+
+    HOTFIX 2026-06-02: was a sync handler that used
+    asyncio.new_event_loop() + run_until_complete() to call the async
+    DB engine. This corrupts the shared SQLAlchemy async engine's
+    asyncpg connection pool because asyncpg connections are bound to
+    the loop they were created on — running them in a DIFFERENT loop
+    (and closing that loop) leaves the engine's pool referencing
+    closed loops. Subsequent requests from the main FastAPI loop that
+    use the engine then throw low-level errors that bypass CORS
+    middleware → browser sees "no Access-Control-Allow-Origin" →
+    blocked. EVERY auth-gated DB endpoint became unusable after
+    Railway's uptime probe hit /health a few times.
+
+    Fix: make /health itself async so it runs IN the same event loop
+    as everything else. Use the engine directly via async-with — no
+    loop manipulation.
 
     Status code:
       200 — fully ok or degraded (non-critical issue)
       503 — DOWN (a critical check failed; UptimeRobot alerts)
-
-    Body:
-      {
-        "status": "ok" | "degraded" | "down",
-        "checks": { check_name: {"status": "ok"|"fail", "detail": "..."} },
-        "version": "0.1.0",
-        "commit": "<git sha>",
-        "uptime_seconds": <int>,
-        "timestamp": "<iso8601>"
-      }
     """
     from datetime import datetime as _dt
     from fastapi import Response
@@ -404,9 +412,12 @@ def health():
         "detail": "key configured" if _anthropic_set else "ANTHROPIC_API_KEY not set",
     }
 
-    # Check 4 (Phase 1) — database: round-trip a SELECT 1 to verify the
-    # connection works. NON-CRITICAL while we phase auth/DB in — read-only
-    # chart endpoints still serve traffic without DB.
+    # Check 4 (Phase 1, fixed 2026-06-02) — database: round-trip a
+    # SELECT 1 to verify the connection works. Runs in the same event
+    # loop as the rest of FastAPI (no asyncio.new_event_loop tricks —
+    # those corrupt the engine's connection pool).
+    # NON-CRITICAL while we phase auth/DB in — read-only chart
+    # endpoints still serve traffic without DB.
     try:
         from app.config import get_settings as _gs
         _settings = _gs()
@@ -420,22 +431,11 @@ def health():
             # cost when DB isn't configured.
             from app.db.engine import get_engine as _ge
             from sqlalchemy import text as _text
-            import asyncio as _asyncio
-
-            async def _check_db():
+            try:
                 eng = _ge()
                 async with eng.connect() as conn:
                     result = await conn.execute(_text("SELECT 1"))
-                    return result.scalar()
-
-            # FastAPI runs in async; we're in a sync handler — open a
-            # short-lived loop. asyncio.run() refuses to nest inside an
-            # already-running loop; use get_event_loop + run_until_complete
-            # equivalent via new loop.
-            try:
-                loop = _asyncio.new_event_loop()
-                _val = loop.run_until_complete(_check_db())
-                loop.close()
+                    _val = result.scalar()
                 checks["database"] = {
                     "status": "ok" if _val == 1 else "fail",
                     "detail": f"SELECT 1 returned {_val}",
