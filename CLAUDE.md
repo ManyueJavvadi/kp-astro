@@ -35,24 +35,54 @@ This deadline is user-set, ~14 weeks out as of doc creation.
 **Active focus (Sept 9 is the target, but quality > deadline — if work
 slips, we postpone the launch rather than ship temporary hacks):**
 
-1. Auth + Railway Postgres + DB migration — **CODE DONE 2026-06-01;
-   awaiting user dashboard setup per SETUP-PHASE-1.md.**
-   Backend: SQLAlchemy 2.0 + Alembic + 7 tables + Supabase JWT verify
-   + /me + /chart-sessions routers. Frontend: AuthProvider +
-   QueryProvider + /auth/signup/login/reset/confirm pages +
-   useChartSessions hook + SessionsBridge read-side sync.
-2. **Phase 1.5b** — Write-side mutation pass-through (page.tsx's
-   create/update/delete chart sessions calls → API). Focused next commit.
-3. Full route segment refactor — properly. Removes the G2
-   `pushState`/`popstate` hack entirely, moves ~80 tab-local state
-   pieces into respective tab files, creates real Next.js route
-   segments. Foundation (WorkspaceContext, commits A+B) already on
-   develop.
-4. Client portal pages (the killer differentiator)
-5. Razorpay subscription + email
-6. SEO + monitoring + polish
-7. QA + soft launch
-8. Launch (Sept 9 target — postponed if we'd otherwise ship hacks)
+### What's DONE on develop as of EOD 2026-06-02
+
+1. ✅ **Phase 1 — Auth + DB foundation** (Supabase Auth + Railway
+   Postgres + 7 tables + asymmetric JWT verification). User-tested:
+   signup → confirm → login → /app works end-to-end.
+2. ✅ **Phase 1.5b — Write-side mutation pass-through**. New chart
+   creates/edits/deletes persist to DB.
+3. ✅ **Phase 2 Slices 1-4** — Auth gate, clients CRUD backend,
+   CRM home (sidebar + Add client modal + 4 stub routes), per-client
+   workspace route `/app/clients/[id]`. The dead "enter your birth
+   details" onboarding form is gone — authenticated users land on
+   CRM-first home.
+4. ✅ **Phase 3 — Client portal pages (killer differentiator)**:
+   - Backend: public `/c/{slug}` + auth-gated notes CRUD
+   - Public mobile-first portal page at `/c/[slug]`
+   - Astrologer admin at `/app/clients/[id]/portal` with composer
+   - Rate-limited (60 req/min/IP on /c/)
+5. ✅ **Phase 5 SEO basics** — sitemap.ts + robots.ts + comprehensive
+   metadata (OG, Twitter, keywords, canonical).
+
+### What's NEXT — deferred to user-present sessions
+
+6. **Phase 2 S5** — Full per-tab routes inside `/app/clients/[id]/*`
+   (chart, houses, dasha, analysis, panchang, muhurtha, match,
+   horary). Touches the workspace render in page.tsx — needs
+   visual verification.
+7. **Phase 2 S6** — Real `/app/tools/{panchang,muhurtha,horary}`
+   implementations. Currently stubs.
+8. **Phase 2 S8** — Final cleanup (delete old onboarding form,
+   remove G2 pushState code). Depends on S5.
+9. **Phase 4 — Razorpay subscription + paywall**. Sacred-region
+   adjacent: requires adding quota.decrement() to llm_service.py
+   at each AI fire site. Needs user-present AI regression
+   verification.
+10. **Phase 5 polish** — Sentry, OG image, 5-10 anchor content pages.
+11. **Phase 6** — QA + soft launch + Sept 9 public launch.
+
+### Strategic constants (do NOT compromise)
+
+User direction (2026-06-01): *"lets not compromise on anything, lets
+build strong... i want you to complete the route also i dont need the
+temporary G1/G2 hotfix."* Quality > deadline. Sept 9 target, but if
+slipping ships better code, slip.
+
+User direction (2026-06-02): "be extra extra careful i dont want to
+ruin the quality of existing answers/prediction." All sacred regions
+(llm_service.py, KP engines, KB files, AnalysisTab streaming) stay
+UNTOUCHED until explicit user-present approval for any change.
 
 User direction (2026-06-01): *"lets not compromise on anything, lets
 build strong... i want you to complete the route also i dont need the

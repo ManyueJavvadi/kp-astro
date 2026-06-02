@@ -920,6 +920,32 @@ breaks something, we rollback that slice and re-cut.
 **Total: 17 slices, but S5a-h are mechanically similar — once S5a
 + S5b prove the pattern, the rest are fast.**
 
+### Progress as of EOD 2026-06-02
+
+| Slice | Status |
+|---|---|
+| S1 (auth gate) | ✅ shipped (`abf1faa`) |
+| S2 (clients CRUD backend + hooks) | ✅ shipped (`6cda353`) |
+| S3 (CRM home + sidebar + modal + 4 stubs) | ✅ shipped (`40c5aa8` + `f2cf8ee`) |
+| S4 (per-client `/app/clients/[id]` route) | ✅ shipped (`e21cee5`) |
+| S5a–h (per-tab routes) | ⏳ DEFERRED — user-present required |
+| S6 (real `/app/tools/*` impls) | ⏳ DEFERRED — current stubs functional |
+| S7 (profile + billing stubs) | ✅ shipped in S3 |
+| S8 (final cleanup) | ⏳ DEFERRED — depends on S5 |
+
+### Phase 3 (client portal pages) — bonus shipped same session
+
+| Slice | Status |
+|---|---|
+| P3.S1 (backend `/c/{slug}` + notes CRUD) | ✅ shipped (`0eaa64d`) |
+| P3.S2 (public `/c/[slug]` page) | ✅ shipped (`8b37771`) |
+| P3.S3 (astrologer portal admin + composer) | ✅ shipped (`fdd0763`) |
+| P3.S4 (rate limit + portal link in roster) | ✅ shipped (`c34e25a`) |
+
+### Phase 5 SEO basics — shipped same session
+
+`8a0fb15` — sitemap.ts + robots.ts + comprehensive metadata on /
+
 **Branching strategy per slice:** create `claude/phase2-sN-<scope>`
 off develop, push, you review on Vercel preview deploy or develop
 deploy, merge fast-forward to develop. No long-lived branches.

@@ -1259,3 +1259,152 @@ to ship S3. Slice 4 will need a small choice: redirect-and-context
 flash (smaller refactor) vs. workspace UI extraction (bigger
 refactor, no flash). My recommendation: redirect-and-context for v1,
 extract in S5 as part of per-tab routes.
+
+---
+
+## 2026-06-02 — Phase 2 + Phase 3 + Phase 5 SEO shipped (autonomous afternoon)
+
+User went out, asked to push through phases with same focus + quality
+discipline. Massive session — 11 commits to develop across 4 phases.
+
+### Commits shipped to develop today (chronological)
+
+**Phase 2 — CRM-first /app redesign**:
+1. `abf1faa` — S1: Auth gate on /app
+2. `6cda353` — S2: Backend clients CRUD (5 endpoints + 5 TanStack hooks)
+3. `40c5aa8` — S3: CRM home + sidebar + Add client modal + 4 stub routes
+4. `f2cf8ee` — S3 fix: disabled SessionsBridge auto-load
+5. `e21cee5` — S4: Per-client workspace route `/app/clients/[id]`
+
+**Phase 3 — Client portal pages (the killer differentiator)**:
+6. `0eaa64d` — S1: Backend `/c/{slug}` (public) + notes CRUD
+7. `8b37771` — S2: Public `/c/[slug]` portal page (mobile-first)
+8. `fdd0763` — S3: Astrologer portal admin + notes composer
+9. `c34e25a` — S4: Rate limit on `/c/` + Portal link on client rows
+
+**Phase 5 — SEO basics**:
+10. `8a0fb15` — sitemap.ts + robots.ts + comprehensive metadata
+
+### What's functionally LIVE for user to test (after Vercel redeploy)
+
+**Auth flow**:
+- Anonymous `/app` → redirects to `/auth/login?redirect=/app`
+- Sign in → lands on CRM home
+
+**CRM home (`/app`)**:
+- Sidebar: Home / Clients / Tools / Profile / Billing + Sign out
+- Today's panchang strip (when location set)
+- Recent activity stub (placeholder)
+- Clients roster with search + add button
+- "+ Add client" modal with full birth details form
+- Each client row has a small "Portal" icon → opens portal admin
+
+**Per-client workspace (`/app/clients/[id]`)**:
+- Loads client's most recent chart_session
+- Renders existing 8-tab workspace UI (same as before)
+- URL preserves which client is open
+- Browser back returns to CRM home (with workspace state reset)
+
+**Client portal admin (`/app/clients/[id]/portal`)**:
+- Notes composer: text + type (Reading/Prediction/Follow-up/Observation)
+  + language (En/Te/Te+En) + Public/Private toggle
+- All notes list with delete
+- Preview of public portal in sticky right panel
+- "Copy portal URL" button
+
+**Public client portal (`/c/[slug]`)** — NO AUTH:
+- Astrologer-first hero (their name as title)
+- Client name + birth details card
+- Simplified KP snapshot (Lagna, Moon, Sun, current MD-AD)
+- Notes timeline (newest first, public-only)
+- Sticky WhatsApp consult-back CTA
+- "Powered by DevAstroAI" footer (viral loop)
+
+**Profile (`/app/profile`)** — read + edit /me
+
+**Billing (`/app/billing`)** — pricing preview stub (real flow in Phase 4)
+
+**SEO**:
+- /sitemap.xml + /robots.txt auto-served
+- Full metadata on landing (OG, Twitter, keywords, canonical, robots)
+
+### Sacred regions verified UNTOUCHED across ALL commits
+
+- `llm_service.py` (6,912 lines): 0 changes
+- All KP engines (chart, horary, muhurtha, panchangam, transit, match,
+  compatibility, cross_chart, multi_chart): 0 changes
+- All 55 KB files: 0 changes
+- AnalysisTab.tsx SSE streaming code: 0 changes
+- AI prompts: 0 changes
+- /chart/*, /astrologer/*, /horary/*, /muhurtha/*, /compatibility/*,
+  /panchangam/*, /transit/*, /prediction/* endpoints: 0 changes
+
+### Deliberately deferred for user-present sessions
+
+- **Phase 2 S5**: per-tab routes inside /app/clients/[id]/ — would
+  require extracting tab content out of page.tsx. Each tab is its own
+  sub-slice. RISKY without user verification — touches the workspace
+  render path.
+- **Phase 2 S6 (full)**: real implementations of /app/tools/{panchang,
+  muhurtha,horary}. Current stubs are functional placeholders.
+- **Phase 2 S8**: final cleanup (delete old onboarding form + remove
+  G2 pushState). Depends on S5.
+- **Phase 3 polish**: portal_enabled toggle (needs new alembic
+  migration), portal-open analytics (`/c/{slug}/track-open`), note
+  edit-in-place. Useful but not launch-blocking.
+- **Phase 4**: Razorpay subscription + paywall. Sacred-region adjacent
+  (must add quota.decrement() in llm_service.py at AI call sites).
+  Needs user-present verification of AI quality regression.
+- **Sentry**: needs DSN env var setup + npm packages. Defer to a
+  focused session.
+- **OG image**: needs design pass.
+
+### What's still on `develop` from earlier today's morning session
+
+(Same commits — listed for completeness)
+- Master plan doc at `.claude/research/master-plan-2026-06-02.md`
+- Phase 1 setup completed by user
+- JWT Signing Keys asymmetric fix verified working
+
+### Total today: 18 commits to develop
+
+Including the morning architecture session (master plan + ADRs +
+Phase 1 / 1.5b / 1.5c fix + Phase 2 S1-S4 + Phase 3 S1-S4 + Phase 5
+SEO + this log entry).
+
+### When user is back
+
+Test these flows on Vercel (in order of importance):
+
+1. **Sign in flow** → CRM home appears (NOT the dead onboarding form)
+2. **Add new client** via modal → routes to `/app/clients/[new-id]`
+3. **Click existing client** in roster → routes to `/app/clients/[id]`
+4. **Click "Portal" icon** on a client row → `/app/clients/[id]/portal`
+5. **Compose a note** (public + a private one) on portal admin page
+6. **Click "Copy portal URL"** → paste the URL into private window →
+   verify the public /c/[slug] page shows only the public note
+7. **WhatsApp consult-back** button (only renders if astrologer has
+   phone set on /app/profile)
+8. **Browser back from /app/clients/[id]** → returns to CRM home with
+   empty workspace state
+9. **Sidebar nav**: Home / Clients / Tools / Profile / Billing all
+   work (Tools + Billing are stubs)
+10. **Profile edit** (display_name, bio, phone, default_language) →
+    Save → ✓ Saved indicator
+
+If ANY of this is broken, every slice has its own feature branch
+(`claude/phase2-s1-...`, `claude/phase2-s2-...`, etc.) — revert
+specific slices without nuking the rest.
+
+### Strategic context for next conversation
+
+Per master plan §7, after these slices the remaining work is:
+- Phase 2 S5/S6/S8 (per-tab routes + tools + cleanup) — user-present
+- Phase 4 (Razorpay) — needs final pricing-spec confirmations + AI
+  quota wiring in llm_service.py (sacred-region adjacent)
+- Phase 5 polish (Sentry, OG image, content pages)
+- Phase 6 (soft launch + Sept 9)
+
+Quality bar: every slice this session was tsc-clean + next-build-
+clean + zero changes to sacred regions. Held the line on the user's
+"don't ruin quality" directive.
