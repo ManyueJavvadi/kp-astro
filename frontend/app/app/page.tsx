@@ -134,6 +134,16 @@ import { useWorkspace } from "./_lib/workspace-context";
 // existing setSavedSessions local-state updates. No-op when anonymous —
 // preserves in-memory behavior for not-signed-in users.
 import { useSessionPersistence } from "./_lib/sessions-persistence";
+// Phase 2 Slice 3 (2026-06-02) — CRM home replaces the dead
+// "Decode the cosmos / enter your birth details" onboarding form
+// for authenticated astrologers. The home shows: today panchang,
+// clients roster, + Add client button. Clicking a client hands off
+// to handleSwitchSession (the existing flow that sets workspaceData
+// + setupDone=true → workspace UI takes over below).
+// Anonymous visitors don't reach this code path — AuthGate redirects
+// them to /auth/login first.
+import { CrmHome } from "./_components/CrmHome";
+import { useAuth } from "@/lib/auth/auth-context";
 
 // PR A1.3-fix-24 — env-derived. NEXT_PUBLIC_API_URL overrides for staging
 // or local dev; production fallback unchanged. Set in .env.local for dev.
@@ -161,6 +171,17 @@ export default function Home() {
   // Phase 1.5b — DB persistence facade. Fire-and-forget mutations
   // mirror local setSavedSessions updates to the API when authenticated.
   const sessionsApi = useSessionPersistence();
+  // Phase 2 Slice 3 — read auth status to decide CRM home vs legacy
+  // onboarding render. AuthGate above guarantees only authenticated
+  // (or unconfigured) users reach this component, but we re-check
+  // status here for safety + to render a small loading hold while
+  // the auth context is still initializing.
+  const authCtx = useAuth();
+
+  // (Hand-off from /app/clients deferred to Slice 4 when proper
+  // /app/clients/[id] routing replaces the sessionStorage trick.
+  // For Slice 3, users open clients directly from the CRM home roster
+  // on /app.)
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [placeStatus, setPlaceStatus] = useState<"idle" | "loading" | "found" | "error">("idle");
@@ -3280,7 +3301,26 @@ export default function Home() {
         </div>
       )}
 
-      {/* ── SETUP SCREEN ── */}
+      {/* ── CRM HOME (Phase 2 Slice 3 — 2026-06-02) ──
+          When authenticated AND we don't have a workspace loaded yet,
+          render the CRM home (clients roster + Add client) instead of
+          the legacy "enter your birth details" form. Clicking a client
+          calls handleSwitchSession which sets workspaceData +
+          setupDone=true → workspace UI takes over below.
+
+          Anonymous visitors don't reach this code path (AuthGate
+          redirects them to /auth/login). But the fallback to the
+          legacy onboarding form for `unconfigured` state keeps local
+          dev working before SETUP-PHASE-1.md is complete. */}
+      {!setupDone && authCtx.status === "authenticated" && (
+        <CrmHome onOpenSession={handleSwitchSession} />
+      )}
+
+      {/* ── LEGACY SETUP SCREEN ──
+          Only renders for !authenticated (i.e., Supabase unconfigured —
+          local dev) OR while auth is still loading. Production
+          authenticated users see CrmHome above. Slice 8 will delete
+          this block entirely. */}
       {/* G1 hotfix v3 (2026-05-28) — reverted to the simple `!setupDone`
           gate. The v2 broadening was masking the real bug: user-mode
           handleSetup wasn't setting workspaceData (it called
@@ -3289,8 +3329,13 @@ export default function Home() {
           users back to the onboarding form after Generate — looked
           like the form just silently re-rendered.
           Now that handleSetup correctly sets workspaceData for both
-          modes (above), we don't need the defensive bounce. */}
-      {!setupDone && (
+          modes (above), we don't need the defensive bounce.
+
+          Phase 2 Slice 3 (2026-06-02) — gate also requires
+          authCtx.status !== "authenticated". CrmHome above handles
+          the authenticated case; this legacy form only renders for
+          unconfigured / pre-Phase-1 local dev. Slice 8 will delete. */}
+      {!setupDone && authCtx.status !== "authenticated" && (
         <main style={{ flex: 1, position: "relative", zIndex: 5, maxWidth: 720, margin: "0 auto", width: "100%", padding: "24px 20px 40px" }}>
           {/* Phase 15.2 — Onboarding hero with entrance cascade.
               G1-hotfix (2026-05-28) — compacted so hero + form fit
