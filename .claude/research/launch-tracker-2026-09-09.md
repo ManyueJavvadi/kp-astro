@@ -50,7 +50,7 @@ pool. Public consumer launch later, separate roadmap.
 | 2 | **Real database (decide: Neon recommended)** | 3 days | TBD | Replaces localStorage. Neon free tier, no auto-pause, 3GB. Connection from Railway backend. |
 | 3 | **Migrate chart sessions to DB** | 3 days | TBD | Astrologer's saved clients persist server-side. Cross-device sync falls out of this. |
 | 4 | **Client portal pages** (per-client URL) | 2 wk | TBD | The killer differentiator. See `client-portal-spec.md` for details. |
-| 5 | **Razorpay subscription + checkout** | 1 wk | TBD | Subscription flow only (no per-minute meter, ever). Pricing TBD. |
+| 5 | **Razorpay subscription + checkout** | 1 wk | TBD | Subscription flow + UPI Autopay + question-counter wiring. Pricing locked: see [pricing-payment-business-spec.md](./pricing-payment-business-spec.md) |
 | 6 | **Email auth + reset password + system emails** | 3 days | TBD | Account confirm, password reset, billing receipt. Use Resend or similar. |
 | 7 | **Terms of Service + Privacy Policy** | 1 day | TBD | Polish the stubs at `/privacy` + `/terms`. Add astrologer-data-handling clauses. |
 | 8 | **SEO basics** (meta, OG, robots, sitemap) | 2 days | TBD | Discoverable from day 1 on "KP astrology app" / "AI astrology" searches. |
@@ -91,17 +91,24 @@ pool. Public consumer launch later, separate roadmap.
 
 ---
 
-## Open decisions (must be answered before Week 3)
+## Open decisions
 
-| # | Decision | My recommendation | User decision |
-|---|---|---|---|
-| 1 | Route segment refactor (yes / defer)? | **Yes, do it Week 3-4** | _pending_ |
-| 2 | Database (Neon / Railway / other)? | **Neon free tier; migrate to Neon paid at scale** | _pending_ |
-| 3 | Pricing point (₹999 / ₹1,499 / ₹1,999 / year)? | **₹1,499/yr or equivalent monthly** (balanced) | _pending_ |
-| 4 | Free trial length (14 days / 30 days / none)? | **30 days, gates after** | _pending_ |
-| 5 | Max clients per astrologer (cap or unlimited)? | **Unlimited (charge for usage scale later)** | _pending_ |
-| 6 | Email provider (Resend / SendGrid / SES)? | **Resend** (cheapest + cleanest API) | _pending_ |
-| 7 | OAuth providers v1 (email-only / +Google / +Apple)? | **Email-only v1, OAuth later** | _pending_ |
+Updated 2026-06-01. Pricing, payment, and business setup were
+discussed in depth and are now spec'd separately in
+[`pricing-payment-business-spec.md`](./pricing-payment-business-spec.md).
+
+| # | Decision | Status |
+|---|---|---|
+| 1 | Route segment refactor (yes / defer)? | _pending_ — recommend yes Week 3-4 |
+| 2 | Database (Neon / Railway / other)? | _pending_ — recommend Neon free tier |
+| 3 | **Pricing tiers + AI quotas** | ✅ **DECIDED 2026-06-01.** Plus ₹499/mo (5 AI q), Pro ₹1,499/mo (30 AI q), top-up packs ₹200/500/1000. See pricing spec. |
+| 4 | **Free trial length** | ✅ **DECIDED 2026-06-01.** 30 days of Plus, no credit card upfront. |
+| 5 | Max clients per astrologer (cap or unlimited)? | _pending_ — recommend unlimited |
+| 6 | Email provider (Resend / SendGrid / SES)? | _pending_ — recommend Resend |
+| 7 | OAuth providers v1 (email-only / +Google / +Apple)? | _pending_ — recommend email-only v1 |
+| 8 | **Payment processor** | ✅ **DECIDED 2026-06-01.** Razorpay (UPI Autopay critical; Stripe ruled out). See pricing spec. |
+| 9 | **Business entity + registration country** | ✅ **DECIDED 2026-06-01.** India sole proprietorship in dad's name (resident Indian, zero NRI hassle). Ultra-lean start: NO Udyam / Current Account / GST / CA until revenue triggers cross thresholds. See pricing spec § 5. |
+| 10 | **Workspace features for Plus tier** (notes per client, today's appointments, prediction accuracy tracking, etc.) | _pending discussion_ — next strategic conversation. Plus tier needs strong deterministic feature set so AI-disabled users feel value, not crippled. |
 
 ---
 

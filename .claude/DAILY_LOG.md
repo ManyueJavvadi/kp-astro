@@ -828,3 +828,137 @@ covers:
   free tier ever again — auto-pause is unacceptable for paying users.
 - **Route refactor is the right architectural fix** for the back
   button issue. Pending user decision.
+
+---
+
+## 2026-06-01 (IST) — Pricing + payment + business setup locked in
+
+Continued the Sept 9 launch strategy conversation. Four big decisions
+landed today.
+
+### 1. Pricing model: TWO tiers + top-up packs
+
+After exploring 5 hybrid models, locked the simplest one:
+- **Plus tier: ₹499/month** (5 included AI questions, all deterministic
+  features)
+- **Pro tier: ₹1,499/month** (30 included AI questions, priority
+  support)
+- **Top-up packs:** ₹200 → 5q, ₹500 → 15q, ₹1000 → 35q (anyone can
+  buy, never expire)
+- **Annual: ~17% off** both tiers
+- **Free trial:** 30 days of Plus, no credit card upfront
+
+Margin math at ₹30/q Claude cost:
+- Plus: ~₹237/mo net (48% margin)
+- Pro: ~₹464/mo net (31% margin)
+- Top-ups: ~8% margin (friction-removal product, not profit center)
+
+### 2. AI vs deterministic feature map clarified
+
+Important realization (user prompted): much of the app is
+deterministic and would be on BOTH tiers regardless. AI is a smaller
+slice than I thought.
+
+DETERMINISTIC (both tiers):
+- Chart, Houses, Dasha, Panchang
+- Muhurtha — ranked windows, best-window detail, FULL REASONING TRACE,
+  "ASTROLOGER NOTES · COPY-PASTE READY" (template-filled engine
+  output)
+- Horary — KP yes/no verdict, 4-level sigs, sub-lord chains
+- Match — compatibility verdict, score, per-house grid
+- Client portal pages, PDF exports
+
+AI (counts against tier quota):
+- Analysis tab (every q)
+- Multi-chart analysis + @ mentions
+- Topic chips in Analysis
+- "Ask a deeper question" workspace input
+- AI Muhurtha Analysis section (chips + ask)
+- AI Match Analysis chat
+- Horary "explain" chips (need to verify codepath)
+
+This is what makes the Plus tier (5 q/mo only) genuinely valuable on
+its own — not crippled, just AI-throttled.
+
+### 3. Payment processor: Razorpay (Stripe ruled out)
+
+Two parallel research agents confirmed:
+- Razorpay = India-native, UPI Autopay built-in, sole prop friendly
+- Stripe = Canada-based for our entity would lose UPI Autopay
+- UPI Autopay is CRITICAL for ₹499-1,499/mo Indian subscriptions
+- 2% + 18% GST on fee = effective ~2.36% per transaction
+- No setup fee, no AMC, no monthly minimum
+- 1-3 day onboarding, new CKYC fast-track in 2026
+
+### 4. Business entity: India sole prop under DAD (resident Indian)
+
+User pivoted from "NRI setup" to "register in dad's name" — dramatic
+simplification. Dad is resident Indian, full citizen, lives in India
+full-time. Zero FEMA / NRI / DTAA complications.
+
+Then user pivoted AGAIN to "if we have only 10 customers, do we
+really need ALL this formality?" — leading to the right answer:
+ULTRA-LEAN START.
+
+Threshold ladder (locked-in plan):
+```
+₹0 → ₹2.5L/yr: NO Udyam, NO Current Account, NO GST, NO CA.
+              Just Razorpay on dad's PAN + savings account.
+              Dad MAY file ITR if total income > exemption.
+              YEAR-1 COST: ₹0 (or ~₹2k for ITR if needed).
+
+₹2.5L → ₹10L/yr: Dad files ITR-4 (presumptive), CA worth engaging
+                  (~₹5k/year).
+
+₹10L → ₹20L/yr: Add Udyam (free) + Current Account at HDFC/ICICI.
+                 CA standard (~₹500-1,500/mo retainer).
+
+₹20L+/yr: MANDATORY GST registration within 30 days.
+          Add 18% to invoices. QRMP scheme for quarterly filings.
+
+₹50L+/yr: Consider converting to Pvt Ltd.
+```
+
+Money flow: Customer (India) → Razorpay (2% fee) → Dad's savings →
+Family transfer to son (legal gift, no tax).
+
+### Docs created/updated
+
+- New: `.claude/research/pricing-payment-business-spec.md` (canonical
+  pricing + payment + business setup)
+- Updated: `.claude/research/launch-tracker-2026-09-09.md` (decisions
+  marked locked + link to new spec)
+- Updated: `.claude/HANDOFF-2026-05-28-launch-prep.md` (4 of 16
+  decisions now locked: pricing, trial, payment, entity)
+
+### Pending — next strategic conversation
+
+**Workspace features for Plus tier.** Since Plus is AI-throttled (5
+q/mo), the deterministic features must be GOOD enough that users
+don't feel crippled. Need to design:
+- Astrologer notes per client (in-astrologer UI, complements client
+  portal pages)
+- Prediction accuracy tracking over time (verdict log + outcome
+  check + accuracy %)
+- Today's appointments view (calendar / list)
+- Workspace navigation post-launch (with all new features in)
+
+Goal: AI-disabled astrologer can run their entire practice on the
+app and only buy top-up questions when they specifically want AI
+help on hard cases. Plus tier = real product, not a teaser.
+
+### Notes for future Claude
+
+- **Pricing is LOCKED** (Plus ₹499, Pro ₹1,499, top-ups ₹200/500/1000).
+  Don't propose changing without explicit user reopen.
+- **Razorpay only** for v1. Stripe deferred to international users
+  later.
+- **Sole prop in dad's name** — money flows to dad. Be intentional
+  about how you talk about it; legally it's dad's business, son is
+  building it.
+- **Ultra-lean formality** — no Udyam/GST/CA at start. Add only when
+  threshold ladder triggers.
+- **The 4 client-portal v1 design decisions** + the workspace
+  features design = the remaining strategic conversations. Continue
+  from `.claude/research/pricing-payment-business-spec.md` §6 and
+  `.claude/research/client-portal-spec.md`.

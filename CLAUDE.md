@@ -21,9 +21,12 @@ This deadline is user-set, ~14 weeks out as of doc creation.
    checklist + 14-week sequencing.
 2. `.claude/HANDOFF-2026-05-28-launch-prep.md` — strategic
    handoff from the 2026-05-28 strategy session.
-3. `.claude/research/client-portal-spec.md` — the killer
+3. `.claude/research/pricing-payment-business-spec.md` — LOCKED
+   pricing (Plus ₹499 / Pro ₹1,499 / top-ups), Razorpay,
+   India sole prop in dad's name, ultra-lean formality.
+4. `.claude/research/client-portal-spec.md` — the killer
    differentiator (per-client unique URLs).
-4. `.claude/research/matching-network-spec.md` — Phase M
+5. `.claude/research/matching-network-spec.md` — Phase M
    (post-launch v1.5, Nov 2026).
 
 **Active focus until Sept 9:**

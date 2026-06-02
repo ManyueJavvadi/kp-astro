@@ -61,11 +61,19 @@ approved for v1.5. Several pending decisions before code starts.
    robots.txt, Schema.org JSON-LD).
 
 9. **Still to discuss in next session:**
-   - Payment integration (Razorpay vs Stripe, pricing structure)
+   - ~~Payment integration (Razorpay vs Stripe, pricing structure)~~
+     ✅ **DECIDED 2026-06-01.** Razorpay + 2-tier pricing (Plus
+     ₹499/mo with 5 AI q, Pro ₹1,499/mo with 30 AI q) + top-up packs
+     + 30-day free trial. Business entity: India sole prop in dad's
+     name (resident Indian, zero NRI hassle). Full spec at
+     `.claude/research/pricing-payment-business-spec.md`.
    - Workspace features: astrologer notes per client, prediction
-     accuracy tracking over time
-   - Today's appointments view
-   - Specific design of the workspace navigation post-launch
+     accuracy tracking over time, today's appointments view, what
+     deterministic features make Plus tier genuinely valuable
+     (without making AI-disabled users feel crippled). **STILL
+     PENDING — next strategic conversation.**
+   - Specific design of the workspace navigation post-launch (depends
+     on workspace features discussion)
 
 ---
 
@@ -73,24 +81,26 @@ approved for v1.5. Several pending decisions before code starts.
 
 These are blocking the code start. Listed by priority:
 
-| # | Decision | My recommendation | User decision |
-|---|---|---|---|
-| 1 | Route segment refactor — yes or defer? | **Yes, do it Week 3-4** | _pending_ |
-| 2 | Database choice (Neon / Railway / other)? | **Neon free tier** | _pending_ |
-| 3 | Pricing point (₹999 / ₹1,499 / ₹1,999/yr)? | ₹1,499/yr | _pending_ |
-| 4 | Free trial length (14 / 30 / none)? | 30 days | _pending_ |
-| 5 | Max clients per astrologer? | Unlimited | _pending_ |
-| 6 | Email provider (Resend / SendGrid / SES)? | Resend | _pending_ |
-| 7 | OAuth v1 (email-only / +Google / +Apple)? | Email-only v1 | _pending_ |
-| 8 | Client portal Q1: what client SEES (notes only / full chart / simplified snapshot)? | Simplified snapshot + notes | _pending_ |
-| 9 | Client portal Q2: consult-back (WhatsApp / in-app / both)? | WhatsApp v1 | _pending_ |
-| 10 | Client portal Q3: notes organization (chronological / by topic / both)? | Chronological v1 | _pending_ |
-| 11 | Client portal Q4: per-URL permanence (forever / per-session)? | Forever | _pending_ |
-| 12 | Client portal Q5: bilingual writing (manual / AI-translated)? | Manual v1 | _pending_ |
-| 13 | Client portal Q6: URL privacy (UUID / +PIN / +OTP)? | Plain UUID v1 | _pending_ |
-| 14 | Client portal Q7: branding (astrologer-first / DevAstroAI-first / equal)? | Astrologer-first | _pending_ |
+| # | Decision | Status (as of 2026-06-01) |
+|---|---|---|
+| 1 | Route segment refactor — yes or defer? | _pending_ — recommend yes Week 3-4 |
+| 2 | Database choice (Neon / Railway / other)? | _pending_ — recommend Neon free tier |
+| 3 | Pricing point | ✅ **DECIDED.** Plus ₹499/mo + Pro ₹1,499/mo + top-ups. See `pricing-payment-business-spec.md`. |
+| 4 | Free trial length | ✅ **DECIDED.** 30 days of Plus, no credit card upfront. |
+| 5 | Max clients per astrologer? | _pending_ — recommend unlimited |
+| 6 | Email provider (Resend / SendGrid / SES)? | _pending_ — recommend Resend |
+| 7 | OAuth v1 (email-only / +Google / +Apple)? | _pending_ — recommend email-only v1 |
+| 8 | Client portal Q1: what client SEES | _pending_ — recommend simplified snapshot + notes |
+| 9 | Client portal Q2: consult-back method | _pending_ — recommend WhatsApp v1 |
+| 10 | Client portal Q3: notes organization | _pending_ — recommend chronological v1 |
+| 11 | Client portal Q4: per-URL permanence | _pending_ — recommend permanent |
+| 12 | Client portal Q5: bilingual writing | _pending_ — recommend manual v1 |
+| 13 | Client portal Q6: URL privacy | _pending_ — recommend plain UUID v1 |
+| 14 | Client portal Q7: branding | _pending_ — recommend astrologer-first |
+| 15 | **Payment processor** | ✅ **DECIDED 2026-06-01.** Razorpay. See pricing spec. |
+| 16 | **Business entity** | ✅ **DECIDED 2026-06-01.** India sole proprietorship in dad's name. Ultra-lean: no Udyam / Current / GST / CA until thresholds. See pricing spec § 5. |
 
-User said: *"let me think more carefully and discuss few more things before we start doing anything."* All 14 of these are part of that thinking.
+Of original 14 + 2 new: **4 decisions LOCKED** (pricing, trial, payment, business entity). **12 still pending**. Most pending are client-portal v1 design choices that we'll batch-decide together when we get to Week 5-7 of the launch tracker.
 
 ---
 
