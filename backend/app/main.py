@@ -30,6 +30,10 @@ from app.routers import panchangam
 # degradation; the chart/horary/etc. read-only endpoints still work).
 from app.routers import me as me_router
 from app.routers import chart_sessions as chart_sessions_router
+# Phase 2 Slice 2 (2026-06-02) — CRM clients CRUD. Auth-gated. Returns
+# 503 if DB not configured (same graceful-degradation pattern as the
+# rest of Phase 1+ endpoints).
+from app.routers import clients as clients_router
 
 # ════════════════════════════════════════════════════════════════
 # Logging — structured-ish single-line records
@@ -262,6 +266,11 @@ app.include_router(
     chart_sessions_router.router,
     prefix="/chart-sessions",
     tags=["Chart Sessions"],
+)
+app.include_router(
+    clients_router.router,
+    prefix="/clients",
+    tags=["Clients"],
 )
 
 
