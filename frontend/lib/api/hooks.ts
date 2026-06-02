@@ -174,7 +174,81 @@ export const queryKeys = {
   chartSession: (id: string) => ["chart-sessions", id] as const,
   clients: ["clients"] as const,
   client: (id: string) => ["clients", id] as const,
+  clientNotes: (clientId: string) => ["clients", clientId, "notes"] as const,
+  portal: (slug: string) => ["portal", slug] as const,
 };
+
+// ─── Client notes (Phase 3 Slice 1) ───────────────────────────────────
+
+export interface NotePublic {
+  id: string;
+  client_id: string;
+  text: string;
+  language: string;
+  note_type: string;
+  is_private: boolean;
+  expected_resolution_date: string | null;
+  resolved: boolean | null;
+  resolved_at: string | null;
+  resolution_note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NoteCreate {
+  text: string;
+  language?: "en" | "te" | "te_en";
+  note_type?: string;
+  is_private?: boolean;
+  expected_resolution_date?: string;
+  resolved?: boolean;
+  resolved_at?: string;
+  resolution_note?: string;
+}
+
+export type NoteUpdate = Partial<NoteCreate>;
+
+export interface NoteList {
+  items: NotePublic[];
+  total: number;
+}
+
+// ─── Client portal public response (Phase 3 Slice 1) ──────────────────
+
+export interface PortalKpSnapshot {
+  lagna_en: string | null;
+  moon_sign_en: string | null;
+  moon_nakshatra_en: string | null;
+  sun_sign_en: string | null;
+  current_mahadasha_lord: string | null;
+  current_antardasha_lord: string | null;
+  current_mahadasha_period_end: string | null;
+}
+
+export interface PortalNote {
+  text: string;
+  language: string;
+  note_type: string;
+  created_at: string;
+}
+
+export interface PortalAstrologer {
+  display_name: string | null;
+  years_practicing: number | null;
+  is_verified: boolean;
+  whatsapp_consult_url: string | null;
+}
+
+export interface PortalResponse {
+  client_name: string;
+  client_birth_date: string | null;
+  client_birth_time: string | null;
+  client_birth_place: string | null;
+  client_gender: string | null;
+  snapshot: PortalKpSnapshot | null;
+  notes: PortalNote[];
+  astrologer: PortalAstrologer;
+}
 
 // ─── /me ─────────────────────────────────────────────────────────────
 
@@ -498,5 +572,86 @@ export function useDeleteClient() {
       // Chart sessions are cascade-deleted; invalidate that cache too.
       qc.invalidateQueries({ queryKey: queryKeys.chartSessions });
     },
+  });
+}
+
+// ─── Client notes (Phase 3 Slice 1) ───────────────────────────────────
+
+export function useClientNotes(clientId: string | null | undefined) {
+  const { status, getAccessToken } = useAuth();
+  return useQuery<NoteList, Error>({
+    queryKey: clientId ? queryKeys.clientNotes(clientId) : ["notes", "noop"],
+    queryFn: () =>
+      apiFetch<NoteList>(`/clients/${clientId}/notes`, { getToken: getAccessToken }),
+    enabled: Boolean(clientId) && status === "authenticated",
+  });
+}
+
+export function useCreateNote(clientId: string) {
+  const { getAccessToken } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: NoteCreate) =>
+      apiFetch<NotePublic>(`/clients/${clientId}/notes`, {
+        method: "POST",
+        body: payload,
+        getToken: getAccessToken,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.clientNotes(clientId) });
+      // note_count on the client row will be stale; invalidate clients
+      // list + this client too
+      qc.invalidateQueries({ queryKey: queryKeys.clients });
+      qc.invalidateQueries({ queryKey: queryKeys.client(clientId) });
+    },
+  });
+}
+
+export function useUpdateNote(clientId: string, noteId: string) {
+  const { getAccessToken } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (patch: NoteUpdate) =>
+      apiFetch<NotePublic>(`/clients/${clientId}/notes/${noteId}`, {
+        method: "PATCH",
+        body: patch,
+        getToken: getAccessToken,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.clientNotes(clientId) });
+    },
+  });
+}
+
+export function useDeleteNote(clientId: string) {
+  const { getAccessToken } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (noteId: string) =>
+      apiFetch<void>(`/clients/${clientId}/notes/${noteId}`, {
+        method: "DELETE",
+        getToken: getAccessToken,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.clientNotes(clientId) });
+      qc.invalidateQueries({ queryKey: queryKeys.clients });
+      qc.invalidateQueries({ queryKey: queryKeys.client(clientId) });
+    },
+  });
+}
+
+// ─── Public client portal (Phase 3 Slice 1) ───────────────────────────
+
+/**
+ * Fetch the public portal payload for a given slug. No auth required.
+ * Used in the /c/[slug] public route (Slice 2).
+ */
+export function usePortal(slug: string | null | undefined) {
+  return useQuery<PortalResponse, Error>({
+    queryKey: slug ? queryKeys.portal(slug) : ["portal", "noop"],
+    // Portal endpoint is public — don't send Authorization header
+    // (would interfere with any future CSRF / origin guards).
+    queryFn: () => apiFetch<PortalResponse>(`/c/${slug}`),
+    enabled: Boolean(slug),
   });
 }
