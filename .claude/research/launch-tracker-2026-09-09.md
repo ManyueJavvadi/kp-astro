@@ -106,6 +106,10 @@ discussed in depth and are now spec'd separately in
 | 5 | Max clients per astrologer (cap or unlimited)? | _pending_ — recommend unlimited |
 | 6 | Email provider (Resend / SendGrid / SES)? | _pending_ — recommend Resend |
 | 7 | OAuth providers v1 (email-only / +Google / +Apple)? | _pending_ — recommend email-only v1 |
+| 7a | **ORM / DB layer** | ✅ **DECIDED 2026-06-01.** SQLAlchemy 2.0 (async) + Alembic. See `architecture-decisions-2026-06-01.md`. |
+| 7b | **Auth provider** | ✅ **DECIDED 2026-06-01.** Supabase Auth (auth-only; DB stays on Railway). Delete dormant Supabase, create fresh project. |
+| 7c | **FE/BE type sync** | ✅ **DECIDED 2026-06-01.** OpenAPI codegen → TypeScript via `openapi-typescript`. |
+| 7d | **Frontend state architecture** | ✅ **DECIDED 2026-06-01.** Context (auth) + Zustand (UI) + TanStack Query (server data). |
 | 8 | **Payment processor** | ✅ **DECIDED 2026-06-01.** Razorpay (UPI Autopay critical; Stripe ruled out). See pricing spec. |
 | 9 | **Business entity + registration country** | ✅ **DECIDED 2026-06-01.** India sole proprietorship in dad's name (resident Indian, zero NRI hassle). Ultra-lean start: NO Udyam / Current Account / GST / CA until revenue triggers cross thresholds. See pricing spec § 5. |
 | 10 | **Workspace features for Plus tier** (notes per client, today's appointments, prediction accuracy tracking, etc.) | _pending discussion_ — next strategic conversation. Plus tier needs strong deterministic feature set so AI-disabled users feel value, not crippled. |
