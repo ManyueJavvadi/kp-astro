@@ -422,15 +422,21 @@ def health():
     try:
         from app.config import get_settings as _gs2
         _settings2 = _gs2()
-        checks["auth"] = {
-            "status": "ok" if _settings2.auth_configured else "fail",
-            "detail": (
-                "SUPABASE_URL + SUPABASE_JWT_SECRET configured"
-                if _settings2.auth_configured
-                else "SUPABASE_URL or SUPABASE_JWT_SECRET unset "
-                "(auth-gated endpoints will 503)"
-            ),
-        }
+        # auth_configured now only requires SUPABASE_URL (JWKS URL derived
+        # from it covers the new asymmetric flow). JWT_SECRET is optional —
+        # only needed for legacy HS256 tokens. Surface both states in detail.
+        if _settings2.auth_configured:
+            has_secret = bool(_settings2.SUPABASE_JWT_SECRET)
+            detail = (
+                "SUPABASE_URL configured (asymmetric JWKS flow active)"
+                + (" + legacy HS256 secret available" if has_secret else "")
+            )
+            checks["auth"] = {"status": "ok", "detail": detail}
+        else:
+            checks["auth"] = {
+                "status": "fail",
+                "detail": "SUPABASE_URL unset (auth-gated endpoints will 503)",
+            }
     except Exception as e:
         checks["auth"] = {
             "status": "fail",

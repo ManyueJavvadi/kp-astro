@@ -162,8 +162,20 @@ class Settings(BaseSettings):
 
     @property
     def auth_configured(self) -> bool:
-        """True if Supabase JWT verification can run."""
-        return bool(self.SUPABASE_URL and self.SUPABASE_JWT_SECRET)
+        """True if Supabase JWT verification can run.
+
+        Only SUPABASE_URL is strictly required — it gives us both the
+        expected `iss` claim AND the JWKS endpoint URL for asymmetric
+        (RS256/ES256) verification of tokens issued by the new "JWT
+        Signing Keys" system.
+
+        SUPABASE_JWT_SECRET is only needed to verify HS256 tokens (the
+        legacy symmetric flow). Modern Supabase projects don't issue
+        HS256 user tokens, so the secret is optional. If a token DOES
+        arrive with HS256 alg and the secret isn't set, the verifier
+        raises invalid_token cleanly.
+        """
+        return bool(self.SUPABASE_URL)
 
     @property
     def database_url_async(self) -> Optional[str]:
