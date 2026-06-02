@@ -111,12 +111,69 @@ export interface ChartSessionMigrateResult {
   total_in_db_after: number;
 }
 
+// ─── Clients (Phase 2 Slice 2) ────────────────────────────────────────
+
+export interface ClientPublic {
+  id: string;
+  astrologer_id: string;
+  name: string;
+  portal_slug: string;
+
+  phone: string | null;
+  email: string | null;
+  gender: string | null;
+
+  birth_date: string | null;
+  birth_time: string | null;
+  birth_place_name: string | null;
+  birth_latitude: number | null;
+  birth_longitude: number | null;
+  birth_timezone_offset: number | null;
+
+  matching_opt_in: boolean | null;
+  summary: string | null;
+
+  /** Convenience counts populated by the backend. */
+  chart_session_count: number;
+  note_count: number;
+  last_session_at: string | null;
+
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClientCreate {
+  name: string;
+  phone?: string;
+  email?: string;
+  gender?: string;
+
+  birth_date?: string;
+  birth_time?: string;
+  birth_place_name?: string;
+  birth_latitude?: number;
+  birth_longitude?: number;
+  birth_timezone_offset?: number;
+
+  matching_opt_in?: boolean;
+  summary?: string;
+}
+
+export type ClientUpdate = Partial<ClientCreate>;
+
+export interface ClientList {
+  items: ClientPublic[];
+  total: number;
+}
+
 // ─── Query keys ───────────────────────────────────────────────────────
 
 export const queryKeys = {
   me: ["me"] as const,
   chartSessions: ["chart-sessions"] as const,
   chartSession: (id: string) => ["chart-sessions", id] as const,
+  clients: ["clients"] as const,
+  client: (id: string) => ["clients", id] as const,
 };
 
 // ─── /me ─────────────────────────────────────────────────────────────
@@ -314,6 +371,131 @@ export function useMigrateChartSessions() {
         getToken: getAccessToken,
       }),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.chartSessions });
+    },
+  });
+}
+
+// ─── /clients (Phase 2 Slice 2) ───────────────────────────────────────
+
+/**
+ * List the current astrologer's clients, most-recently-touched first.
+ * Auto-disabled while not authenticated.
+ */
+export function useClients(
+  options?: Omit<UseQueryOptions<ClientList, Error>, "queryKey" | "queryFn">,
+) {
+  const { status, getAccessToken } = useAuth();
+  return useQuery<ClientList, Error>({
+    queryKey: queryKeys.clients,
+    queryFn: () =>
+      apiFetch<ClientList>("/clients", { getToken: getAccessToken }),
+    enabled: status === "authenticated",
+    ...options,
+  });
+}
+
+/**
+ * Read one client by id. Disabled while id is null/undefined OR not
+ * authenticated.
+ */
+export function useClient(id: string | null | undefined) {
+  const { status, getAccessToken } = useAuth();
+  return useQuery<ClientPublic, Error>({
+    queryKey: id ? queryKeys.client(id) : ["clients", "noop"],
+    queryFn: () =>
+      apiFetch<ClientPublic>(`/clients/${id}`, { getToken: getAccessToken }),
+    enabled: Boolean(id) && status === "authenticated",
+  });
+}
+
+export function useCreateClient() {
+  const { getAccessToken } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: ClientCreate) =>
+      apiFetch<ClientPublic>("/clients", {
+        method: "POST",
+        body: payload,
+        getToken: getAccessToken,
+      }),
+    onSuccess: (data) => {
+      // Prepend to the list cache for instant UI feedback, then
+      // invalidate so the next read pulls authoritative ordering +
+      // counts.
+      qc.setQueryData<ClientList | undefined>(queryKeys.clients, (prev) =>
+        prev
+          ? { items: [data, ...prev.items], total: prev.total + 1 }
+          : { items: [data], total: 1 },
+      );
+      qc.setQueryData(queryKeys.client(data.id), data);
+      qc.invalidateQueries({ queryKey: queryKeys.clients });
+    },
+  });
+}
+
+export function useUpdateClient(id: string) {
+  const { getAccessToken } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (patch: ClientUpdate) =>
+      apiFetch<ClientPublic>(`/clients/${id}`, {
+        method: "PATCH",
+        body: patch,
+        getToken: getAccessToken,
+      }),
+    onSuccess: (data) => {
+      qc.setQueryData(queryKeys.client(id), data);
+      qc.invalidateQueries({ queryKey: queryKeys.clients });
+    },
+  });
+}
+
+/**
+ * Factory variant for client updates — id known at call time, not
+ * hook-construction time. Same pattern as useUpdateChartSessionByIdFactory.
+ */
+export function useUpdateClientByIdFactory() {
+  const { getAccessToken } = useAuth();
+  const qc = useQueryClient();
+  return (id: string) => ({
+    mutate: (
+      patch: ClientUpdate,
+      options?: {
+        onSuccess?: (data: ClientPublic) => void;
+        onError?: (error: unknown) => void;
+      },
+    ) => {
+      apiFetch<ClientPublic>(`/clients/${id}`, {
+        method: "PATCH",
+        body: patch,
+        getToken: getAccessToken,
+      })
+        .then((data) => {
+          qc.setQueryData(queryKeys.client(id), data);
+          qc.invalidateQueries({ queryKey: queryKeys.clients });
+          options?.onSuccess?.(data);
+        })
+        .catch((err) => {
+          options?.onError?.(err);
+        });
+    },
+  });
+}
+
+export function useDeleteClient() {
+  const { getAccessToken } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<void>(`/clients/${id}`, {
+        method: "DELETE",
+        getToken: getAccessToken,
+      }),
+    onSuccess: (_, id) => {
+      qc.removeQueries({ queryKey: queryKeys.client(id) });
+      qc.invalidateQueries({ queryKey: queryKeys.clients });
+      // Chart sessions are cascade-deleted; invalidate that cache too.
       qc.invalidateQueries({ queryKey: queryKeys.chartSessions });
     },
   });
