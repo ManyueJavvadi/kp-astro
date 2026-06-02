@@ -1,0 +1,272 @@
+"use client";
+
+/**
+ * TanStack Query hooks for the Phase 1 backend endpoints.
+ *
+ * Centralized here so every consumer (page.tsx, sidebar, profile screen)
+ * uses the same query keys + same auth wiring. Renaming a key or moving
+ * an endpoint then touches one file.
+ *
+ * Query keys are tuples — TanStack convention. The first element is
+ * the resource ("me", "chart-sessions"), the rest are scopes.
+ */
+
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type UseQueryOptions,
+} from "@tanstack/react-query";
+import { useAuth } from "../auth/auth-context";
+import { apiFetch } from "./client";
+
+// ─── Types (hand-written; will be replaced by openapi-typescript generated
+//      file in P1.6) ─────────────────────────────────────────────────
+
+export interface AstrologerPublic {
+  id: string;
+  email: string;
+  display_name: string | null;
+  bio: string | null;
+  photo_url: string | null;
+  phone: string | null;
+  years_practicing: number | null;
+  is_verified: boolean;
+  default_language: string;
+  onboarded_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AstrologerUpdate {
+  display_name?: string;
+  bio?: string;
+  photo_url?: string;
+  phone?: string;
+  years_practicing?: number;
+  default_language?: "en" | "te" | "te_en";
+}
+
+export interface ChartSessionPublic {
+  id: string;
+  astrologer_id: string;
+  client_id: string | null;
+  name: string;
+
+  birth_name: string | null;
+  birth_date: string | null;
+  birth_time: string | null;
+  birth_ampm: string | null;
+  birth_place_name: string | null;
+  birth_latitude: number | null;
+  birth_longitude: number | null;
+  birth_timezone_offset: number | null;
+  birth_gender: string | null;
+
+  chart_data: Record<string, unknown> | null;
+  workspace_data: Record<string, unknown> | null;
+  analysis_messages: Array<Record<string, unknown>> | null;
+  ui_state: Record<string, unknown> | null;
+  session_notes: string | null;
+
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChartSessionCreate {
+  name: string;
+  client_id?: string;
+
+  birth_name?: string;
+  birth_date?: string;
+  birth_time?: string;
+  birth_ampm?: string;
+  birth_place_name?: string;
+  birth_latitude?: number;
+  birth_longitude?: number;
+  birth_timezone_offset?: number;
+  birth_gender?: string;
+
+  chart_data?: Record<string, unknown>;
+  workspace_data?: Record<string, unknown>;
+  analysis_messages?: Array<Record<string, unknown>>;
+  ui_state?: Record<string, unknown>;
+  session_notes?: string;
+}
+
+export type ChartSessionUpdate = Partial<ChartSessionCreate>;
+
+export interface ChartSessionList {
+  items: ChartSessionPublic[];
+  total: number;
+}
+
+export interface ChartSessionMigrateRequest {
+  sessions: ChartSessionCreate[];
+}
+
+export interface ChartSessionMigrateResult {
+  imported: number;
+  skipped: number;
+  total_in_db_after: number;
+}
+
+// ─── Query keys ───────────────────────────────────────────────────────
+
+export const queryKeys = {
+  me: ["me"] as const,
+  chartSessions: ["chart-sessions"] as const,
+  chartSession: (id: string) => ["chart-sessions", id] as const,
+};
+
+// ─── /me ─────────────────────────────────────────────────────────────
+
+/**
+ * Fetch the current astrologer's profile. Auto-disabled while not
+ * authenticated (returns idle status, no network call).
+ */
+export function useMe(
+  options?: Omit<
+    UseQueryOptions<AstrologerPublic, Error>,
+    "queryKey" | "queryFn"
+  >,
+) {
+  const { status, getAccessToken } = useAuth();
+  return useQuery<AstrologerPublic, Error>({
+    queryKey: queryKeys.me,
+    queryFn: () => apiFetch<AstrologerPublic>("/me", { getToken: getAccessToken }),
+    enabled: status === "authenticated",
+    ...options,
+  });
+}
+
+export function useUpdateMe() {
+  const { getAccessToken } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (patch: AstrologerUpdate) =>
+      apiFetch<AstrologerPublic>("/me", {
+        method: "PATCH",
+        body: patch,
+        getToken: getAccessToken,
+      }),
+    onSuccess: (data) => {
+      // Replace the cached /me with the server's response so the UI
+      // reflects the canonical row (incl. updated_at).
+      qc.setQueryData(queryKeys.me, data);
+    },
+  });
+}
+
+// ─── /chart-sessions ──────────────────────────────────────────────────
+
+export function useChartSessions(
+  options?: Omit<
+    UseQueryOptions<ChartSessionList, Error>,
+    "queryKey" | "queryFn"
+  >,
+) {
+  const { status, getAccessToken } = useAuth();
+  return useQuery<ChartSessionList, Error>({
+    queryKey: queryKeys.chartSessions,
+    queryFn: () =>
+      apiFetch<ChartSessionList>("/chart-sessions", {
+        getToken: getAccessToken,
+      }),
+    enabled: status === "authenticated",
+    ...options,
+  });
+}
+
+export function useChartSession(id: string | null | undefined) {
+  const { status, getAccessToken } = useAuth();
+  return useQuery<ChartSessionPublic, Error>({
+    queryKey: id ? queryKeys.chartSession(id) : ["chart-sessions", "noop"],
+    queryFn: () =>
+      apiFetch<ChartSessionPublic>(`/chart-sessions/${id}`, {
+        getToken: getAccessToken,
+      }),
+    enabled: Boolean(id) && status === "authenticated",
+  });
+}
+
+export function useCreateChartSession() {
+  const { getAccessToken } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: ChartSessionCreate) =>
+      apiFetch<ChartSessionPublic>("/chart-sessions", {
+        method: "POST",
+        body: payload,
+        getToken: getAccessToken,
+      }),
+    onSuccess: (data) => {
+      // Prepend to the list cache for immediate UI feedback, then
+      // invalidate so the next read pulls authoritative ordering.
+      qc.setQueryData<ChartSessionList | undefined>(
+        queryKeys.chartSessions,
+        (prev) =>
+          prev
+            ? { items: [data, ...prev.items], total: prev.total + 1 }
+            : { items: [data], total: 1 },
+      );
+      qc.setQueryData(queryKeys.chartSession(data.id), data);
+      qc.invalidateQueries({ queryKey: queryKeys.chartSessions });
+    },
+  });
+}
+
+export function useUpdateChartSession(id: string) {
+  const { getAccessToken } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (patch: ChartSessionUpdate) =>
+      apiFetch<ChartSessionPublic>(`/chart-sessions/${id}`, {
+        method: "PATCH",
+        body: patch,
+        getToken: getAccessToken,
+      }),
+    onSuccess: (data) => {
+      qc.setQueryData(queryKeys.chartSession(id), data);
+      qc.invalidateQueries({ queryKey: queryKeys.chartSessions });
+    },
+  });
+}
+
+export function useDeleteChartSession() {
+  const { getAccessToken } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<void>(`/chart-sessions/${id}`, {
+        method: "DELETE",
+        getToken: getAccessToken,
+      }),
+    onSuccess: (_, id) => {
+      qc.removeQueries({ queryKey: queryKeys.chartSession(id) });
+      qc.invalidateQueries({ queryKey: queryKeys.chartSessions });
+    },
+  });
+}
+
+/**
+ * One-time bulk import from localStorage. Frontend pulls the user's
+ * `devastroai:savedSessions` array, transforms each entry to a
+ * ChartSessionCreate, and posts the whole batch. Idempotent on the
+ * backend (dedups by name + birth fields).
+ */
+export function useMigrateChartSessions() {
+  const { getAccessToken } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: ChartSessionMigrateRequest) =>
+      apiFetch<ChartSessionMigrateResult>("/chart-sessions/migrate", {
+        method: "POST",
+        body: payload,
+        getToken: getAccessToken,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.chartSessions });
+    },
+  });
+}

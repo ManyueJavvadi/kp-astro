@@ -4,6 +4,17 @@ import "./globals.css";
 // MotionConfig (reduced-motion support) + Lenis smooth scroll.
 // See components/motion/MotionRoot.tsx for what it does and why.
 import { MotionRoot } from "@/components/motion/MotionRoot";
+// Phase 1 (2026-06-01) — auth + server-state foundation.
+// AuthProvider: Supabase session listener + signIn/signUp/etc helpers
+//   (ADR-002). Available everywhere via useAuth().
+// QueryProvider: TanStack Query client (ADR-004) for server data
+//   caching. Mounted at root so all routes (including auth pages)
+//   share a QueryClient instance.
+// Both are no-ops when their respective env vars are missing — pages
+// that need them show clear "not configured yet" messages instead
+// of crashing. See SETUP-PHASE-1.md.
+import { AuthProvider } from "@/lib/auth/auth-context";
+import { QueryProvider } from "@/lib/api/query-client";
 
 export const metadata: Metadata = {
   title: "DevAstroAI — KP Astrology Intelligence",
@@ -55,7 +66,15 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <MotionRoot>{children}</MotionRoot>
+        {/* QueryProvider (outermost): provides TanStack Query client
+            to everything. AuthProvider (next): provides Supabase
+            session state. MotionRoot (innermost-of-these): wraps in
+            MotionConfig + Lenis. children = page content. */}
+        <QueryProvider>
+          <AuthProvider>
+            <MotionRoot>{children}</MotionRoot>
+          </AuthProvider>
+        </QueryProvider>
       </body>
     </html>
   );
