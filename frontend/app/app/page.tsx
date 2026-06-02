@@ -122,6 +122,12 @@ import { DashboardTab } from "./tabs/DashboardTab";
 import { PanchangTab } from "./tabs/PanchangTab";
 import { SectionEyebrow } from "./components/SectionEyebrow";
 import { TOPICS, TOPIC_EMOJI } from "./lib/topics";
+// Commit B of route-segment-refactor (2026-06-01) — lift the truly-global
+// workspace state out of this component into a Context (provider mounted
+// in /app/layout.tsx). Identical setter signatures, so call sites below
+// don't change — only the declarations get swapped from useState to
+// destructured useWorkspace() reads.
+import { useWorkspace } from "./_lib/workspace-context";
 
 // PR A1.3-fix-24 — env-derived. NEXT_PUBLIC_API_URL overrides for staging
 // or local dev; production fallback unchanged. Set in .env.local for dev.
@@ -135,8 +141,17 @@ export default function Home() {
   // Panchang). KP RPs require the astrologer's CURRENT location, not
   // the natal location. No natal fallback.
   const liveLoc = useLiveLocation();
-  const [mode, setMode] = useState<"user" | "astrologer">("user");
-  const [birthDetails, setBirthDetails] = useState<BirthDetails>({ name: "", date: "", time: "", ampm: "AM", place: "", latitude: null, longitude: null, gender: "" });
+  // Commit B (2026-06-01) — these 5 state pieces lifted into WorkspaceContext.
+  // Identical setter signatures + same destructured names, so every existing
+  // call site below (`setMode("astrologer")`, `setBirthDetails(prev => ...)`,
+  // etc.) keeps working without modification.
+  const {
+    mode, setMode,
+    birthDetails, setBirthDetails,
+    setupDone, setSetupDone,
+    chartData, setChartData,
+    workspaceData, setWorkspaceData,
+  } = useWorkspace();
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [placeStatus, setPlaceStatus] = useState<"idle" | "loading" | "found" | "error">("idle");
@@ -144,9 +159,6 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [chartLoading, setChartLoading] = useState(false);
-  const [setupDone, setSetupDone] = useState(false);
-  const [chartData, setChartData] = useState<any>(null);
-  const [workspaceData, setWorkspaceData] = useState<any>(null);
   const [rectifying, setRectifying] = useState(false);
 
   // PR R3-PR1 — Single source of truth for "the chart state changed,
@@ -343,8 +355,11 @@ export default function Home() {
     },
     [_sel, selectedHouse],
   );
-  const [savedSessions, setSavedSessions] = useState<ChartSession[]>([]);
-  const [currentSessionId, setCurrentSessionId] = useState<string>("");
+  // Commit B (2026-06-01) — lifted into WorkspaceContext.
+  // savedSessions + currentSessionId are read across Chart/Houses/Dasha/
+  // Analysis/Match tabs (the multi-chart switcher pulls from savedSessions;
+  // analysisMessages key off currentSessionId).
+  const { savedSessions, setSavedSessions, currentSessionId, setCurrentSessionId } = useWorkspace();
   // New-chart floating modal: kept separate from the initial `!setupDone`
   // onboarding so the workspace stays mounted (and visibly blurred) behind.
   const [newChartModalOpen, setNewChartModalOpen] = useState(false);
@@ -513,9 +528,15 @@ export default function Home() {
   // The backend now also resolves authoritatively from lat/lon+date,
   // so this state is informational — but we keep it accurate so the
   // form's "tz IST/PDT/EST" label matches what the engine computes.
-  const [timezoneOffset, setTimezoneOffset] = useState(5.5);
-  const [timezoneLabel, setTimezoneLabel] = useState("IST");
-  const [timezoneIana, setTimezoneIana] = useState<string | null>(null);
+  // Commit B (2026-06-01) — lifted into WorkspaceContext.
+  // Timezone of the active chart's birthplace; used by chart engine
+  // call, by Match/Muhurtha (event tz can override), and shown on
+  // the form's tz label. Initial defaults still 5.5/IST via provider.
+  const {
+    timezoneOffset, setTimezoneOffset,
+    timezoneLabel, setTimezoneLabel,
+    timezoneIana, setTimezoneIana,
+  } = useWorkspace();
   // Muhurtha Step 3 expanded state + AI
   const [mExpandedWindow, setMExpandedWindow] = useState<number | null>(null);
   const [mSelectedDate, setMSelectedDate] = useState<string | null>(null);
