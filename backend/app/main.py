@@ -34,6 +34,12 @@ from app.routers import chart_sessions as chart_sessions_router
 # 503 if DB not configured (same graceful-degradation pattern as the
 # rest of Phase 1+ endpoints).
 from app.routers import clients as clients_router
+# Phase 3 Slice 1 (2026-06-02) — client portal (killer differentiator).
+# client_portal: PUBLIC GET /c/{slug} — no auth, returns sanitized
+#                portal payload for the client to view on their phone.
+# client_notes: auth-gated CRUD for the astrologer's per-client notes.
+from app.routers import client_portal as client_portal_router
+from app.routers import client_notes as client_notes_router
 
 # ════════════════════════════════════════════════════════════════
 # Logging — structured-ish single-line records
@@ -271,6 +277,19 @@ app.include_router(
     clients_router.router,
     prefix="/clients",
     tags=["Clients"],
+)
+# Phase 3 — client notes (auth-gated) mounted at /clients/{id}/notes
+# (the router already includes the {client_id}/notes path prefix).
+app.include_router(
+    client_notes_router.router,
+    prefix="/clients",
+    tags=["Client Notes"],
+)
+# Phase 3 — public client portal at /c/{portal_slug}
+app.include_router(
+    client_portal_router.router,
+    prefix="/c",
+    tags=["Client Portal (Public)"],
 )
 
 
