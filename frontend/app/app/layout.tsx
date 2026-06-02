@@ -27,6 +27,11 @@ import { WorkspaceProvider } from "./_lib/workspace-context";
 // savedSessions with their server-side list. No-op when anonymous.
 // See sessions-bridge.tsx for the write-side TODO.
 import { SessionsBridge } from "./_lib/sessions-bridge";
+// Phase 2 Slice 1 (2026-06-02) — auth gate. Redirects anonymous
+// visitors to /auth/login with ?redirect=<their-destination> so
+// they bounce back here after sign-in. Logged-in users see /app
+// exactly as before — no UI change in this slice.
+import { AuthGate } from "./_lib/auth-gate";
 
 export default function AppLayout({
   children,
@@ -53,7 +58,15 @@ export default function AppLayout({
               call useWorkspace().setSavedSessions on auth-state changes.
               Renders nothing — pure side-effect component. */}
           <SessionsBridge />
-          <AppShell>{children}</AppShell>
+          {/* AuthGate wraps {children} (and the app shell). If the
+              visitor isn't authenticated, AuthGate handles the
+              redirect to /auth/login and renders a placeholder.
+              Logged-in visitors fall through to the existing AppShell.
+              Slice 1 is intentionally surgical — no other behavior
+              changes. Sidebar/CRM-home come in Slice 3. */}
+          <AuthGate>
+            <AppShell>{children}</AppShell>
+          </AuthGate>
         </WorkspaceProvider>
       </SelectionProvider>
     </LanguageProvider>
