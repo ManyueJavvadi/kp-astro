@@ -37,7 +37,7 @@
  *   useWorkspace().
  */
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useChartSessions } from "@/lib/api/hooks";
 import { useWorkspace } from "./workspace-context";
@@ -84,21 +84,82 @@ function apiSessionToWorkspace(api: ChartSessionPublic): ChartSession {
 /**
  * SessionsBridge — invisible component (returns null). Mount inside
  * WorkspaceProvider in layout.tsx.
+ *
+ * On first successful fetch after auth, also auto-loads the most recent
+ * session as the active workspace (sets birthDetails, workspaceData,
+ * setupDone=true). This fixes the "land back on onboarding after page
+ * refresh" UX issue — astrologers expect their last chart to be there
+ * waiting on /app load.
+ *
+ * The auto-load is one-shot per auth session (tracked via ref) so we
+ * don't fight the user's manual session-switching after the initial
+ * landing.
  */
 export function SessionsBridge() {
   const { status } = useAuth();
-  const { setSavedSessions } = useWorkspace();
+  const {
+    setSavedSessions,
+    setSetupDone,
+    setBirthDetails,
+    setWorkspaceData,
+    setCurrentSessionId,
+    setTimezoneOffset,
+    setMode,
+    setupDone,
+  } = useWorkspace();
   const { data, isSuccess } = useChartSessions();
+  // Tracks whether we've already done the one-time auto-load for this
+  // browser tab's auth session. Using ref (not state) because we don't
+  // want re-renders, just an idempotency guard.
+  const didAutoLoadRef = useRef(false);
 
   useEffect(() => {
-    if (status !== "authenticated") return;
+    if (status !== "authenticated") {
+      // Reset the guard so re-login (in same tab) can auto-load again.
+      didAutoLoadRef.current = false;
+      return;
+    }
     if (!isSuccess || !data) return;
-    // Replace local savedSessions with the DB's view. The user's
-    // in-flight session edits before signing in are NOT preserved
-    // (we don't merge — that creates more confusion than it saves).
-    // Sign-in is a deliberate "load my charts" action.
-    setSavedSessions(data.items.map(apiSessionToWorkspace));
-  }, [status, isSuccess, data, setSavedSessions]);
+
+    const sessions = data.items.map(apiSessionToWorkspace);
+    setSavedSessions(sessions);
+
+    // Auto-load the most recent session if:
+    //   - We haven't auto-loaded yet this auth session
+    //   - User hasn't already started onboarding (setupDone still false)
+    //   - There IS at least one session in the DB
+    // The API returns sessions ordered by updated_at DESC, so items[0]
+    // is the most recently touched.
+    if (
+      !didAutoLoadRef.current &&
+      !setupDone &&
+      sessions.length > 0 &&
+      sessions[0].workspaceData
+    ) {
+      const top = sessions[0];
+      setBirthDetails(top.birthDetails);
+      setWorkspaceData(top.workspaceData);
+      setCurrentSessionId(top.id);
+      if (top.birthDetails.timezone_offset !== undefined) {
+        setTimezoneOffset(top.birthDetails.timezone_offset);
+      }
+      setMode("astrologer");
+      setSetupDone(true);
+      didAutoLoadRef.current = true;
+    }
+  }, [
+    status,
+    isSuccess,
+    data,
+    setupDone,
+    setSavedSessions,
+    setSetupDone,
+    setBirthDetails,
+    setWorkspaceData,
+    setCurrentSessionId,
+    setTimezoneOffset,
+    setMode,
+  ]);
 
   return null;
 }

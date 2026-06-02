@@ -128,6 +128,12 @@ import { TOPICS, TOPIC_EMOJI } from "./lib/topics";
 // don't change — only the declarations get swapped from useState to
 // destructured useWorkspace() reads.
 import { useWorkspace } from "./_lib/workspace-context";
+// Phase 1.5b (2026-06-02) — write-side mutation pass-through. Wraps
+// the create/update/delete chart-session API calls behind two friendly
+// functions (saveSession, removeSession) that we call alongside the
+// existing setSavedSessions local-state updates. No-op when anonymous —
+// preserves in-memory behavior for not-signed-in users.
+import { useSessionPersistence } from "./_lib/sessions-persistence";
 
 // PR A1.3-fix-24 — env-derived. NEXT_PUBLIC_API_URL overrides for staging
 // or local dev; production fallback unchanged. Set in .env.local for dev.
@@ -152,6 +158,9 @@ export default function Home() {
     chartData, setChartData,
     workspaceData, setWorkspaceData,
   } = useWorkspace();
+  // Phase 1.5b — DB persistence facade. Fire-and-forget mutations
+  // mirror local setSavedSessions updates to the API when authenticated.
+  const sessionsApi = useSessionPersistence();
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [placeStatus, setPlaceStatus] = useState<"idle" | "loading" | "found" | "error">("idle");
@@ -1843,6 +1852,12 @@ export default function Home() {
         const idx = prev.findIndex(s => s.id === snap.id);
         return idx >= 0 ? prev.map((s, i) => i === idx ? snap : s) : [...prev, snap];
       });
+      // Phase 1.5b — mirror snapshot to DB so it survives refresh.
+      // No-op for anonymous users. Toast on error (rare; usually a 401
+      // from an expired token mid-session).
+      sessionsApi.saveSession(snap, (err) => {
+        setToast({ msg: `Couldn't save chart to your account: ${err.message}`, tone: "error" });
+      });
     }
     setPrevBirthDetailsStash(birthDetails);
     setPrevTimezoneStash({ offset: timezoneOffset, label: timezoneLabel });
@@ -1879,25 +1894,25 @@ export default function Home() {
     if (data) {
       if (isEditingChart) {
         const oldSessionId = currentSessionId;
+        const editedSession: ChartSession = {
+          id: oldSessionId,
+          name: birthDetails.name,
+          birthDetails: { ...birthDetails, timezone_offset: timezoneOffset },
+          workspaceData: data,
+          analysisMessages: [],
+          activeTopic: "",
+          selectedHouse: null,
+          chatQ: "",
+          analysisLang: "english",
+          activeTab: "chart",
+        };
         setSavedSessions(prev =>
-          prev.map(s => {
-            if (s.id === oldSessionId) {
-              return {
-                ...s,
-                name: birthDetails.name,
-                birthDetails: { ...birthDetails, timezone_offset: timezoneOffset },
-                workspaceData: data,
-                analysisMessages: [],
-                activeTopic: "",
-                selectedHouse: null,
-                chatQ: "",
-                analysisLang: "english",
-                activeTab: "chart",
-              };
-            }
-            return s;
-          })
+          prev.map(s => (s.id === oldSessionId ? editedSession : s))
         );
+        // Phase 1.5b — mirror chart-edit to DB.
+        sessionsApi.saveSession(editedSession, (err) => {
+          setToast({ msg: `Couldn't save chart edit: ${err.message}`, tone: "error" });
+        });
         setIsEditingChart(false);
         // PR R3-PR1 — chart edit just changed the birth moment. Throw
         // out every downstream tab's cached result so the astrologer
@@ -1918,7 +1933,13 @@ export default function Home() {
     setNewChartModalOpen(false);
   };
 
-  const handleRemoveSession = (id: string) => setSavedSessions(prev => prev.filter(s => s.id !== id));
+  const handleRemoveSession = (id: string) => {
+    setSavedSessions(prev => prev.filter(s => s.id !== id));
+    // Phase 1.5b — mirror delete to DB (no-op for local-only ids).
+    sessionsApi.removeSession(id, (err) => {
+      setToast({ msg: `Couldn't delete chart from your account: ${err.message}`, tone: "error" });
+    });
+  };
 
   const handleSwitchSession = async (target: ChartSession) => {
     const snap = snapshotCurrentSession();
@@ -2010,6 +2031,14 @@ export default function Home() {
       const updatedList = idx >= 0 ? withoutTarget.map((s, i) => i === idx ? snap : s) : [...withoutTarget, snap];
       return [...updatedList.filter(s => s.id !== target.id), targetWithWs];
     });
+    // Phase 1.5b — persist the snapshot of the chart we just left
+    // (so its latest tab state / messages are saved). The target chart's
+    // workspaceData is already in DB; switching doesn't modify it.
+    if (snap) {
+      sessionsApi.saveSession(snap, (err) => {
+        setToast({ msg: `Couldn't save previous chart state: ${err.message}`, tone: "error" });
+      });
+    }
   };
 
   const inputStyle: React.CSSProperties = { width: "100%", background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 8, padding: "10px 14px", fontSize: 14, color: "var(--text)", outline: "none" };

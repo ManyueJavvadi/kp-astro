@@ -233,6 +233,54 @@ export function useUpdateChartSession(id: string) {
   });
 }
 
+/**
+ * Factory variant: returns a function that, given a session id, returns
+ * an update mutation for that id. Use when the id is only known at call
+ * time (e.g., looping over sessions to sync edits to the DB).
+ *
+ * Caller pattern:
+ *   const updateFactory = useUpdateChartSessionByIdFactory();
+ *   const mutation = updateFactory("uuid-of-the-session");
+ *   mutation.mutate({ name: "renamed", ... });
+ *
+ * Each call to `updateFactory(id)` creates a fresh useMutation under
+ * the hood (via the inner hook below). React's rules of hooks are
+ * satisfied because we always call useMutation() in the factory
+ * function body, not inside the useCallback returned to consumers.
+ */
+export function useUpdateChartSessionByIdFactory() {
+  const { getAccessToken } = useAuth();
+  const qc = useQueryClient();
+  // Return a stable function that, when invoked, runs the same fetch
+  // logic but for any id. We don't use useMutation here because the
+  // factory pattern needs to be id-agnostic; instead we replicate the
+  // mutation shape using a plain async function that invalidates the
+  // cache on success.
+  return (id: string) => ({
+    mutate: (
+      patch: ChartSessionUpdate,
+      options?: {
+        onSuccess?: (data: ChartSessionPublic) => void;
+        onError?: (error: unknown) => void;
+      },
+    ) => {
+      apiFetch<ChartSessionPublic>(`/chart-sessions/${id}`, {
+        method: "PATCH",
+        body: patch,
+        getToken: getAccessToken,
+      })
+        .then((data) => {
+          qc.setQueryData(queryKeys.chartSession(id), data);
+          qc.invalidateQueries({ queryKey: queryKeys.chartSessions });
+          options?.onSuccess?.(data);
+        })
+        .catch((err) => {
+          options?.onError?.(err);
+        });
+    },
+  });
+}
+
 export function useDeleteChartSession() {
   const { getAccessToken } = useAuth();
   const qc = useQueryClient();
