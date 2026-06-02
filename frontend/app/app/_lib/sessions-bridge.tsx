@@ -37,7 +37,7 @@
  *   useWorkspace().
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useChartSessions } from "@/lib/api/hooks";
 import { useWorkspace } from "./workspace-context";
@@ -97,69 +97,37 @@ function apiSessionToWorkspace(api: ChartSessionPublic): ChartSession {
  */
 export function SessionsBridge() {
   const { status } = useAuth();
-  const {
-    setSavedSessions,
-    setSetupDone,
-    setBirthDetails,
-    setWorkspaceData,
-    setCurrentSessionId,
-    setTimezoneOffset,
-    setMode,
-    setupDone,
-  } = useWorkspace();
+  // Only destructure setSavedSessions — the other workspace setters
+  // were used by the (now-removed) auto-load block.
+  const { setSavedSessions } = useWorkspace();
   const { data, isSuccess } = useChartSessions();
-  // Tracks whether we've already done the one-time auto-load for this
-  // browser tab's auth session. Using ref (not state) because we don't
-  // want re-renders, just an idempotency guard.
-  const didAutoLoadRef = useRef(false);
 
   useEffect(() => {
-    if (status !== "authenticated") {
-      // Reset the guard so re-login (in same tab) can auto-load again.
-      didAutoLoadRef.current = false;
-      return;
-    }
+    if (status !== "authenticated") return;
     if (!isSuccess || !data) return;
-
+    // Mirror the DB session list into WorkspaceContext.savedSessions so
+    // the sidebar "Switch chart" and CRM clients roster reflect the
+    // canonical server-side state.
     const sessions = data.items.map(apiSessionToWorkspace);
     setSavedSessions(sessions);
 
-    // Auto-load the most recent session if:
-    //   - We haven't auto-loaded yet this auth session
-    //   - User hasn't already started onboarding (setupDone still false)
-    //   - There IS at least one session in the DB
-    // The API returns sessions ordered by updated_at DESC, so items[0]
-    // is the most recently touched.
-    if (
-      !didAutoLoadRef.current &&
-      !setupDone &&
-      sessions.length > 0 &&
-      sessions[0].workspaceData
-    ) {
-      const top = sessions[0];
-      setBirthDetails(top.birthDetails);
-      setWorkspaceData(top.workspaceData);
-      setCurrentSessionId(top.id);
-      if (top.birthDetails.timezone_offset !== undefined) {
-        setTimezoneOffset(top.birthDetails.timezone_offset);
-      }
-      setMode("astrologer");
-      setSetupDone(true);
-      didAutoLoadRef.current = true;
-    }
-  }, [
-    status,
-    isSuccess,
-    data,
-    setupDone,
-    setSavedSessions,
-    setSetupDone,
-    setBirthDetails,
-    setWorkspaceData,
-    setCurrentSessionId,
-    setTimezoneOffset,
-    setMode,
-  ]);
+    // Phase 2 Slice 3 (2026-06-02) — REMOVED auto-load of most-recent
+    // session. The CRM home is now the proper landing for authenticated
+    // astrologers — they CHOOSE which client to open from the roster.
+    // Auto-loading the most recent session would skip the CRM home
+    // entirely (because setSetupDone(true) flips page.tsx into the
+    // workspace render).
+    //
+    // Before P2.S3: auto-load was necessary because the alternative was
+    // the dead "enter your birth details" onboarding form.
+    // After P2.S3: clicking a client on CRM home triggers
+    // handleSwitchSession, which sets workspaceData + setupDone=true
+    // → workspace renders. User stays in control of which client opens.
+    //
+    // If we later want a "remember last-opened client across sessions"
+    // feature (Phase 3+), it'd be added back here behind a user
+    // preference toggle.
+  }, [status, isSuccess, data, setSavedSessions]);
 
   return null;
 }
