@@ -21,21 +21,39 @@ This deadline is user-set, ~14 weeks out as of doc creation.
    checklist + 14-week sequencing.
 2. `.claude/HANDOFF-2026-05-28-launch-prep.md` — strategic
    handoff from the 2026-05-28 strategy session.
-3. `.claude/research/pricing-payment-business-spec.md` — LOCKED
+3. `.claude/research/architecture-decisions-2026-06-01.md` — locked
+   ADRs (SQLAlchemy+Alembic, Supabase Auth, OpenAPI codegen,
+   Context+Zustand+TanStack Query). Read before any auth/DB/state PR.
+4. `.claude/research/pricing-payment-business-spec.md` — LOCKED
    pricing (Plus ₹499 / Pro ₹1,499 / top-ups), Razorpay,
    India sole prop in dad's name, ultra-lean formality.
-4. `.claude/research/client-portal-spec.md` — the killer
+5. `.claude/research/client-portal-spec.md` — the killer
    differentiator (per-client unique URLs).
-5. `.claude/research/matching-network-spec.md` — Phase M
+6. `.claude/research/matching-network-spec.md` — Phase M
    (post-launch v1.5, Nov 2026).
 
 **Active focus until Sept 9:**
-- Auth + Neon DB + DB migration (Weeks 1-2)
-- Route segment refactor (Weeks 3-4, conditional on user decision)
-- Client portal pages (Weeks 5-7)
-- Razorpay subscription + email (Weeks 8-9)
-- SEO + monitoring + polish (Weeks 10-11)
+- Auth + Railway Postgres + DB migration (Weeks 1-2) ← NEXT
+- ~~Route segment refactor (Weeks 3-4)~~ DEFERRED 2026-06-01 to
+  post-auth/DB. Existing G2 pushState already gives each tab its own
+  URL + working browser back; full migration revisited after DB lands
+  because URLs like `/app/clients/[id]/chart` need it. Foundation
+  (WorkspaceContext) shipped on develop in commits A+B.
+- Client portal pages (Weeks 3-5, accelerated since route refactor freed time)
+- Razorpay subscription + email (Weeks 6-8)
+- SEO + monitoring + polish (Weeks 9-11)
 - QA + soft launch (Weeks 12-14)
+
+**2026-06-01 — WorkspaceContext shipped on develop:**
+- `frontend/app/app/_lib/workspace-context.tsx` holds the truly-global
+  workspace state (mode, birthDetails, chartData, workspaceData,
+  setupDone, savedSessions, currentSessionId, timezoneOffset/Label/Iana)
+- Provider mounted in `frontend/app/app/layout.tsx`
+- page.tsx reads via `useWorkspace()` destructure — no behavior change
+- Tab-local state still lives in page.tsx (deferred cleanup)
+- Safety rollback tag: `june-1-astrologermode-topnotch`
+- New ADR for any future auth/DB/state work:
+  `.claude/research/architecture-decisions-2026-06-01.md`
 
 **Cancelled / paused / out of scope for Sept 9:**
 

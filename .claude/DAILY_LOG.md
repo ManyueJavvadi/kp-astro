@@ -962,3 +962,95 @@ help on hard cases. Plus tier = real product, not a teaser.
   features design = the remaining strategic conversations. Continue
   from `.claude/research/pricing-payment-business-spec.md` §6 and
   `.claude/research/client-portal-spec.md`.
+
+---
+
+## 2026-06-01 (Monday) — architecture audit + route refactor pivot
+
+### Done today
+
+- **Architecture decisions locked (ADR-001..004)** in
+  `.claude/research/architecture-decisions-2026-06-01.md`:
+  - ADR-001: SQLAlchemy 2.0 (async) + Alembic for DB layer
+  - ADR-002: Supabase Auth for identity (auth-only; DB stays on Railway)
+  - ADR-003: OpenAPI codegen -> TypeScript via `openapi-typescript`
+  - ADR-004: Context (auth/workspace) + Zustand (UI) + TanStack Query
+    (server data)
+  - Why these 4: foundational decisions where retrofit cost is 10x
+    higher in 6 months than now. Done BEFORE writing the first DB code
+    or auth flow.
+
+- **Route segment refactor — partial: commits A+B shipped, full
+  migration deferred.** Initial plan was to migrate /app from
+  single-page with `?t=tab` pushState routing to true Next.js route
+  segments (/app/chart, /app/horary, etc.) over 5-7 commits. After
+  auditing page.tsx (5,359 lines, 109 useState calls, ~80 of which
+  are tab-local), we realized:
+    - The existing G2 pushState/popstate code already gives each tab
+      its own URL + working browser back. The UX win is already in.
+    - The full migration would need to move ~80 tab-local state pieces
+      (matchResults, horaryResult, mResults, pcData, etc.) into their
+      respective tab files. ~3-5 days of focused work.
+    - Net user-visible UX gain over status quo: marginal.
+    - Better to revisit AFTER auth+DB ships because URLs like
+      `/app/clients/[id]/chart` need the DB anyway.
+  Decision: stop here, merge the Context foundation (commits A+B) to
+  develop, pivot to the actual launch blockers (auth + DB).
+
+- **Commits A+B shipped to develop** (`fec6da0` merge commit):
+  - Commit A (`d33670f`): Created `_lib/workspace-context.tsx` +
+    mounted `<WorkspaceProvider/>` in `app/app/layout.tsx`. Provider
+    holds the truly-global workspace state but page.tsx still has its
+    own state — scaffold-only, no behavior change.
+  - Commit B (`8ac874b`): Deleted 10 local useState calls in page.tsx,
+    replaced with destructured `useWorkspace()` reads. Setter
+    signatures are identical (matches React.Dispatch shape), so every
+    existing call site (`setMode(...)`, `setBirthDetails(prev => ...)`,
+    `setSavedSessions(...)`, etc.) kept working unchanged.
+  - Lifted: mode, birthDetails, setupDone, chartData, workspaceData,
+    savedSessions, currentSessionId, timezoneOffset/Label/Iana.
+  - Did NOT lift: tab-local state (still in page.tsx), shell state
+    (sidebarOpen, modals, toast — deferred to a Zustand UI store).
+  - Verified pre-merge: tsc EXIT 0, next build EXIT 0, all 5 routes
+    prerender cleanly. Astrologer mode untouched (no AI/engine code
+    modified).
+
+- **Safety tag** `june-1-astrologermode-topnotch` created on develop
+  at `3df95fc` (the pre-refactor state, after the ADR docs but before
+  the Context lift). Rollback point if A+B ever causes issues.
+
+### What's now LIVE on develop / Vercel for user to test
+
+- WorkspaceContext provider mounted, page.tsx reads global state from
+  it. Should be visually + functionally identical to yesterday's app.
+  If anything is broken (chart doesn't generate, sidebar empty, tab
+  switching broken, Analysis streaming dies), revert to tag
+  `june-1-astrologermode-topnotch`.
+
+### Decisions made today
+
+- Stop route refactor at A+B. Full migration deferred to post-auth/DB.
+- Pivot to auth + Railway Postgres setup (Week 1-2 of launch tracker)
+  as next focus. This is the actual Sept 9 launch blocker.
+- Update canonical docs:
+  - `launch-tracker-2026-09-09.md` decisions table: route refactor
+    marked ✅ DECIDED 2026-06-01: DEFERRED.
+  - P0 item #11 (route segment refactor) marked DEFERRED with
+    rationale.
+
+### Next session — auth + DB setup
+
+Per ADR-001/002 + Railway as our chosen DB:
+1. Delete dormant Supabase project (`sbhutroxbbqenmdqeyhd`)
+2. Create fresh Supabase project (auth-only use)
+3. Add Postgres add-on to Railway backend service
+4. Set up SQLAlchemy 2.0 (async) + Alembic in `backend/`
+5. First migration creates: astrologers, clients, chart_sessions,
+   client_notes, subscriptions, usage_events, audit_log
+6. Frontend signup/login/reset flows via `@supabase/supabase-js`
+7. Migrate localStorage chart sessions to DB
+
+This is ~2 weeks of focused work and unlocks the rest of the launch
+tracker (client portal pages need DB, Razorpay needs DB, email needs
+auth, etc.)
+
