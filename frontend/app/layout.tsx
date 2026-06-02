@@ -16,9 +16,80 @@ import { MotionRoot } from "@/components/motion/MotionRoot";
 import { AuthProvider } from "@/lib/auth/auth-context";
 import { QueryProvider } from "@/lib/api/query-client";
 
+// Phase 5 SEO (2026-06-02) — full metadata pass.
+// metadataBase makes relative URLs in OG/Twitter cards work.
+// keywords + author + openGraph + twitter cover the major search +
+// social sharing surfaces. Schema.org JSON-LD added per-page (landing
+// gets organization + software application schema in its own component).
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://devastroai.com";
+
 export const metadata: Metadata = {
-  title: "DevAstroAI — KP Astrology Intelligence",
-  description: "Ancient KP wisdom with AI precision",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "DevAstroAI — KP Astrology for Practising Astrologers",
+    template: "%s · DevAstroAI",
+  },
+  description:
+    "The first KP-rigorous, mobile-first SaaS for professional KP astrologers in India. Client CRM, KP chart engine, AI-assisted analysis, and per-client portal pages — all in one tool.",
+  keywords: [
+    "KP astrology",
+    "Krishnamurti Paddhati",
+    "KP astrology software",
+    "KP astrologer app",
+    "AI astrology",
+    "kundali",
+    "horary",
+    "muhurtha",
+    "Indian astrology",
+    "Telugu astrology",
+    "astrology CRM",
+  ],
+  authors: [{ name: "DevAstroAI" }],
+  creator: "DevAstroAI",
+  publisher: "DevAstroAI",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_IN",
+    url: SITE_URL,
+    siteName: "DevAstroAI",
+    title: "DevAstroAI — KP Astrology for Practising Astrologers",
+    description:
+      "The first KP-rigorous, mobile-first SaaS for professional KP astrologers. Client CRM, KP chart engine, AI analysis, per-client portal pages.",
+    // OG image will be added in a later polish pass once we have a
+    // proper social card design. Browsers fall back to favicon for
+    // now — acceptable v1.
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "DevAstroAI — KP Astrology for Practising Astrologers",
+    description:
+      "The first KP-rigorous, mobile-first SaaS for professional KP astrologers. Client CRM + KP chart engine + AI analysis.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  alternates: {
+    canonical: SITE_URL,
+  },
+  icons: {
+    // Browser tab icon. We don't have a custom favicon file shipped
+    // yet — Next falls back to /favicon.ico if present in /public.
+    // TODO: ship a proper 32x32 + 16x16 favicon set.
+    icon: "/favicon.ico",
+  },
 };
 
 // PR A1.3-fix-25 — explicit viewport export.
