@@ -1172,3 +1172,90 @@ After user completes SETUP-PHASE-1.md and tests on Vercel:
    create/update/delete chart sessions → API)
 2. THEN proceed to full route segment refactor as per the
    "quality > deadline" decision
+
+---
+
+## 2026-06-02 — Phase 2 Slices 1-3 shipped (focused autonomous session)
+
+User went out, asked me to work focused + complete what I can with quality
+discipline. Three slices shipped to develop. Stopped at S3 (CRM home) +
+auto-load fix because Slice 4 touches the workspace render in page.tsx
+and warrants user-present verification.
+
+### Commits shipped to develop
+
+1. **`abf1faa`** — Phase 2 Slice 1: Auth gate on /app. Anonymous → /auth/login.
+2. **`6cda353`** — Phase 2 Slice 2: clients CRUD backend (5 endpoints
+   + 5 TanStack hooks). 41 backend routes total now.
+3. **`40c5aa8`** — Phase 2 Slice 3: CRM home + sidebar + Add client modal
+   + 4 stub routes (/app/clients, /tools, /profile, /billing). The
+   structural shift — /app authenticated landing is now CRM-first.
+4. **`f2cf8ee`** — Fix: disabled SessionsBridge auto-load (was set up
+   for old onboarding flow; CRM home is the proper landing now).
+
+### What the user can test on Vercel after redeploy
+
+- Anonymous /app → redirects to /auth/login?redirect=/app
+- Sign in → lands on /app, sees CRM home (not the dead onboarding form)
+- Sidebar nav: Home / Clients / Tools / Profile / Billing — all routes
+  exist + render (tools + billing are stubs; profile is functional;
+  clients renders the full roster)
+- Today's panchang strip at top of CRM home (when location set)
+- Empty state "Welcome to your CRM" if no clients yet
+- Existing manyue client (from Phase 1.5b test) appears in roster with
+  birth date / place / last-session-ago / chart count
+- "+ Add client" button → modal opens with name + DOB + TOB + place
+  picker + gender + optional phone/email
+- Modal submit: 3-step flow
+  1. POST /clients (creates row)
+  2. POST /astrologer/workspace (computes chart)
+  3. POST /chart-sessions (persists w/ client_id)
+  - Then opens new client's workspace via existing handleSwitchSession
+- Click existing client in roster → opens that client's workspace
+- Profile page: edit display_name, bio, phone, default_language → PATCH /me
+- Billing page: pricing preview + Sept 9 launch pill (stub for Phase 4)
+
+### Sacred regions verified UNTOUCHED across all 4 commits
+
+- llm_service.py: zero changes
+- All KP engines (chart_engine, horary_engine, etc.): zero changes
+- All 55 KB files: zero changes
+- AnalysisTab.tsx streaming code: zero changes
+- AI prompts: zero changes
+
+### Known visual quirks (will polish in Slice 8)
+
+- AppShell top bar (logo + back-to-landing) still renders above
+  CrmShell sidebar — redundant logo. Hide via layout.tsx check in S8.
+- /app/clients page click → window navigation back to /app + user
+  re-clicks. Proper /app/clients/[id] route comes in Slice 4.
+
+### Slice 4 deferred — needs user-present verification
+
+Slice 4 = /app/clients/[id] per-client workspace route. Requires
+either extracting workspace UI from page.tsx (5400-line monster) into
+a reusable component, OR a redirect-with-context bounce. Both have
+risk of subtly breaking the workspace render. Better to do with user
+available to spot regressions. Documented in master plan §7a as
+in-progress.
+
+### Next session priorities
+
+1. **User tests S1-S3 on Vercel** — confirms CRM home works end-to-end
+   (login → CRM → add client → workspace → switch clients → profile edit)
+2. **Visual polish** (S3 follow-up) — hide AppShell top bar when
+   CRM home is rendering (~30 min)
+3. **Slice 4: /app/clients/[id] route** — proper per-client URL with
+   redirect-and-context approach (~2-3 hours). Browser back works,
+   deep links work, URL reflects current client.
+4. **Slice 5: per-tab routes** — biggest slice. Move tab-local state
+   into each tab file + create real Next.js route segments. Split into
+   8 sub-slices (one per tab). 3-5 sessions.
+
+### Open questions surfaced during S3 build
+
+None blocking — design decisions in master plan §11 were sufficient
+to ship S3. Slice 4 will need a small choice: redirect-and-context
+flash (smaller refactor) vs. workspace UI extraction (bigger
+refactor, no flash). My recommendation: redirect-and-context for v1,
+extract in S5 as part of per-tab routes.
