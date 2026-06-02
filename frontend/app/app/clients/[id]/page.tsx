@@ -1,0 +1,189 @@
+"use client";
+
+/**
+ * /app/clients/[id] — per-client workspace route.
+ *
+ * Phase 2 Slice 4 (2026-06-02). The proper deep-linkable URL for
+ * a client's workspace. URL stays /app/clients/[id]; browser back
+ * works; page refresh preserves which client is open.
+ *
+ * Implementation approach (chosen because it doesn't require
+ * extracting the 1200-line workspace UI from page.tsx):
+ *   1. Read clientId from route params
+ *   2. Load that client's most recent chart_session via TanStack
+ *   3. Push session data into WorkspaceContext (birthDetails,
+ *      workspaceData, setupDone=true, currentSessionId, mode,
+ *      timezone)
+ *   4. Render <Home /> (imported from /app/page.tsx). Home reads
+ *      WorkspaceContext, sees setupDone=true, renders the existing
+ *      workspace UI scoped to this client.
+ *
+ * Edge cases handled:
+ *   - Client has no chart_session yet → redirect to /app with a
+ *     console hint. Future: render "Compute chart for this client"
+ *     CTA inline.
+ *   - Sessions still loading → render a centered loading state
+ *     (avoids flashing CRM home before workspace appears)
+ *   - Anonymous visitor → AuthGate redirects (already covered)
+ *
+ * What's NOT in Slice 4:
+ *   - Per-tab routes (/app/clients/[id]/chart, /houses, etc.) —
+ *     Slice 5
+ *   - Real /app/clients/[id]/portal route — Phase 3
+ *   - Editing client metadata inline — Phase 2 polish
+ *
+ * Sacred-region note:
+ *   This page imports Home from page.tsx but does NOT modify Home
+ *   itself. Home still reads useWorkspace() and renders the same
+ *   workspace UI it always has. We're just providing a different
+ *   route + entry path to the same component.
+ */
+
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
+import { useChartSessions } from "@/lib/api/hooks";
+import { useWorkspace } from "../../_lib/workspace-context";
+import { theme } from "@/lib/theme";
+// Default export of /app/page.tsx — the Home component. Importing it
+// here renders the same workspace UI Home renders on /app.
+import Home from "../../page";
+
+export default function ClientWorkspacePage() {
+  const params = useParams();
+  const router = useRouter();
+  const clientId = (params?.id as string) ?? "";
+
+  const { data: sessions, isSuccess, isLoading } = useChartSessions();
+  const {
+    setBirthDetails,
+    setWorkspaceData,
+    setSetupDone,
+    setCurrentSessionId,
+    setMode,
+    setTimezoneOffset,
+  } = useWorkspace();
+
+  // Local guard so we render the workspace ONLY after context is set
+  // (avoids briefly flashing CrmHome before setupDone=true takes effect).
+  const [contextReady, setContextReady] = useState(false);
+  const [notFound, setNotFound] = useState(false);
+
+  useEffect(() => {
+    if (!clientId) return;
+    if (!isSuccess || !sessions) return;
+    // Pick the most-recently-updated session for this client. API
+    // returns items ordered by updated_at DESC.
+    const session = sessions.items.find((s) => s.client_id === clientId);
+    if (!session) {
+      // Edge case: client exists but has no chart_session. Could
+      // happen if the user added a client via direct API call or
+      // if the chart_session creation failed mid-Add-Client flow.
+      // Bounce back to /app where they can re-trigger or pick another.
+      // eslint-disable-next-line no-console
+      console.warn("No chart_session found for client:", clientId);
+      setNotFound(true);
+      return;
+    }
+    // Push session data into WorkspaceContext. Mirrors the handful
+    // of state mutations handleSwitchSession does in page.tsx for
+    // the "switch chart" sidebar action. Keep this in sync if
+    // handleSwitchSession changes.
+    setBirthDetails({
+      name: session.birth_name ?? "",
+      date: session.birth_date ?? "",
+      time: session.birth_time ?? "",
+      ampm: session.birth_ampm ?? "AM",
+      place: session.birth_place_name ?? "",
+      latitude: session.birth_latitude,
+      longitude: session.birth_longitude,
+      gender: (session.birth_gender as "male" | "female" | "") ?? "",
+      timezone_offset: session.birth_timezone_offset ?? undefined,
+    });
+    if (session.workspace_data) {
+      setWorkspaceData(session.workspace_data);
+    }
+    setCurrentSessionId(session.id);
+    setMode("astrologer");
+    if (session.birth_timezone_offset != null) {
+      setTimezoneOffset(session.birth_timezone_offset);
+    }
+    // setupDone LAST — flipping this is what triggers Home to render
+    // the workspace UI (instead of CrmHome).
+    setSetupDone(true);
+    setContextReady(true);
+  }, [
+    clientId,
+    isSuccess,
+    sessions,
+    setBirthDetails,
+    setWorkspaceData,
+    setCurrentSessionId,
+    setMode,
+    setTimezoneOffset,
+    setSetupDone,
+  ]);
+
+  // Bounce to /app when client has no chart yet. Delayed by a render
+  // so the user sees a brief "redirecting…" before the URL changes.
+  useEffect(() => {
+    if (!notFound) return;
+    const t = setTimeout(() => router.replace("/app"), 600);
+    return () => clearTimeout(t);
+  }, [notFound, router]);
+
+  // While we wait for sessions to load + push context, show a
+  // centered loading state. Once context is ready, render Home which
+  // reads the context and shows the workspace.
+  if (notFound) {
+    return (
+      <CenteredMessage>
+        <strong>No chart for this client yet.</strong>
+        <br />
+        Returning you to the home screen…
+      </CenteredMessage>
+    );
+  }
+
+  if (isLoading || !contextReady) {
+    return (
+      <CenteredMessage>
+        <Loader2
+          size={18}
+          style={{
+            animation: "spin 1s linear infinite",
+            verticalAlign: "middle",
+            marginRight: 8,
+          }}
+        />
+        Loading client workspace…
+      </CenteredMessage>
+    );
+  }
+
+  // Context is set; render the existing Home component which will see
+  // setupDone=true + workspaceData populated and render the workspace UI.
+  return <Home />;
+}
+
+// ─── Small helpers ───────────────────────────────────────────────────
+
+function CenteredMessage({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        minHeight: "60vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 40,
+        textAlign: "center",
+        color: theme.text.muted,
+        fontSize: 13,
+        lineHeight: 1.6,
+      }}
+    >
+      <div>{children}</div>
+    </div>
+  );
+}

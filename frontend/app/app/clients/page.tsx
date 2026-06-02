@@ -28,30 +28,15 @@ export default function ClientsPage() {
   const router = useRouter();
   const [modalOpen, setModalOpen] = useState(false);
 
-  function handleOpenClient(_client: ClientPublic) {
-    // Slice 3: route back to /app where CrmHome handles the workspace
-    // load via WorkspaceContext + onOpenSession. Real per-client route
-    // lands in Slice 4 (/app/clients/[id]).
-    // Storing the client id in sessionStorage so /app can pick it up
-    // and auto-open it on mount.
-    if (typeof window !== "undefined") {
-      window.sessionStorage.setItem(
-        "devastroai:open-client-id",
-        _client.id,
-      );
-    }
-    router.push("/app");
+  function handleOpenClient(client: ClientPublic) {
+    // Slice 4 — proper per-client URL. /app/clients/[id] handles
+    // loading the chart_session + rendering the workspace.
+    router.push(`/app/clients/${client.id}`);
   }
 
-  function handleClientCreated(_clientId: string) {
+  function handleClientCreated(clientId: string) {
     setModalOpen(false);
-    if (typeof window !== "undefined") {
-      window.sessionStorage.setItem(
-        "devastroai:open-client-id",
-        _clientId,
-      );
-    }
-    router.push("/app");
+    router.push(`/app/clients/${clientId}`);
   }
 
   return (
