@@ -18,7 +18,16 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+// Accept either env var name:
+//   NEXT_PUBLIC_SUPABASE_ANON_KEY       — older docs + most tutorials
+//   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY — Supabase's newer "Connect" snippet
+// They're the same key — Supabase renamed the terminology, not the
+// underlying credential. Reading both keeps us compatible with whichever
+// is set in Vercel / Railway env vars without forcing a rename.
+const SUPABASE_ANON_KEY =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  "";
 
 /**
  * True if the build was compiled with Supabase env vars set.
