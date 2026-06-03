@@ -28,6 +28,7 @@ import {
   buttonPrimaryStyle,
   buttonDisabledStyle,
 } from "../_shell";
+import { PasswordInput } from "@/components/ui/password-input";
 import { theme } from "@/lib/theme";
 
 export default function ResetPasswordPage() {
@@ -189,9 +190,8 @@ function SetNewPasswordForm({
     <AuthShell title="Set a new password" subtitle="Choose a new password for your account.">
       <form onSubmit={handleSubmit}>
         <FormField label="New password" htmlFor="password">
-          <input
+          <PasswordInput
             id="password"
-            type="password"
             autoComplete="new-password"
             required
             minLength={8}
@@ -202,9 +202,8 @@ function SetNewPasswordForm({
           />
         </FormField>
         <FormField label="Confirm password" htmlFor="confirm">
-          <input
+          <PasswordInput
             id="confirm"
-            type="password"
             autoComplete="new-password"
             required
             minLength={8}

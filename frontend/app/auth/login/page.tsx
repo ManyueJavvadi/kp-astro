@@ -21,6 +21,7 @@ import {
   buttonPrimaryStyle,
   buttonDisabledStyle,
 } from "../_shell";
+import { PasswordInput } from "@/components/ui/password-input";
 import { theme } from "@/lib/theme";
 
 // useSearchParams() requires a Suspense boundary for static prerender
@@ -123,9 +124,8 @@ function LoginForm() {
         </FormField>
 
         <FormField label="Password" htmlFor="password">
-          <input
+          <PasswordInput
             id="password"
-            type="password"
             autoComplete="current-password"
             required
             value={password}

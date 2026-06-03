@@ -22,7 +22,7 @@
  */
 
 import { useState } from "react";
-import { LayoutGrid, Target } from "lucide-react";
+import { LayoutGrid, Target, Grid3x3 } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { PageHero } from "@/components/ui/PageHero";
@@ -38,6 +38,10 @@ const SouthIndianChart = RasiChart; // backwards-compat alias (same as pre-R1 pa
 import HousePanel from "../components/HousePanel";
 import PlanetList from "../components/workspace/PlanetList";
 import { SectionEyebrow } from "../components/SectionEyebrow";
+// Wave 15 (2026-06-03, item #7): per user request, add Cusps as a
+// third pill on Chart tab. Mirrors (doesn't replace) Houses → Cusps,
+// so astrologers can reach the cusps view from either entry point.
+import { CuspsTable } from "../components/CuspsTable";
 import type { WorkspaceData } from "../types/workspace";
 
 // PR R1 — props match the original page.tsx call pattern. workspaceData
@@ -54,7 +58,7 @@ interface ChartTabProps {
   ) => void;
 }
 
-type ChartViewMode = "chart" | "planets";
+type ChartViewMode = "chart" | "planets" | "cusps";
 
 export function ChartTab({ workspaceData, selectedHouse, setSelectedHouse }: ChartTabProps) {
   const { t } = useLanguage();
@@ -78,11 +82,15 @@ export function ChartTab({ workspaceData, selectedHouse, setSelectedHouse }: Cha
           "గ్రహాలు, రాశులు, భావాలు, సబ్ లార్డ్‌లు — KP పూర్తి దృశ్యం ఒక్క చోట. వివరాల కోసం ఏ భావాన్నైనా నొక్కండి."
         )}
       />
-      {/* Chart / Planets view toggle */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+      {/* Chart / Planets / Cusps view toggle.
+          Wave 15 (2026-06-03): Cusps pill added per user request.
+          Same KP cusps table as Houses → Cusps sub-tab (mirrored,
+          not moved — both entry points work). */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
         {[
           { v: "chart",   l: "Chart",   Icon: LayoutGrid },
           { v: "planets", l: "Planets", Icon: Target },
+          { v: "cusps",   l: "Cusps",   Icon: Grid3x3 },
         ].map(opt => {
           const active = chartView === opt.v;
           const OptIcon = opt.Icon;
@@ -173,6 +181,33 @@ export function ChartTab({ workspaceData, selectedHouse, setSelectedHouse }: Cha
             <div style={{ background: "var(--card)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 14, overflow: "hidden" }}>
               <PlanetList planets={workspaceData.planets} cusps={workspaceData.cusps as any} />
             </div>
+          </div>
+        )}
+
+        {/* Wave 15 (2026-06-03, item #7) — Cusps view, mirrored from
+            Houses tab. Side-by-side with HousePanel on desktop when
+            a row is clicked; mobile uses the existing bottom drawer
+            (HousePanel render gated by !isMobile). */}
+        {chartView === "cusps" && (
+          <div style={{ flex: 1, minWidth: 260, display: "flex", gap: "1rem", alignItems: "start" }}>
+            <CuspsTable
+              cusps={workspaceData.cusps as any}
+              selectedHouse={selectedHouse}
+              setSelectedHouse={setSelectedHouse}
+            />
+            {selectedHouse && !isMobile && (
+              <div style={{ width: 280, flexShrink: 0 }}>
+                <HousePanel
+                  house={selectedHouse}
+                  cusps={workspaceData.cusps as any}
+                  significators={(workspaceData as any).significators}
+                  planets={workspaceData.planets as any}
+                  rulingPlanets={(workspaceData.ruling_planets as any)?.all_en || []}
+                  antardashas={(workspaceData as any).antardashas || []}
+                  onClose={() => setSelectedHouse(null)}
+                />
+              </div>
+            )}
           </div>
         )}
       </div>

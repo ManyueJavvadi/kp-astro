@@ -30,6 +30,7 @@ import {
   buttonPrimaryStyle,
   buttonDisabledStyle,
 } from "../_shell";
+import { PasswordInput } from "@/components/ui/password-input";
 import { theme } from "@/lib/theme";
 
 export default function SignupPage() {
@@ -121,9 +122,8 @@ export default function SignupPage() {
           htmlFor="password"
           hint="At least 8 characters."
         >
-          <input
+          <PasswordInput
             id="password"
-            type="password"
             autoComplete="new-password"
             required
             minLength={8}
