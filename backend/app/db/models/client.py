@@ -19,7 +19,7 @@ from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Boolean, ForeignKey, Index, String, Text
+from sqlalchemy import Boolean, ForeignKey, Index, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -97,6 +97,14 @@ class Client(Base, UUIDPKMixin, TimestampMixin):
         unique=True,
         nullable=False,
         index=True,
+        # CRITICAL: server_default must be declared on the model (not
+        # just in the migration) so SQLAlchemy knows to fetch the
+        # value via RETURNING after INSERT. Without it, row.portal_slug
+        # is None after db.flush(), and ClientPublic's UUID validation
+        # fails → 500 in response serialization. (Bug discovered
+        # 2026-06-02 — every POST /clients failed silently until the
+        # CORS hardening unmasked the 500.)
+        server_default=func.gen_random_uuid(),
         comment="Public client portal URL slug — /c/<portal_slug>. "
         "Regeneratable via /clients/{id}/regenerate-portal endpoint.",
     )
