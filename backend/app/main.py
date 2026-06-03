@@ -71,6 +71,56 @@ if not os.getenv("ANTHROPIC_API_KEY"):
         "Set it in your environment before serving traffic."
     )
 
+# ════════════════════════════════════════════════════════════════
+# Sentry — error monitoring (Wave 10, deep-scan-2 O1)
+# ════════════════════════════════════════════════════════════════
+# Capture uncaught exceptions, attach request context (URL, method,
+# status, X-Request-ID). Free tier is generous (5K events/month);
+# transaction sampling at 0.1 keeps it well under that limit.
+#
+# Disabled in local dev by default — set SENTRY_DSN env to enable.
+# Production Railway should set SENTRY_DSN + (optional) SENTRY_ENVIRONMENT.
+_sentry_dsn = os.getenv("SENTRY_DSN", "").strip()
+if _sentry_dsn:
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.starlette import StarletteIntegration
+        from sentry_sdk.integrations.fastapi import FastApiIntegration
+        sentry_sdk.init(
+            dsn=_sentry_dsn,
+            environment=os.getenv("SENTRY_ENVIRONMENT", "production"),
+            # Sample 10% of transactions — enough to see latency
+            # patterns, cheap enough to never hit the free-tier cap.
+            traces_sample_rate=float(
+                os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1")
+            ),
+            # Errors always captured (sampled at the SDK default 1.0).
+            integrations=[
+                StarletteIntegration(transaction_style="endpoint"),
+                FastApiIntegration(transaction_style="endpoint"),
+            ],
+            # release tag from Railway commit if available — links
+            # Sentry events to specific deploy SHAs.
+            release=(
+                os.getenv("RAILWAY_GIT_COMMIT_SHA", "")[:12] or None
+            ),
+            # PII off by default — we don't send auth headers, JWT
+            # bodies, request bodies. Safer default for an astrology
+            # SaaS handling birth data.
+            send_default_pii=False,
+        )
+        _log.info(
+            "sentry_initialized environment=%s release=%s",
+            os.getenv("SENTRY_ENVIRONMENT", "production"),
+            (os.getenv("RAILWAY_GIT_COMMIT_SHA", "")[:12] or "unknown"),
+        )
+    except Exception as e:
+        # Never let Sentry setup break the app.
+        _log.warning("sentry_init_failed err=%s", e)
+else:
+    _log.info("sentry_disabled — set SENTRY_DSN env to enable")
+
+
 app = FastAPI(title="KP Astro API", version="0.1.0")
 
 
@@ -626,9 +676,12 @@ async def health():
     # Check 3 — anthropic_key: env var is set?
     # NON-CRITICAL — chart still works without AI. We do NOT make a live
     # API call (would cost money on every health check + add latency).
+    # O2 (deep-scan-2): "unconfigured" distinct from "fail" so monitoring
+    # tools (UptimeRobot) don't alarm on intentional dev/chart-only
+    # deployments missing optional integrations.
     _anthropic_set = bool(os.getenv("ANTHROPIC_API_KEY"))
     checks["anthropic_key"] = {
-        "status": "ok" if _anthropic_set else "fail",
+        "status": "ok" if _anthropic_set else "unconfigured",
         "detail": "key configured" if _anthropic_set else "ANTHROPIC_API_KEY not set",
     }
 
@@ -642,8 +695,9 @@ async def health():
         from app.config import get_settings as _gs
         _settings = _gs()
         if not _settings.database_configured:
+            # O2 (deep-scan-2): intentional unconfigured ≠ broken.
             checks["database"] = {
-                "status": "fail",
+                "status": "unconfigured",
                 "detail": "DATABASE_URL not set (auth-gated endpoints will 503)",
             }
         else:
@@ -688,8 +742,9 @@ async def health():
             )
             checks["auth"] = {"status": "ok", "detail": detail}
         else:
+            # O2 (deep-scan-2): intentional unconfigured ≠ broken.
             checks["auth"] = {
-                "status": "fail",
+                "status": "unconfigured",
                 "detail": "SUPABASE_URL unset (auth-gated endpoints will 503)",
             }
     except Exception as e:
@@ -706,14 +761,19 @@ async def health():
     critical_failed = any(
         checks[c]["status"] == "fail" for c in ("ephemeris", "chart_compute")
     )
-    non_critical_failed = any(
-        checks[c]["status"] == "fail" for c in ("anthropic_key", "database", "auth")
+    # O2 (deep-scan-2): "fail" = something is broken; "unconfigured" =
+    # intentional dev/chart-only deployment without optional integration.
+    # Both surface as "degraded" overall (200), but the per-check status
+    # makes the cause visible to monitoring dashboards without alarming.
+    non_critical_status_bad = any(
+        checks[c]["status"] in ("fail", "unconfigured")
+        for c in ("anthropic_key", "database", "auth")
     )
 
     if critical_failed:
         overall_status = "down"
         http_code = 503
-    elif non_critical_failed:
+    elif non_critical_status_bad:
         overall_status = "degraded"
         http_code = 200
     else:

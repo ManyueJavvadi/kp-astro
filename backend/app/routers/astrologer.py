@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from datetime import datetime, timedelta
@@ -735,7 +735,17 @@ If you cannot write a word in Telugu, write it in English instead.
 # same Telugu lang_instruction, same RULE 32 output budget.
 
 @router.post("/analyze-stream")
-async def analyze_topic_stream(request: AnalysisRequest):
+async def analyze_topic_stream(
+    request: AnalysisRequest,
+    http_request: Request,
+):
+    # O1 (deep-scan-2): capture the request_id (set by
+    # RequestIdMiddleware) so SSE exception logs correlate to the
+    # access log line. Without this, 500s inside the stream generator
+    # were unfindable in logs by request_id.
+    _stream_rid = (
+        getattr(http_request.state, "request_id", None) or "unknown"
+    )
     from app.services.chart_pipeline import build_full_chart_data
 
     # Phase 13.2 — entry log so we can see WHEN this endpoint is hit,
@@ -839,10 +849,16 @@ If you cannot write a word in Telugu, write it in English instead.
 
             yield "event: done\ndata: {}\n\n"
         except Exception as e:
-            # PR A1.3-fix-24 — log full server-side, generic message to client
+            # PR A1.3-fix-24 — log full server-side, generic message to client.
+            # O1 (deep-scan-2): include request_id captured from the
+            # outer HTTP request so logs correlate to the access line.
             import logging
-            logging.getLogger("astrologer").exception("analyze-stream failed: %s", e)
-            err_payload = json.dumps({"error": "stream_failed"})
+            logging.getLogger("astrologer").exception(
+                "rid=%s analyze-stream failed: %s", _stream_rid, e
+            )
+            err_payload = json.dumps(
+                {"error": "stream_failed", "request_id": _stream_rid}
+            )
             yield f"event: error\ndata: {err_payload}\n\n"
 
     return StreamingResponse(
@@ -957,7 +973,15 @@ def multi_analyze(request: MultiChartRequest):
 
 
 @router.post("/multi-analyze-stream")
-async def multi_analyze_stream(request: MultiChartRequest):
+async def multi_analyze_stream(
+    request: MultiChartRequest,
+    http_request: Request,
+):
+    # O1 (deep-scan-2): same rid capture pattern as analyze-stream
+    # so SSE errors correlate to the access log line.
+    _stream_rid = (
+        getattr(http_request.state, "request_id", None) or "unknown"
+    )
     """Streaming multi-chart analysis (SSE).
 
     Yields:
@@ -993,10 +1017,15 @@ async def multi_analyze_stream(request: MultiChartRequest):
                 yield f"event: chunk\ndata: {json.dumps({'text': chunk})}\n\n"
             yield "event: done\ndata: {}\n\n"
         except Exception as e:
+            # O1 (deep-scan-2): include request_id in log + error payload.
             import logging
             logging.getLogger("astrologer").exception(
-                "multi-analyze-stream failed: %s", e
+                "rid=%s multi-analyze-stream failed: %s", _stream_rid, e
             )
-            yield f"event: error\ndata: {json.dumps({'message': str(e)})}\n\n"
+            # Note: generic "stream_failed" + rid instead of raw str(e)
+            # — the previous variant leaked exception text to the
+            # client (information disclosure). Same hardening pattern
+            # as S2 from wave-1.
+            yield f"event: error\ndata: {json.dumps({'error': 'stream_failed', 'request_id': _stream_rid})}\n\n"
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")

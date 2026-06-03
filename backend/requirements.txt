@@ -75,3 +75,8 @@ pydantic-settings==2.7.0
 # Required by pydantic.EmailStr — runtime email format validation used
 # in /me + auth-adjacent request/response schemas.
 email-validator==2.2.0
+# Wave 10 (2026-06-03, deep-scan-2 O1) — error monitoring for prod.
+# sentry-sdk[fastapi] wires automatic exception capture + request
+# context (URL, method, status). Pin to a recent stable; the SDK is
+# backward-compatible across patch versions.
+sentry-sdk[fastapi]==2.20.0
