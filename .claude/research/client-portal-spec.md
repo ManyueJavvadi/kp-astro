@@ -1,6 +1,45 @@
 # Client Portal Pages — Feature Spec
 
-**Status:** Approved-in-concept on 2026-05-28; awaiting 7 design
+> **STATUS UPDATE 2026-06-03 — feature SHIPPED, all 7 design Qs decided.**
+>
+> The 7 "_pending_" markers below are kept for historical context but
+> are now resolved by what shipped in Phase 3 (Slices 1-4) on
+> 2026-06-02. Per-question outcome:
+>
+> | Q | Decided | What shipped |
+> |---|---|---|
+> | Q1 (what client sees)        | (c) simplified KP snapshot | `client_portal.py:_extract_snapshot` returns Lagna / Moon / Sun / current MD-AD only. Full chart deliberately omitted. |
+> | Q2 (consult-back)            | (a) WhatsApp deep-link     | Sticky bottom CTA on `/c/[slug]`; URL built by `_build_whatsapp_url(phone, name)` with pre-filled greeting. |
+> | Q3 (notes organization)      | (a) chronological          | `select … ORDER BY created_at DESC LIMIT 50` (wave-7 P0-1 scoped). |
+> | Q4 (URL permanence)          | (a) permanent per-client   | `clients.portal_slug` (UUID v4) — survives chart edits. |
+> | Q5 (bilingual writing)       | (a) manual                 | `client_notes.language` ('en' \| 'te' \| 'te_en'); composer language selector. AI translation deferred post-launch. |
+> | Q6 (URL privacy)             | (a) plain UUID + **kill switch + per-field visibility** (beyond spec) | Migration 0003 added `portal_enabled` (404 when false) + `portal_visibility` JSONB (`show_birth_time` / `show_birth_place` / `show_gender`). Rate limit 60/min/IP also applied. |
+> | Q7 (branding)                | (a) astrologer-first        | Hero shows astrologer name + years_practicing + Verified badge; "Powered by DevAstroAI" footer (viral loop). |
+>
+> **Schema additions NOT in original spec:**
+>
+> - `client_notes.outcome` (migration 0002) — pending/confirmed/partial/disconfirmed/na, groundwork for prediction-ledger UI (deferred post-launch).
+> - `client_notes.source` (migration 0002) — astrologer/ai_draft, used by the AI-drafts lane.
+> - `client_notes.promoted_from_key` (migration 0003) — exact link from a promoted AI Q&A back to its `<chart_session_id>:<message_index>` of origin. Replaces fragile substring matching.
+>
+> **API surface delta vs spec:** spec sketched `/api/c/<uuid>` and `/api/astrologer/clients/<id>/note`. Actual:
+>   - Public: `GET /c/{portal_slug}` (no `/api` prefix).
+>   - Astrologer notes CRUD: `GET/POST/PATCH/DELETE /clients/{id}/notes`.
+>   - AI drafts (Project-arch lane): `GET /clients/{id}/ai-drafts`.
+>   - `track-open` from the original spec is NOT yet implemented — deferred to a focused
+>     post-launch session (see N2 in deep-scan-2 ideas).
+>
+> See ADR-005 (`architecture-decisions-2026-06-03.md`) §5.4–5.5 for the
+> rationale on the AI-draft promotion contract and the portal kill switch
+> + per-field visibility.
+
+---
+
+**Original spec follows (pre-2026-06-02). Treat as historical context only.**
+
+---
+
+**Status (original):** Approved-in-concept on 2026-05-28; awaiting 7 design
 decisions before implementation.
 **Target ship:** Weeks 5-7 of Sept 9 launch (Jun 25 → Jul 16).
 **Effort estimate:** ~2 weeks.

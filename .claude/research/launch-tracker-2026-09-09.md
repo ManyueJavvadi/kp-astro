@@ -202,4 +202,23 @@ When updating progress: ✅ mark P0 items as they ship. Append to "Shipped" log 
 
 | Date | Item | Commit | Notes |
 |---|---|---|---|
-| — | — | — | (none yet — this doc was just created) |
+| 2026-06-01 | P0 #1 Auth (Supabase + JWT) | Phase 1 batch | Sign-up / login / confirm / reset wired end-to-end. AuthGate on /app. |
+| 2026-06-01 | P0 #2 DB (Railway Postgres + Alembic) | Phase 1 batch | 7 tables, all migrations, lazy provisioning of Astrologer row on first auth-gated hit. |
+| 2026-06-01 | P0 #3 Chart sessions (replace localStorage) | Phase 1.5b | DB-backed CRUD via TanStack; write-side mutation pass-through. |
+| 2026-06-02 | P0 #4 Client portal pages (PUBLIC + ADMIN) | Phase 3 (S1-S4) | `/c/<slug>` public read-only page, `/app/clients/[id]/portal` astrologer admin, notes CRUD, WhatsApp consult-back, rate-limited 60/min/IP, kill switch (`portal_enabled`), per-field privacy (`portal_visibility` JSONB), AI-draft promotion lane. |
+| 2026-06-02 | P0 #6 Email auth (Supabase magic) | Phase 1 + reset-password | Sign-up + email confirm + password reset all working. |
+| 2026-06-02 | P0 #8 SEO basics | Phase 5 SEO | `sitemap.ts`, `robots.ts`, OG/Twitter/canonical metadata; only public routes indexed (`/`, `/privacy`, `/terms`, `/auth/*`). |
+| 2026-06-02 | P1 Auth gate + CRM home | Phase 2 (S1-S4) | Authenticated /app shows CRM home (Today panchang strip + recent activity + clients roster), Add Client modal, per-client workspace route. |
+| 2026-06-02 | P1 Mobile-first CRM redesign | Wave-6 mobile pass | CrmShell bottom-nav-with-FAB on mobile, AddClientModal as drag-dismissible bottom sheet, ClientsRoster card reflow, portal admin mobile stacking. |
+| 2026-06-02 | P0/P1 Security hardening (pre-launch sweep) | Waves 1-3, 7-10 | CORS lockdown + fullmatch, /astrologer/workspace auth-gate, CRUD rate limits, request-log memory cap, hmac compare_digest, /version split, /clients verbose-error suppression. |
+| 2026-06-02 | DB schema groundwork for outcome ledger | Migration 0002 + 0003 | `client_notes.outcome` (pending/confirmed/partial/disconfirmed/na), `client_notes.source` (astrologer/ai_draft), `client_notes.promoted_from_key`, `clients.portal_enabled`, `clients.portal_visibility`. UI ships post-launch. |
+| 2026-06-02 | Operational: auto-migrate + schema-drift probe | Hotfix `0719bef` | Railway startCommand chains `alembic upgrade head && uvicorn`; startup probe logs `schema_drift_detected` if model references unmigrated columns. |
+| 2026-06-02 | P0 perf — scoped queries on public portal + AI drafts | Wave-7 P0-1, P0-2 | Replaced `selectinload(chart_sessions, notes)` with `SELECT … LIMIT 1` + `SELECT … is_private=false LIMIT 50`. AI drafts SELECTs only the 3 cols it uses, not the full session row. |
+| 2026-06-02 | P0 UX — /app error boundary + 401-logout + per-client retry | Wave-7 P0-3, P0-4, P0-5 | `frontend/app/app/error.tsx`; `devastroai:auth-invalidated` CustomEvent → sign-out → /auth/login?reauth=1; per-client workspace isError branch with Retry button. |
+| 2026-06-03 | P0 #9 Error monitoring (Sentry wire-up) | Wave-10 | `sentry-sdk[fastapi]` initialized in main.py, gated by SENTRY_DSN env. Release tag from Railway commit SHA. Free-tier-friendly sampling. |
+
+**Note (2026-06-02):** P0 #4 (client portal) is feature-complete
+beyond what client-portal-spec.md originally contemplated — added a
+kill switch, per-field visibility, AI-draft promotion contract, and
+exact-link "Published" detection (`promoted_from_key`). See ADR-005
+for the architecture-decisions delta vs the original spec.
