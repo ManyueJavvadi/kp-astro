@@ -118,6 +118,29 @@ app.add_middleware(
 # ════════════════════════════════════════════════════════════════
 _MAX_BODY_BYTES = int(os.getenv("MAX_REQUEST_BODY_BYTES", str(256 * 1024)))  # 256 KB default
 
+def _cors_headers_for(request: Request) -> Dict[str, str]:
+    """Compute CORS headers for early-return responses that bypass the
+    CORS middleware. Returns {} if origin isn't allowed (browser block
+    is correct behavior in that case).
+
+    Used by BodySizeLimit and RequestId middlewares which can return
+    error responses BEFORE the request reaches the inner CORS middleware.
+    Without these headers, browsers report those errors as "blocked by
+    CORS" which is misleading (the actual issue is rate limit / payload
+    size / server error).
+    """
+    origin = request.headers.get("origin", "")
+    if not origin:
+        return {}
+    import re as _re
+    allowed = origin in _cors_origins or (
+        _cors_regex and _re.match(_cors_regex, origin)
+    )
+    if not allowed:
+        return {}
+    return {"Access-Control-Allow-Origin": origin, "Vary": "Origin"}
+
+
 class BodySizeLimitMiddleware(BaseHTTPMiddleware):
     """Reject requests whose Content-Length exceeds the cap.
 
@@ -135,6 +158,7 @@ class BodySizeLimitMiddleware(BaseHTTPMiddleware):
                         {"error": "request_too_large",
                          "max_bytes": _MAX_BODY_BYTES},
                         status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                        headers=_cors_headers_for(request),
                     )
             except ValueError:
                 pass  # malformed header → let FastAPI handle
@@ -207,11 +231,26 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 "rate_limit_block path=%s ip=%s count=%d window=%ds",
                 path, ip, len(dq), window,
             )
+            # CORS headers must be added manually here — this response is
+            # returned BEFORE call_next, so it bypasses the inner CORS
+            # middleware. Without these headers, browsers report 429
+            # responses as CORS errors (misleading: it's a rate limit,
+            # not a CORS misconfig). Only echo the origin if it's
+            # plausibly allowed (devastroai.com or *.vercel.app); for
+            # other origins fall back to no header (browser will block,
+            # which is the correct behavior anyway).
+            origin = request.headers.get("origin", "")
+            cors_headers: Dict[str, str] = {"Retry-After": str(retry_after)}
+            if origin in _cors_origins or (
+                _cors_regex and __import__("re").match(_cors_regex, origin)
+            ):
+                cors_headers["Access-Control-Allow-Origin"] = origin
+                cors_headers["Vary"] = "Origin"
             return JSONResponse(
                 {"error": "rate_limit_exceeded",
                  "retry_after_seconds": retry_after},
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                headers={"Retry-After": str(retry_after)},
+                headers=cors_headers,
             )
         dq.append(now)
         return await call_next(request)
@@ -244,10 +283,18 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
                 "rid=%s unhandled_exception path=%s method=%s duration_ms=%d",
                 rid, request.url.path, request.method, duration_ms,
             )
+            # 2026-06-02: CORS headers must be added here too — this 500
+            # response bypasses the inner CORS middleware (because the
+            # exception interrupted the response chain). Without these
+            # headers, ANY backend exception manifests in the browser as
+            # "blocked by CORS" instead of "internal server error" —
+            # making it impossible to debug from devtools.
+            err_headers = _cors_headers_for(request)
+            err_headers["X-Request-ID"] = rid
             return JSONResponse(
                 {"error": "internal_server_error", "request_id": rid},
                 status_code=500,
-                headers={"X-Request-ID": rid},
+                headers=err_headers,
             )
         duration_ms = int((time.time() - start) * 1000)
         # PR A1.3-fix-25d — inline rid in message (was extra= which crashed)
