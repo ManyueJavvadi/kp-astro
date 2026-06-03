@@ -37,16 +37,21 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { status, signIn } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const redirectTo = searchParams.get("redirect") || "/app";
   // P0-4 (deep-scan-2): when AuthProvider's 401 handler bounces the
   // user here, ?reauth=1 is in the URL. Show a banner explaining why
   // they had to sign back in.
   const reauth = searchParams.get("reauth") === "1";
+  // Wave 14 (2026-06-03, item #6): signup's "I've confirmed — sign
+  // in now" button passes ?email=... so the user doesn't retype.
+  // Read BEFORE useState below — TDZ rules.
+  const prefillEmail = searchParams.get("email") || "";
+
+  const [email, setEmail] = useState(prefillEmail);
+  const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Auto-redirect if already signed in.
   useEffect(() => {
