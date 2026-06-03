@@ -109,7 +109,14 @@ app.add_middleware(
     allow_origins=_cors_origins,
     allow_origin_regex=_cors_regex,
     allow_credentials=False,  # not using cookies; set True only if needed
-    allow_methods=["GET", "POST", "OPTIONS"],
+    # Phase 2 hotfix (2026-06-02) — added PATCH + DELETE. Without
+    # these, the browser preflight blocks any update/delete call
+    # (sessions, clients, client_notes, profile) and the page sees
+    # "Failed to fetch" before the request even reaches FastAPI.
+    # Symptom that surfaced this: switching between charts → toast
+    # "Couldn't save previous chart state: Failed to fetch" because
+    # PATCH /chart-sessions/{id} was being preflight-blocked.
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
 )
 

@@ -284,7 +284,7 @@ export default function PersonHeroBanner({
           onMouseEnter={e => { e.currentTarget.style.background = "#e7c98a"; e.currentTarget.style.boxShadow = "0 0 0 1px rgba(231,201,138,0.7), 0 2px 8px rgba(201,169,110,0.25), 0 0 26px rgba(231,201,138,0.42)"; }}
           onMouseLeave={e => { e.currentTarget.style.background = "#c9a96e"; e.currentTarget.style.boxShadow = "0 0 0 1px rgba(201,169,110,0.55), 0 2px 6px rgba(201,169,110,0.18), 0 0 18px rgba(231,201,138,0.28)"; }}
         >
-          + {t("New Chart", "కొత్త చార్ట్")}
+          + {t("New Client", "కొత్త క్లయింట్")}
         </button>
       </div>
     </div>

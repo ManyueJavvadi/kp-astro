@@ -829,7 +829,10 @@ export default function Home() {
     axios.post(endpoint, payload).then(r => {
       if (mode === "astrologer") setWorkspaceData(r.data);
       else                       setChartData(r.data);
-      recordAiCall(`workspace.refresh:liveloc-change`);
+      // NOTE: do NOT recordAiCall here. /astrologer/workspace and /chart/generate
+      // are pure KP chart-engine endpoints (Swiss Ephemeris math), zero Anthropic
+      // cost. Counting them as AI calls falsely inflates the billing counter
+      // (user noticed it ticking up just from generating a chart for a new client).
     }).catch(() => { /* silent — old rp_meta keeps showing until next interaction */ });
     // ESLint deps: intentionally omit workspaceData/chartData to avoid loops —
     // the early-return checks them by source-of-truth (rp_meta lat/lon match).
@@ -4386,16 +4389,21 @@ export default function Home() {
                     <div style={{ fontSize: 10, color: "rgba(201,169,110,0.6)" }}>★ {t("Active", "ప్రస్తుతం")}</div>
                   </div>
                 )}
-                {savedSessions.length === 0 && workspaceData?.name && (
+                {savedSessions.filter(s => s.id !== currentSessionId).length === 0 && workspaceData?.name && (
                   <div style={{ fontSize: 10, color: "var(--muted)", padding: "4px 2px 6px", lineHeight: 1.45 }}>
                     {lang === "en" ? (
-                      <>Use <strong style={{ color: "var(--accent)", fontWeight: 500 }}>+ New Chart</strong> in the header to add another. Saved charts appear here.</>
+                      <>Use <strong style={{ color: "var(--accent)", fontWeight: 500 }}>+ New Client</strong> in the header to add another. Saved charts appear here.</>
                     ) : (
-                      <><strong style={{ color: "var(--accent)", fontWeight: 500 }}>+ కొత్త చార్ట్</strong> బటన్‌తో మరొకటి జోడించండి. సేవ్ చేసిన చార్టులు ఇక్కడ కనిపిస్తాయి.</>
+                      <><strong style={{ color: "var(--accent)", fontWeight: 500 }}>+ కొత్త క్లయింట్</strong> బటన్‌తో మరొకటి జోడించండి. సేవ్ చేసిన చార్టులు ఇక్కడ కనిపిస్తాయి.</>
                     )}
                   </div>
                 )}
-                {savedSessions.map(s => {
+                {/* Phase 2 polish (2026-06-02) — filter out the active
+                    session so it doesn't appear as both the "★ Active"
+                    pill above AND as a sibling chip below (the user saw
+                    two "manyue" entries because after Phase 1.5b auto-
+                    saved the active chart, savedSessions contains it). */}
+                {savedSessions.filter(s => s.id !== currentSessionId).map(s => {
                   const dasha = s.workspaceData?.mahadasha?.lord_en || "";
                   const ad = s.workspaceData?.current_antardasha?.lord_en || "";
                   const gender = s.birthDetails?.gender;
@@ -4422,7 +4430,7 @@ export default function Home() {
                 })}
                 <button onClick={handleNewChart}
                   style={{ width: "100%", padding: "3px 8px", borderRadius: 6, background: "transparent", border: "0.5px dashed var(--border2)", fontSize: 10, color: "var(--muted)", cursor: "pointer", fontFamily: "inherit", textAlign: "center" }}>
-                  + {t("New Chart", "కొత్త చార్ట్")}
+                  + {t("New Client", "కొత్త క్లయింట్")}
                 </button>
               </div>
             )}
@@ -4880,7 +4888,7 @@ export default function Home() {
               e.currentTarget.style.borderColor = "rgba(201,169,110,0.4)";
             }}
           >
-            + {t("New Chart", "కొత్త చార్ట్")}
+            + {t("New Client", "కొత్త క్లయింట్")}
           </button>
         </div>
 
