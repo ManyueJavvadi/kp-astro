@@ -1,1 +1,5 @@
-web: uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips=*
+# Procfile mirrors railway.json startCommand. Some Railway environments
+# read this instead of railway.json; keep them in sync. Migration runs
+# BEFORE uvicorn so models that reference new columns can never load
+# against a DB missing those columns. See railway.json `//` comment.
+web: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips=*

@@ -1,9 +1,11 @@
 {
+  "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips=*",
+    "// startCommand": "Apply pending Alembic migrations BEFORE starting the web server. If migrations fail (column conflict, broken SQL, etc.) the deploy fails — Railway's restartPolicy retries, the OLD version keeps serving, and the operator sees the failure in deploy logs. This is the correct trade-off for early-stage product where we want migrations to be a hard gate, not a silent best-effort. Symptom that motivated this (2026-06-02): wave-2 added migration 0003 with portal_enabled / portal_visibility / promoted_from_key columns. Models referenced them immediately; the live DB didn't yet have them; every /clients GET 500'd until a manual `alembic upgrade head`. Auto-migration removes that class of foot-gun.",
+    "startCommand": "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips=*",
     "restartPolicyType": "ON_FAILURE"
   }
 }

@@ -72,6 +72,81 @@ if not os.getenv("ANTHROPIC_API_KEY"):
 
 app = FastAPI(title="KP Astro API", version="0.1.0")
 
+
+# ════════════════════════════════════════════════════════════════
+# Schema-drift probe (2026-06-02 hotfix)
+# ════════════════════════════════════════════════════════════════
+# After Wave 2 shipped migration 0003 without auto-migration on
+# Railway, every /clients call started 500ing because the model
+# referenced columns the live DB didn't have. Auto-migration is
+# now wired into railway.json startCommand, but we also probe at
+# app startup so any future drift between models and DB shows up as
+# a LOUD log line — not a 500 spiral that takes 10 minutes to diagnose.
+#
+# The probe checks information_schema for columns the latest migration
+# added. If any are missing, we log a critical-level warning telling
+# the operator to run `alembic upgrade head`. We do NOT crash the app
+# — read-only chart endpoints still serve traffic without the new
+# columns; only the auth-gated CRUD endpoints will 500 (which the
+# operator will see via UptimeRobot or user reports).
+_EXPECTED_COLUMNS: list[tuple[str, str]] = [
+    # (table_name, column_name) — keep in sync with the latest migration
+    ("clients", "portal_enabled"),       # migration 0003
+    ("clients", "portal_visibility"),    # migration 0003
+    ("client_notes", "promoted_from_key"),  # migration 0003
+    ("client_notes", "outcome"),         # migration 0002
+    ("client_notes", "source"),          # migration 0002
+]
+
+
+@app.on_event("startup")
+async def _schema_drift_probe() -> None:
+    """Warn loudly if the DB is missing columns the code expects.
+
+    Runs once at app boot. No-op if DATABASE_URL isn't configured
+    (chart-only deployments don't have a DB). Failure to probe is
+    itself just a warning — we never block app startup on this.
+    """
+    try:
+        from app.config import get_settings as _gs
+        settings = _gs()
+        if not settings.database_configured:
+            return
+        from app.db.engine import get_engine as _ge
+        from sqlalchemy import text as _text
+        eng = _ge()
+        missing: list[str] = []
+        async with eng.connect() as conn:
+            for table, column in _EXPECTED_COLUMNS:
+                result = await conn.execute(
+                    _text(
+                        "SELECT 1 FROM information_schema.columns "
+                        "WHERE table_name = :t AND column_name = :c"
+                    ),
+                    {"t": table, "c": column},
+                )
+                if result.scalar() is None:
+                    missing.append(f"{table}.{column}")
+        if missing:
+            _log.critical(
+                "schema_drift_detected missing_columns=%s — DB is "
+                "behind the latest migration. CRUD endpoints will "
+                "500 until you run `alembic upgrade head`. "
+                "Auto-migration on deploy is wired in railway.json "
+                "startCommand but appears to have been bypassed; "
+                "check deploy logs.",
+                missing,
+            )
+        else:
+            _log.info("schema_drift_probe_ok all %d expected columns present", len(_EXPECTED_COLUMNS))
+    except Exception as e:
+        _log.warning(
+            "schema_drift_probe_failed err=%s — not blocking startup, "
+            "but unable to verify DB schema. Run /health/full for "
+            "more diagnostics.",
+            e,
+        )
+
 # ════════════════════════════════════════════════════════════════
 # CORS — restrict to known origins (was open `*`, allowing any browser
 # on any origin to drive paid Anthropic spend).
