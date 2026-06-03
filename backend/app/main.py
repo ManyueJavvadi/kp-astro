@@ -98,11 +98,34 @@ _default_cors = ",".join([
 ])
 _cors_origins = [o.strip() for o in os.getenv("CORS_ALLOWED_ORIGINS", _default_cors).split(",") if o.strip()]
 
-# Default regex matches any *.vercel.app subdomain (covers preview deploys
-# AND production Vercel URLs without us having to enumerate them). Override
-# via CORS_ALLOWED_ORIGIN_REGEX env to restrict further.
-_default_cors_regex = r"https://([a-z0-9-]+\.)*vercel\.app"
+# Default regex matches our project's Vercel deploys ONLY — not the
+# whole *.vercel.app namespace (which would let any Vercel-hosted page,
+# malicious or otherwise, call our paid LLM endpoints with a leaked JWT).
+# Pattern: `devastroai` OR `devastroai-<anything>` as the project segment,
+# optionally with a `<branch>-<team>` preview prefix.
+# Examples that match:
+#   https://devastroai.vercel.app
+#   https://devastroai-git-develop-manyue.vercel.app
+#   https://devastroai-abc123.vercel.app
+# Examples that DON'T match:
+#   https://evil.vercel.app
+#   https://devastroai.vercel.app.attacker.com   (re.fullmatch blocks this)
+# Override via CORS_ALLOWED_ORIGIN_REGEX env var if you spin up a
+# differently-named Vercel project; set CORS_ALLOWED_ORIGINS to lock it
+# down to an explicit list (highest priority).
+_default_cors_regex = r"https://([a-z0-9-]+-)?devastroai(-[a-z0-9-]+)?\.vercel\.app"
 _cors_regex = os.getenv("CORS_ALLOWED_ORIGIN_REGEX", _default_cors_regex)
+# S1 hardening (2026-06-02): log a loud warning if production starts up
+# with the lax default. Operators should set explicit CORS_ALLOWED_ORIGINS
+# in Railway for production.
+if os.getenv("CORS_ALLOWED_ORIGINS") is None and os.getenv(
+    "CORS_ALLOWED_ORIGIN_REGEX"
+) is None:
+    _log.warning(
+        "cors_using_default_regex regex=%s — set CORS_ALLOWED_ORIGINS "
+        "explicitly in production to lock down the allowed origins.",
+        _default_cors_regex,
+    )
 
 app.add_middleware(
     CORSMiddleware,
@@ -140,8 +163,11 @@ def _cors_headers_for(request: Request) -> Dict[str, str]:
     if not origin:
         return {}
     import re as _re
+    # S1 hardening (2026-06-02): use re.fullmatch so suffix-attacks like
+    # https://devastroai.vercel.app.attacker.com don't slip past the
+    # regex check (re.match would happily match the prefix and stop).
     allowed = origin in _cors_origins or (
-        _cors_regex and _re.match(_cors_regex, origin)
+        _cors_regex and _re.fullmatch(_cors_regex, origin)
     )
     if not allowed:
         return {}
@@ -186,9 +212,25 @@ _RATE_LIMITS: Dict[str, tuple[int, int]] = {
     "/prediction/ask-stream":   (15, 60),
     "/astrologer/analyze":      (20, 60),
     "/astrologer/analyze-stream": (20, 60),
+    # quick-insights is hard-disabled (returns HTTP 410). Entry kept to
+    # short-circuit any leftover cached frontend bundles still calling
+    # it, but at extremely tight limit so abuse can't fire it 1000x/min.
     "/astrologer/quick-insights": (10, 60),
     "/compatibility/analyze":   (15, 60),
     "/muhurtha/analyze":        (15, 60),
+    # S4 hardening (2026-06-02): /astrologer/workspace is the chart
+    # engine compute path (Swiss Ephemeris — CPU-heavy). Previously
+    # unrated. With auth-gate added (see route handler) AND this
+    # rate limit, hostile clients can't burn server CPU.
+    "/astrologer/workspace":    (30, 60),
+    # S3 hardening (2026-06-02): CRUD endpoints had no per-endpoint
+    # limit. A leaked JWT or rogue authenticated script could spam
+    # POST /clients, /chart-sessions, /clients/*/notes endlessly,
+    # filling disk + DB. These limits are generous for human use
+    # but cap automation abuse.
+    "/clients":                 (60, 60),   # GET list, POST create, PATCH, DELETE
+    "/chart-sessions":          (60, 60),
+    "/me":                      (30, 60),
     # Phase 3 Slice 4 (2026-06-02) — public client portal endpoint.
     # Per client-portal-spec: 60 req/min per IP. Single endpoint surface
     # so the prefix matches all /c/<uuid> requests. UUID-level dedup
@@ -197,8 +239,14 @@ _RATE_LIMITS: Dict[str, tuple[int, int]] = {
     # that rate is infeasible (centuries to enumerate).
     "/c/":                      (60, 60),
 }
-# Per-IP request timestamps, deque per limit key
+# Per-IP request timestamps, deque per limit key.
+# S6 hardening (2026-06-02): cap total keys so a long-running process
+# hit by traffic from thousands of unique IPs over a day doesn't grow
+# memory unbounded. When the dict reaches the cap, we evict the oldest-
+# touched 25% (LRU-ish — cheap, no external dep).
 _request_log: Dict[str, Deque[float]] = {}
+_request_log_last_touch: Dict[str, float] = {}
+_REQUEST_LOG_MAX_KEYS = int(os.getenv("RATE_LIMIT_MAX_KEYS", "20000"))
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Per-IP sliding-window rate limit on cost-paid endpoints.
@@ -228,7 +276,21 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         max_req, window = _RATE_LIMITS[match]
         key = f"{match}|{ip}"
         now = time.time()
+        # S6 hardening: evict LRU keys when the dict gets too large.
+        # Cheap O(n) scan once per cap hit (~20k entries → ~5ms).
+        if (
+            key not in _request_log
+            and len(_request_log) >= _REQUEST_LOG_MAX_KEYS
+        ):
+            cutoff_count = max(1, _REQUEST_LOG_MAX_KEYS // 4)
+            stalest = sorted(
+                _request_log_last_touch.items(), key=lambda kv: kv[1]
+            )[:cutoff_count]
+            for stale_key, _ in stalest:
+                _request_log.pop(stale_key, None)
+                _request_log_last_touch.pop(stale_key, None)
         dq = _request_log.setdefault(key, deque(maxlen=max_req * 2))
+        _request_log_last_touch[key] = now
         # Drop expired
         while dq and (now - dq[0]) > window:
             dq.popleft()
@@ -248,8 +310,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             # which is the correct behavior anyway).
             origin = request.headers.get("origin", "")
             cors_headers: Dict[str, str] = {"Retry-After": str(retry_after)}
+            # S1 hardening: fullmatch (not match) — same rationale as
+            # _cors_headers_for above.
             if origin in _cors_origins or (
-                _cors_regex and __import__("re").match(_cors_regex, origin)
+                _cors_regex and __import__("re").fullmatch(_cors_regex, origin)
             ):
                 cors_headers["Access-Control-Allow-Origin"] = origin
                 cors_headers["Vary"] = "Origin"
@@ -586,14 +650,48 @@ async def health():
 # ════════════════════════════════════════════════════════════════
 @app.get("/version")
 def version():
+    """Public version endpoint — exposes ONLY git metadata so operators
+    can sanity-check what's actually deployed.
+
+    S7 hardening (2026-06-02): previously also exposed an internal
+    `cost_features` flag dict. Useful for our own debugging but it
+    leaked internal phase markers to the world. Moved to /version/full
+    behind an X-Admin-Token header (set ADMIN_DEBUG_TOKEN env var to
+    enable). The narrow /version stays public for health-monitor tools.
+    """
+    return {
+        "commit": (os.getenv("RAILWAY_GIT_COMMIT_SHA")
+                   or os.getenv("RAILWAY_GIT_COMMIT_MESSAGE")
+                   or "unknown"),
+        "branch": os.getenv("RAILWAY_GIT_BRANCH") or "unknown",
+    }
+
+
+@app.get("/version/full")
+def version_full(request: Request):
+    """Operator-only diagnostic version dump. Gated by ADMIN_DEBUG_TOKEN.
+
+    If the token env var is unset, this endpoint returns 404 (no
+    side-channel info leak about whether admin features exist).
+    """
+    expected = os.getenv("ADMIN_DEBUG_TOKEN")
+    provided = request.headers.get("x-admin-token", "")
+    if not expected or not provided or provided != expected:
+        # 404 (not 401) — pretend the endpoint doesn't exist when
+        # the token is wrong, to avoid confirming the route is real.
+        raise __import__("fastapi").HTTPException(
+            status_code=404,
+            detail={"error": "not_found"},
+        )
     return {
         "commit": (os.getenv("RAILWAY_GIT_COMMIT_SHA")
                    or os.getenv("RAILWAY_GIT_COMMIT_MESSAGE")
                    or "unknown"),
         "branch": os.getenv("RAILWAY_GIT_BRANCH") or "unknown",
         "deployed_at": os.getenv("RAILWAY_DEPLOYMENT_DRAINING_SECONDS") or "unknown",
-        # Phase markers — flip these as features ship so we can verify
-        # via /version which cost-fix commits are actually running.
+        # Internal phase markers — flip these as features ship so we
+        # can verify via /version/full which cost-fix commits are
+        # actually running.
         "cost_features": {
             "phase_13_1_quick_insights_410": True,
             "phase_13_2_anthropic_audit_log": True,
@@ -601,5 +699,13 @@ def version():
             "phase_13_4_haiku_followup": True,
             "phase_13_5_topic_switch_detect": True,
             "phase_13_6_chart_uncached_max_tokens_4000": True,
+        },
+        "rate_limit_state": {
+            "active_keys": len(_request_log),
+            "max_keys_cap": _REQUEST_LOG_MAX_KEYS,
+        },
+        "cors": {
+            "origins": _cors_origins,
+            "regex": _cors_regex,
         },
     }

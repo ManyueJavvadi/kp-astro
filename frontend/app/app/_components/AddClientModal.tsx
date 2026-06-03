@@ -36,12 +36,14 @@
 
 import { useState, useEffect } from "react";
 import { X, Loader2, ArrowRight } from "lucide-react";
-import axios from "axios";
 import { PlacePicker } from "@/components/ui/place-picker";
 import { useCreateClient } from "@/lib/api/hooks";
 import { useCreateChartSession } from "@/lib/api/hooks";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useSheetDrag } from "@/hooks/useSheetDrag";
+// S4 hardening (2026-06-02): /astrologer/workspace now requires JWT.
+import { authedAxiosPost } from "@/lib/api/authedAxios";
+import { useAuth } from "@/lib/auth/auth-context";
 import { theme } from "@/lib/theme";
 import {
   formatMaskedDate,
@@ -62,6 +64,7 @@ export interface AddClientModalProps {
 export function AddClientModal({ open, onClose, onCreated }: AddClientModalProps) {
   const isMobile = useIsMobile();
   const { dragProps, sheetStyle } = useSheetDrag({ onClose });
+  const { getAccessToken } = useAuth();
 
   const [name, setName] = useState("");
   const [date, setDate] = useState("");
@@ -162,15 +165,24 @@ export function AddClientModal({ open, onClose, onCreated }: AddClientModalProps
       if (ampm === "AM" && hh === 12) hh = 0;
       const time24 = `${String(hh).padStart(2, "0")}:${String(mn).padStart(2, "0")}`;
 
-      const wsResp = await axios.post(`${API_URL}/astrologer/workspace`, {
-        name: name.trim(),
-        date: isoDate,
-        time: time24,
-        latitude,
-        longitude,
-        timezone_offset: 5.5,
-        gender,
-      });
+      // C7 fix: pass browser-detected timezone offset (not hardcoded
+      // 5.5). The backend resolves DST-correct offset from lat/lon+date
+      // anyway, but sending the right fallback avoids cases where
+      // historical-DST resolution can't find a match.
+      const browserOffset = -new Date().getTimezoneOffset() / 60;
+      const wsResp = await authedAxiosPost<Record<string, unknown>>(
+        `${API_URL}/astrologer/workspace`,
+        {
+          name: name.trim(),
+          date: isoDate,
+          time: time24,
+          latitude,
+          longitude,
+          timezone_offset: browserOffset,
+          gender,
+        },
+        getAccessToken,
+      );
       const workspaceData = wsResp.data;
 
       // Step 3 — persist chart_session tied to this client
@@ -184,7 +196,10 @@ export function AddClientModal({ open, onClose, onCreated }: AddClientModalProps
         birth_place_name: place,
         birth_latitude: latitude,
         birth_longitude: longitude,
-        birth_timezone_offset: workspaceData?.timezone_offset ?? 5.5,
+        birth_timezone_offset:
+          typeof workspaceData?.timezone_offset === "number"
+            ? workspaceData.timezone_offset
+            : browserOffset,
         birth_gender: gender,
         workspace_data: workspaceData,
       });

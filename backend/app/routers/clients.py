@@ -303,12 +303,12 @@ async def create_client(
       3. POST /chart-sessions with client_id + workspace_data → persists
     See the CRM Add Client modal in Slice 3 for the orchestration.
     """
-    # Detailed error catching: 500s on this endpoint were misleadingly
-    # surfacing as CORS errors in the browser (fixed in 18fb86a). Now
-    # they surface correctly, but we still don't see the stack trace
-    # without proper logging. Catch + log + raise a 500 with the
-    # exception class name so the frontend can show something useful
-    # while we debug.
+    # S2 hardening (2026-06-02): catch-log-rollback-rethrow with NO
+    # leaky exception details in the response body. The verbose debug
+    # variant was added to chase down the portal_slug bug (fixed
+    # 5d42052) — root cause now known, removing the leak. Internals
+    # still log to Railway with full stack trace + request_id so we
+    # can debug from logs without exposing schema/SQL hints to clients.
     try:
         row = Client(
             astrologer_id=astrologer.id,
@@ -322,8 +322,10 @@ async def create_client(
         return _client_to_public(row, chart_session_count=0, note_count=0)
     except HTTPException:
         raise
-    except Exception as e:
-        # Log the FULL stack trace to Railway logs so we can debug.
+    except Exception:
+        # Log full stack trace to Railway logs (carries request_id
+        # via the RequestIdMiddleware access log line; correlate by
+        # X-Request-ID header returned to the client).
         _log.exception(
             "create_client_failed astrologer_id=%s payload_keys=%s",
             astrologer.id,
@@ -334,15 +336,9 @@ async def create_client(
             await db.rollback()
         except Exception:
             pass
-        # Surface the exception class name + first 200 chars of msg in
-        # the response so the frontend can show something specific.
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "error": "create_client_failed",
-                "exception_type": type(e).__name__,
-                "exception_message": str(e)[:200],
-            },
+            detail={"error": "create_client_failed"},
         )
 
 

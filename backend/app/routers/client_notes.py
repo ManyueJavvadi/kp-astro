@@ -100,8 +100,13 @@ class NotePublic(NoteBase):
     language: str
     note_type: str
     is_private: bool
-    outcome: str
-    source: str
+    # C2 hardening (2026-06-02): defaults provided here so legacy rows
+    # that pre-date migration 0002 (or any deploy where the migration
+    # hasn't yet applied) don't 500. Server_default in the model means
+    # rows touched after the migration always have non-NULL values, but
+    # the Pydantic side gives belt-and-braces safety.
+    outcome: str = "na"
+    source: str = "astrologer"
     created_at: datetime
     updated_at: datetime
 

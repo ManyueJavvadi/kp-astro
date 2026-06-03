@@ -1,9 +1,75 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from datetime import datetime, timedelta
 import json
+import os
+import logging
 import swisseph as swe
+
+from app.auth.supabase_jwt import verify_supabase_jwt
+
+_log = logging.getLogger("kp_astro.astrologer")
+
+
+# S4 hardening (2026-06-02): /astrologer/workspace was previously
+# unauthenticated AND ran CPU-heavy Swiss Ephemeris compute. Any
+# anonymous client could pin a worker by spamming this. Now requires
+# a valid Supabase JWT (any authenticated astrologer can call it).
+#
+# Why we don't use CurrentAstrologer (the DB-row dep): the workspace
+# endpoint doesn't need the astrologer row — it just needs proof
+# that SOMEONE is signed in. Using the lighter JWT-only dep avoids
+# a DB roundtrip on every chart compute, which would otherwise be
+# our most-called endpoint per session.
+#
+# Escape hatch for dev / smoke tests: set WORKSPACE_AUTH_REQUIRED=0
+# in env to bypass the gate. Defaults to ON for prod safety.
+from typing import Annotated, Optional
+from fastapi import Header
+from app.auth.supabase_jwt import (
+    SupabaseJWTPayload,
+    _extract_bearer_token,
+    _decode_with_correct_algorithm,
+)
+from app.config import get_settings as _wkspc_get_settings
+
+
+async def _require_workspace_auth(
+    authorization: Annotated[Optional[str], Header()] = None,
+) -> Optional[SupabaseJWTPayload]:
+    """Auth gate for /astrologer/workspace.
+
+    Honors WORKSPACE_AUTH_REQUIRED env var (default '1' = required).
+    Set '0' for local dev / smoke-tests; production should always be '1'.
+    """
+    if os.getenv("WORKSPACE_AUTH_REQUIRED", "1") != "1":
+        return None  # Anonymous mode (legacy / dev only)
+    if not authorization:
+        raise HTTPException(
+            status_code=401,
+            detail={"error": "authentication_required",
+                    "hint": "/astrologer/workspace now requires a Supabase JWT. "
+                            "Send Authorization: Bearer <jwt>."},
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    token = _extract_bearer_token(authorization)
+    settings = _wkspc_get_settings()
+    if not settings.auth_configured:
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "auth_not_configured"},
+        )
+    try:
+        decoded = _decode_with_correct_algorithm(token, settings)
+        return SupabaseJWTPayload(**decoded)
+    except Exception as e:
+        _log.warning("workspace_auth_failed err=%s", e)
+        raise HTTPException(
+            status_code=401,
+            detail={"error": "invalid_token"},
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 from astral import LocationInfo
 from astral.sun import sun as astral_sun
 
@@ -372,7 +438,10 @@ def build_telugu_reference() -> str:
 # ── Workspace endpoint ────────────────────────────────────────
 
 @router.post("/workspace")
-def get_workspace(request: WorkspaceRequest):
+def get_workspace(
+    request: WorkspaceRequest,
+    _auth: Optional[SupabaseJWTPayload] = Depends(_require_workspace_auth),
+):
     # PR A1.12 — backend is now source of truth for the UTC offset.
     # Frontend's `timezone_offset` is fallback only. See
     # timezone_utils.resolve_birth_offset for the full bug story.

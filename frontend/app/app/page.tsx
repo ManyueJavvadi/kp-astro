@@ -7,6 +7,10 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 // Deep links work, shareable URLs work, history persists.
 import remarkGfm from "remark-gfm";
 import axios from "axios";
+// S4 hardening (2026-06-02): /astrologer/workspace is now auth-gated.
+// Use authedAxiosPost for every workspace call so the Supabase JWT
+// rides along in Authorization header.
+import { authedAxiosPost } from "@/lib/api/authedAxios";
 import { ArrowRight, Loader2, CheckCircle, XCircle, MessageCircle, MapPin, ChevronLeft, ChevronRight, Sparkles, User, Clock, Globe2, Target, LayoutGrid, Home as HomeIcon, Hourglass, MessageSquare, Calendar, Heart, HelpCircle, Moon, Star, Sunrise, Sunset, MoonStar, Crown, TriangleAlert, Ban, CircleDashed, Sun, Briefcase, Plane, BookOpen, Stethoscope, Wallet, Car, HandHeart, Lock, Wand2, Dices, CheckCircle2, HeartPulse, Baby, Scale, Globe, TrendingUp, ChevronDown, ChevronUp, RefreshCw, Compass, Orbit, Maximize2, Minimize2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { PLANET_COLORS } from "./components/constants";
@@ -273,7 +277,7 @@ export default function Home() {
       const formattedDate = `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
       const newTime24 = `${String(new24H).padStart(2, "0")}:${String(newM).padStart(2, "0")}`;
       
-      const res = await axios.post(`${API_URL}/astrologer/workspace`, {
+      const res = await authedAxiosPost(`${API_URL}/astrologer/workspace`, {
         name: updatedBirthDetails.name,
         date: formattedDate,
         time: newTime24,
@@ -284,7 +288,7 @@ export default function Home() {
         live_latitude: liveLoc.location?.latitude ?? null,
         live_longitude: liveLoc.location?.longitude ?? null,
         live_timezone_offset: liveLoc.location?.timezone_offset ?? null,
-      });
+      }, authCtx.getAccessToken);
       
       setWorkspaceData(res.data);
       // PR R3-PR1 — invalidate downstream Match / Muhurtha / Horary
@@ -838,7 +842,13 @@ export default function Home() {
       live_timezone_offset: tz,
     };
 
-    axios.post(endpoint, payload).then(r => {
+    // S4 hardening: /astrologer/workspace is auth-gated → use
+    // authedAxiosPost. /chart/generate stays open (no chart engine
+    // sacred-region change in this wave); plain axios for that branch.
+    const requestPromise = mode === "astrologer"
+      ? authedAxiosPost(endpoint, payload, authCtx.getAccessToken)
+      : axios.post(endpoint, payload);
+    requestPromise.then(r => {
       if (mode === "astrologer") setWorkspaceData(r.data);
       else                       setChartData(r.data);
       // NOTE: do NOT recordAiCall here. /astrologer/workspace and /chart/generate
@@ -1197,14 +1207,14 @@ export default function Home() {
       // bounced the user back to the onboarding form.
       // Per user direction: "the backend is same as astrologer mode
       // (so accuracy is guaranteed)" — this is the architectural fix.
-      const res = await axios.post(`${API_URL}/astrologer/workspace`, {
+      const res = await authedAxiosPost(`${API_URL}/astrologer/workspace`, {
         name: birthDetails.name, date: formattedDate, time: getTime24(),
         latitude: birthDetails.latitude, longitude: birthDetails.longitude,
         timezone_offset: timezoneOffset, gender: birthDetails.gender || "",
         live_latitude: liveLoc.location?.latitude ?? null,
         live_longitude: liveLoc.location?.longitude ?? null,
         live_timezone_offset: liveLoc.location?.timezone_offset ?? null,
-      });
+      }, authCtx.getAccessToken);
       setWorkspaceData(res.data);
       // Keep chartData populated for any legacy code path that still
       // reads it (defensive — UserModeUI is no longer mounted, but
@@ -2028,7 +2038,7 @@ export default function Home() {
           }
         }
 
-        const res = await axios.post(`${API_URL}/astrologer/workspace`, {
+        const res = await authedAxiosPost(`${API_URL}/astrologer/workspace`, {
           name: target.birthDetails.name,
           date: formattedDate,
           time: time24,
@@ -2039,7 +2049,7 @@ export default function Home() {
           live_latitude: liveLoc.location?.latitude ?? null,
           live_longitude: liveLoc.location?.longitude ?? null,
           live_timezone_offset: liveLoc.location?.timezone_offset ?? null,
-        });
+        }, authCtx.getAccessToken);
         wsData = res.data;
         target.workspaceData = wsData;
       } catch (err) {
