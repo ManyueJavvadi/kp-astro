@@ -127,18 +127,65 @@ export function ClientsRoster({
         )}
       </div>
 
-      {/* List body */}
+      {/* U1 fix (2026-06-02): skeleton placeholders instead of plain
+          "Loading clients…" text. Gives the page perceived weight
+          while TanStack fetches, less jarring on the eye than a
+          line of text floating in white space. */}
       {isLoading && (
-        <div
+        <ul
           style={{
-            padding: 40,
-            textAlign: "center",
-            fontSize: 12,
-            color: theme.text.muted,
+            listStyle: "none",
+            padding: 0,
+            margin: 0,
+            border: "1px solid rgba(255,255,255,0.06)",
+            borderRadius: 10,
+            overflow: "hidden",
+            background: "rgba(7,11,20,0.4)",
           }}
         >
-          Loading clients…
-        </div>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <li
+              key={i}
+              className="crm-skeleton-row"
+              style={{
+                padding: "14px 16px",
+                borderBottom: "1px solid rgba(255,255,255,0.04)",
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+              }}
+            >
+              <span
+                style={{
+                  width: `${60 + ((i * 11) % 25)}%`,
+                  height: 14,
+                  background: "rgba(255,255,255,0.05)",
+                  borderRadius: 4,
+                }}
+              />
+              <span
+                style={{
+                  width: `${30 + ((i * 7) % 30)}%`,
+                  height: 10,
+                  background: "rgba(255,255,255,0.04)",
+                  borderRadius: 4,
+                }}
+              />
+            </li>
+          ))}
+          <style jsx>{`
+            @keyframes crm-skeleton-pulse {
+              0%, 100% { opacity: 0.55; }
+              50%      { opacity: 0.9; }
+            }
+            .crm-skeleton-row {
+              animation: crm-skeleton-pulse 1.4s ease-in-out infinite;
+            }
+            @media (prefers-reduced-motion: reduce) {
+              .crm-skeleton-row { animation: none; }
+            }
+          `}</style>
+        </ul>
       )}
 
       {isError && (

@@ -316,9 +316,26 @@ function AiDraftsLane({
           <strong style={{ color: theme.text.primary, fontWeight: 600 }}>
             AI drafts will appear here.
           </strong>{" "}
-          When you ask questions in the Analysis tab for this client, each
-          Q&amp;A becomes a draft you can publish (or edit then publish) as
-          a portal note — without retyping.
+          When you ask questions in the{" "}
+          {/* U3 (2026-06-02): clickable shortcut to the client's
+              workspace where the Analysis tab lives. The per-tab
+              deep link (#analysis) is a no-op today but harmless;
+              when Phase 2 S5 lands per-tab routes it'll select the
+              correct tab on arrival. */}
+          <a
+            href={`/app/clients/${clientId}#analysis`}
+            style={{
+              color: "#c9a96e",
+              fontWeight: 600,
+              textDecoration: "underline",
+              textDecorationStyle: "dotted",
+              textUnderlineOffset: 3,
+            }}
+          >
+            Analysis tab
+          </a>{" "}
+          for this client, each Q&amp;A becomes a draft you can publish
+          (or edit then publish) as a portal note — without retyping.
         </div>
       </section>
     );

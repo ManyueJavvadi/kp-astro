@@ -51,6 +51,11 @@ import { theme } from "@/lib/theme";
 // Default export of /app/page.tsx — the Home component. Importing it
 // here renders the same workspace UI Home renders on /app.
 import Home from "../../page";
+// U9 fix (2026-06-02): mount AddClientModal here so the "+ New Client"
+// button in PersonHeroBanner (top of the workspace) can open the
+// correct flow that creates BOTH a client row AND a chart_session.
+// The PersonHeroBanner dispatches `workspace-add-client` — we listen.
+import { AddClientModal } from "../../_components/AddClientModal";
 
 export default function ClientWorkspacePage() {
   const params = useParams();
@@ -199,7 +204,42 @@ export default function ClientWorkspacePage() {
 
   // Context is set; render the existing Home component which will see
   // setupDone=true + workspaceData populated and render the workspace UI.
-  return <Home />;
+  return (
+    <>
+      <Home />
+      <NewClientFromWorkspace />
+    </>
+  );
+}
+
+/**
+ * U9 fix (2026-06-02) — listens for `workspace-add-client` dispatched
+ * by PersonHeroBanner's "+ New Client" button, opens the AddClientModal.
+ * On success, navigates to the new client's workspace.
+ *
+ * Why a separate component: hooks (useState, useEffect, useRouter)
+ * can't live in the conditional-render branch above without forcing
+ * the whole component into a different shape. Component boundary
+ * isolates them cleanly.
+ */
+function NewClientFromWorkspace() {
+  const [open, setOpen] = useState(false);
+  const router = useRouter();
+  useEffect(() => {
+    const handler = () => setOpen(true);
+    window.addEventListener("workspace-add-client", handler);
+    return () => window.removeEventListener("workspace-add-client", handler);
+  }, []);
+  return (
+    <AddClientModal
+      open={open}
+      onClose={() => setOpen(false)}
+      onCreated={(clientId) => {
+        setOpen(false);
+        router.push(`/app/clients/${clientId}`);
+      }}
+    />
+  );
 }
 
 // ─── Small helpers ───────────────────────────────────────────────────

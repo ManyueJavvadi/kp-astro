@@ -45,7 +45,7 @@
  * sits above the bottom nav, not on the screen edge).
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -111,6 +111,35 @@ export function CrmShell({
   const { data: me } = useMe();
   const isMobile = useIsMobile();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  // U2 (2026-06-02) — coach mark on the FAB, shown ONCE per browser
+  // until the user taps the FAB or dismisses the tooltip. The state
+  // gets persisted to localStorage so we don't pester power users.
+  const [showFabCoach, setShowFabCoach] = useState(false);
+  useEffect(() => {
+    if (!isMobile || !mobilePrimaryAction || typeof window === "undefined") {
+      return;
+    }
+    try {
+      const seen = window.localStorage.getItem(
+        "devastroai:crm-fab-coach-seen",
+      );
+      if (!seen) {
+        // Slight delay so the coach doesn't pop in mid-page-load.
+        const t = setTimeout(() => setShowFabCoach(true), 1200);
+        return () => clearTimeout(t);
+      }
+    } catch {
+      /* localStorage disabled — just don't show the coach */
+    }
+  }, [isMobile, mobilePrimaryAction]);
+  function dismissFabCoach() {
+    setShowFabCoach(false);
+    try {
+      window.localStorage.setItem("devastroai:crm-fab-coach-seen", "1");
+    } catch {
+      /* ignore */
+    }
+  }
 
   function isActive(item: NavItem): boolean {
     if (item.exact) return pathname === item.href;
@@ -186,25 +215,32 @@ export function CrmShell({
               {pageTitle}
             </h1>
           )}
+          {/* U6 fix (2026-06-02): "Account" label so first-time mobile
+              users can find sign-out / identity. Was a bare hamburger
+              with no affordance text — easy to miss. */}
           <button
             type="button"
-            aria-label="Open menu"
+            aria-label="Account menu"
             onClick={() => setMobileMenuOpen(true)}
             style={{
-              width: 36,
+              minWidth: 36,
               height: 36,
+              padding: "0 10px",
               display: "inline-flex",
               alignItems: "center",
-              justifyContent: "center",
+              gap: 6,
               background: "transparent",
               border: "1px solid rgba(255,255,255,0.08)",
               borderRadius: 8,
               color: theme.text.muted,
+              fontSize: 12,
+              fontWeight: 500,
               cursor: "pointer",
               flexShrink: 0,
             }}
           >
-            <Menu size={18} />
+            <Menu size={16} />
+            <span style={{ display: "inline" }}>Account</span>
           </button>
         </header>
 
@@ -221,37 +257,104 @@ export function CrmShell({
 
         {/* ─── Floating gold FAB (mobile primary action) ─── */}
         {mobilePrimaryAction && (
-          <button
-            type="button"
-            onClick={mobilePrimaryAction.onClick}
-            aria-label={mobilePrimaryAction.label}
-            className="crm-fab-breathing"
-            style={{
-              position: "fixed",
-              bottom: 84, // sits above bottom nav (70 + 14 spacing)
-              right: 16,
-              zIndex: 40,
-              width: 56,
-              height: 56,
-              borderRadius: "50%",
-              border: "none",
-              background:
-                "linear-gradient(180deg, #e8c98a 0%, #c9a96e 60%, #b8985d 100%)",
-              color: "#09090f",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              boxShadow:
-                "0 0 0 1px rgba(231,201,138,0.55), 0 6px 18px rgba(0,0,0,0.55), 0 0 28px rgba(231,201,138,0.35)",
-            }}
-          >
-            {mobilePrimaryAction.icon ?? (
-              <span style={{ fontSize: 26, fontWeight: 300, lineHeight: 1 }}>
-                +
-              </span>
+          <>
+            {/* U2 (2026-06-02): first-visit coach mark. Points to the
+                FAB with a brief tooltip + dismiss button. localStorage
+                ensures it's shown ONCE per browser. */}
+            {showFabCoach && (
+              <div
+                role="tooltip"
+                style={{
+                  position: "fixed",
+                  bottom: 150,        // above the FAB which sits at bottom:84 + 56 height
+                  right: 16,
+                  zIndex: 41,
+                  maxWidth: 220,
+                  padding: "10px 12px",
+                  background: "rgba(14,14,22,0.97)",
+                  border: "1px solid rgba(201,169,110,0.45)",
+                  borderRadius: 10,
+                  boxShadow: "0 6px 24px rgba(0,0,0,0.5)",
+                  fontSize: 12,
+                  color: theme.text.primary,
+                  lineHeight: 1.45,
+                  animation: "crm-coach-fade-in 240ms ease-out",
+                }}
+              >
+                <div style={{ marginBottom: 6, fontWeight: 600 }}>
+                  Tap to {mobilePrimaryAction.label.toLowerCase()}
+                </div>
+                <div style={{ fontSize: 11, color: theme.text.muted, marginBottom: 8 }}>
+                  Your fastest action lives right here — one tap from
+                  any screen.
+                </div>
+                <button
+                  type="button"
+                  onClick={dismissFabCoach}
+                  style={{
+                    fontSize: 11,
+                    color: "#c9a96e",
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: 0,
+                    fontWeight: 600,
+                  }}
+                >
+                  Got it
+                </button>
+                {/* Pointer triangle */}
+                <div
+                  aria-hidden
+                  style={{
+                    position: "absolute",
+                    right: 24,
+                    bottom: -6,
+                    width: 12,
+                    height: 12,
+                    background: "rgba(14,14,22,0.97)",
+                    borderRight: "1px solid rgba(201,169,110,0.45)",
+                    borderBottom: "1px solid rgba(201,169,110,0.45)",
+                    transform: "rotate(45deg)",
+                  }}
+                />
+              </div>
             )}
-          </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (showFabCoach) dismissFabCoach();
+                mobilePrimaryAction.onClick();
+              }}
+              aria-label={mobilePrimaryAction.label}
+              className="crm-fab-breathing"
+              style={{
+                position: "fixed",
+                bottom: 84, // sits above bottom nav (70 + 14 spacing)
+                right: 16,
+                zIndex: 40,
+                width: 56,
+                height: 56,
+                borderRadius: "50%",
+                border: "none",
+                background:
+                  "linear-gradient(180deg, #e8c98a 0%, #c9a96e 60%, #b8985d 100%)",
+                color: "#09090f",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                boxShadow:
+                  "0 0 0 1px rgba(231,201,138,0.55), 0 6px 18px rgba(0,0,0,0.55), 0 0 28px rgba(231,201,138,0.35)",
+              }}
+            >
+              {mobilePrimaryAction.icon ?? (
+                <span style={{ fontSize: 26, fontWeight: 300, lineHeight: 1 }}>
+                  +
+                </span>
+              )}
+            </button>
+          </>
         )}
 
         {/* ─── Bottom nav bar ─── */}
@@ -327,7 +430,7 @@ export function CrmShell({
           />
         )}
 
-        {/* Inline keyframes for FAB breathing glow */}
+        {/* Inline keyframes for FAB breathing glow + coach mark fade */}
         <style jsx>{`
           @keyframes crm-fab-breath {
             0%, 100% {
@@ -340,6 +443,10 @@ export function CrmShell({
                 0 6px 18px rgba(0, 0, 0, 0.55),
                 0 0 44px rgba(231, 201, 138, 0.55);
             }
+          }
+          @keyframes crm-coach-fade-in {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
           }
           :global(.crm-fab-breathing) {
             animation: crm-fab-breath 3.8s ease-in-out infinite;

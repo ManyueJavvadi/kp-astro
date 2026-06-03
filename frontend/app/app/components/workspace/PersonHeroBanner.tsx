@@ -263,8 +263,20 @@ export default function PersonHeroBanner({
           </div>
         )}
 
+        {/* U9 fix (2026-06-02): wired to AddClientModal (via custom
+            event the per-client page listens for) instead of the
+            legacy NewChartModal which only created a chart_session
+            with no client_id — those orphan sessions showed up in
+            the sidebar as ghost rows. The legacy onNewChart prop
+            still fires too so any state cleanup it does (stash etc.)
+            still happens. */}
         <button
-          onClick={onNewChart}
+          onClick={() => {
+            onNewChart();
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent("workspace-add-client"));
+            }
+          }}
           style={{
             display: "inline-flex",
             alignItems: "center",
