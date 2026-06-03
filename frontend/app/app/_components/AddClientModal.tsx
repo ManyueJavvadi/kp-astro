@@ -37,13 +37,12 @@
 import { useState, useEffect } from "react";
 import { X, Loader2, ArrowRight } from "lucide-react";
 import { PlacePicker } from "@/components/ui/place-picker";
-import { useCreateClient } from "@/lib/api/hooks";
-import { useCreateChartSession } from "@/lib/api/hooks";
+// C1 fix (2026-06-02): use transactional combined endpoint instead of
+// the 3-step axios sequence (POST /clients → POST /astrologer/workspace
+// → POST /chart-sessions) that produced orphan client rows on failure.
+import { useCreateClientWithChart } from "@/lib/api/hooks";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useSheetDrag } from "@/hooks/useSheetDrag";
-// S4 hardening (2026-06-02): /astrologer/workspace now requires JWT.
-import { authedAxiosPost } from "@/lib/api/authedAxios";
-import { useAuth } from "@/lib/auth/auth-context";
 import { theme } from "@/lib/theme";
 import {
   formatMaskedDate,
@@ -64,7 +63,6 @@ export interface AddClientModalProps {
 export function AddClientModal({ open, onClose, onCreated }: AddClientModalProps) {
   const isMobile = useIsMobile();
   const { dragProps, sheetStyle } = useSheetDrag({ onClose });
-  const { getAccessToken } = useAuth();
 
   const [name, setName] = useState("");
   const [date, setDate] = useState("");
@@ -80,8 +78,7 @@ export function AddClientModal({ open, onClose, onCreated }: AddClientModalProps
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const createClient = useCreateClient();
-  const createSession = useCreateChartSession();
+  const createClientWithChart = useCreateClientWithChart();
 
   // Reset form when modal closes (so reopening starts fresh).
   useEffect(() => {
@@ -143,20 +140,10 @@ export function AddClientModal({ open, onClose, onCreated }: AddClientModalProps
     setSubmitting(true);
 
     try {
-      // Step 1 — create the client row
-      const client = await createClient.mutateAsync({
-        name: name.trim(),
-        gender,
-        birth_date: date,
-        birth_time: time,
-        birth_place_name: place,
-        birth_latitude: latitude,
-        birth_longitude: longitude,
-        phone: phone.trim() || undefined,
-        email: email.trim() || undefined,
-      });
-
-      // Step 2 — compute the chart
+      // C1 fix (2026-06-02): single transactional call. Backend handles
+      // client INSERT + chart compute + chart_session INSERT atomically.
+      // If anything fails server-side, the client row is rolled back so
+      // we never get duplicate-row orphans in the CRM.
       const [dd, mm, yyyy] = date.split("/");
       const isoDate = `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
 
@@ -165,46 +152,30 @@ export function AddClientModal({ open, onClose, onCreated }: AddClientModalProps
       if (ampm === "AM" && hh === 12) hh = 0;
       const time24 = `${String(hh).padStart(2, "0")}:${String(mn).padStart(2, "0")}`;
 
-      // C7 fix: pass browser-detected timezone offset (not hardcoded
-      // 5.5). The backend resolves DST-correct offset from lat/lon+date
-      // anyway, but sending the right fallback avoids cases where
-      // historical-DST resolution can't find a match.
+      // C7 fix: send browser-detected offset as the fallback. Backend
+      // still resolves DST-correct offset from lat/lon+date itself; this
+      // just covers cases where historical-DST resolution can't find a
+      // match (e.g., obscure pre-1970 dates).
       const browserOffset = -new Date().getTimezoneOffset() / 60;
-      const wsResp = await authedAxiosPost<Record<string, unknown>>(
-        `${API_URL}/astrologer/workspace`,
-        {
-          name: name.trim(),
-          date: isoDate,
-          time: time24,
-          latitude,
-          longitude,
-          timezone_offset: browserOffset,
-          gender,
-        },
-        getAccessToken,
-      );
-      const workspaceData = wsResp.data;
 
-      // Step 3 — persist chart_session tied to this client
-      const session = await createSession.mutateAsync({
+      const result = await createClientWithChart.mutateAsync({
         name: name.trim(),
-        client_id: client.id,
-        birth_name: name.trim(),
-        birth_date: date,
-        birth_time: time,
-        birth_ampm: ampm,
+        gender,
+        birth_date: date,            // keep DD/MM/YYYY format the UI uses
+        birth_time: time,            // keep HH:MM format
         birth_place_name: place,
         birth_latitude: latitude,
         birth_longitude: longitude,
-        birth_timezone_offset:
-          typeof workspaceData?.timezone_offset === "number"
-            ? workspaceData.timezone_offset
-            : browserOffset,
-        birth_gender: gender,
-        workspace_data: workspaceData,
+        birth_timezone_offset: browserOffset,
+        phone: phone.trim() || undefined,
+        email: email.trim() || undefined,
+        // Chart-compute fields the new endpoint requires
+        chart_iso_date: isoDate,
+        chart_time_24h: time24,
+        chart_ampm: ampm,
       });
 
-      onCreated(client.id, session.id);
+      onCreated(result.client.id, result.chart_session_id);
     } catch (err: unknown) {
       const msg =
         err instanceof Error

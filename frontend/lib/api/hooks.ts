@@ -133,6 +133,14 @@ export interface ClientPublic {
   matching_opt_in: boolean | null;
   summary: string | null;
 
+  /** S5 (2026-06-02, migration 0003) — astrologer kill switch.
+   *  When false, public /c/{slug} returns 404. */
+  portal_enabled: boolean;
+  /** C10 (2026-06-02, migration 0003) — per-field portal visibility.
+   *  Empty object = show everything. Keys recognized by backend:
+   *  show_birth_time, show_birth_place, show_gender. */
+  portal_visibility: PortalVisibility;
+
   /** Convenience counts populated by the backend. */
   chart_session_count: number;
   note_count: number;
@@ -140,6 +148,12 @@ export interface ClientPublic {
 
   created_at: string;
   updated_at: string;
+}
+
+export interface PortalVisibility {
+  show_birth_time?: boolean;
+  show_birth_place?: boolean;
+  show_gender?: boolean;
 }
 
 export interface ClientCreate {
@@ -157,6 +171,23 @@ export interface ClientCreate {
 
   matching_opt_in?: boolean;
   summary?: string;
+  portal_enabled?: boolean;
+  portal_visibility?: PortalVisibility;
+}
+
+/** C1 fix (2026-06-02) — payload for the transactional combined endpoint. */
+export interface ClientWithChartCreate extends ClientCreate {
+  /** ISO YYYY-MM-DD birth date for chart compute. */
+  chart_iso_date: string;
+  /** 24-hour HH:MM birth time. */
+  chart_time_24h: string;
+  /** AM/PM preserved for the chart_session.birth_ampm column. */
+  chart_ampm?: "AM" | "PM";
+}
+
+export interface ClientWithChartResponse {
+  client: ClientPublic;
+  chart_session_id: string;
 }
 
 export type ClientUpdate = Partial<ClientCreate>;
@@ -197,6 +228,10 @@ export interface NotePublic {
   outcome: "pending" | "confirmed" | "partial" | "disconfirmed" | "na";
   /** Phase 2 polish (2026-06-02) — origin tracking. */
   source: "astrologer" | "ai_draft";
+  /** C5 fix (2026-06-02, migration 0003) — exact link to the AI Q&A
+   *  this note was promoted from. "<session_id>:<message_index>"
+   *  when source='ai_draft', null otherwise. */
+  promoted_from_key: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -212,6 +247,7 @@ export interface NoteCreate {
   resolution_note?: string;
   outcome?: "pending" | "confirmed" | "partial" | "disconfirmed" | "na";
   source?: "astrologer" | "ai_draft";
+  promoted_from_key?: string;
 }
 
 export type NoteUpdate = Partial<NoteCreate>;
@@ -332,6 +368,25 @@ export function useChartSessions(
       }),
     enabled: status === "authenticated",
     ...options,
+  });
+}
+
+/** C8 fix (2026-06-02) — server-side filter for per-client workspace
+ *  page. Avoids the full-roster re-read that happened on every
+ *  /app/clients/[id] mount. */
+export function useChartSessionsForClient(
+  clientId: string | null | undefined,
+) {
+  const { status, getAccessToken } = useAuth();
+  return useQuery<ChartSessionList, Error>({
+    queryKey: clientId
+      ? ["chart-sessions", "by-client", clientId]
+      : ["chart-sessions", "by-client", "noop"],
+    queryFn: () =>
+      apiFetch<ChartSessionList>(`/chart-sessions?client_id=${clientId}`, {
+        getToken: getAccessToken,
+      }),
+    enabled: Boolean(clientId) && status === "authenticated",
   });
 }
 
@@ -530,6 +585,28 @@ export function useCreateClient() {
       );
       qc.setQueryData(queryKeys.client(data.id), data);
       qc.invalidateQueries({ queryKey: queryKeys.clients });
+    },
+  });
+}
+
+/** C1 fix (2026-06-02) — transactional combined endpoint. Use this
+ *  in the AddClientModal instead of the brittle 3-step axios sequence.
+ *  Backend either creates BOTH the client row AND the chart_session,
+ *  or rolls back BOTH — no orphan clients. */
+export function useCreateClientWithChart() {
+  const { getAccessToken } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: ClientWithChartCreate) =>
+      apiFetch<ClientWithChartResponse>("/clients/with-chart", {
+        method: "POST",
+        body: payload,
+        getToken: getAccessToken,
+      }),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: queryKeys.clients });
+      qc.invalidateQueries({ queryKey: queryKeys.chartSessions });
+      qc.setQueryData(queryKeys.client(data.client.id), data.client);
     },
   });
 }

@@ -50,9 +50,12 @@ import {
   useClientAiDrafts,
   useCreateNote,
   useDeleteNote,
+  useUpdateClient,
   usePortal,
   type AiDraft,
+  type ClientPublic,
   type NotePublic,
+  type PortalVisibility,
 } from "@/lib/api/hooks";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { theme } from "@/lib/theme";
@@ -161,6 +164,11 @@ export default function ClientPortalAdminPage() {
         </div>
       )}
 
+      {/* S5 + C10 controls — astrologer kill switch + per-field
+          privacy. Sits at the top so it's the first thing seen
+          before composing notes. */}
+      <PortalPrivacyControls client={client} />
+
       <div
         style={{
           display: "grid",
@@ -251,16 +259,26 @@ function AiDraftsLane({
   }
 
   /**
-   * Build a quick lookup of already-promoted drafts. Match by the
-   * first 80 chars of the draft's answer being a substring of any
-   * existing note text — good enough for v1 (collision risk is
-   * negligible given answer length). A future migration could add a
-   * `promoted_from_key` column on client_notes for exact matching.
+   * Build a quick lookup of already-promoted drafts. C5 fix
+   * (2026-06-02): we now use the exact promoted_from_key column on
+   * client_notes (migration 0003) instead of the fragile substring
+   * heuristic. Fallback to the old heuristic for any legacy note
+   * whose promoted_from_key is null (notes that were promoted before
+   * migration 0003 shipped — still rendering them as "promoted"
+   * avoids double-publishing).
    */
   const promotedKeys = useMemo(() => {
     const set = new Set<string>();
+    // 1. Exact match via promoted_from_key (preferred)
+    for (const note of existingNotes) {
+      if (note.promoted_from_key) {
+        set.add(note.promoted_from_key);
+      }
+    }
+    // 2. Legacy heuristic fallback for any draft NOT already matched
     if (!data) return set;
     for (const draft of data.items) {
+      if (set.has(draft.key)) continue;
       const needle = draft.answer.slice(0, 80).trim();
       if (!needle) continue;
       if (existingNotes.some((n) => n.text.includes(needle))) {
@@ -339,6 +357,21 @@ function AiDraftsLane({
         >
           · from your Analysis Q&amp;A — promote to public, or edit first
         </div>
+        {dismissed.size > 0 && (
+          <span
+            style={{
+              marginLeft: "auto",
+              fontSize: 9,
+              color: theme.text.muted,
+              padding: "2px 6px",
+              border: "1px dashed rgba(255,255,255,0.1)",
+              borderRadius: 4,
+            }}
+            title="Dismissals are per-device — they don't sync across browsers."
+          >
+            {dismissed.size} dismissed (this device)
+          </span>
+        )}
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -354,6 +387,9 @@ function AiDraftsLane({
                 note_type: draft.is_topic ? "observation" : "reading",
                 is_private: false,
                 source: "ai_draft",
+                // C5 fix (2026-06-02): exact link to the originating
+                // Q&A so the "already promoted" badge is precise.
+                promoted_from_key: draft.key,
                 // language defaults to 'en' on backend; analysis answers
                 // are English-language by default
               });
@@ -371,6 +407,10 @@ function AiDraftsLane({
                       isPrivate: false,
                       noteType: draft.is_topic ? "observation" : "reading",
                       source: "ai_draft",
+                      // C5 fix — passes through to the create_note
+                      // mutation so the "already promoted" badge
+                      // appears as soon as it ships.
+                      promotedFromKey: draft.key,
                     },
                   }),
                 );
@@ -611,7 +651,11 @@ function AiDraftCard({
             type="button"
             onClick={onDismiss}
             aria-label="Dismiss this draft"
-            title="Hide locally — the underlying AI Q&A in your history is unchanged"
+            title={
+              "Hide on this device only — your AI Q&A history stays " +
+              "intact, and the draft will reappear if you open this " +
+              "page from another device or browser."
+            }
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -649,6 +693,11 @@ function ComposerPanel({ clientId }: { clientId: string }) {
   const [pendingSource, setPendingSource] = useState<
     "astrologer" | "ai_draft"
   >("astrologer");
+  // C5 fix — remember which draft we're editing so the published
+  // note carries promoted_from_key. Cleared after submit.
+  const [pendingPromotedFromKey, setPendingPromotedFromKey] = useState<
+    string | null
+  >(null);
 
   const createNote = useCreateNote(clientId);
 
@@ -661,6 +710,7 @@ function ComposerPanel({ clientId }: { clientId: string }) {
       isPrivate?: boolean;
       noteType?: "reading" | "prediction" | "follow_up" | "observation";
       source?: "astrologer" | "ai_draft";
+      promotedFromKey?: string;
     };
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<PrefillDetail>).detail;
@@ -669,6 +719,7 @@ function ComposerPanel({ clientId }: { clientId: string }) {
       if (typeof detail.isPrivate === "boolean") setIsPrivate(detail.isPrivate);
       if (detail.noteType) setNoteType(detail.noteType);
       setPendingSource(detail.source ?? "astrologer");
+      setPendingPromotedFromKey(detail.promotedFromKey ?? null);
     };
     window.addEventListener("portal-prefill-composer", handler);
     return () => window.removeEventListener("portal-prefill-composer", handler);
@@ -683,11 +734,13 @@ function ComposerPanel({ clientId }: { clientId: string }) {
       language,
       is_private: isPrivate,
       source: pendingSource,
+      promoted_from_key: pendingPromotedFromKey ?? undefined,
     });
     setText("");
     // Reset provenance — next free-form note from this composer is
     // again astrologer-authored unless another prefill event fires.
     setPendingSource("astrologer");
+    setPendingPromotedFromKey(null);
   }
 
   return (
@@ -1246,6 +1299,189 @@ function MiniStat({ label, value }: { label: string; value: string }) {
         {value}
       </div>
     </div>
+  );
+}
+
+// ─── Portal privacy controls (S5 + C10) ─────────────────────────────
+//
+// Kill switch + per-field visibility, surfaced at the top of the
+// portal admin page so the astrologer sees the current privacy state
+// before composing notes. Optimistic updates via useUpdateClient.
+
+function PortalPrivacyControls({ client }: { client: ClientPublic }) {
+  const updateClient = useUpdateClient(client.id);
+
+  function setEnabled(next: boolean) {
+    updateClient.mutate({ portal_enabled: next });
+  }
+  function setVisibility(patch: PortalVisibility) {
+    updateClient.mutate({
+      portal_visibility: { ...client.portal_visibility, ...patch },
+    });
+  }
+
+  const v = client.portal_visibility || {};
+  // Missing key → default TRUE (matches backend semantics).
+  const showBirthTime = v.show_birth_time !== false;
+  const showBirthPlace = v.show_birth_place !== false;
+  const showGender = v.show_gender !== false;
+
+  return (
+    <section
+      style={{
+        marginBottom: 18,
+        padding: 14,
+        background: client.portal_enabled
+          ? "rgba(52,211,153,0.04)"
+          : "rgba(248,113,113,0.06)",
+        border: `1px solid ${
+          client.portal_enabled
+            ? "rgba(52,211,153,0.22)"
+            : "rgba(248,113,113,0.35)"
+        }`,
+        borderRadius: 10,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 600,
+              color: client.portal_enabled ? "#34d399" : "#f87171",
+              textTransform: "uppercase",
+              letterSpacing: 0.6,
+              marginBottom: 4,
+            }}
+          >
+            {client.portal_enabled ? "Portal active" : "Portal disabled"}
+          </div>
+          <div style={{ fontSize: 12, color: theme.text.muted, lineHeight: 1.45 }}>
+            {client.portal_enabled
+              ? "Your client can open the portal URL right now. Toggle off to revoke without rotating the link."
+              : "The portal URL returns 404. Toggle on to restore — no need to regenerate the slug."}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setEnabled(!client.portal_enabled)}
+          disabled={updateClient.isPending}
+          style={{
+            padding: "8px 14px",
+            background: client.portal_enabled
+              ? "rgba(248,113,113,0.12)"
+              : "linear-gradient(180deg, #34d399 0%, #1aa371 100%)",
+            border: client.portal_enabled
+              ? "1px solid rgba(248,113,113,0.35)"
+              : "none",
+            borderRadius: 8,
+            color: client.portal_enabled ? "#f87171" : "#0a1a12",
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: updateClient.isPending ? "wait" : "pointer",
+          }}
+        >
+          {client.portal_enabled ? "Disable portal" : "Enable portal"}
+        </button>
+      </div>
+
+      {/* Per-field visibility — only relevant when portal is on. */}
+      {client.portal_enabled && (
+        <div
+          style={{
+            marginTop: 12,
+            paddingTop: 12,
+            borderTop: "1px solid rgba(255,255,255,0.05)",
+            display: "flex",
+            gap: 8,
+            flexWrap: "wrap",
+            alignItems: "center",
+          }}
+        >
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 600,
+              color: theme.text.muted,
+              textTransform: "uppercase",
+              letterSpacing: 0.6,
+              marginRight: 4,
+            }}
+          >
+            Show on portal:
+          </span>
+          <VisibilityChip
+            label="Birth time"
+            active={showBirthTime}
+            disabled={updateClient.isPending}
+            onToggle={() =>
+              setVisibility({ show_birth_time: !showBirthTime })
+            }
+          />
+          <VisibilityChip
+            label="Birth place"
+            active={showBirthPlace}
+            disabled={updateClient.isPending}
+            onToggle={() =>
+              setVisibility({ show_birth_place: !showBirthPlace })
+            }
+          />
+          <VisibilityChip
+            label="Gender"
+            active={showGender}
+            disabled={updateClient.isPending}
+            onToggle={() => setVisibility({ show_gender: !showGender })}
+          />
+        </div>
+      )}
+    </section>
+  );
+}
+
+function VisibilityChip({
+  label,
+  active,
+  disabled,
+  onToggle,
+}: {
+  label: string;
+  active: boolean;
+  disabled: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      disabled={disabled}
+      aria-pressed={active}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        padding: "5px 10px",
+        background: active ? "rgba(201,169,110,0.14)" : "rgba(255,255,255,0.03)",
+        border: active
+          ? "1px solid rgba(201,169,110,0.4)"
+          : "1px solid rgba(255,255,255,0.08)",
+        borderRadius: 999,
+        color: active ? "#c9a96e" : theme.text.muted,
+        fontSize: 11,
+        fontWeight: 500,
+        cursor: disabled ? "wait" : "pointer",
+      }}
+    >
+      {active ? <Eye size={11} /> : <EyeOff size={11} />}
+      {label}
+    </button>
   );
 }
 

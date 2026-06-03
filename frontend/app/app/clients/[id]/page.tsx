@@ -42,7 +42,10 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { useChartSessions } from "@/lib/api/hooks";
+// C8 fix (2026-06-02): use the per-client filter instead of the full
+// roster. With many clients × many sessions, fetching all and
+// filtering client-side was a meaningful waste of bandwidth.
+import { useChartSessionsForClient } from "@/lib/api/hooks";
 import { useWorkspace } from "../../_lib/workspace-context";
 import { theme } from "@/lib/theme";
 // Default export of /app/page.tsx — the Home component. Importing it
@@ -54,7 +57,8 @@ export default function ClientWorkspacePage() {
   const router = useRouter();
   const clientId = (params?.id as string) ?? "";
 
-  const { data: sessions, isSuccess, isLoading } = useChartSessions();
+  const { data: sessions, isSuccess, isLoading } =
+    useChartSessionsForClient(clientId);
   const {
     setBirthDetails,
     setWorkspaceData,
@@ -72,9 +76,9 @@ export default function ClientWorkspacePage() {
   useEffect(() => {
     if (!clientId) return;
     if (!isSuccess || !sessions) return;
-    // Pick the most-recently-updated session for this client. API
-    // returns items ordered by updated_at DESC.
-    const session = sessions.items.find((s) => s.client_id === clientId);
+    // The filtered endpoint returns only sessions for this client;
+    // head of list is most recently updated.
+    const session = sessions.items[0];
     if (!session) {
       // Edge case: client exists but has no chart_session. Could
       // happen if the user added a client via direct API call or
