@@ -1,5 +1,11 @@
 """/clients — CRUD for the astrologer's client roster (Phase 2 Slice 2).
 
+LOGGING NOTE (2026-06-02 hotfix): Wrapped create_client in explicit
+try/except with logger.exception to surface the actual stack trace in
+Railway logs. If you see 500s on POST /clients, check Railway logs for
+"create_client_failed" — the stack trace will pinpoint the cause.
+
+
 This is the CRM data layer that the new /app home (CRM-first) reads
 from and writes to. Each row in `clients` is one real-world person the
 astrologer is consulting for.
@@ -29,6 +35,7 @@ Endpoints:
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -43,6 +50,7 @@ from app.db import get_db
 from app.db.models import ChartSession, Client, ClientNote
 
 router = APIRouter()
+_log = logging.getLogger("kp_astro.clients")
 
 
 # ─── Schemas ──────────────────────────────────────────────────────────
@@ -151,6 +159,49 @@ async def _get_owned_or_404(
     return row
 
 
+def _client_to_public(
+    row: Client,
+    chart_session_count: int = 0,
+    note_count: int = 0,
+    last_session_at: Optional[datetime] = None,
+) -> ClientPublic:
+    """Build ClientPublic explicitly from a Client SQLAlchemy row.
+
+    2026-06-02 hotfix: was using ClientPublic.model_validate(row) which
+    uses Pydantic's from_attributes=True. That triggered 500 errors on
+    POST /clients because Pydantic was traversing SQLAlchemy attributes
+    in a way that conflicted with our `lazy="raise"` relationship
+    setting (any incidental access of row.chart_sessions or row.notes
+    raises InvalidRequestError on a freshly-flushed row whose
+    relationships haven't been eager-loaded).
+
+    Explicit field mapping avoids the issue entirely — we only read
+    scalar columns, never relationships.
+    """
+    return ClientPublic(
+        id=row.id,
+        astrologer_id=row.astrologer_id,
+        name=row.name,
+        phone=row.phone,
+        email=row.email,
+        gender=row.gender,
+        birth_date=row.birth_date,
+        birth_time=row.birth_time,
+        birth_place_name=row.birth_place_name,
+        birth_latitude=row.birth_latitude,
+        birth_longitude=row.birth_longitude,
+        birth_timezone_offset=row.birth_timezone_offset,
+        matching_opt_in=row.matching_opt_in,
+        portal_slug=row.portal_slug,
+        summary=row.summary,
+        chart_session_count=chart_session_count,
+        note_count=note_count,
+        last_session_at=last_session_at,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
 async def _attach_counts(
     rows: list[Client],
     db: AsyncSession,
@@ -195,11 +246,14 @@ async def _attach_counts(
     out: list[ClientPublic] = []
     for r in rows:
         sess_cnt, last_at = sess_map.get(r.id, (0, None))
-        pub = ClientPublic.model_validate(r)
-        pub.chart_session_count = sess_cnt
-        pub.note_count = note_map.get(r.id, 0)
-        pub.last_session_at = last_at
-        out.append(pub)
+        out.append(
+            _client_to_public(
+                r,
+                chart_session_count=sess_cnt,
+                note_count=note_map.get(r.id, 0),
+                last_session_at=last_at,
+            )
+        )
     return out
 
 
@@ -249,18 +303,47 @@ async def create_client(
       3. POST /chart-sessions with client_id + workspace_data → persists
     See the CRM Add Client modal in Slice 3 for the orchestration.
     """
-    row = Client(
-        astrologer_id=astrologer.id,
-        **payload.model_dump(exclude_unset=True),
-    )
-    db.add(row)
-    await db.flush()  # populate id + portal_slug + created_at
-
-    # Newly created → zero sessions / notes
-    pub = ClientPublic.model_validate(row)
-    pub.chart_session_count = 0
-    pub.note_count = 0
-    return pub
+    # Detailed error catching: 500s on this endpoint were misleadingly
+    # surfacing as CORS errors in the browser (fixed in 18fb86a). Now
+    # they surface correctly, but we still don't see the stack trace
+    # without proper logging. Catch + log + raise a 500 with the
+    # exception class name so the frontend can show something useful
+    # while we debug.
+    try:
+        row = Client(
+            astrologer_id=astrologer.id,
+            **payload.model_dump(exclude_unset=True),
+        )
+        db.add(row)
+        await db.flush()  # populate id + portal_slug + created_at
+        # Newly created → zero sessions / notes. Use explicit
+        # constructor (not model_validate) — see _client_to_public
+        # docstring for why.
+        return _client_to_public(row, chart_session_count=0, note_count=0)
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Log the FULL stack trace to Railway logs so we can debug.
+        _log.exception(
+            "create_client_failed astrologer_id=%s payload_keys=%s",
+            astrologer.id,
+            list(payload.model_dump(exclude_unset=True).keys()),
+        )
+        # Rollback so the session can be reused for the next request.
+        try:
+            await db.rollback()
+        except Exception:
+            pass
+        # Surface the exception class name + first 200 chars of msg in
+        # the response so the frontend can show something specific.
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": "create_client_failed",
+                "exception_type": type(e).__name__,
+                "exception_message": str(e)[:200],
+            },
+        )
 
 
 @router.get("/{client_id}", response_model=ClientPublic)
