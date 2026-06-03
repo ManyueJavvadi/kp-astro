@@ -113,6 +113,21 @@ export async function apiFetch<T = unknown>(
   }
 
   if (!response.ok) {
+    // P0-4 (deep-scan-2): on a 401, dispatch the auth-invalidated
+    // CustomEvent so AuthProvider signs the user out + redirects to
+    // /auth/login?reauth=1. Without this, silently-expired tokens
+    // produced "Couldn't load…" cards on every panel with no recovery
+    // path. We still throw the ApiError so the caller's onError fires
+    // and TanStack stops the retry train.
+    if (response.status === 401 && typeof window !== "undefined") {
+      try {
+        window.dispatchEvent(
+          new CustomEvent("devastroai:auth-invalidated"),
+        );
+      } catch {
+        /* CustomEvent unsupported — fall through to error */
+      }
+    }
     throw new ApiError(
       response.status,
       parsed,

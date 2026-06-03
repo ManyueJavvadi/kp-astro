@@ -43,6 +43,10 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
 
   const redirectTo = searchParams.get("redirect") || "/app";
+  // P0-4 (deep-scan-2): when AuthProvider's 401 handler bounces the
+  // user here, ?reauth=1 is in the URL. Show a banner explaining why
+  // they had to sign back in.
+  const reauth = searchParams.get("reauth") === "1";
 
   // Auto-redirect if already signed in.
   useEffect(() => {
@@ -81,6 +85,24 @@ function LoginForm() {
 
   return (
     <AuthShell title="Welcome back" subtitle="Sign in to your DevAstroAI workspace.">
+      {reauth && (
+        <div
+          role="status"
+          style={{
+            marginBottom: 18,
+            padding: "12px 14px",
+            background: "rgba(251,191,36,0.08)",
+            border: "1px solid rgba(251,191,36,0.3)",
+            borderRadius: 8,
+            fontSize: 13,
+            lineHeight: 1.5,
+            color: "#fbbf24",
+          }}
+        >
+          Your session expired — please sign in again. We'll bring you
+          back to where you left off.
+        </div>
+      )}
       <form onSubmit={handleSubmit}>
         <FormField label="Email" htmlFor="email">
           <input

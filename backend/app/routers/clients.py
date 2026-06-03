@@ -473,10 +473,10 @@ async def create_client_with_chart(
     from app.services.chart_formatter import format_chart_for_frontend
     from app.services.chart_pipeline import _resolve_rp_triple, build_rp_meta
     from app.services.timezone_utils import resolve_birth_offset
-    from app.services.telugu_terms import (
-        get_planet_telugu, get_sign_telugu, get_nakshatra_telugu,
-        get_house_telugu,
-    )
+    # P2-13 fix (deep-scan-2): dropped unused imports of
+    # get_planet_telugu / get_sign_telugu / get_nakshatra_telugu /
+    # get_house_telugu — they were brought in by reflex and never used
+    # (the chart formatter already handles Telugu names).
     from app.db.models import ChartSession
     import swisseph as _swe
 

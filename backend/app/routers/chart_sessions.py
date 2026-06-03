@@ -306,10 +306,16 @@ async def migrate_sessions(
     await db.flush()
 
     # Final count.
-    count_stmt = select(ChartSession).where(
+    # P0-6 fix (deep-scan-2): use func.count() instead of loading every
+    # row to call len(). Old code hauled the entire ChartSession table
+    # (including workspace_data JSONB columns) into Python memory just
+    # to take its length — OOM bomb when the astrologer's legacy list
+    # was large.
+    from sqlalchemy import func as _func
+    count_stmt = select(_func.count(ChartSession.id)).where(
         ChartSession.astrologer_id == astrologer.id
     )
-    total_after = len((await db.execute(count_stmt)).scalars().all())
+    total_after = int((await db.execute(count_stmt)).scalar() or 0)
 
     return ChartSessionMigrateResult(
         imported=imported,

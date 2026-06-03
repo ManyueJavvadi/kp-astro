@@ -312,21 +312,32 @@ async def list_ai_drafts(
 
     Returns newest-first. Drafts that have already been promoted into
     a client_note row are NOT filtered out here — the frontend cross-
-    references by content (or by an explicit promoted_from_key column
-    if we add one later) to avoid duplicates in the UI.
+    references by the exact `client_notes.promoted_from_key` column
+    (migration 0003) to avoid duplicates in the UI. The lane shows a
+    green "Published" badge on promoted drafts instead of Make-public
+    buttons.
     """
     await _get_owned_client_or_404(client_id, astrologer, db)
 
+    # P0-2 fix (deep-scan-2): SELECT only the three columns we need.
+    # Previously hydrated the whole ChartSession row including the giant
+    # workspace_data JSONB — for a chatty astrologer one portal admin
+    # open shuffled MB of unused JSONB across the wire.
     stmt = (
-        select(ChartSession)
+        select(
+            ChartSession.id,
+            ChartSession.updated_at,
+            ChartSession.analysis_messages,
+        )
         .where(ChartSession.client_id == client_id)
         .order_by(ChartSession.updated_at.desc())
     )
-    sessions = list((await db.execute(stmt)).scalars().all())
+    rows = list((await db.execute(stmt)).all())
 
     items: list[AiDraft] = []
-    for sess in sessions:
-        messages = sess.analysis_messages or []
+    for row in rows:
+        # Row is a tuple of (id, updated_at, analysis_messages)
+        sess_id, sess_updated_at, messages = row
         if not isinstance(messages, list):
             # Defensive: legacy rows might have garbage; skip silently.
             continue
@@ -339,13 +350,13 @@ async def list_ai_drafts(
                 continue
             items.append(
                 AiDraft(
-                    key=f"{sess.id}:{idx}",
-                    session_id=sess.id,
+                    key=f"{sess_id}:{idx}",
+                    session_id=sess_id,
                     message_index=idx,
                     question=str(q),
                     answer=str(a),
                     is_topic=bool(msg.get("isTopic", False)),
-                    approx_created_at=sess.updated_at,
+                    approx_created_at=sess_updated_at,
                 )
             )
 

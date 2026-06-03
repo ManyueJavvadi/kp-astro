@@ -33,6 +33,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
@@ -41,6 +42,17 @@ import {
   isSupabaseConfigured,
   maybeGetSupabase,
 } from "./supabase-client";
+
+/**
+ * P0-4 (deep-scan-2): when ANY apiFetch / authedAxiosPost call hits
+ * a 401 from the backend, it dispatches this CustomEvent. AuthProvider
+ * listens and triggers a clean sign-out + redirect to /auth/login,
+ * so the user isn't stranded looking at "Couldn't load…" cards on
+ * every panel when their token silently expired.
+ *
+ * Exported so the API client modules know the canonical event name.
+ */
+export const AUTH_INVALIDATED_EVENT = "devastroai:auth-invalidated";
 
 export type AuthStatus =
   | "loading"        // first mount, waiting on getSession()
@@ -86,6 +98,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
   const [session, setSession] = useState<Session | null>(null);
 
+  // P1-2 (deep-scan-2): cache the current access token + its expiry
+  // so getAccessToken() doesn't roundtrip through supabase.auth
+  // .getSession() on every API call. Supabase-js holds an internal
+  // lock there; without the cache, parallel TanStack queries on the
+  // CRM home (useMe, useClients, useChartSessions firing at once)
+  // would serialize through that lock.
+  // Invalidated whenever onAuthStateChange fires (token refresh,
+  // sign-out, password update).
+  const tokenCache = useRef<{ token: string | null; exp: number } | null>(
+    null,
+  );
+  // P1-1 (deep-scan-2): generation counter to guard against the
+  // hydration IIFE racing with onAuthStateChange. Without this, a
+  // signOut() within ~50ms of page load could let a stale session
+  // arrive AFTER the auth-state-change fired null — clobbering it.
+  const stateGeneration = useRef(0);
+
   // Subscribe to Supabase auth state changes ONCE on mount.
   useEffect(() => {
     if (!isSupabaseConfigured) {
@@ -93,23 +122,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     const supabase = getSupabase();
+    const myGeneration = ++stateGeneration.current;
 
     // First hydration — read whatever session is persisted in localStorage.
     let cancelled = false;
     (async () => {
       const { data, error } = await supabase.auth.getSession();
-      if (cancelled) return;
+      // P1-1: only apply state if (a) effect wasn't cancelled AND
+      // (b) no newer auth event has bumped the generation since.
+      if (cancelled || stateGeneration.current !== myGeneration) return;
       if (error) {
-        // Treat as anonymous; surface a console warning so devtools shows
-        // something but the app keeps working.
         // eslint-disable-next-line no-console
         console.warn("[auth] getSession error:", error);
         setSession(null);
         setStatus("anonymous");
+        tokenCache.current = null;
         return;
       }
       setSession(data.session);
       setStatus(data.session ? "authenticated" : "anonymous");
+      tokenCache.current = null; // force re-read on first API call
     })();
 
     // Ongoing subscription — Supabase fires this on signIn, signOut,
@@ -117,13 +149,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      stateGeneration.current++; // invalidate any in-flight hydration
       setSession(nextSession);
       setStatus(nextSession ? "authenticated" : "anonymous");
+      tokenCache.current = null; // next API call refreshes the token
     });
 
     return () => {
       cancelled = true;
       subscription.unsubscribe();
+    };
+  }, []);
+
+  // P0-4 (deep-scan-2): listen for 401s from apiFetch/authedAxiosPost.
+  // Sign the user out + redirect to /auth/login with ?reauth=1 so the
+  // login page can show a "your session expired" banner.
+  // Decoupled so any future API client just dispatches the same event.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    function onAuthInvalidated() {
+      const supabase = maybeGetSupabase();
+      tokenCache.current = null;
+      if (supabase) {
+        // Fire-and-forget — onAuthStateChange handler above will pick
+        // up the state flip and update status/session.
+        void supabase.auth.signOut();
+      }
+      // Hard redirect — Next router would also work but a full nav
+      // guarantees no stale TanStack cache leaks into the login screen.
+      const dest = `/auth/login?reauth=1${
+        window.location.pathname.startsWith("/app")
+          ? `&redirect=${encodeURIComponent(
+              window.location.pathname + window.location.search,
+            )}`
+          : ""
+      }`;
+      if (window.location.pathname !== "/auth/login") {
+        window.location.assign(dest);
+      }
+    }
+    window.addEventListener(AUTH_INVALIDATED_EVENT, onAuthInvalidated);
+    return () => {
+      window.removeEventListener(AUTH_INVALIDATED_EVENT, onAuthInvalidated);
     };
   }, []);
 
@@ -209,12 +276,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const getAccessToken = useCallback<AuthContextValue["getAccessToken"]>(
     async () => {
+      // P1-2 (deep-scan-2): cache the token + serve from cache when
+      // it's still valid (>=30s before expiry). Without this, every
+      // parallel API call serializes on supabase.auth.getSession()'s
+      // internal lock. Cache is invalidated by onAuthStateChange.
+      const cached = tokenCache.current;
+      const nowSec = Math.floor(Date.now() / 1000);
+      if (cached && cached.token && cached.exp - nowSec > 30) {
+        return cached.token;
+      }
       const supabase = maybeGetSupabase();
-      if (!supabase) return null;
-      // Cheaper than getSession() — supabase-js caches the JWT until
-      // ~60s before expiry, then auto-refreshes.
+      if (!supabase) {
+        tokenCache.current = { token: null, exp: 0 };
+        return null;
+      }
       const { data, error } = await supabase.auth.getSession();
-      if (error || !data.session) return null;
+      if (error || !data.session) {
+        tokenCache.current = { token: null, exp: 0 };
+        return null;
+      }
+      // expires_at is unix-seconds; expires_in is delta-seconds — both
+      // optional in supabase-js types. Prefer expires_at.
+      const exp =
+        data.session.expires_at ??
+        (data.session.expires_in
+          ? nowSec + data.session.expires_in
+          : nowSec + 60); // pessimistic fallback so we re-check in 1 min
+      tokenCache.current = { token: data.session.access_token, exp };
       return data.session.access_token;
     },
     [],

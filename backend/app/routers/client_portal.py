@@ -48,7 +48,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db import get_db
-from app.db.models import Astrologer, Client, ClientNote
+from app.db.models import Astrologer, ChartSession, Client, ClientNote
 
 router = APIRouter()
 
@@ -227,16 +227,20 @@ async def get_portal(
     astrologer has disabled the portal (portal_enabled=false —
     schema field for Slice 4).
     """
-    # Load client + its astrologer + its most-recent chart_session
-    stmt = (
+    # P0-1 fix (deep-scan-2): scoped queries instead of eager-loading
+    # the WHOLE relationship tree. Previously selectinload(chart_sessions)
+    # pulled every session's workspace_data JSONB (potentially MB each)
+    # only to discard all but the latest; selectinload(notes) pulled
+    # is_private=true rows just to filter them client-side. For an
+    # astrologer who's used the app 6+ months this was a multi-MB
+    # response per public portal hit — DoS-friendly on a rate-limited
+    # but public endpoint.
+    client_stmt = (
         select(Client)
         .options(selectinload(Client.astrologer))
-        .options(selectinload(Client.chart_sessions))
-        .options(selectinload(Client.notes))
         .where(Client.portal_slug == portal_slug)
     )
-    result = await db.execute(stmt)
-    client = result.scalar_one_or_none()
+    client = (await db.execute(client_stmt)).scalar_one_or_none()
     if client is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -253,16 +257,33 @@ async def get_portal(
             detail={"error": "portal_not_found"},
         )
 
-    # Pick the most-recent chart_session for the snapshot (could be
-    # None if no chart computed yet)
-    sessions = list(client.chart_sessions) if client.chart_sessions else []
-    sessions.sort(key=lambda s: s.updated_at, reverse=True)
-    latest_session = sessions[0] if sessions else None
+    # ── Scoped query: ONLY the most recent chart_session for the snapshot.
+    # workspace_data is hauled in this case because _extract_snapshot
+    # needs it; ordering + LIMIT 1 keeps it to a single row.
+    latest_session_stmt = (
+        select(ChartSession)
+        .where(ChartSession.client_id == client.id)
+        .order_by(ChartSession.updated_at.desc())
+        .limit(1)
+    )
+    latest_session = (await db.execute(latest_session_stmt)).scalar_one_or_none()
     workspace_data = latest_session.workspace_data if latest_session else None
 
-    # Filter notes: only is_private=false, newest first
-    visible_notes = [n for n in (client.notes or []) if not n.is_private]
-    visible_notes.sort(key=lambda n: n.created_at, reverse=True)
+    # ── Scoped query: visible notes only (uses ix_client_notes_portal_visible
+    # partial index — was unused before this fix). LIMIT 50 so a chatty
+    # astrologer can't blow up the portal response either.
+    visible_notes_stmt = (
+        select(ClientNote)
+        .where(
+            ClientNote.client_id == client.id,
+            ClientNote.is_private.is_(False),
+        )
+        .order_by(ClientNote.created_at.desc())
+        .limit(50)
+    )
+    visible_notes = list(
+        (await db.execute(visible_notes_stmt)).scalars().all()
+    )
 
     # C10 (2026-06-02, migration 0003): per-field privacy. Missing keys
     # in portal_visibility dict default to TRUE — preserves existing

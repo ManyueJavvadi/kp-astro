@@ -62,7 +62,7 @@ export default function ClientWorkspacePage() {
   const router = useRouter();
   const clientId = (params?.id as string) ?? "";
 
-  const { data: sessions, isSuccess, isLoading } =
+  const { data: sessions, isSuccess, isLoading, isError, refetch } =
     useChartSessionsForClient(clientId);
   const {
     setBirthDetails,
@@ -172,6 +172,41 @@ export default function ClientWorkspacePage() {
     // Intentionally empty — setters are stable refs from context.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // P0-5 (deep-scan-2): isError branch was missing — before this fix
+  // a 500 / network blip on /chart-sessions left the page stuck on
+  // "Loading client workspace…" forever with no retry path. Now we
+  // show an inline error card with a Retry button that re-runs the
+  // useChartSessionsForClient query (TanStack handles dedupe).
+  if (isError) {
+    return (
+      <CenteredMessage>
+        <strong>Couldn&apos;t load this client&apos;s workspace.</strong>
+        <br />
+        <span style={{ fontSize: 12, opacity: 0.8 }}>
+          Check your connection, then retry.
+        </span>
+        <br />
+        <button
+          type="button"
+          onClick={() => void refetch()}
+          style={{
+            marginTop: 14,
+            padding: "8px 16px",
+            borderRadius: 8,
+            border: "1px solid rgba(201,169,110,0.45)",
+            background: "rgba(201,169,110,0.08)",
+            color: "#c9a96e",
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
+        >
+          Retry
+        </button>
+      </CenteredMessage>
+    );
+  }
 
   // While we wait for sessions to load + push context, show a
   // centered loading state. Once context is ready, render Home which

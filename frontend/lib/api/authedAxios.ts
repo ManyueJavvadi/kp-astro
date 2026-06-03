@@ -39,5 +39,25 @@ export async function authedAxiosPost<T = unknown>(
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
-  return axios.post<T>(url, body, { ...extraConfig, headers });
+  try {
+    return await axios.post<T>(url, body, { ...extraConfig, headers });
+  } catch (err) {
+    // P2-9 (deep-scan-2): mirror apiFetch's 401-dispatch behavior so
+    // workspace-refresh / chart-compute callers also trigger the
+    // global sign-out path when their token silently expired.
+    if (
+      typeof window !== "undefined" &&
+      axios.isAxiosError(err) &&
+      err.response?.status === 401
+    ) {
+      try {
+        window.dispatchEvent(
+          new CustomEvent("devastroai:auth-invalidated"),
+        );
+      } catch {
+        /* swallow */
+      }
+    }
+    throw err;
+  }
 }
