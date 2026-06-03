@@ -239,7 +239,13 @@ export function DeleteClientDialog({
           id="del-client-typed"
           type="text"
           value={typed}
-          onChange={(e) => setTyped(e.target.value)}
+          // HOTFIX (2026-06-03): uppercase the stored value, not just
+          // the CSS rendering. Previously textTransform:uppercase made
+          // "delete" LOOK like "DELETE" but state held "delete" — so
+          // `typed === "DELETE"` was always false and the button stayed
+          // disabled forever. autoCapitalize doesn't help on desktop
+          // typing (only mobile keyboards).
+          onChange={(e) => setTyped(e.target.value.toUpperCase())}
           disabled={submitting}
           autoFocus
           autoComplete="off"

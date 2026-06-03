@@ -161,8 +161,13 @@ export function ChartTab({ workspaceData, selectedHouse, setSelectedHouse }: Cha
             compiled there but trip TS in this strictly-typed component.
             We re-loosen via `any` cast to maintain zero behavior change.
             Fixing the underlying data-shape mismatch is a separate concern
-            for a later PR (out of scope for the proof-of-pattern refactor). */}
-        {selectedHouse && !isMobile && (
+            for a later PR (out of scope for the proof-of-pattern refactor).
+            HOTFIX (2026-06-03) — also gate by chartView === "chart" so
+            the Cusps view's OWN HousePanel render below doesn't double
+            up with this one. Without the chartView gate, clicking a
+            cusps row rendered TWO HousePanels and squeezed the table
+            into a tiny middle column. */}
+        {chartView === "chart" && selectedHouse && !isMobile && (
           <HousePanel
             house={selectedHouse}
             cusps={workspaceData.cusps as any}

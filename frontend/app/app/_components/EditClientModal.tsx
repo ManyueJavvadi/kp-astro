@@ -31,8 +31,9 @@ import { X, Loader2, Check } from "lucide-react";
 import { PlacePicker } from "@/components/ui/place-picker";
 import { PhoneField } from "@/components/ui/phone-field";
 import {
-  useUpdateClient,
+  useUpdateClientByIdFactory,
   type ClientPublic,
+  type ClientUpdate,
 } from "@/lib/api/hooks";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useSheetDrag } from "@/hooks/useSheetDrag";
@@ -75,10 +76,14 @@ export function EditClientModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // We need the id at mutate time — useUpdateClient is keyed on id at
-  // hook-build time. Build it inside an effect that re-runs when the
-  // target client changes (each client gets its own hook instance).
-  const updateClient = useUpdateClient(client?.id ?? "");
+  // HOTFIX (2026-06-03): switched from `useUpdateClient(client?.id ?? "")`
+  // to the factory pattern. The previous version captured `id=""` at
+  // first render when `client` was null; later client arrivals couldn't
+  // refresh the hook's internal closure, so the PATCH went to
+  // `/clients/` (no id) → 405 Method Not Allowed → "Couldn't save changes".
+  // useUpdateClientByIdFactory is the factory variant designed for
+  // exactly this case — call it with the live id at mutate time.
+  const updateClientFactory = useUpdateClientByIdFactory();
 
   // Hydrate form when client changes / modal opens.
   useEffect(() => {
@@ -140,6 +145,14 @@ export function EditClientModal({
     e.preventDefault();
     setError(null);
 
+    // Refresh TS narrowing — the early `if (!open || !client) return null`
+    // narrowed `client` to non-null at the render guard, but this submit
+    // handler runs in its own scope where TS lost that. Re-check.
+    if (!client) {
+      setError("Client data is missing.");
+      return;
+    }
+
     if (!name.trim()) {
       setError("Please enter the client's name.");
       return;
@@ -155,24 +168,25 @@ export function EditClientModal({
 
     setSubmitting(true);
     try {
+      // HOTFIX (2026-06-03): build the updater with the LIVE client.id
+      // at mutate time, not at first-render-and-cached-via-closure.
+      const updater = updateClientFactory(client.id);
+      const patch: ClientUpdate = {
+        name: name.trim(),
+        gender: gender || undefined,
+        birth_date: date || undefined,
+        birth_time: time || undefined,
+        birth_place_name: place || undefined,
+        birth_latitude: latitude ?? undefined,
+        birth_longitude: longitude ?? undefined,
+        phone: phone || undefined,
+        email: email.trim() || undefined,
+      };
       const updated = await new Promise<ClientPublic>((resolve, reject) => {
-        updateClient.mutate(
-          {
-            name: name.trim(),
-            gender: gender || undefined,
-            birth_date: date || undefined,
-            birth_time: time || undefined,
-            birth_place_name: place || undefined,
-            birth_latitude: latitude ?? undefined,
-            birth_longitude: longitude ?? undefined,
-            phone: phone || undefined,
-            email: email.trim() || undefined,
-          },
-          {
-            onSuccess: (data) => resolve(data),
-            onError: (err) => reject(err),
-          },
-        );
+        updater.mutate(patch, {
+          onSuccess: (data) => resolve(data),
+          onError: (err) => reject(err),
+        });
       });
       onSaved?.(updated);
       onClose();
