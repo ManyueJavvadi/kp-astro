@@ -78,19 +78,40 @@ function AppShell({ children }: { children: React.ReactNode }) {
   // Phase 5 / PR 13 — pull `t` so the "Back to landing" link respects
   // the active language (#14). Was previously hardcoded English.
   const { t } = useLanguage();
-  // Phase 2 polish (2026-06-02) — context-aware back link. When the
-  // astrologer is inside a per-client workspace (e.g. /app/clients/[id]
-  // or /app/clients/[id]/portal), the back arrow should take them to
-  // the CRM home (/app) — that's the real "home" for an authenticated
-  // user. Only the bare /app page falls back to the landing route.
+  // Phase 2 polish (2026-06-02) — context-aware back link.
+  //   • Inside a per-client route (/app/clients/[id] or
+  //     /app/clients/[id]/portal) → "Back to clients" → /app
+  //     ("clients" because /app is the CRM home with the client
+  //     roster; user expects to return to the LIST not the chart
+  //     they're already viewing.)
+  //   • Anywhere else in /app/* (Profile, Billing, Tools…) →
+  //     "Back to home" → /app
+  //   • Bare /app → "Back to landing" → /
   const pathname = usePathname() ?? "";
-  const insideWorkspace =
-    pathname !== "/app" && pathname.startsWith("/app/");
-  const backHref = insideWorkspace ? "/app" : "/";
-  const backLabelEn = insideWorkspace ? "Back to workspace" : "Back to landing";
-  const backLabelTe = insideWorkspace ? "వర్క్‌స్పేస్‌కి వెళ్ళు" : "హోమ్‌కి వెళ్ళు";
-  const backLabelMobileEn = insideWorkspace ? "Workspace" : "Home";
-  const backLabelMobileTe = insideWorkspace ? "వర్క్‌స్పేస్" : "హోమ్";
+  const insidePerClient = pathname.startsWith("/app/clients/");
+  const insideOtherAppRoute =
+    pathname !== "/app" && pathname.startsWith("/app/") && !insidePerClient;
+  const backHref = insidePerClient || insideOtherAppRoute ? "/app" : "/";
+  const backLabelEn = insidePerClient
+    ? "Back to clients"
+    : insideOtherAppRoute
+      ? "Back to home"
+      : "Back to landing";
+  const backLabelTe = insidePerClient
+    ? "క్లయింట్‌లకు తిరిగి"
+    : insideOtherAppRoute
+      ? "హోమ్‌కి తిరిగి"
+      : "హోమ్‌కి వెళ్ళు";
+  const backLabelMobileEn = insidePerClient
+    ? "Clients"
+    : insideOtherAppRoute
+      ? "Home"
+      : "Home";
+  const backLabelMobileTe = insidePerClient
+    ? "క్లయింట్‌లు"
+    : insideOtherAppRoute
+      ? "హోమ్"
+      : "హోమ్";
   return (
     <div
       style={{

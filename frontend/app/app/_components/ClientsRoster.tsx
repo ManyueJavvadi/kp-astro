@@ -400,13 +400,13 @@ function ClientRow({
           </div>
         </button>
 
-        {/* Portal admin link — absolute-positioned in the top-right
-            corner so it doesn't compete with the name row for
-            horizontal space. 44px touch target. */}
+        {/* Portal admin pill — labeled, gold, full action affordance.
+            stopPropagation so the row click (which opens the chart
+            workspace) doesn't also fire. Absolute-positioned in the
+            top-right so it never crashes into the name row. */}
         <Link
           href={`/app/clients/${client.id}/portal`}
           onClick={(e) => e.stopPropagation()}
-          title="Open portal admin"
           aria-label={`Open ${client.name}'s portal admin`}
           style={{
             position: "absolute",
@@ -414,16 +414,24 @@ function ClientRow({
             right: 10,
             display: "inline-flex",
             alignItems: "center",
-            justifyContent: "center",
-            width: 36,
-            height: 36,
+            gap: 5,
+            padding: "8px 12px",
+            minHeight: 36,
             borderRadius: 8,
-            border: "1px solid rgba(201,169,110,0.25)",
-            background: "rgba(201,169,110,0.06)",
+            border: "1px solid rgba(201,169,110,0.45)",
+            background:
+              "linear-gradient(180deg, rgba(201,169,110,0.16) 0%, rgba(201,169,110,0.08) 100%)",
             color: "#c9a96e",
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: 0.3,
+            textTransform: "uppercase",
+            textDecoration: "none",
+            whiteSpace: "nowrap",
           }}
         >
-          <Link2 size={14} />
+          <Link2 size={12} />
+          Portal
         </Link>
       </li>
     );
@@ -508,8 +516,11 @@ function ClientRow({
             </div>
           )}
         </div>
-        {/* Portal admin link — Phase 3 Slice 4. stopPropagation so the
-            row click doesn't ALSO fire (opening the workspace). */}
+        {/* Portal admin pill — labeled, always visible, gold-tinted.
+            Replaces the easy-to-miss 28px corner icon. Row click still
+            opens the chart workspace; this pill goes to portal admin
+            (note composer + shareable URL). stopPropagation so the
+            row click doesn't also fire. */}
         <Link
           href={`/app/clients/${client.id}/portal`}
           onClick={(e) => e.stopPropagation()}
@@ -517,26 +528,38 @@ function ClientRow({
           style={{
             display: "inline-flex",
             alignItems: "center",
-            justifyContent: "center",
-            width: 28,
-            height: 28,
-            borderRadius: 6,
-            border: "1px solid rgba(255,255,255,0.06)",
-            color: theme.text.muted,
-            transition: "all 120ms",
+            gap: 5,
+            padding: "6px 11px",
+            height: 30,
+            borderRadius: 7,
+            border: "1px solid rgba(201,169,110,0.4)",
+            background:
+              "linear-gradient(180deg, rgba(201,169,110,0.14) 0%, rgba(201,169,110,0.06) 100%)",
+            color: "#c9a96e",
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: 0.3,
+            textTransform: "uppercase",
+            textDecoration: "none",
+            whiteSpace: "nowrap",
+            transition: "all 140ms",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.color = "#c9a96e";
-            e.currentTarget.style.borderColor = "rgba(201,169,110,0.3)";
-            e.currentTarget.style.background = "rgba(201,169,110,0.04)";
+            e.currentTarget.style.borderColor = "#c9a96e";
+            e.currentTarget.style.background =
+              "linear-gradient(180deg, rgba(201,169,110,0.22) 0%, rgba(201,169,110,0.12) 100%)";
+            e.currentTarget.style.boxShadow =
+              "0 0 0 1px rgba(201,169,110,0.35), 0 0 14px rgba(201,169,110,0.25)";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.color = theme.text.muted;
-            e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)";
-            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.borderColor = "rgba(201,169,110,0.4)";
+            e.currentTarget.style.background =
+              "linear-gradient(180deg, rgba(201,169,110,0.14) 0%, rgba(201,169,110,0.06) 100%)";
+            e.currentTarget.style.boxShadow = "none";
           }}
         >
           <Link2 size={12} />
+          Portal
         </Link>
         <ChevronRight size={14} style={{ flexShrink: 0 }} />
       </div>

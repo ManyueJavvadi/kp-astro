@@ -81,6 +81,35 @@ class ClientNote(Base, UUIDPKMixin, TimestampMixin):
     resolved_at: Mapped[Optional[date]] = mapped_column(Date)
     resolution_note: Mapped[Optional[str]] = mapped_column(Text)
 
+    # ─── Outcome enum + source (added 2026-06-02, migration 0002) ─────
+    # `outcome` is the richer prediction status — preferred over the
+    # boolean `resolved` going forward, but BOTH exist for transitional
+    # safety (resolved can be deprecated later once UI fully cuts over).
+    # Values: pending / confirmed / partial / disconfirmed / na.
+    # `na` = the default for non-prediction notes (reading / follow_up /
+    # observation), so this column is always populated even when the
+    # prediction concept doesn't apply.
+    outcome: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        server_default="na",
+        comment=(
+            "Prediction outcome: pending/confirmed/partial/disconfirmed/na."
+        ),
+    )
+    # `source` tracks origin of the note text — important for the
+    # AI-drafts-to-public-notes flow. When the astrologer promotes an
+    # AI Q&A from chart_session.analysis_messages into a curated note,
+    # the new row gets source='ai_draft' so we can badge it in the
+    # portal admin and audit-query "% of public notes that were AI-
+    # drafted." All hand-written notes (legacy + new) get 'astrologer'.
+    source: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        server_default="astrologer",
+        comment="Origin: astrologer (typed) or ai_draft (promoted from AI Q&A).",
+    )
+
     # ─── Relationships ────────────────────────────────────────────────
     client: Mapped["Client"] = relationship(back_populates="notes")
 

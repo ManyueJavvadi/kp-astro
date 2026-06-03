@@ -26,7 +26,7 @@
  * Sacred: no AI/engine code touched. Pure CRUD + presentation.
  */
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import {
   Link2,
@@ -39,14 +39,19 @@ import {
   Languages,
   MessageCircle,
   Share2,
+  Sparkles,
+  CheckCircle2,
+  Edit3,
 } from "lucide-react";
 import { CrmShell } from "../../../_components/CrmShell";
 import {
   useClient,
   useClientNotes,
+  useClientAiDrafts,
   useCreateNote,
   useDeleteNote,
   usePortal,
+  type AiDraft,
   type NotePublic,
 } from "@/lib/api/hooks";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -164,9 +169,13 @@ export default function ClientPortalAdminPage() {
           alignItems: "start",
         }}
       >
-        {/* ─── LEFT (or top on mobile): composer + notes list ─── */}
+        {/* ─── LEFT (or top on mobile): composer + AI drafts + notes ─── */}
         <div>
           <ComposerPanel clientId={clientId} />
+          <AiDraftsLane
+            clientId={clientId}
+            existingNotes={notes?.items ?? []}
+          />
           <NotesList
             clientId={clientId}
             notes={notes?.items ?? []}
@@ -185,6 +194,445 @@ export default function ClientPortalAdminPage() {
   );
 }
 
+// ─── AI drafts lane (Project arch — 2026-06-02) ──────────────────────
+//
+// Reads every Q&A the astrologer has asked in the Analysis tab for
+// this client and renders them as draft candidates the astrologer can
+// promote into curated client_notes. Source of truth stays in
+// chart_session.analysis_messages — we DON'T copy data into a notes
+// table when AI fires. Promotion = explicit, manual, audit-trailed.
+//
+// Each draft has three actions:
+//   • Make public  — one-tap promote: create public note with full
+//                    answer text, source='ai_draft'
+//   • Edit & publish — pre-fill the composer with the answer text so
+//                      the astrologer can trim/translate before publishing
+//   • Dismiss      — hide locally (per-device, localStorage). The
+//                    underlying analysis_messages row is NEVER touched.
+//
+// Drafts that have already been promoted (we detect by substring
+// match of the answer text inside any existing note) get a green
+// "Published" badge instead of action buttons, so the astrologer
+// doesn't double-publish.
+
+function AiDraftsLane({
+  clientId,
+  existingNotes,
+}: {
+  clientId: string;
+  existingNotes: NotePublic[];
+}) {
+  const { data, isLoading, isError } = useClientAiDrafts(clientId);
+  const createNote = useCreateNote(clientId);
+  const [dismissed, setDismissed] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const raw = window.localStorage.getItem(
+        `devastroai:dismissed-ai-drafts:${clientId}`,
+      );
+      return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+    } catch {
+      return new Set();
+    }
+  });
+
+  function persistDismissed(next: Set<string>) {
+    setDismissed(new Set(next));
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem(
+          `devastroai:dismissed-ai-drafts:${clientId}`,
+          JSON.stringify(Array.from(next)),
+        );
+      } catch {
+        /* localStorage full / disabled — silent fallback to in-memory */
+      }
+    }
+  }
+
+  /**
+   * Build a quick lookup of already-promoted drafts. Match by the
+   * first 80 chars of the draft's answer being a substring of any
+   * existing note text — good enough for v1 (collision risk is
+   * negligible given answer length). A future migration could add a
+   * `promoted_from_key` column on client_notes for exact matching.
+   */
+  const promotedKeys = useMemo(() => {
+    const set = new Set<string>();
+    if (!data) return set;
+    for (const draft of data.items) {
+      const needle = draft.answer.slice(0, 80).trim();
+      if (!needle) continue;
+      if (existingNotes.some((n) => n.text.includes(needle))) {
+        set.add(draft.key);
+      }
+    }
+    return set;
+  }, [data, existingNotes]);
+
+  if (isLoading) {
+    return null; // silent — don't show empty loader (lane is opt-in info)
+  }
+  if (isError || !data || data.items.length === 0) {
+    // No AI history for this client yet. Show a single hint card so
+    // the astrologer KNOWS this lane exists (without it, the feature
+    // is invisible until they happen to use AI for this client).
+    return (
+      <section
+        style={{
+          padding: 14,
+          background: "rgba(0,200,255,0.04)",
+          border: "1px dashed rgba(0,200,255,0.22)",
+          borderRadius: 10,
+          marginBottom: 20,
+          display: "flex",
+          gap: 10,
+          alignItems: "flex-start",
+        }}
+      >
+        <Sparkles
+          size={16}
+          style={{ color: "#00C8FF", flexShrink: 0, marginTop: 2 }}
+        />
+        <div style={{ fontSize: 12, color: theme.text.muted, lineHeight: 1.55 }}>
+          <strong style={{ color: theme.text.primary, fontWeight: 600 }}>
+            AI drafts will appear here.
+          </strong>{" "}
+          When you ask questions in the Analysis tab for this client, each
+          Q&amp;A becomes a draft you can publish (or edit then publish) as
+          a portal note — without retyping.
+        </div>
+      </section>
+    );
+  }
+
+  const visible = data.items.filter((d) => !dismissed.has(d.key));
+
+  return (
+    <section style={{ marginBottom: 20 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          marginBottom: 10,
+        }}
+      >
+        <Sparkles size={13} style={{ color: "#00C8FF" }} />
+        <div
+          style={{
+            fontSize: 10,
+            fontWeight: 600,
+            color: "#00C8FF",
+            textTransform: "uppercase",
+            letterSpacing: 0.6,
+          }}
+        >
+          AI drafts ({visible.length})
+        </div>
+        <div
+          style={{
+            fontSize: 10,
+            color: theme.text.muted,
+            fontStyle: "italic",
+          }}
+        >
+          · from your Analysis Q&amp;A — promote to public, or edit first
+        </div>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {visible.map((draft) => (
+          <AiDraftCard
+            key={draft.key}
+            draft={draft}
+            promoted={promotedKeys.has(draft.key)}
+            publishing={createNote.isPending}
+            onMakePublic={async () => {
+              await createNote.mutateAsync({
+                text: draft.answer,
+                note_type: draft.is_topic ? "observation" : "reading",
+                is_private: false,
+                source: "ai_draft",
+                // language defaults to 'en' on backend; analysis answers
+                // are English-language by default
+              });
+            }}
+            onEditAndPublish={() => {
+              // Pre-fill the composer textarea via custom event.
+              // ComposerPanel listens and populates its text + flips
+              // is_private off. Keeps the AiDraftsLane decoupled from
+              // ComposerPanel internal state.
+              if (typeof window !== "undefined") {
+                window.dispatchEvent(
+                  new CustomEvent("portal-prefill-composer", {
+                    detail: {
+                      text: draft.answer,
+                      isPrivate: false,
+                      noteType: draft.is_topic ? "observation" : "reading",
+                      source: "ai_draft",
+                    },
+                  }),
+                );
+                // Scroll the page to top so the composer is in view.
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }
+            }}
+            onDismiss={() => {
+              const next = new Set(dismissed);
+              next.add(draft.key);
+              persistDismissed(next);
+            }}
+          />
+        ))}
+        {visible.length === 0 && dismissed.size > 0 && (
+          <button
+            type="button"
+            onClick={() => persistDismissed(new Set())}
+            style={{
+              padding: "8px 12px",
+              fontSize: 11,
+              color: theme.text.muted,
+              background: "transparent",
+              border: "1px dashed rgba(255,255,255,0.1)",
+              borderRadius: 8,
+              cursor: "pointer",
+              textAlign: "center",
+            }}
+          >
+            Restore {dismissed.size} dismissed draft
+            {dismissed.size === 1 ? "" : "s"}
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function AiDraftCard({
+  draft,
+  promoted,
+  publishing,
+  onMakePublic,
+  onEditAndPublish,
+  onDismiss,
+}: {
+  draft: AiDraft;
+  promoted: boolean;
+  publishing: boolean;
+  onMakePublic: () => Promise<void> | void;
+  onEditAndPublish: () => void;
+  onDismiss: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const answerPreview =
+    !expanded && draft.answer.length > 260
+      ? draft.answer.slice(0, 260) + "…"
+      : draft.answer;
+
+  return (
+    <article
+      style={{
+        padding: 12,
+        background: "rgba(0,200,255,0.03)",
+        border: "1px solid rgba(0,200,255,0.18)",
+        borderRadius: 10,
+        position: "relative",
+      }}
+    >
+      <header
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          marginBottom: 6,
+          fontSize: 10,
+          color: theme.text.muted,
+          flexWrap: "wrap",
+        }}
+      >
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            color: "#00C8FF",
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: 0.5,
+          }}
+        >
+          <Sparkles size={10} /> AI draft
+        </span>
+        {draft.is_topic && (
+          <span
+            style={{
+              padding: "1px 6px",
+              borderRadius: 4,
+              background: "rgba(201,169,110,0.1)",
+              color: "#c9a96e",
+              fontSize: 9,
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+            }}
+          >
+            Topic
+          </span>
+        )}
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+          <Calendar size={10} />
+          {new Date(draft.approx_created_at).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+          })}
+        </span>
+        {promoted && (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 3,
+              padding: "1px 6px",
+              borderRadius: 4,
+              background: "rgba(52,211,153,0.12)",
+              color: "#34d399",
+              fontSize: 9,
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+            }}
+          >
+            <CheckCircle2 size={10} />
+            Published
+          </span>
+        )}
+      </header>
+
+      {/* Question — italic, muted */}
+      <div
+        style={{
+          fontSize: 12,
+          color: theme.text.muted,
+          fontStyle: "italic",
+          marginBottom: 6,
+          lineHeight: 1.4,
+        }}
+      >
+        Q: {draft.question}
+      </div>
+
+      {/* Answer */}
+      <div
+        style={{
+          fontSize: 13,
+          color: theme.text.primary,
+          lineHeight: 1.55,
+          whiteSpace: "pre-wrap",
+          marginBottom: 10,
+        }}
+      >
+        {answerPreview}
+        {draft.answer.length > 260 && (
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            style={{
+              marginLeft: 6,
+              fontSize: 11,
+              color: "#c9a96e",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: 0,
+            }}
+          >
+            {expanded ? "Show less" : "Show more"}
+          </button>
+        )}
+      </div>
+
+      {/* Actions — only when not already promoted */}
+      {!promoted && (
+        <div
+          style={{
+            display: "flex",
+            gap: 6,
+            flexWrap: "wrap",
+            alignItems: "center",
+          }}
+        >
+          <button
+            type="button"
+            onClick={onMakePublic}
+            disabled={publishing}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "6px 10px",
+              background: publishing
+                ? "rgba(52,211,153,0.3)"
+                : "linear-gradient(180deg, #34d399 0%, #1aa371 100%)",
+              border: "none",
+              borderRadius: 6,
+              color: "#0a1a12",
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: publishing ? "not-allowed" : "pointer",
+            }}
+          >
+            <CheckCircle2 size={11} />
+            Make public
+          </button>
+          <button
+            type="button"
+            onClick={onEditAndPublish}
+            disabled={publishing}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "6px 10px",
+              background: "rgba(201,169,110,0.1)",
+              border: "1px solid rgba(201,169,110,0.35)",
+              borderRadius: 6,
+              color: "#c9a96e",
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: publishing ? "not-allowed" : "pointer",
+            }}
+          >
+            <Edit3 size={11} />
+            Edit &amp; publish
+          </button>
+          <div style={{ flex: 1 }} />
+          <button
+            type="button"
+            onClick={onDismiss}
+            aria-label="Dismiss this draft"
+            title="Hide locally — the underlying AI Q&A in your history is unchanged"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "6px 8px",
+              background: "transparent",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 6,
+              color: theme.text.muted,
+              fontSize: 11,
+              cursor: "pointer",
+            }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+    </article>
+  );
+}
+
 // ─── Composer panel ──────────────────────────────────────────────────
 
 function ComposerPanel({ clientId }: { clientId: string }) {
@@ -194,8 +642,37 @@ function ComposerPanel({ clientId }: { clientId: string }) {
   >("reading");
   const [language, setLanguage] = useState<"en" | "te" | "te_en">("en");
   const [isPrivate, setIsPrivate] = useState(false);
+  // Set to "ai_draft" only after AiDraftsLane prefills the textarea via
+  // the portal-prefill-composer event. Reverts to "astrologer" on the
+  // next manual keystroke (we treat any edit as authorship change).
+  // Phase 2 polish (2026-06-02) for source provenance.
+  const [pendingSource, setPendingSource] = useState<
+    "astrologer" | "ai_draft"
+  >("astrologer");
 
   const createNote = useCreateNote(clientId);
+
+  // Listen for "Edit & publish" clicks from the AI drafts lane.
+  // The lane dispatches a CustomEvent with the prefill payload;
+  // we populate state. Decoupled to avoid lifting state to parent.
+  useEffect(() => {
+    type PrefillDetail = {
+      text: string;
+      isPrivate?: boolean;
+      noteType?: "reading" | "prediction" | "follow_up" | "observation";
+      source?: "astrologer" | "ai_draft";
+    };
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<PrefillDetail>).detail;
+      if (!detail) return;
+      setText(detail.text ?? "");
+      if (typeof detail.isPrivate === "boolean") setIsPrivate(detail.isPrivate);
+      if (detail.noteType) setNoteType(detail.noteType);
+      setPendingSource(detail.source ?? "astrologer");
+    };
+    window.addEventListener("portal-prefill-composer", handler);
+    return () => window.removeEventListener("portal-prefill-composer", handler);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -205,8 +682,12 @@ function ComposerPanel({ clientId }: { clientId: string }) {
       note_type: noteType,
       language,
       is_private: isPrivate,
+      source: pendingSource,
     });
     setText("");
+    // Reset provenance — next free-form note from this composer is
+    // again astrologer-authored unless another prefill event fires.
+    setPendingSource("astrologer");
   }
 
   return (

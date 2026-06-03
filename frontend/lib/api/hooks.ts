@@ -175,6 +175,8 @@ export const queryKeys = {
   clients: ["clients"] as const,
   client: (id: string) => ["clients", id] as const,
   clientNotes: (clientId: string) => ["clients", clientId, "notes"] as const,
+  clientAiDrafts: (clientId: string) =>
+    ["clients", clientId, "ai-drafts"] as const,
   portal: (slug: string) => ["portal", slug] as const,
 };
 
@@ -191,6 +193,10 @@ export interface NotePublic {
   resolved: boolean | null;
   resolved_at: string | null;
   resolution_note: string | null;
+  /** Phase 2 polish (2026-06-02) — prediction outcome enum. */
+  outcome: "pending" | "confirmed" | "partial" | "disconfirmed" | "na";
+  /** Phase 2 polish (2026-06-02) — origin tracking. */
+  source: "astrologer" | "ai_draft";
   created_at: string;
   updated_at: string;
 }
@@ -204,12 +210,32 @@ export interface NoteCreate {
   resolved?: boolean;
   resolved_at?: string;
   resolution_note?: string;
+  outcome?: "pending" | "confirmed" | "partial" | "disconfirmed" | "na";
+  source?: "astrologer" | "ai_draft";
 }
 
 export type NoteUpdate = Partial<NoteCreate>;
 
 export interface NoteList {
   items: NotePublic[];
+  total: number;
+}
+
+/** Phase 2 polish (2026-06-02) — one AI Q&A from the chart_session
+ *  analysis_messages, projected as a draft candidate for the portal
+ *  notes lane. NOT a persisted row — derived on the fly. */
+export interface AiDraft {
+  key: string;
+  session_id: string;
+  message_index: number;
+  question: string;
+  answer: string;
+  is_topic: boolean;
+  approx_created_at: string;
+}
+
+export interface AiDraftList {
+  items: AiDraft[];
   total: number;
 }
 
@@ -637,6 +663,27 @@ export function useDeleteNote(clientId: string) {
       qc.invalidateQueries({ queryKey: queryKeys.clients });
       qc.invalidateQueries({ queryKey: queryKeys.client(clientId) });
     },
+  });
+}
+
+/**
+ * Phase 2 polish (2026-06-02) — fetch AI Q&A drafts derived from this
+ * client's chart_session(s).analysis_messages. Used in the portal
+ * admin "AI drafts" lane. Returns immutable projections — promoting
+ * one to a public note happens via the regular useCreateNote with
+ * source='ai_draft'.
+ */
+export function useClientAiDrafts(clientId: string | null | undefined) {
+  const { status, getAccessToken } = useAuth();
+  return useQuery<AiDraftList, Error>({
+    queryKey: clientId
+      ? queryKeys.clientAiDrafts(clientId)
+      : ["ai-drafts", "noop"],
+    queryFn: () =>
+      apiFetch<AiDraftList>(`/clients/${clientId}/ai-drafts`, {
+        getToken: getAccessToken,
+      }),
+    enabled: Boolean(clientId) && status === "authenticated",
   });
 }
 

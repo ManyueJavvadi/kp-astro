@@ -132,6 +132,38 @@ export default function ClientWorkspacePage() {
     return () => clearTimeout(t);
   }, [notFound, router]);
 
+  // Phase 2 polish (2026-06-02) — CRITICAL: reset workspace state on
+  // UNMOUNT. Without this, navigating away (top-bar "Back to clients",
+  // sidebar nav, browser back) leaves setupDone=true + workspaceData
+  // populated. Then /app/page.tsx re-renders, sees setupDone=true,
+  // and renders the STALE workspace UI for the old client instead of
+  // CrmHome. CrmHome has its own reset effect — but it only runs if
+  // CrmHome actually mounts, and it never mounts while setupDone is
+  // true. Classic catch-22, fixed at the unmount side.
+  //
+  // Empty dep array — cleanup fires only on real unmount, not on
+  // every re-render of this page. Effect body itself does nothing on
+  // mount; the work is purely in the returned cleanup.
+  useEffect(() => {
+    return () => {
+      setSetupDone(false);
+      setWorkspaceData(null);
+      setCurrentSessionId("");
+      setBirthDetails({
+        name: "",
+        date: "",
+        time: "",
+        ampm: "AM",
+        place: "",
+        latitude: null,
+        longitude: null,
+        gender: "",
+      });
+    };
+    // Intentionally empty — setters are stable refs from context.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // While we wait for sessions to load + push context, show a
   // centered loading state. Once context is ready, render Home which
   // reads the context and shows the workspace.

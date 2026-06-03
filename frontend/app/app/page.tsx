@@ -144,6 +144,7 @@ import { useSessionPersistence } from "./_lib/sessions-persistence";
 // them to /auth/login first.
 import { CrmHome } from "./_components/CrmHome";
 import { useAuth } from "@/lib/auth/auth-context";
+import { usePathname } from "next/navigation";
 
 // PR A1.3-fix-24 — env-derived. NEXT_PUBLIC_API_URL overrides for staging
 // or local dev; production fallback unchanged. Set in .env.local for dev.
@@ -153,6 +154,17 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://devastroai.up.railwa
 export default function Home() {
   const { lang, t, backendLang } = useLanguage();
   const isMobile = useIsMobile();
+  // Phase 2 polish (2026-06-02) — pathname used to gate CrmHome
+  // rendering. When the URL is exactly `/app` we ALWAYS show the
+  // CRM home for authenticated users, regardless of the
+  // WorkspaceContext setupDone flag. This stops the stale-workspace
+  // bug where coming back from /app/clients/[id] would briefly show
+  // the previous client's chart before WorkspaceContext caught up.
+  // /app/clients/[id]/page.tsx imports this Home component too, so
+  // when pathname starts with /app/clients we keep the legacy
+  // setupDone gate (workspace UI takes over).
+  const pathname = usePathname() ?? "";
+  const onCrmHomeRoute = pathname === "/app";
   // PR A1.1 — live location for Horary (and later: Muhurtha / Transit /
   // Panchang). KP RPs require the astrologer's CURRENT location, not
   // the natal location. No natal fallback.
@@ -3315,7 +3327,16 @@ export default function Home() {
           redirects them to /auth/login). But the fallback to the
           legacy onboarding form for `unconfigured` state keeps local
           dev working before SETUP-PHASE-1.md is complete. */}
-      {!setupDone && authCtx.status === "authenticated" && (
+      {/* Show CrmHome when:
+            (a) authenticated user lands on bare /app (always — wins
+                over stale setupDone from a previous client visit)
+            (b) anonymous/legacy case: !setupDone (original gate)
+          Per-client routes import Home too; on those routes
+          onCrmHomeRoute is false so the workspace UI below renders. */}
+      {authCtx.status === "authenticated" && onCrmHomeRoute && (
+        <CrmHome />
+      )}
+      {!setupDone && authCtx.status === "authenticated" && !onCrmHomeRoute && (
         <CrmHome />
       )}
 
@@ -4225,7 +4246,11 @@ export default function Home() {
         </div>
       )}
 
-{setupDone && (mode === "astrologer" || mode === "user") && workspaceData && (
+{/* Phase 2 polish (2026-06-02) — also gate by !onCrmHomeRoute. The
+    bare /app path is ALWAYS the CRM home for authenticated users;
+    don't let stale setupDone/workspaceData (from a previous client
+    visit) sneak the workspace UI in alongside CrmHome above. */}
+{setupDone && (mode === "astrologer" || mode === "user") && workspaceData && !onCrmHomeRoute && (
   isMobile ? (
     <div
       style={{

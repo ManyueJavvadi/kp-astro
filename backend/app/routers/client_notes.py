@@ -47,7 +47,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import CurrentAstrologer
 from app.db import get_db
-from app.db.models import Client, ClientNote
+from app.db.models import ChartSession, Client, ClientNote
 
 router = APIRouter()
 
@@ -66,6 +66,15 @@ class NoteBase(BaseModel):
     resolved: Optional[bool] = None
     resolved_at: Optional[date] = None
     resolution_note: Optional[str] = None
+    # Phase 2 polish (2026-06-02 migration 0002) — outcome + source
+    outcome: Optional[str] = Field(
+        default=None,
+        pattern=r"^(pending|confirmed|partial|disconfirmed|na)$",
+    )
+    source: Optional[str] = Field(
+        default=None,
+        pattern=r"^(astrologer|ai_draft)$",
+    )
 
 
 class NoteCreate(NoteBase):
@@ -91,12 +100,50 @@ class NotePublic(NoteBase):
     language: str
     note_type: str
     is_private: bool
+    outcome: str
+    source: str
     created_at: datetime
     updated_at: datetime
 
 
 class NoteList(BaseModel):
     items: list[NotePublic]
+    total: int
+
+
+# ─── AI drafts (analysis_messages projection) ─────────────────────────
+
+
+class AiDraft(BaseModel):
+    """One AI Q&A from chart_session.analysis_messages, projected as
+    a draft candidate for the portal-notes lane.
+
+    NOT a DB row — we don't persist these. They're derived on every
+    fetch from the immutable analysis_messages JSON column. The
+    astrologer can "Make public" any draft, which creates a real
+    client_note with source='ai_draft'. The draft itself stays in
+    analysis_messages forever as an audit record of what the engine
+    actually said at time T.
+
+    `key` is a stable identifier for client-side dismissal/dedup
+    bookkeeping (format: ``<session_id>:<message_index>``).
+    """
+
+    key: str
+    session_id: UUID
+    message_index: int
+    question: str
+    answer: str
+    is_topic: bool = False
+    # Best-effort timestamp — analysis_messages doesn't carry a per-
+    # message timestamp today, so we fall back to the session's
+    # updated_at as a reasonable proxy. Future: store per-message
+    # timestamps in the JSON when the SSE stream completes.
+    approx_created_at: datetime
+
+
+class AiDraftList(BaseModel):
+    items: list[AiDraft]
     total: int
 
 
@@ -229,3 +276,71 @@ async def delete_note(
     """Hard-delete a note. Idempotent — 404 if it doesn't exist."""
     row = await _get_owned_note_or_404(client_id, note_id, astrologer, db)
     await db.delete(row)
+
+
+# ─── AI drafts endpoint ──────────────────────────────────────────────
+
+
+@router.get("/{client_id}/ai-drafts", response_model=AiDraftList)
+async def list_ai_drafts(
+    client_id: UUID,
+    astrologer: CurrentAstrologer,
+    db: AsyncSession = Depends(get_db),
+) -> AiDraftList:
+    """List every AI Q&A asked for this client, projected as draft
+    candidates for the portal notes lane.
+
+    Architecture (Project, per master plan discussion 2026-06-02):
+    we do NOT duplicate Q&As into client_notes when they happen.
+    chart_session.analysis_messages stays the immutable source of
+    truth — every question the astrologer ever asked + every answer
+    the engine ever returned, full audit trail. This endpoint projects
+    that data into draft items the portal admin UI can show alongside
+    curated notes; the astrologer chooses which to promote into real
+    public notes via POST /clients/{id}/notes (with source='ai_draft').
+
+    Returns newest-first. Drafts that have already been promoted into
+    a client_note row are NOT filtered out here — the frontend cross-
+    references by content (or by an explicit promoted_from_key column
+    if we add one later) to avoid duplicates in the UI.
+    """
+    await _get_owned_client_or_404(client_id, astrologer, db)
+
+    stmt = (
+        select(ChartSession)
+        .where(ChartSession.client_id == client_id)
+        .order_by(ChartSession.updated_at.desc())
+    )
+    sessions = list((await db.execute(stmt)).scalars().all())
+
+    items: list[AiDraft] = []
+    for sess in sessions:
+        messages = sess.analysis_messages or []
+        if not isinstance(messages, list):
+            # Defensive: legacy rows might have garbage; skip silently.
+            continue
+        for idx, msg in enumerate(messages):
+            if not isinstance(msg, dict):
+                continue
+            q = msg.get("q") or msg.get("question") or ""
+            a = msg.get("a") or msg.get("answer") or ""
+            if not q or not a:
+                continue
+            items.append(
+                AiDraft(
+                    key=f"{sess.id}:{idx}",
+                    session_id=sess.id,
+                    message_index=idx,
+                    question=str(q),
+                    answer=str(a),
+                    is_topic=bool(msg.get("isTopic", False)),
+                    approx_created_at=sess.updated_at,
+                )
+            )
+
+    # Newest first — most recent session's last message at the top.
+    # Within a session, later messages were asked later; reverse the
+    # index-ascending insertion so head-of-list is freshest.
+    items.reverse()
+
+    return AiDraftList(items=items, total=len(items))
