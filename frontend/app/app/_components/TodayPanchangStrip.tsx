@@ -107,54 +107,139 @@ export function TodayPanchangStrip() {
     );
   }
 
+  // Compact pill-grid layout — works equally well on a 320-wide phone
+  // and a desktop wide bar. Each fact gets its own pill so text never
+  // overlaps (the user previously saw "Krishna" wrap mid-word into the
+  // location row because everything shared one long flex line).
   return (
     <div
       style={{
-        padding: "10px 16px",
-        background: "rgba(7,11,20,0.4)",
-        border: "1px solid rgba(255,255,255,0.06)",
-        borderRadius: 8,
-        fontSize: 12,
+        padding: "12px 14px",
+        background:
+          "linear-gradient(180deg, rgba(201,169,110,0.06) 0%, rgba(201,169,110,0.015) 100%)",
+        border: "1px solid rgba(201,169,110,0.16)",
+        borderRadius: 10,
         display: "flex",
-        alignItems: "center",
-        gap: 16,
-        flexWrap: "wrap",
-        color: theme.text.muted,
+        flexDirection: "column",
+        gap: 8,
       }}
     >
-      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: theme.text.primary }}>
-        <MapPin size={11} />
-        <span style={{ fontWeight: 500 }}>{liveLoc.location.display}</span>
-      </span>
+      {/* Location header */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+        }}
+      >
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            color: theme.text.primary,
+            fontSize: 12,
+            fontWeight: 500,
+            minWidth: 0,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          <MapPin size={11} style={{ flexShrink: 0, color: "#c9a96e" }} />
+          <span
+            style={{
+              minWidth: 0,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {liveLoc.location.display}
+          </span>
+        </span>
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            color: theme.text.muted,
+            fontSize: 11,
+            flexShrink: 0,
+          }}
+        >
+          {data.sunrise_local && (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+              <Sun size={11} /> {data.sunrise_local}
+            </span>
+          )}
+          {data.sunrise_local && data.sunset_local && (
+            <span style={{ opacity: 0.4 }}>·</span>
+          )}
+          {data.sunset_local && (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+              <Moon size={11} /> {data.sunset_local}
+            </span>
+          )}
+        </span>
+      </div>
 
-      {data.tithi_en && (
-        <span>
-          <span style={{ opacity: 0.6 }}>Tithi:</span>{" "}
-          <span style={{ color: theme.text.primary }}>{data.tithi_en}</span>
-        </span>
-      )}
-      {data.nakshatra_en && (
-        <span>
-          <span style={{ opacity: 0.6 }}>Nakshatra:</span>{" "}
-          <span style={{ color: theme.text.primary }}>{data.nakshatra_en}</span>
-        </span>
-      )}
-      {data.current_hora_en && (
-        <span>
-          <span style={{ opacity: 0.6 }}>Hora:</span>{" "}
-          <span style={{ color: theme.text.primary }}>{data.current_hora_en}</span>
-        </span>
-      )}
-      {data.sunrise_local && (
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-          <Sun size={11} /> {data.sunrise_local}
-        </span>
-      )}
-      {data.sunset_local && (
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-          <Moon size={11} /> {data.sunset_local}
-        </span>
-      )}
+      {/* Facts grid — auto-flows nicely from 1 col mobile to 3 col desktop */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))",
+          gap: 6,
+        }}
+      >
+        {data.tithi_en && <PanchangFact label="Tithi" value={data.tithi_en} />}
+        {data.nakshatra_en && (
+          <PanchangFact label="Nakshatra" value={data.nakshatra_en} />
+        )}
+        {data.current_hora_en && (
+          <PanchangFact label="Hora" value={data.current_hora_en} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PanchangFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div
+      style={{
+        padding: "6px 10px",
+        background: "rgba(7,11,20,0.55)",
+        border: "1px solid rgba(255,255,255,0.04)",
+        borderRadius: 7,
+        minWidth: 0,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 9,
+          fontWeight: 600,
+          color: theme.text.muted,
+          textTransform: "uppercase",
+          letterSpacing: 0.6,
+          marginBottom: 2,
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          fontSize: 13,
+          color: theme.text.primary,
+          fontWeight: 500,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+        title={value}
+      >
+        {value}
+      </div>
     </div>
   );
 }

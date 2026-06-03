@@ -19,6 +19,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Search, ChevronRight, Plus, MapPin, Calendar, Link2 } from "lucide-react";
 import { useClients, type ClientPublic } from "@/lib/api/hooks";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { theme } from "@/lib/theme";
 
 interface ClientsRosterProps {
@@ -42,6 +43,7 @@ export function ClientsRoster({
 }: ClientsRosterProps) {
   const { data, isLoading, isError } = useClients();
   const [search, setSearch] = useState("");
+  const isMobile = useIsMobile();
 
   const allClients = data?.items ?? [];
   const filtered = allClients.filter((c) => {
@@ -97,7 +99,10 @@ export function ClientsRoster({
           />
         </div>
 
-        {!hideAddButton && (
+        {/* Desktop: inline pill. Mobile: hidden — the floating gold
+            FAB in CrmShell handles the same action without crowding
+            the search bar. */}
+        {!hideAddButton && !isMobile && (
           <button
             type="button"
             onClick={onAddClient}
@@ -219,6 +224,8 @@ function ClientRow({
   client: ClientPublic;
   onClick: () => void;
 }) {
+  const isMobile = useIsMobile();
+
   // Format birth date for display: "09/09/2000" → "Sep 9, 2000"
   // Server stores DD/MM/YYYY (legacy frontend) OR YYYY-MM-DD.
   // Handle both gracefully.
@@ -254,6 +261,175 @@ function ClientRow({
     return years === 1 ? "1 year ago" : `${years} years ago`;
   }
 
+  const genderGlyph =
+    client.gender === "male" ? "♂" : client.gender === "female" ? "♀" : "◈";
+  const birthDate = client.birth_date ? formatBirthDate(client.birth_date) : "";
+  const lastSeen = timeAgo(client.last_session_at);
+
+  // ─── Mobile card layout ─────────────────────────────────────────
+  // Vertical stack with clear hierarchy + 44px+ tap targets per
+  // CLAUDE.md mobile rules. No fighting for horizontal space —
+  // every row gets its own line so nothing overlaps.
+  if (isMobile) {
+    return (
+      <li
+        style={{
+          padding: 0,
+          borderBottom: "1px solid rgba(255,255,255,0.04)",
+          position: "relative",
+        }}
+      >
+        <button
+          type="button"
+          onClick={onClick}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "stretch",
+            width: "100%",
+            padding: "14px 56px 14px 16px", // right pad for the Link2 corner
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            textAlign: "left",
+            color: "inherit",
+            fontFamily: "inherit",
+            gap: 6,
+          }}
+        >
+          {/* Name + gender glyph + chevron */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 15,
+              fontWeight: 600,
+              color: theme.text.primary,
+              lineHeight: 1.25,
+            }}
+          >
+            <span
+              aria-hidden
+              style={{
+                fontSize: 13,
+                color:
+                  client.gender === "male"
+                    ? "#60a5fa"
+                    : client.gender === "female"
+                    ? "#f472b6"
+                    : theme.text.muted,
+              }}
+            >
+              {genderGlyph}
+            </span>
+            <span
+              style={{
+                flex: 1,
+                minWidth: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {client.name}
+            </span>
+            <ChevronRight
+              size={14}
+              style={{ color: theme.text.muted, flexShrink: 0 }}
+            />
+          </div>
+
+          {/* Birth date row */}
+          {birthDate && (
+            <div
+              style={{
+                fontSize: 12,
+                color: theme.text.muted,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                lineHeight: 1.3,
+              }}
+            >
+              <Calendar size={11} style={{ flexShrink: 0 }} />
+              <span>{birthDate}</span>
+            </div>
+          )}
+
+          {/* Place row */}
+          {client.birth_place_name && (
+            <div
+              style={{
+                fontSize: 12,
+                color: theme.text.muted,
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 5,
+                lineHeight: 1.35,
+              }}
+            >
+              <MapPin size={11} style={{ flexShrink: 0, marginTop: 2 }} />
+              <span style={{ flex: 1, minWidth: 0 }}>
+                {client.birth_place_name}
+              </span>
+            </div>
+          )}
+
+          {/* Stats chips row — last seen + charts + notes */}
+          <div
+            style={{
+              display: "flex",
+              gap: 6,
+              flexWrap: "wrap",
+              marginTop: 4,
+            }}
+          >
+            <StatChip>Last: {lastSeen}</StatChip>
+            {client.chart_session_count > 0 && (
+              <StatChip>
+                {client.chart_session_count} chart
+                {client.chart_session_count === 1 ? "" : "s"}
+              </StatChip>
+            )}
+            {client.note_count > 0 && (
+              <StatChip>
+                {client.note_count} note{client.note_count === 1 ? "" : "s"}
+              </StatChip>
+            )}
+          </div>
+        </button>
+
+        {/* Portal admin link — absolute-positioned in the top-right
+            corner so it doesn't compete with the name row for
+            horizontal space. 44px touch target. */}
+        <Link
+          href={`/app/clients/${client.id}/portal`}
+          onClick={(e) => e.stopPropagation()}
+          title="Open portal admin"
+          aria-label={`Open ${client.name}'s portal admin`}
+          style={{
+            position: "absolute",
+            top: 10,
+            right: 10,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 36,
+            height: 36,
+            borderRadius: 8,
+            border: "1px solid rgba(201,169,110,0.25)",
+            background: "rgba(201,169,110,0.06)",
+            color: "#c9a96e",
+          }}
+        >
+          <Link2 size={14} />
+        </Link>
+      </li>
+    );
+  }
+
+  // ─── Desktop row layout ─────────────────────────────────────────
   return (
     <li
       onClick={onClick}
@@ -292,7 +468,7 @@ function ClientRow({
             flexWrap: "wrap",
           }}
         >
-          {client.birth_date && <span>{formatBirthDate(client.birth_date)}</span>}
+          {birthDate && <span>{birthDate}</span>}
           {client.birth_place_name && (
             <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
               <MapPin size={10} />
@@ -319,7 +495,7 @@ function ClientRow({
         <div style={{ textAlign: "right" }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
             <Calendar size={10} />
-            Last: {timeAgo(client.last_session_at)}
+            Last: {lastSeen}
           </div>
           {client.chart_session_count > 0 && (
             <div style={{ marginTop: 2, opacity: 0.7 }}>
@@ -365,6 +541,30 @@ function ClientRow({
         <ChevronRight size={14} style={{ flexShrink: 0 }} />
       </div>
     </li>
+  );
+}
+
+/** Tiny pill used in the mobile client card stats row. Visually
+ *  separates last-seen / chart-count / note-count so they never
+ *  collide the way they did pre-redesign. */
+function StatChip({ children }: { children: React.ReactNode }) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        padding: "3px 8px",
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.06)",
+        borderRadius: 999,
+        fontSize: 10.5,
+        color: theme.text.muted,
+        whiteSpace: "nowrap",
+        lineHeight: 1.3,
+      }}
+    >
+      {children}
+    </span>
   );
 }
 

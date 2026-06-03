@@ -34,12 +34,14 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { UserPlus } from "lucide-react";
 import { type ClientPublic } from "@/lib/api/hooks";
 import { CrmShell } from "./CrmShell";
 import { TodayPanchangStrip } from "./TodayPanchangStrip";
 import { ClientsRoster } from "./ClientsRoster";
 import { AddClientModal } from "./AddClientModal";
 import { useWorkspace } from "../_lib/workspace-context";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { theme } from "@/lib/theme";
 
 /**
@@ -57,6 +59,7 @@ import { theme } from "@/lib/theme";
 export function CrmHome() {
   const [modalOpen, setModalOpen] = useState(false);
   const router = useRouter();
+  const isMobile = useIsMobile();
   const {
     setSetupDone,
     setWorkspaceData,
@@ -105,24 +108,34 @@ export function CrmHome() {
   return (
     <CrmShell
       pageTitle="Home"
+      // Desktop: inline "+ Add client" pill in the header.
+      // Mobile: hide that (would collide with the serif title) and
+      // expose the same action as a gold breathing FAB instead.
       pageActions={
-        <button
-          type="button"
-          onClick={() => setModalOpen(true)}
-          style={{
-            padding: "8px 14px",
-            background: "linear-gradient(180deg, #c9a96e 0%, #b8985d 100%)",
-            color: "#09090f",
-            border: "none",
-            borderRadius: 8,
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
-        >
-          + Add client
-        </button>
+        isMobile ? null : (
+          <button
+            type="button"
+            onClick={() => setModalOpen(true)}
+            style={{
+              padding: "8px 14px",
+              background: "linear-gradient(180deg, #c9a96e 0%, #b8985d 100%)",
+              color: "#09090f",
+              border: "none",
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            + Add client
+          </button>
+        )
       }
+      mobilePrimaryAction={{
+        label: "Add client",
+        icon: <UserPlus size={22} />,
+        onClick: () => setModalOpen(true),
+      }}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         {/* Today's panchang strip */}

@@ -38,6 +38,7 @@ import {
   Calendar,
   Languages,
   MessageCircle,
+  Share2,
 } from "lucide-react";
 import { CrmShell } from "../../../_components/CrmShell";
 import {
@@ -48,11 +49,13 @@ import {
   usePortal,
   type NotePublic,
 } from "@/lib/api/hooks";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { theme } from "@/lib/theme";
 
 export default function ClientPortalAdminPage() {
   const params = useParams();
   const clientId = (params?.id as string) ?? "";
+  const isMobile = useIsMobile();
 
   const { data: client, isLoading: clientLoading } = useClient(clientId);
   const { data: notes, isLoading: notesLoading } = useClientNotes(clientId);
@@ -76,23 +79,92 @@ export default function ClientPortalAdminPage() {
       ? `${window.location.origin}/c/${client.portal_slug}`
       : `/c/${client.portal_slug}`;
 
+  // Mobile: keep the page title short (just "Portal") — the client
+  // name + birth details appear in the PortalPreview card below.
+  // Cramming "bablu — Portal" into the mobile top bar produced the
+  // line-break + collision the user screenshotted.
+  // Mobile primary action: copy URL via the gold FAB.
   return (
     <CrmShell
-      pageTitle={`${client.name} — Portal`}
-      pageActions={
-        <CopyUrlButton url={portalUrl} />
-      }
+      pageTitle={isMobile ? "Portal" : `${client.name} — Portal`}
+      pageActions={!isMobile ? <CopyUrlButton url={portalUrl} /> : null}
+      mobilePrimaryAction={{
+        label: "Copy portal URL",
+        icon: <Share2 size={20} />,
+        onClick: async () => {
+          try {
+            // Prefer native share sheet on mobile if available
+            // (better UX — astrologer can share to WhatsApp directly).
+            if (
+              typeof navigator !== "undefined" &&
+              typeof (navigator as Navigator & {
+                share?: (d: ShareData) => Promise<void>;
+              }).share === "function"
+            ) {
+              await (
+                navigator as Navigator & {
+                  share: (d: ShareData) => Promise<void>;
+                }
+              ).share({
+                title: `${client.name} — DevAstroAI portal`,
+                text: `Your private chart portal from your KP astrologer`,
+                url: portalUrl,
+              });
+              return;
+            }
+            await navigator.clipboard.writeText(portalUrl);
+            window.alert("Portal URL copied to clipboard.");
+          } catch {
+            window.prompt("Copy this URL:", portalUrl);
+          }
+        },
+      }}
     >
+      {/* Mobile-only: client name banner since the page title is just "Portal" */}
+      {isMobile && (
+        <div
+          style={{
+            marginBottom: 14,
+            padding: "12px 14px",
+            background: "rgba(201,169,110,0.06)",
+            border: "1px solid rgba(201,169,110,0.18)",
+            borderRadius: 10,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 9,
+              color: "#c9a96e",
+              textTransform: "uppercase",
+              letterSpacing: 1.2,
+              fontWeight: 600,
+              marginBottom: 2,
+            }}
+          >
+            Portal for
+          </div>
+          <div
+            style={{
+              fontFamily: "'DM Serif Display', serif",
+              fontSize: 22,
+              color: theme.text.primary,
+              lineHeight: 1.15,
+            }}
+          >
+            {client.name}
+          </div>
+        </div>
+      )}
+
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "minmax(0, 1fr) 360px",
+          gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1fr) 360px",
           gap: 20,
           alignItems: "start",
         }}
-        className="portal-grid"
       >
-        {/* ─── LEFT: composer + notes list ─── */}
+        {/* ─── LEFT (or top on mobile): composer + notes list ─── */}
         <div>
           <ComposerPanel clientId={clientId} />
           <NotesList
@@ -102,18 +174,13 @@ export default function ClientPortalAdminPage() {
           />
         </div>
 
-        {/* ─── RIGHT: portal preview ─── */}
-        <PortalPreview portalSlug={client.portal_slug} portalUrl={portalUrl} />
+        {/* ─── RIGHT (or bottom on mobile): portal preview ─── */}
+        <PortalPreview
+          portalSlug={client.portal_slug}
+          portalUrl={portalUrl}
+          isMobile={isMobile}
+        />
       </div>
-
-      {/* Mobile responsive — collapse to single column below 900px */}
-      <style jsx>{`
-        @media (max-width: 900px) {
-          .portal-grid {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
     </CrmShell>
   );
 }
@@ -479,17 +546,21 @@ function NoteRow({ note, clientId }: { note: NotePublic; clientId: string }) {
 function PortalPreview({
   portalSlug,
   portalUrl,
+  isMobile = false,
 }: {
   portalSlug: string;
   portalUrl: string;
+  isMobile?: boolean;
 }) {
   const { data, isLoading } = usePortal(portalSlug);
 
   return (
     <aside
       style={{
-        position: "sticky",
-        top: 20,
+        // Sticky preview on desktop only — on mobile it follows
+        // normal flow below the composer + notes list.
+        position: isMobile ? "static" : "sticky",
+        top: isMobile ? undefined : 20,
         padding: 16,
         background: "rgba(7,11,20,0.5)",
         border: "1px solid rgba(255,255,255,0.06)",

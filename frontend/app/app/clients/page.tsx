@@ -19,6 +19,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { UserPlus } from "lucide-react";
 import { CrmShell } from "../_components/CrmShell";
 import { ClientsRoster } from "../_components/ClientsRoster";
 import { AddClientModal } from "../_components/AddClientModal";
@@ -40,7 +41,14 @@ export default function ClientsPage() {
   }
 
   return (
-    <CrmShell pageTitle="Clients">
+    <CrmShell
+      pageTitle="Clients"
+      mobilePrimaryAction={{
+        label: "Add client",
+        icon: <UserPlus size={22} />,
+        onClick: () => setModalOpen(true),
+      }}
+    >
       <ClientsRoster
         onAddClient={() => setModalOpen(true)}
         onOpenClient={handleOpenClient}
