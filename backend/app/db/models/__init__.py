@@ -16,6 +16,7 @@ from .astrologer import Astrologer
 from .client import Client
 from .chart_session import ChartSession
 from .client_note import ClientNote
+from .client_interaction import ClientInteraction
 from .subscription import Subscription
 from .usage_event import UsageEvent
 from .audit_log import AuditLog
@@ -25,6 +26,7 @@ __all__ = [
     "Client",
     "ChartSession",
     "ClientNote",
+    "ClientInteraction",
     "Subscription",
     "UsageEvent",
     "AuditLog",

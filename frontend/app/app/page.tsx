@@ -1869,6 +1869,52 @@ export default function Home() {
     return { id: currentSessionId || Date.now().toString(), name: workspaceData.name, birthDetails: { ...birthDetails, timezone_offset: timezoneOffset }, workspaceData, analysisMessages: [...analysisMessages], activeTopic, selectedHouse, chatQ, analysisLang, activeTab };
   };
 
+  // ─── Wave 12 Part A (2026-06-03) — AI Q&A auto-persist ──────────────
+  // Item #3 fix: every time analysisMessages changes (new question
+  // submitted, stream completes appending the answer), schedule a
+  // PATCH /chart-sessions/{id} so the conversation survives a tab
+  // close / navigation away / browser crash. Without this, AI history
+  // lived only in React state and was lost when the user navigated
+  // back to /app.
+  //
+  // Debounce 1500ms: while a stream is in-flight, chunks arrive every
+  // ~50ms and we'd otherwise PATCH dozens of times per answer. The
+  // timer keeps resetting until the stream is done; one save fires
+  // ~1.5s after the last chunk. Cancel-on-unmount preserves whatever
+  // state we have if the user navigates away mid-stream.
+  //
+  // Placed AFTER snapshotCurrentSession so we can reference it
+  // (TypeScript TDZ — const declarations aren't hoisted).
+  //
+  // Guards:
+  //   - currentSessionId must be present (Date.now() ids are local-
+  //     only; sessionsApi.saveSession handles that case as a no-op
+  //     anyway, but the guard avoids needless work)
+  //   - authCtx.status === "authenticated" — anonymous users have
+  //     no DB row to PATCH
+  //   - workspaceData present — empty workspaces have nothing to save
+  const persistOnChangeRef = useRef<() => ChartSession | null>(() => null);
+  persistOnChangeRef.current = snapshotCurrentSession;
+  useEffect(() => {
+    if (authCtx.status !== "authenticated") return;
+    if (!currentSessionId) return;
+    if (!workspaceData) return;
+    if (analysisMessages.length === 0) return;
+    const t = setTimeout(() => {
+      const snap = persistOnChangeRef.current?.();
+      if (!snap) return;
+      sessionsApi.saveSession(snap, (err) => {
+        // Silent on transient errors — next change retries via the
+        // same effect. Persist failures are surfaced loud in the
+        // mutation factory's console.error (Wave 8 P1-5).
+        // eslint-disable-next-line no-console
+        console.warn("[ai-persist] save failed (will retry on next change):", err.message);
+      });
+    }, 1500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [analysisMessages, currentSessionId, workspaceData, authCtx.status]);
+
   const handleNewChart = () => {
     // If there's no workspace yet (first-time user or already on onboarding),
     // fall through to the original full-page setup flow — no modal needed.
