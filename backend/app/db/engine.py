@@ -20,6 +20,7 @@ Pool sizing:
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from typing import Optional
 
@@ -58,8 +59,13 @@ def get_engine() -> AsyncEngine:
         # round-trip, negligible cost, prevents the dreaded 'connection
         # already closed' on first DB call after a quiet period.
         pool_pre_ping=True,
-        pool_size=5,
-        max_overflow=10,
+        # P2-3 (deep-scan-2): bumped from 5+10 to 10+20. With CRM home
+        # firing useMe + useClients + useChartSessions in parallel,
+        # plus /health, portal admin, AI drafts, and the schema-drift
+        # probe sharing the pool, 15 connections was undersized for
+        # Railway. Both knobs are env-overridable for future tuning.
+        pool_size=int(os.getenv("DB_POOL_SIZE", "10")),
+        max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "20")),
     )
 
 

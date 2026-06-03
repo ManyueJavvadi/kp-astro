@@ -40,7 +40,7 @@ from typing import Annotated, Any, Optional
 
 import jwt
 from jwt import PyJWKClient
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict
 
 from app.config import Settings, get_settings
@@ -224,9 +224,14 @@ def _decode_with_correct_algorithm(
 
 
 async def verify_supabase_jwt(
+    request: Request,
     authorization: Annotated[Optional[str], Header()] = None,
     settings: Settings = Depends(get_settings),
 ) -> SupabaseJWTPayload:
+    # P2-12 (deep-scan-2): `request` is auto-injected by FastAPI
+    # (positional Request param). Logs below now include client IP +
+    # path so a spike of invalid_token events from one IP is
+    # attributable in seconds.
     """FastAPI dependency: validate the Authorization header's JWT.
 
     Returns the decoded payload on success. Raises:
@@ -277,7 +282,13 @@ async def verify_supabase_jwt(
             headers={"WWW-Authenticate": "Bearer"},
         )
     except jwt.InvalidTokenError as e:
-        _log.warning("jwt_invalid kind=%s detail=%s", type(e).__name__, e)
+        _log.warning(
+            "jwt_invalid kind=%s ip=%s path=%s detail=%s",
+            type(e).__name__,
+            (request.client.host if request.client else "unknown"),
+            request.url.path,
+            e,
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"error": "invalid_token", "hint": str(e)},

@@ -7,6 +7,7 @@ request body size cap, global exception handler, structured logging,
 
 import logging
 import os
+import re
 import time
 import uuid
 from collections import deque
@@ -264,12 +265,11 @@ def _cors_headers_for(request: Request) -> Dict[str, str]:
     origin = request.headers.get("origin", "")
     if not origin:
         return {}
-    import re as _re
     # S1 hardening (2026-06-02): use re.fullmatch so suffix-attacks like
     # https://devastroai.vercel.app.attacker.com don't slip past the
     # regex check (re.match would happily match the prefix and stop).
     allowed = origin in _cors_origins or (
-        _cors_regex and _re.fullmatch(_cors_regex, origin)
+        _cors_regex and re.fullmatch(_cors_regex, origin)
     )
     if not allowed:
         return {}
@@ -411,9 +411,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             origin = request.headers.get("origin", "")
             cors_headers: Dict[str, str] = {"Retry-After": str(retry_after)}
             # S1 hardening: fullmatch (not match) — same rationale as
-            # _cors_headers_for above.
+            # _cors_headers_for above. P2-11 (deep-scan-2): use the
+            # module-level re import instead of __import__("re") per
+            # request.
             if origin in _cors_origins or (
-                _cors_regex and __import__("re").fullmatch(_cors_regex, origin)
+                _cors_regex and re.fullmatch(_cors_regex, origin)
             ):
                 cors_headers["Access-Control-Allow-Origin"] = origin
                 cors_headers["Vary"] = "Origin"

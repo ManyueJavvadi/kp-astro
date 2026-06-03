@@ -133,13 +133,11 @@ export default function ClientWorkspacePage() {
     setSetupDone,
   ]);
 
-  // Bounce to /app when client has no chart yet. Delayed by a render
-  // so the user sees a brief "redirecting…" before the URL changes.
-  useEffect(() => {
-    if (!notFound) return;
-    const t = setTimeout(() => router.replace("/app"), 600);
-    return () => clearTimeout(t);
-  }, [notFound, router]);
+  // P2-7 (deep-scan-2): no auto-bounce anymore. Hard redirect on
+  // notFound broke bookmarks ("oh I sent the client URL but it
+  // disappeared") AND prevented us from offering "Compute first
+  // chart" inline. The render branch below now shows an actionable
+  // CTA instead.
 
   // Phase 2 polish (2026-06-02) — CRITICAL: reset workspace state on
   // UNMOUNT. Without this, navigating away (top-bar "Back to clients",
@@ -216,7 +214,29 @@ export default function ClientWorkspacePage() {
       <CenteredMessage>
         <strong>No chart for this client yet.</strong>
         <br />
-        Returning you to the home screen…
+        <span style={{ fontSize: 12, opacity: 0.8 }}>
+          Add birth details from the client&apos;s row to compute
+          their chart.
+        </span>
+        <br />
+        <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 14, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            onClick={() => router.push("/app")}
+            style={{
+              padding: "8px 16px",
+              borderRadius: 8,
+              border: "1px solid rgba(255,255,255,0.1)",
+              background: "transparent",
+              color: theme.text.muted,
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: "pointer",
+            }}
+          >
+            Back to clients
+          </button>
+        </div>
       </CenteredMessage>
     );
   }

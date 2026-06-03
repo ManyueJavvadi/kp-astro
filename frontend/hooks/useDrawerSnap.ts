@@ -28,7 +28,7 @@
  *   - `dragging`: true while user is mid-drag (disables transition)
  */
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 
 export type DrawerSnap = "peek" | "default" | "full";
@@ -65,6 +65,25 @@ export function useDrawerSnap(opts: UseDrawerSnapOpts) {
   const [dragOffset, setDragOffset] = useState(0); // px from current snap
   const [dragging, setDragging] = useState(false);
 
+  // P2-6 (deep-scan-2): track viewport height in state so the drawer
+  // recomputes its snap-px on orientation change / browser zoom.
+  // Previously read window.innerHeight at render time only — the
+  // drawer kept the OLD pixel height after a phone rotation until
+  // the next snap change.
+  const [viewportH, setViewportH] = useState<number>(() =>
+    typeof window !== "undefined" ? window.innerHeight : 800,
+  );
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handler = () => setViewportH(window.innerHeight);
+    window.addEventListener("resize", handler, { passive: true });
+    window.addEventListener("orientationchange", handler, { passive: true });
+    return () => {
+      window.removeEventListener("resize", handler);
+      window.removeEventListener("orientationchange", handler);
+    };
+  }, []);
+
   const startY     = useRef(0);
   const startT     = useRef(0);
   const lastY      = useRef(0);
@@ -88,7 +107,8 @@ export function useDrawerSnap(opts: UseDrawerSnapOpts) {
     // Determine if drag would push drawer above "full" (i.e., raw is
     // very negative when at full snap). Apply elastic damping there.
     const currentHeightVh = snapHeightsVh[snap];
-    const viewportH = (typeof window !== "undefined" ? window.innerHeight : 800);
+    // Use the resize-aware viewportH state above instead of reading
+    // window.innerHeight inline (which wouldn't update on rotate).
     const currentHeightPx = (currentHeightVh / 100) * viewportH;
     const fullHeightPx    = (snapHeightsVh.full / 100) * viewportH;
     const wouldExceedFull = -raw + currentHeightPx > fullHeightPx;
@@ -106,7 +126,8 @@ export function useDrawerSnap(opts: UseDrawerSnapOpts) {
     capturedId.current = null;
     setDragging(false);
 
-    const viewportH = (typeof window !== "undefined" ? window.innerHeight : 800);
+    // Use the resize-aware viewportH state above instead of reading
+    // window.innerHeight inline (which wouldn't update on rotate).
 
     // Compute the effective height the user dragged to (current snap
     // height minus downward drag, in px).

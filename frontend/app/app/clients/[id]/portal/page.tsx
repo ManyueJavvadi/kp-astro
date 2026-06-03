@@ -617,10 +617,13 @@ function AiDraftCard({
         )}
         <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
           <Calendar size={10} />
-          {new Date(draft.approx_created_at).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-          })}
+          {/* P2-10 (deep-scan-2): pick locale from the browser instead
+              of hardcoded en-US so Telugu-mode astrologers see dates in
+              their locale's month abbreviations. */}
+          {new Date(draft.approx_created_at).toLocaleDateString(
+            (typeof navigator !== "undefined" && navigator.language) || "en-US",
+            { month: "short", day: "numeric" },
+          )}
         </span>
         {promoted && (
           <span
@@ -1068,11 +1071,15 @@ function NotesList({
 
 function NoteRow({ note, clientId }: { note: NotePublic; clientId: string }) {
   const deleteNote = useDeleteNote(clientId);
-  const dateStr = new Date(note.created_at).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  // P2-10 (deep-scan-2): browser locale instead of hardcoded en-US.
+  const dateStr = new Date(note.created_at).toLocaleDateString(
+    (typeof navigator !== "undefined" && navigator.language) || "en-US",
+    {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    },
+  );
 
   async function handleDelete() {
     if (!window.confirm("Delete this note?")) return;

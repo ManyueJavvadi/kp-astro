@@ -177,10 +177,21 @@ export function AddClientModal({ open, onClose, onCreated }: AddClientModalProps
 
       onCreated(result.client.id, result.chart_session_id);
     } catch (err: unknown) {
+      // P2-2 (deep-scan-2): show a user-friendly message instead of
+      // surfacing the raw ApiError.message (which can quote backend
+      // error strings or SQL fragments). Log the real error for
+      // devtools/Sentry; show plain English to the astrologer.
+      // eslint-disable-next-line no-console
+      console.error("[AddClientModal] create failed:", err);
+      const status = (err as { status?: number } | null)?.status;
       const msg =
-        err instanceof Error
-          ? err.message
-          : "Couldn't create client. Please try again.";
+        status === 401
+          ? "Your session expired. Sign back in and try again."
+          : status === 429
+            ? "You're going a bit fast. Wait a moment and try again."
+            : status === 400
+              ? "Some birth details look invalid. Double-check date / place / time and retry."
+              : "Couldn't create this client. Please try again — if it keeps failing, check your connection.";
       setError(msg);
     } finally {
       setSubmitting(false);

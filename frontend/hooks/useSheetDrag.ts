@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import type { PointerEvent as ReactPointerEvent, CSSProperties } from "react";
 
 /**
@@ -48,6 +48,20 @@ export function useSheetDrag(opts: {
     lastT.current = performance.now();
   }, []);
 
+  // P2-5 (deep-scan-2): track the dismiss-animation timer so we can
+  // clear it on unmount. Otherwise React warns "setState on unmounted
+  // component" when the parent unmounts the sheet mid-animation.
+  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (dismissTimerRef.current) {
+        clearTimeout(dismissTimerRef.current);
+        dismissTimerRef.current = null;
+      }
+    };
+  }, []);
+
   const onPointerUp = useCallback((e: ReactPointerEvent<HTMLElement>) => {
     if (capturedId.current !== e.pointerId) return;
     const distance = lastY.current - startY.current;
@@ -58,7 +72,8 @@ export function useSheetDrag(opts: {
     if (distance >= threshold || velocity >= velocityThreshold) {
       // Animate off-screen, then fire onClose.
       setDy(window.innerHeight);
-      setTimeout(() => {
+      dismissTimerRef.current = setTimeout(() => {
+        dismissTimerRef.current = null;
         onClose();
         setDy(0);
       }, 180);
