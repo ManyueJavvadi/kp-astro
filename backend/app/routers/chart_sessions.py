@@ -154,19 +154,43 @@ async def _get_owned(
 @router.get("", response_model=ChartSessionList)
 async def list_sessions(
     astrologer: CurrentAstrologer,
+    client_id: Optional[UUID] = None,
+    limit: int = 200,
+    offset: int = 0,
     db: AsyncSession = Depends(get_db),
 ) -> ChartSessionList:
-    """List the current astrologer's chart sessions, newest activity first."""
+    """List the current astrologer's chart sessions, newest activity first.
+
+    Query params (all optional):
+      client_id  — filter to one client's sessions (C8 fix: per-client
+                   workspace pages no longer re-read the entire roster)
+      limit      — page size, 1-500 (default 200)
+      offset     — pagination
+    """
+    limit_b = max(1, min(int(limit), 500))
+    offset_b = max(0, int(offset))
+
+    base_where = [ChartSession.astrologer_id == astrologer.id]
+    if client_id is not None:
+        base_where.append(ChartSession.client_id == client_id)
+
+    # Total count for pagination header
+    from sqlalchemy import func as _func
+    total_stmt = select(_func.count(ChartSession.id)).where(*base_where)
+    total = int((await db.execute(total_stmt)).scalar() or 0)
+
     stmt = (
         select(ChartSession)
-        .where(ChartSession.astrologer_id == astrologer.id)
+        .where(*base_where)
         .order_by(ChartSession.updated_at.desc())
+        .offset(offset_b)
+        .limit(limit_b)
     )
     result = await db.execute(stmt)
     rows = result.scalars().all()
     return ChartSessionList(
         items=[ChartSessionPublic.model_validate(r) for r in rows],
-        total=len(rows),
+        total=total,
     )
 
 

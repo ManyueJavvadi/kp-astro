@@ -37,7 +37,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -275,25 +275,46 @@ async def _attach_counts(
 @router.get("", response_model=ClientList)
 async def list_clients(
     astrologer: CurrentAstrologer,
+    limit: int = 100,
+    offset: int = 0,
     db: AsyncSession = Depends(get_db),
 ) -> ClientList:
     """List the current astrologer's clients, most-recently-touched first.
 
-    Sort key: max(client.updated_at, last chart_session updated_at).
-    Approximation for v1: just client.updated_at. We can refine to
-    LAST_SESSION_AT-DESC if astrologers say "I want to see who I
-    consulted with most recently" instead of "who I edited most
-    recently in the CRM."
+    C4 fix (2026-06-02): added pagination. Previous behavior was "send
+    the entire roster as one response" — fine for ten clients, ugly for
+    five thousand. Default limit 100 keeps the existing CRM-home behavior
+    intact for typical astrologers; offset/limit query params let UI
+    paginate. `total` in the response is the FULL count for the
+    astrologer (not the page-size count) so pagers can render
+    "Showing 1-100 of 437".
+
+    Bounds:
+      limit:  1-500 (caps at 500 even if larger requested — prevents
+              denial-of-wallet by a malicious request asking for limit=999999)
+      offset: ≥0
     """
+    limit = max(1, min(int(limit), 500))
+    offset = max(0, int(offset))
+
+    # Total count for pagination header
+    total_stmt = (
+        select(func.count(Client.id))
+        .where(Client.astrologer_id == astrologer.id)
+    )
+    total = int((await db.execute(total_stmt)).scalar() or 0)
+
     stmt = (
         select(Client)
         .where(Client.astrologer_id == astrologer.id)
         .order_by(Client.updated_at.desc())
+        .offset(offset)
+        .limit(limit)
     )
     result = await db.execute(stmt)
     rows = list(result.scalars().all())
     enriched = await _attach_counts(rows, db)
-    return ClientList(items=enriched, total=len(enriched))
+    return ClientList(items=enriched, total=total)
 
 
 @router.post(
@@ -392,6 +413,196 @@ async def update_client(
     await db.flush()
     enriched = await _attach_counts([row], db)
     return enriched[0]
+
+
+class ClientWithChartCreate(ClientCreate):
+    """Inputs for the transactional add-client-with-chart endpoint."""
+
+    # The chart engine needs ISO date + 24h time. Frontend converts
+    # before posting (handles AM/PM + DD/MM/YYYY → YYYY-MM-DD itself).
+    chart_iso_date: str = Field(..., min_length=10, max_length=10)
+    chart_time_24h: str = Field(..., min_length=4, max_length=8)
+    # AM/PM is preserved so chart_session.birth_ampm gets populated for
+    # the UI to display the original format the astrologer entered.
+    chart_ampm: str = Field("AM", max_length=2)
+
+
+class ClientWithChartResponse(BaseModel):
+    """Combined response — both rows created in one transaction."""
+
+    client: ClientPublic
+    chart_session_id: UUID
+
+
+@router.post(
+    "/with-chart",
+    response_model=ClientWithChartResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_client_with_chart(
+    payload: ClientWithChartCreate,
+    astrologer: CurrentAstrologer,
+    db: AsyncSession = Depends(get_db),
+) -> ClientWithChartResponse:
+    """C1 fix (2026-06-02): single transactional endpoint that creates
+    the client row, computes the chart, AND persists the chart_session
+    — atomically. Eliminates the orphan-row class of bugs.
+
+    Previous flow (frontend orchestrated):
+      1. POST /clients               (could succeed)
+      2. POST /astrologer/workspace  (could fail → orphan client)
+      3. POST /chart-sessions        (could fail → orphan client)
+    User-visible symptom: duplicate "manyue" rows in the CRM roster
+    when step 2 failed and the user re-tried the whole flow.
+
+    New flow: everything happens inside one DB session. If chart
+    compute or chart_session insert fails, the client INSERT rolls
+    back via the get_db() commit-on-clean-exit semantics. No orphans.
+
+    Frontend AddClientModal is updated in Wave 4 to call this endpoint
+    instead of the 3-step sequence.
+    """
+    # Lazy import — the chart engine is heavy (swisseph + ephemeris
+    # files) and we don't want to pay that cost at module load.
+    from app.services.chart_engine import (
+        generate_chart, calculate_dashas, get_current_dasha,
+        calculate_antardashas, get_current_antardasha,
+        calculate_pratyantardashas, get_current_pratyantardasha,
+        get_ruling_planets, get_all_house_significators,
+    )
+    from app.services.chart_formatter import format_chart_for_frontend
+    from app.services.chart_pipeline import _resolve_rp_triple, build_rp_meta
+    from app.services.timezone_utils import resolve_birth_offset
+    from app.services.telugu_terms import (
+        get_planet_telugu, get_sign_telugu, get_nakshatra_telugu,
+        get_house_telugu,
+    )
+    from app.db.models import ChartSession
+    import swisseph as _swe
+
+    try:
+        # ── Step 1: insert client row (NOT flushed yet — bound to txn) ──
+        client_fields = payload.model_dump(
+            exclude={"chart_iso_date", "chart_time_24h", "chart_ampm"},
+            exclude_unset=True,
+        )
+        client_row = Client(
+            astrologer_id=astrologer.id,
+            **client_fields,
+        )
+        db.add(client_row)
+        await db.flush()  # populates client_row.id + portal_slug
+
+        # ── Step 2: compute the chart inline (no second HTTP hop) ──
+        if (
+            payload.birth_latitude is None
+            or payload.birth_longitude is None
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail={"error": "missing_birth_coordinates"},
+            )
+        tz_offset, _tz_name = resolve_birth_offset(
+            payload.birth_latitude,
+            payload.birth_longitude,
+            payload.chart_iso_date,
+            payload.chart_time_24h,
+            fallback_offset=payload.birth_timezone_offset or 5.5,
+        )
+        _swe.set_sid_mode(_swe.SIDM_KRISHNAMURTI_VP291)
+        chart = generate_chart(
+            payload.chart_iso_date,
+            payload.chart_time_24h,
+            payload.birth_latitude,
+            payload.birth_longitude,
+            tz_offset,
+        )
+        moon_longitude = chart["planets"]["Moon"]["longitude"]
+        dashas = calculate_dashas(
+            payload.chart_iso_date, payload.chart_time_24h,
+            moon_longitude, tz_offset,
+        )
+        current_md = get_current_dasha(dashas)
+        antardashas = calculate_antardashas(current_md)
+        current_ad = get_current_antardasha(antardashas)
+        pratyantardashas = calculate_pratyantardashas(current_ad)
+        current_pad = get_current_pratyantardasha(pratyantardashas)
+        all_significators = get_all_house_significators(
+            chart["planets"], chart["cusps"]
+        )
+        rp_lat, rp_lon, rp_tz, rp_source = _resolve_rp_triple(
+            natal_lat=payload.birth_latitude,
+            natal_lon=payload.birth_longitude,
+            natal_tz=tz_offset,
+            live_lat=None, live_lon=None, live_tz=None,
+        )
+        ruling_planets = get_ruling_planets(rp_lat, rp_lon, rp_tz)
+        rp_meta = build_rp_meta(rp_lat, rp_lon, rp_tz, source=rp_source)
+        formatted = format_chart_for_frontend(chart)
+
+        # Build a workspace_data dict matching what /astrologer/workspace
+        # returns — keep the shape compatible so downstream UI doesn't
+        # care which endpoint produced it.
+        workspace_data: dict[str, Any] = {
+            "name": payload.name,
+            "date": payload.chart_iso_date,
+            "time": payload.chart_time_24h,
+            "latitude": payload.birth_latitude,
+            "longitude": payload.birth_longitude,
+            "timezone_offset": tz_offset,
+            "gender": payload.gender or "",
+            "planets": formatted["planets"],
+            "cusps": formatted["cusps"],
+            "current_dasha": current_md,
+            "current_antardasha": current_ad,
+            "current_pratyantardasha": current_pad,
+            "dashas": dashas,
+            "all_significators": all_significators,
+            "ruling_planets": ruling_planets,
+            "rp_meta": rp_meta,
+        }
+
+        # ── Step 3: persist chart_session bound to the new client ──
+        session_row = ChartSession(
+            astrologer_id=astrologer.id,
+            client_id=client_row.id,
+            name=payload.name,
+            birth_name=payload.name,
+            birth_date=payload.birth_date,
+            birth_time=payload.birth_time,
+            birth_ampm=payload.chart_ampm,
+            birth_place_name=payload.birth_place_name,
+            birth_latitude=payload.birth_latitude,
+            birth_longitude=payload.birth_longitude,
+            birth_timezone_offset=tz_offset,
+            birth_gender=payload.gender,
+            workspace_data=workspace_data,
+        )
+        db.add(session_row)
+        await db.flush()  # populates session_row.id
+
+        # All three operations succeeded — get_db()'s commit-on-clean-
+        # exit will commit. Returning the response triggers that path.
+        public = _client_to_public(
+            client_row, chart_session_count=1, note_count=0
+        )
+        return ClientWithChartResponse(
+            client=public, chart_session_id=session_row.id
+        )
+
+    except HTTPException:
+        raise
+    except Exception:
+        _log.exception(
+            "create_client_with_chart_failed astrologer_id=%s",
+            astrologer.id,
+        )
+        # get_db() session dep auto-rollbacks on exception — no need
+        # to call rollback explicitly here.
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"error": "create_client_with_chart_failed"},
+        )
 
 
 @router.delete("/{client_id}", status_code=status.HTTP_204_NO_CONTENT)

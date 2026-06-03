@@ -294,6 +294,8 @@ async def delete_note(
 async def list_ai_drafts(
     client_id: UUID,
     astrologer: CurrentAstrologer,
+    limit: int = 50,
+    offset: int = 0,
     db: AsyncSession = Depends(get_db),
 ) -> AiDraftList:
     """List every AI Q&A asked for this client, projected as draft
@@ -352,4 +354,12 @@ async def list_ai_drafts(
     # index-ascending insertion so head-of-list is freshest.
     items.reverse()
 
-    return AiDraftList(items=items, total=len(items))
+    # C3 fix (2026-06-02): paginate. A chatty astrologer with 50
+    # sessions × 30 Q&As could send a single multi-MB response;
+    # cap-by-default keeps the portal admin page snappy.
+    limit_b = max(1, min(int(limit), 200))
+    offset_b = max(0, int(offset))
+    total = len(items)
+    items = items[offset_b : offset_b + limit_b]
+
+    return AiDraftList(items=items, total=total)

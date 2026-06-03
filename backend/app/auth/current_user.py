@@ -107,15 +107,28 @@ async def get_current_astrologer(
     try:
         await db.flush()  # get the id without committing yet
     except Exception as e:
-        # Most likely: email already exists for a different sub (e.g.,
-        # the user deleted + recreated their Supabase auth account).
-        # Surface clearly so the user can be merged manually rather than
-        # silently masked.
+        # C6 fix (2026-06-02): handle concurrent first-touch races.
+        # If two requests from the same fresh user arrive in parallel,
+        # both reach this branch with no row, both INSERT, one hits
+        # the unique-constraint on supabase_user_id (or email). The
+        # racing loser used to return 500. Now we rollback + retry
+        # the SELECT — the other side just committed the row.
+        await db.rollback()
+        retry_result = await db.execute(stmt)
+        existing = retry_result.scalar_one_or_none()
+        if existing is not None:
+            _log.info(
+                "astrologer_provision_race_resolved sub=%s — using row "
+                "created by concurrent request",
+                jwt_payload.sub,
+            )
+            return existing
+        # Genuine failure (not a race) — email collision with different
+        # sub OR a real DB error. Log + surface.
         _log.exception(
             "astrologer_provision_failed sub=%s email=%s err=%s",
             jwt_payload.sub, jwt_payload.email, e,
         )
-        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
