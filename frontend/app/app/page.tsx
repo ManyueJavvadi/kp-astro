@@ -1915,6 +1915,45 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [analysisMessages, currentSessionId, workspaceData, authCtx.status]);
 
+  // ─── Layer 1 hydrate (2026-06-03) — rehydrate chat state on open ───
+  // BUG (reported 2026-06-03): opening a client via /app/clients/[id]
+  // pushed birthDetails + workspaceData + currentSessionId into context,
+  // but DID NOT push analysisMessages / activeTopic / chatQ / etc. So
+  // even when the AI persist code (Wave 12) successfully saved the Q&A
+  // to chart_sessions.analysis_messages in the DB, re-opening the client
+  // showed a BLANK Analysis tab because local React state started fresh.
+  //
+  // Fix: page.tsx watches currentSessionId. When it points to a session
+  // we have in savedSessions (SessionsBridge mirrors DB → savedSessions),
+  // hydrate analysisMessages + activeTopic + selectedHouse + chatQ +
+  // analysisLang + activeTab from that session.
+  //
+  // hydratedSessionIdRef tracks the id we LAST hydrated for, so:
+  //   - Switching to a different chart → re-hydrate (id changes)
+  //   - SessionsBridge re-fetches mid-session → don't clobber in-progress
+  //     chat (same id, refs match, skip)
+  //   - User asks a question (analysisMessages updates) → savedSessions
+  //     doesn't change for THAT id (we're the source of truth in-flight),
+  //     so no overwrite
+  const hydratedSessionIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!currentSessionId) {
+      hydratedSessionIdRef.current = null;
+      return;
+    }
+    if (hydratedSessionIdRef.current === currentSessionId) return;
+    const session = savedSessions.find((s) => s.id === currentSessionId);
+    if (!session) return; // SessionsBridge hasn't loaded yet — wait for next tick
+    hydratedSessionIdRef.current = currentSessionId;
+    // Hydrate chat + UI state from the persisted session.
+    setAnalysisMessages(session.analysisMessages || []);
+    setActiveTopic(session.activeTopic || "");
+    setSelectedHouse(session.selectedHouse ?? null);
+    setChatQ(session.chatQ || "");
+    setAnalysisLang(session.analysisLang || "english");
+    setActiveTab(session.activeTab || "chart");
+  }, [currentSessionId, savedSessions]);
+
   const handleNewChart = () => {
     // If there's no workspace yet (first-time user or already on onboarding),
     // fall through to the original full-page setup flow — no modal needed.
