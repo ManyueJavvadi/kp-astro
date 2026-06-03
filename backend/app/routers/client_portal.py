@@ -243,6 +243,16 @@ async def get_portal(
             detail={"error": "portal_not_found"},
         )
 
+    # S5 (2026-06-02, migration 0003): kill switch. When the astrologer
+    # has toggled portal off, return 404 (NOT 403) so the URL looks
+    # invalid from the outside — protects against "I shared the link
+    # with X, why can they still see I changed my mind?" inferences.
+    if not getattr(client, "portal_enabled", True):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "portal_not_found"},
+        )
+
     # Pick the most-recent chart_session for the snapshot (could be
     # None if no chart computed yet)
     sessions = list(client.chart_sessions) if client.chart_sessions else []
@@ -254,12 +264,23 @@ async def get_portal(
     visible_notes = [n for n in (client.notes or []) if not n.is_private]
     visible_notes.sort(key=lambda n: n.created_at, reverse=True)
 
+    # C10 (2026-06-02, migration 0003): per-field privacy. Missing keys
+    # in portal_visibility dict default to TRUE — preserves existing
+    # behavior for clients whose row was created before this feature.
+    visibility = getattr(client, "portal_visibility", {}) or {}
+
+    def _show(key: str) -> bool:
+        v = visibility.get(key)
+        return True if v is None else bool(v)
+
     return PortalResponse(
         client_name=client.name,
         client_birth_date=client.birth_date,
-        client_birth_time=client.birth_time,
-        client_birth_place=client.birth_place_name,
-        client_gender=client.gender,
+        client_birth_time=client.birth_time if _show("show_birth_time") else None,
+        client_birth_place=(
+            client.birth_place_name if _show("show_birth_place") else None
+        ),
+        client_gender=client.gender if _show("show_gender") else None,
         snapshot=_extract_snapshot(workspace_data),
         notes=[PortalNote.model_validate(n) for n in visible_notes],
         astrologer=PortalAstrologer(

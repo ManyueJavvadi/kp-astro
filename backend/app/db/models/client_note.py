@@ -109,6 +109,18 @@ class ClientNote(Base, UUIDPKMixin, TimestampMixin):
         server_default="astrologer",
         comment="Origin: astrologer (typed) or ai_draft (promoted from AI Q&A).",
     )
+    # C5 fix (2026-06-02, migration 0003) — exact link to the AI Q&A
+    # this note was promoted from. Replaces the fragile substring
+    # match in the AiDraftsLane UI. Format: "<chart_session_id>:<idx>".
+    # Indexed (partial) so the lane's "already promoted?" check is O(1).
+    promoted_from_key: Mapped[Optional[str]] = mapped_column(
+        Text,
+        comment=(
+            "When source='ai_draft': stable key of the originating "
+            "Q&A — '<chart_session_id>:<message_index>'. Used by the "
+            "portal admin lane to detect already-promoted drafts."
+        ),
+    )
 
     # ─── Relationships ────────────────────────────────────────────────
     client: Mapped["Client"] = relationship(back_populates="notes")

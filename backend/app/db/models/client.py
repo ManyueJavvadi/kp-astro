@@ -20,7 +20,7 @@ import uuid
 from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import Boolean, ForeignKey, Index, String, Text, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, UUIDPKMixin
@@ -115,6 +115,34 @@ class Client(Base, UUIDPKMixin, TimestampMixin):
         Text,
         comment="Astrologer's private TL;DR summary of this client. "
         "Never shown on the public client portal page.",
+    )
+
+    # ─── Portal controls (added 2026-06-02, migration 0003) ───────────
+    # S5 — kill switch for a leaked portal URL. When FALSE, the public
+    # /c/{slug} endpoint returns 404 even though the slug is valid.
+    # Astrologers toggle this from the portal admin page.
+    portal_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default="true",
+        comment=(
+            "Public portal kill switch. FALSE → /c/{slug} 404s "
+            "regardless of the slug being valid."
+        ),
+    )
+    # C10 — per-field privacy. JSONB so we can add new toggles later
+    # without a migration. Keys currently inspected by the portal
+    # endpoint: show_birth_time, show_birth_place, show_gender.
+    # Missing keys default to TRUE (current behavior).
+    portal_visibility: Mapped[dict] = mapped_column(
+        JSONB,
+        nullable=False,
+        server_default="{}",
+        comment=(
+            "Per-client portal field visibility. Empty object = show "
+            "everything. Recognized keys: show_birth_time, "
+            "show_birth_place, show_gender. Missing keys default to true."
+        ),
     )
 
     # ─── Relationships ────────────────────────────────────────────────

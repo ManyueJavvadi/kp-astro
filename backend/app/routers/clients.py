@@ -79,6 +79,11 @@ class ClientBase(BaseModel):
     matching_opt_in: Optional[bool] = None
     summary: Optional[str] = None
 
+    # Portal controls (added 2026-06-02, migration 0003 — S5, C10).
+    # PATCH-friendly: each toggle independently optional.
+    portal_enabled: Optional[bool] = None
+    portal_visibility: Optional[dict] = None
+
 
 class ClientCreate(ClientBase):
     """POST body — name is required."""
@@ -108,6 +113,9 @@ class ClientPublic(ClientBase):
     astrologer_id: UUID
     name: str
     portal_slug: UUID
+    # Defaults safe for legacy rows pre-dating migration 0003.
+    portal_enabled: bool = True
+    portal_visibility: dict = {}
 
     # Convenience counts. Useful for the CRM roster ("Harini · 12 sessions, 3 notes")
     # without an extra round-trip per row.
@@ -193,6 +201,10 @@ def _client_to_public(
         birth_timezone_offset=row.birth_timezone_offset,
         matching_opt_in=row.matching_opt_in,
         portal_slug=row.portal_slug,
+        # getattr with default — legacy rows pre-dating migration 0003
+        # serialize cleanly even before the DB migration applies.
+        portal_enabled=getattr(row, "portal_enabled", True),
+        portal_visibility=getattr(row, "portal_visibility", {}) or {},
         summary=row.summary,
         chart_session_count=chart_session_count,
         note_count=note_count,

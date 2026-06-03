@@ -75,6 +75,9 @@ class NoteBase(BaseModel):
         default=None,
         pattern=r"^(astrologer|ai_draft)$",
     )
+    # C5 fix (2026-06-02 migration 0003) — exact link to the AI Q&A
+    # this note was promoted from. Format: "<session_id>:<idx>".
+    promoted_from_key: Optional[str] = Field(default=None, max_length=80)
 
 
 class NoteCreate(NoteBase):
@@ -107,6 +110,7 @@ class NotePublic(NoteBase):
     # the Pydantic side gives belt-and-braces safety.
     outcome: str = "na"
     source: str = "astrologer"
+    promoted_from_key: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
