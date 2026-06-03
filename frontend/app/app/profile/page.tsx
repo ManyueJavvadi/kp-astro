@@ -21,7 +21,7 @@ import { useMe, useUpdateMe } from "@/lib/api/hooks";
 import { theme } from "@/lib/theme";
 
 export default function ProfilePage() {
-  const { data: me, isLoading } = useMe();
+  const { data: me, isLoading, isError, refetch } = useMe();
   const updateMe = useUpdateMe();
 
   const [displayName, setDisplayName] = useState("");
@@ -55,6 +55,55 @@ export default function ProfilePage() {
     setSaved(true);
     // Hide the success indicator after 2s
     setTimeout(() => setSaved(false), 2000);
+  }
+
+  // P1-4 (deep-scan-2): isError branch — before this, a backend
+  // failure on /me silently stuck the page on the loading spinner
+  // forever.
+  if (isError) {
+    return (
+      <CrmShell pageTitle="Profile">
+        <div
+          role="alert"
+          style={{
+            padding: 24,
+            margin: "24px auto",
+            maxWidth: 460,
+            background: "rgba(248,113,113,0.06)",
+            border: "1px solid rgba(248,113,113,0.25)",
+            borderRadius: 10,
+            textAlign: "center",
+            fontSize: 13,
+            color: theme.text.primary,
+            lineHeight: 1.55,
+          }}
+        >
+          <strong>Couldn&apos;t load your profile.</strong>
+          <br />
+          <span style={{ color: theme.text.muted }}>
+            Check your connection, then retry.
+          </span>
+          <br />
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            style={{
+              marginTop: 14,
+              padding: "8px 16px",
+              borderRadius: 8,
+              border: "1px solid rgba(201,169,110,0.45)",
+              background: "rgba(201,169,110,0.08)",
+              color: "#c9a96e",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      </CrmShell>
+    );
   }
 
   if (isLoading || !me) {

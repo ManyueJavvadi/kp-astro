@@ -487,6 +487,15 @@ export function useUpdateChartSessionByIdFactory() {
           options?.onSuccess?.(data);
         })
         .catch((err) => {
+          // P1-5 (deep-scan-2): always log mutation errors. Without
+          // this, a caller that forgets to pass onError silently
+          // swallows the failure — recipe for "why isn't the data
+          // persisting?" debug sessions.
+          // eslint-disable-next-line no-console
+          console.error(
+            "[useUpdateChartSessionByIdFactory] PATCH failed:",
+            { id, err },
+          );
           options?.onError?.(err);
         });
     },
@@ -654,6 +663,13 @@ export function useUpdateClientByIdFactory() {
           options?.onSuccess?.(data);
         })
         .catch((err) => {
+          // P1-5 (deep-scan-2): always log mutation errors — see
+          // useUpdateChartSessionByIdFactory comment.
+          // eslint-disable-next-line no-console
+          console.error(
+            "[useUpdateClientByIdFactory] PATCH failed:",
+            { id, err },
+          );
           options?.onError?.(err);
         });
     },

@@ -18,7 +18,7 @@
  * resolve a location, we return `status: "error"` — KP RPs require a
  * real location, no silent defaults.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export type LiveLocation = {
   latitude: number;
@@ -86,10 +86,19 @@ export function useLiveLocation() {
     }
   }, [browserOffset]);
 
+  // P1-9 (deep-scan-2): generation counter so a user-initiated
+  // override() that runs while resolveFromBrowser() is still in-flight
+  // doesn't get clobbered by the geolocation result arriving later.
+  // Each resolve/override bumps the counter; any in-flight async work
+  // checks it before applying state.
+  const locationGenRef = useRef(0);
+
   const resolveFromBrowser = useCallback(async () => {
+    const myGen = ++locationGenRef.current;
     setStatus("resolving");
     setError(null);
     if (typeof window === "undefined" || !navigator.geolocation) {
+      if (locationGenRef.current !== myGen) return;
       setStatus("unsupported");
       setError("Geolocation not supported in this browser.");
       return;
@@ -100,6 +109,7 @@ export function useLiveLocation() {
         maximumAge: 60 * 60 * 1000,  // 1 hour cache
       })
     );
+    if (locationGenRef.current !== myGen) return; // raced — newer call won
     if (!pos) {
       setStatus("denied");
       setError("Location permission denied or timed out. Pick a city to continue.");
@@ -108,6 +118,7 @@ export function useLiveLocation() {
     const lat = pos.coords.latitude;
     const lon = pos.coords.longitude;
     const meta = await reverseGeocode(lat, lon);
+    if (locationGenRef.current !== myGen) return; // raced — newer call won
     const loc: LiveLocation = {
       latitude: lat,
       longitude: lon,
@@ -138,9 +149,13 @@ export function useLiveLocation() {
   }, [resolveFromBrowser]);
 
   const override = useCallback(async (pick: { lat: number; lon: number; display: string; timezone?: number }) => {
+    // P1-9: bump the generation so any in-flight resolveFromBrowser
+    // gives up before clobbering the user's explicit pick.
+    const myGen = ++locationGenRef.current;
     const meta = pick.timezone != null
       ? { timezone_offset: pick.timezone, display: pick.display }
       : (await reverseGeocode(pick.lat, pick.lon)) ?? { timezone_offset: browserOffset, display: pick.display };
+    if (locationGenRef.current !== myGen) return; // a newer override won
     const loc: LiveLocation = {
       latitude: pick.lat,
       longitude: pick.lon,

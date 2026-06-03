@@ -100,6 +100,33 @@ _EXPECTED_COLUMNS: list[tuple[str, str]] = [
 
 
 @app.on_event("startup")
+async def _startup_tasks() -> None:
+    """Aggregated startup work.
+
+    P1-6 (deep-scan-2): bump anyio's default thread-pool capacity from
+    40 to 100 so a burst of sync handlers (/astrologer/workspace,
+    /chart/generate, /horary/*, /panchang/*) can't starve each other.
+    Each Swiss Ephemeris compute holds a slot for ~100-500ms; 40 slots
+    becomes the bottleneck before any DB connection pool does. Cheap
+    to set since slots are spawned lazily.
+
+    Also runs the schema-drift probe — see below.
+
+    Note (P1-7): @app.on_event("startup") is deprecated in modern
+    FastAPI in favor of lifespan contexts. Migrating both would be
+    cleaner; deferring to a separate refactor since this version
+    still works correctly in 0.135.x.
+    """
+    try:
+        import anyio
+        anyio.to_thread.current_default_thread_limiter().total_tokens = 100
+        _log.info("threadpool_capacity_set tokens=100")
+    except Exception as e:
+        _log.warning("threadpool_capacity_set_failed err=%s", e)
+
+    await _schema_drift_probe()
+
+
 async def _schema_drift_probe() -> None:
     """Warn loudly if the DB is missing columns the code expects.
 
@@ -749,7 +776,16 @@ def version_full(request: Request):
     """
     expected = os.getenv("ADMIN_DEBUG_TOKEN")
     provided = request.headers.get("x-admin-token", "")
-    if not expected or not provided or provided != expected:
+    # P1-3 (deep-scan-2): hmac.compare_digest avoids the timing-attack
+    # side channel of Python's == on strings (which short-circuits on
+    # the first mismatched byte — leaks one secret-byte per probe).
+    import hmac as _hmac
+    token_ok = (
+        bool(expected)
+        and bool(provided)
+        and _hmac.compare_digest(provided, expected)
+    )
+    if not token_ok:
         # 404 (not 401) — pretend the endpoint doesn't exist when
         # the token is wrong, to avoid confirming the route is real.
         raise __import__("fastapi").HTTPException(

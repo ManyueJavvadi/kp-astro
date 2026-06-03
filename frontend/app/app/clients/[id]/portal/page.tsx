@@ -65,9 +65,48 @@ export default function ClientPortalAdminPage() {
   const clientId = (params?.id as string) ?? "";
   const isMobile = useIsMobile();
 
-  const { data: client, isLoading: clientLoading } = useClient(clientId);
-  const { data: notes, isLoading: notesLoading } = useClientNotes(clientId);
+  const {
+    data: client,
+    isLoading: clientLoading,
+    isError: clientError,
+    refetch: refetchClient,
+  } = useClient(clientId);
+  const {
+    data: notes,
+    isLoading: notesLoading,
+    isError: notesError,
+    refetch: refetchNotes,
+  } = useClientNotes(clientId);
 
+  // P1-4 (deep-scan-2): isError branches on client + notes so a
+  // backend failure doesn't strand the page on an infinite loader.
+  if (clientError) {
+    return (
+      <CrmShell pageTitle="Portal">
+        <Centered>
+          <strong>Couldn&apos;t load this client&apos;s portal.</strong>
+          <br />
+          <button
+            type="button"
+            onClick={() => void refetchClient()}
+            style={{
+              marginTop: 14,
+              padding: "8px 16px",
+              borderRadius: 8,
+              border: "1px solid rgba(201,169,110,0.45)",
+              background: "rgba(201,169,110,0.08)",
+              color: "#c9a96e",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Retry
+          </button>
+        </Centered>
+      </CrmShell>
+    );
+  }
   if (clientLoading || !client) {
     return (
       <CrmShell pageTitle="Loading…">
@@ -180,6 +219,45 @@ export default function ClientPortalAdminPage() {
         {/* ─── LEFT (or top on mobile): composer + AI drafts + notes ─── */}
         <div>
           <ComposerPanel clientId={clientId} />
+          {/* P1-4 (deep-scan-2): inline retry banner if notes failed.
+              Keeps composer + AI drafts usable even if the notes list
+              fetch broke. */}
+          {notesError && (
+            <div
+              role="alert"
+              style={{
+                marginBottom: 14,
+                padding: "10px 12px",
+                background: "rgba(248,113,113,0.06)",
+                border: "1px solid rgba(248,113,113,0.25)",
+                borderRadius: 8,
+                fontSize: 12,
+                color: "#f87171",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+              }}
+            >
+              <span>Couldn&apos;t load notes for this client.</span>
+              <button
+                type="button"
+                onClick={() => void refetchNotes()}
+                style={{
+                  padding: "4px 10px",
+                  background: "rgba(248,113,113,0.12)",
+                  border: "1px solid rgba(248,113,113,0.35)",
+                  borderRadius: 6,
+                  color: "#f87171",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Retry
+              </button>
+            </div>
+          )}
           <AiDraftsLane
             clientId={clientId}
             existingNotes={notes?.items ?? []}

@@ -17,10 +17,12 @@ from datetime import date, datetime
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import CurrentAstrologer
+from app.db import get_db
 
 router = APIRouter()
 
@@ -85,6 +87,7 @@ async def get_me(astrologer: CurrentAstrologer) -> AstrologerPublic:
 async def update_me(
     payload: AstrologerUpdate,
     astrologer: CurrentAstrologer,
+    db: AsyncSession = Depends(get_db),
 ) -> AstrologerPublic:
     """Update one or more profile fields.
 
@@ -95,11 +98,12 @@ async def update_me(
     for field, value in changes.items():
         setattr(astrologer, field, value)
 
-    # The get_db dependency commits on clean exit. No explicit commit
-    # needed here — but flush() makes the UPDATE visible within this
-    # request so the response includes updated_at correctly.
-    # Actually the session does commit-on-exit, and updated_at has
-    # onupdate=func.now(), so the value SQLAlchemy reads back via
-    # `astrologer.updated_at` will be the new one.
+    # P1-8 (deep-scan-2): explicit flush + refresh of updated_at so
+    # the response contains the FRESH timestamp (Postgres-side
+    # onupdate=func.now()). Without this, the in-memory ORM object
+    # carries the pre-update value until next read, and the frontend's
+    # "last updated" indicator shows a stale time.
+    await db.flush()
+    await db.refresh(astrologer, ["updated_at"])
 
     return AstrologerPublic.model_validate(astrologer)
