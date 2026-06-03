@@ -212,10 +212,8 @@ _RATE_LIMITS: Dict[str, tuple[int, int]] = {
     "/prediction/ask-stream":   (15, 60),
     "/astrologer/analyze":      (20, 60),
     "/astrologer/analyze-stream": (20, 60),
-    # quick-insights is hard-disabled (returns HTTP 410). Entry kept to
-    # short-circuit any leftover cached frontend bundles still calling
-    # it, but at extremely tight limit so abuse can't fire it 1000x/min.
-    "/astrologer/quick-insights": (10, 60),
+    # D6 cleanup (2026-06-02): /astrologer/quick-insights entry removed
+    # — endpoint deleted in routers/astrologer.py.
     "/compatibility/analyze":   (15, 60),
     "/muhurtha/analyze":        (15, 60),
     # S4 hardening (2026-06-02): /astrologer/workspace is the chart
@@ -693,7 +691,8 @@ def version_full(request: Request):
         # can verify via /version/full which cost-fix commits are
         # actually running.
         "cost_features": {
-            "phase_13_1_quick_insights_410": True,
+            # quick_insights_410 dropped in D6 cleanup — endpoint
+            # was deleted in this commit so the flag is meaningless.
             "phase_13_2_anthropic_audit_log": True,
             "phase_13_3_cache_prefix_reorder": True,
             "phase_13_4_haiku_followup": True,

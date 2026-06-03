@@ -122,7 +122,14 @@ import { MuhurthaTab } from "./tabs/MuhurthaTab";
 // as astrologer mode but with a 6-tab consumer IA (Dashboard / Chart
 // / Ask / Muhurta / Horary / Match), no expert sidebars, and
 // creative content presentation per the vision doc.
-import { DashboardTab } from "./tabs/DashboardTab";
+// D2 cleanup (2026-06-02): DashboardTab is the Phase G user-mode home.
+// Phase G is paused per CLAUDE.md — the tab is reachable only on the
+// `mode === "user"` code paths, which never execute for authenticated
+// astrologers. File moved to tabs/_paused/ so a grep for "tabs/" shows
+// only currently-shipping work. Path-only change; render sites still
+// reference the same component. Restore by moving back if Phase G
+// resumes.
+import { DashboardTab } from "./tabs/_paused/DashboardTab";
 import { PanchangTab } from "./tabs/PanchangTab";
 import { SectionEyebrow } from "./components/SectionEyebrow";
 import { TOPICS, TOPIC_EMOJI } from "./lib/topics";
@@ -597,25 +604,11 @@ export default function Home() {
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [analysisMessages]);
 
-  // Note: PR22's localStorage session auto-restore + PR24's reload-only
-  // gate were reverted in PR25. Users want a fresh onboarding flow when
-  // they intentionally return to /app, and the reload-type detection
-  // wasn't reliable enough to distinguish intents on every browser.
-  // We'll revisit a proper session-resume UX in Track B alongside auth,
-  // where we can give the user an explicit "Resume?" prompt.
-  // Masked-input helpers (formatMaskedDate / formatMaskedTime) from
-  // PR22 + PR23 are KEPT — those are pure input UX fixes.
-  //
-  // One-shot cleanup of the stale keys we wrote in PR22/PR24 so returning
-  // users don't have ghost data taking up their localStorage budget.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.removeItem("devastroai:lastSnapshot");
-      window.localStorage.removeItem("devastroai:savedSessions");
-      window.localStorage.removeItem("devastroai:mode");
-    } catch { /* ignore */ }
-  }, []);
+  // D5 cleanup (2026-06-02): removed the PR22/PR24-era localStorage
+  // cleanup block. PR22 was 2 weeks ago — anyone returning to the app
+  // has already triggered the cleanup at least once, so the keys are
+  // gone. Masked-input helpers from PR22+PR23 remain (those are pure
+  // input UX, not session state).
 
   // Phase 13 / PR 31 — auto-firing quickInsights on Analysis tab open
   // was the single biggest preventable cost. Removed entirely.

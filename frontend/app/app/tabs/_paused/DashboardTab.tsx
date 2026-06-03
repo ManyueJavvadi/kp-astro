@@ -34,9 +34,12 @@ import React from "react";
 import { Sparkles, HelpCircle, Target, Heart, ChevronRight } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
 import { motion as m } from "motion/react";
-import { PLANET_COLORS } from "../components/constants";
+// D2 cleanup (2026-06-02): file moved from ../tabs/ to ../tabs/_paused/
+// — added one extra "../" to relative paths so the imports still
+// resolve. Component logic unchanged.
+import { PLANET_COLORS } from "../../components/constants";
 import { formatDashaPeriod } from "@/lib/format";
-import type { WorkspaceData } from "../types/workspace";
+import type { WorkspaceData } from "../../types/workspace";
 
 interface DashboardTabProps {
   workspaceData: WorkspaceData;

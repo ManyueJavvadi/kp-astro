@@ -855,57 +855,19 @@ If you cannot write a word in Telugu, write it in English instead.
     )
 
 
-# ── Quick Insights endpoint ───────────────────────────────────
-
-class QuickInsightsRequest(BaseModel):
-    # PR A1.3-fix-24 — input bounds (see WorkspaceRequest above for rationale)
-    name: str = Field(..., min_length=1, max_length=120)
-    date: str = Field(..., min_length=8, max_length=12)
-    time: str = Field(..., min_length=4, max_length=8)
-    latitude: float = Field(..., ge=-90, le=90)
-    longitude: float = Field(..., ge=-180, le=180)
-    timezone_offset: float = Field(5.5, ge=-14, le=14)
-    gender: str = Field("", max_length=20)  # PR A1.3a — same gender wiring as /analyze
-    topics: list = Field(default_factory=lambda: ["marriage", "career", "health"], max_length=15)
-    language: str = Field("telugu_english", max_length=20)
-
-
-@router.post("/quick-insights")
-def quick_insights(request: QuickInsightsRequest):
-    """
-    Phase 13.1 — endpoint hard-disabled (HTTP 410 Gone).
-
-    Original purpose: generate 3-4 bullet-point chart-specific observations
-    for each requested topic. Auto-fired by the Analysis tab on every open
-    and was the single biggest preventable cost (~$0.30 per visit at
-    Sonnet rates × N opens per session).
-
-    Phase 13 / PR 31 removed the frontend auto-fire. We then hard-killed
-    the endpoint as defence-in-depth so:
-      • a stale Vercel CDN bundle still serving the old `loadQuickInsights`
-        code can't bill anything (returns 410 immediately, no LLM call)
-      • a future caller who imports this endpoint by mistake gets a clear
-        404-class signal instead of silently spending credits.
-
-    Cost-optimization arc (May 2026): the unreachable dead body that was
-    kept verbatim below the raise — including ~120 lines of chart
-    construction + per-topic LLM dispatch — has been removed. With
-    `get_quick_insights()` itself also dropped from llm_service.py, the
-    only thing left here is the raise (the intentional 410 surface).
-
-    To re-enable this feature later, re-architect it as an OPT-IN button
-    on the Analysis tab (not an auto-fire on open), with explicit per-user
-    cost gating. The git history at .claude/research/cost-optimization-2026-05.md
-    + PR R3-PR... has the original body if anyone wants to reference it.
-    """
-    raise HTTPException(
-        status_code=410,
-        detail=(
-            "quick-insights endpoint disabled (Phase 13.1) — was auto-firing "
-            "Sonnet calls on every Analysis tab open. Use the explicit topic "
-            "click flow (POST /astrologer/analyze-stream) instead."
-        ),
-    )
+# ── Quick Insights endpoint — DELETED (D6 cleanup, 2026-06-02) ───
+# Was a hard-disabled (HTTP 410) stub kept around as defense-in-depth
+# against stale frontend bundles still calling the legacy endpoint.
+# Three weeks since Phase 13.1 shipped (no more cached bundles in the
+# wild) so the stub itself is safe to remove. The /astrologer/quick-
+# insights rate-limit entry was also dropped from main.py.
+#
+# If a stale request somehow arrives, FastAPI's default 404 handler
+# will respond — same effective behavior as the explicit 410.
+#
+# Original implementation is preserved in git history (search for
+# `get_quick_insights` before this commit) if anyone wants to reference
+# the per-topic LLM dispatch shape.
 
 
 # ════════════════════════════════════════════════════════════════════
