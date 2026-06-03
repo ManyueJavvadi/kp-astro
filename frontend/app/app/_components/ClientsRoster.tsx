@@ -17,10 +17,21 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Search, ChevronRight, Plus, MapPin, Calendar, Link2 } from "lucide-react";
+import {
+  Search,
+  ChevronRight,
+  Plus,
+  MapPin,
+  Calendar,
+  Link2,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { useClients, type ClientPublic } from "@/lib/api/hooks";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { theme } from "@/lib/theme";
+import { EditClientModal } from "./EditClientModal";
+import { DeleteClientDialog } from "./DeleteClientDialog";
 
 interface ClientsRosterProps {
   /** Callback when "+ Add client" is clicked (opens the modal). */
@@ -44,6 +55,10 @@ export function ClientsRoster({
   const { data, isLoading, isError } = useClients();
   const [search, setSearch] = useState("");
   const isMobile = useIsMobile();
+  // Wave 13 (2026-06-03): row-level Edit + Delete modals — opened
+  // with the target client captured from the row's action chip click.
+  const [editTarget, setEditTarget] = useState<ClientPublic | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ClientPublic | null>(null);
 
   const allClients = data?.items ?? [];
   const filtered = allClients.filter((c) => {
@@ -234,7 +249,13 @@ export function ClientsRoster({
           }}
         >
           {visible.map((c) => (
-            <ClientRow key={c.id} client={c} onClick={() => onOpenClient(c)} />
+            <ClientRow
+              key={c.id}
+              client={c}
+              onClick={() => onOpenClient(c)}
+              onEdit={() => setEditTarget(c)}
+              onDelete={() => setDeleteTarget(c)}
+            />
           ))}
         </ul>
       )}
@@ -258,6 +279,20 @@ export function ClientsRoster({
           </a>
         </div>
       )}
+
+      {/* Wave 13 (2026-06-03): row-level Edit + Delete dialogs.
+          Mounted at the roster level so the modals overlay correctly
+          regardless of which row triggered them. */}
+      <EditClientModal
+        open={editTarget !== null}
+        onClose={() => setEditTarget(null)}
+        client={editTarget}
+      />
+      <DeleteClientDialog
+        open={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        client={deleteTarget}
+      />
     </div>
   );
 }
@@ -267,9 +302,16 @@ export function ClientsRoster({
 function ClientRow({
   client,
   onClick,
+  onEdit,
+  onDelete,
 }: {
   client: ClientPublic;
   onClick: () => void;
+  // Wave 13 (2026-06-03): edit + delete action chips. Both fire
+  // stopPropagation inside their handlers so they don't ALSO trigger
+  // the row's open-workspace click.
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   const isMobile = useIsMobile();
 
@@ -480,6 +522,32 @@ function ClientRow({
           <Link2 size={12} />
           Portal
         </Link>
+
+        {/* Wave 13 (2026-06-03): Edit + Delete chips on mobile.
+            Placed below the Portal pill (still inside the absolute-
+            positioned action stack), small 28x28 squares. Stop
+            propagation so they don't trigger the row's open-workspace. */}
+        <div
+          style={{
+            position: "absolute",
+            top: 54,
+            right: 10,
+            display: "flex",
+            gap: 6,
+          }}
+        >
+          <RowActionButton
+            label={`Edit ${client.name}`}
+            onClick={onEdit}
+            icon={<Pencil size={12} />}
+          />
+          <RowActionButton
+            label={`Delete ${client.name}`}
+            onClick={onDelete}
+            icon={<Trash2 size={12} />}
+            danger
+          />
+        </div>
       </li>
     );
   }
@@ -608,9 +676,89 @@ function ClientRow({
           <Link2 size={12} />
           Portal
         </Link>
+        {/* Wave 13 (2026-06-03): Edit + Delete on each desktop row.
+            Small icon-only buttons; stopPropagation so they don't
+            trigger the row's open-workspace click. */}
+        <RowActionButton
+          label={`Edit ${client.name}`}
+          onClick={onEdit}
+          icon={<Pencil size={12} />}
+        />
+        <RowActionButton
+          label={`Delete ${client.name}`}
+          onClick={onDelete}
+          icon={<Trash2 size={12} />}
+          danger
+        />
         <ChevronRight size={14} style={{ flexShrink: 0 }} />
       </div>
     </li>
+  );
+}
+
+/** Tiny icon button used for per-row Edit + Delete actions on the
+ *  clients roster. Stops propagation so it doesn't fire the row's
+ *  open-workspace click. */
+function RowActionButton({
+  label,
+  onClick,
+  icon,
+  danger = false,
+}: {
+  label: string;
+  onClick: () => void;
+  icon: React.ReactNode;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 28,
+        height: 28,
+        borderRadius: 6,
+        border: danger
+          ? "1px solid rgba(248,113,113,0.25)"
+          : "1px solid rgba(255,255,255,0.08)",
+        background: danger
+          ? "rgba(248,113,113,0.04)"
+          : "rgba(255,255,255,0.02)",
+        color: danger ? "#f87171" : theme.text.muted,
+        cursor: "pointer",
+        transition: "all 120ms",
+        flexShrink: 0,
+      }}
+      onMouseEnter={(e) => {
+        if (danger) {
+          e.currentTarget.style.background = "rgba(248,113,113,0.12)";
+          e.currentTarget.style.borderColor = "rgba(248,113,113,0.45)";
+        } else {
+          e.currentTarget.style.color = "#c9a96e";
+          e.currentTarget.style.borderColor = "rgba(201,169,110,0.35)";
+          e.currentTarget.style.background = "rgba(201,169,110,0.06)";
+        }
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.color = danger ? "#f87171" : theme.text.muted;
+        e.currentTarget.style.borderColor = danger
+          ? "rgba(248,113,113,0.25)"
+          : "rgba(255,255,255,0.08)";
+        e.currentTarget.style.background = danger
+          ? "rgba(248,113,113,0.04)"
+          : "rgba(255,255,255,0.02)";
+      }}
+    >
+      {icon}
+    </button>
   );
 }
 
