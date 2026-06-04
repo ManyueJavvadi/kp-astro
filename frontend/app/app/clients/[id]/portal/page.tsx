@@ -44,6 +44,8 @@ import {
   CheckCircle2,
   Edit3,
   ArrowLeft,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { CrmShell } from "../../../_components/CrmShell";
 import {
@@ -61,6 +63,11 @@ import {
 } from "@/lib/api/hooks";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { theme } from "@/lib/theme";
+import {
+  extractDraft,
+  withAstrologerNote,
+  withoutAstrologerNote,
+} from "./_lib/extract-draft";
 
 export default function ClientPortalAdminPage() {
   const params = useParams();
@@ -490,8 +497,14 @@ function AiDraftsLane({
             promoted={promotedKeys.has(draft.key)}
             publishing={createNote.isPending}
             onMakePublic={async () => {
+              // 2026-06-03 — publish the EXTRACTED client-facing draft,
+              // not the raw 7-section engine answer. If the answer
+              // wasn't templated (short chat / follow-up), extractDraft
+              // returns the verbatim text so this stays a safe no-op
+              // vs. the old behaviour.
+              const extracted = extractDraft(draft.answer);
               await createNote.mutateAsync({
-                text: draft.answer,
+                text: extracted.clientDraft,
                 note_type: draft.is_topic ? "observation" : "reading",
                 is_private: false,
                 source: "ai_draft",
@@ -503,15 +516,21 @@ function AiDraftsLane({
               });
             }}
             onEditAndPublish={() => {
-              // Pre-fill the composer textarea via custom event.
-              // ComposerPanel listens and populates its text + flips
-              // is_private off. Keeps the AiDraftsLane decoupled from
-              // ComposerPanel internal state.
+              // Pre-fill the composer via custom event. We now pass
+              // the EXTRACTED draft pieces so the composer can render
+              // the client-only text by default, with a toggle to
+              // append the astrologer reference and a link to view
+              // the full original answer. ComposerPanel listens and
+              // populates its state. Decoupled to avoid lifting state.
               if (typeof window !== "undefined") {
+                const extracted = extractDraft(draft.answer);
                 window.dispatchEvent(
                   new CustomEvent("portal-prefill-composer", {
                     detail: {
-                      text: draft.answer,
+                      text: extracted.clientDraft,
+                      astrologerNote: extracted.astrologerNote,
+                      fullAnswer: extracted.fullAnswer,
+                      hasTemplate: extracted.hasTemplate,
                       isPrivate: false,
                       noteType: draft.is_topic ? "observation" : "reading",
                       source: "ai_draft",
@@ -810,6 +829,21 @@ function ComposerPanel({ clientId }: { clientId: string }) {
     string | null
   >(null);
 
+  // ─── Smart-draft state (2026-06-03) ──────────────────────────────
+  // When the prefill came from an AI Draft AND the extractor found a
+  // templated answer, we hold onto two extra strings so the composer
+  // can:
+  //   • toggle the astrologer reference footer on/off without losing
+  //     the astrologer's manual edits to the body
+  //   • expand the full original engine answer for reference
+  // pendingAstroNote === "" hides the toggle entirely (no footer
+  // available — short chats, follow-ups, custom prompts).
+  // pendingFullAnswer === "" hides the expander.
+  const [pendingAstroNote, setPendingAstroNote] = useState("");
+  const [pendingFullAnswer, setPendingFullAnswer] = useState("");
+  const [includeAstroNote, setIncludeAstroNote] = useState(false);
+  const [showFullAnswer, setShowFullAnswer] = useState(false);
+
   const createNote = useCreateNote(clientId);
 
   // Listen for "Edit & publish" clicks from the AI drafts lane.
@@ -818,6 +852,9 @@ function ComposerPanel({ clientId }: { clientId: string }) {
   useEffect(() => {
     type PrefillDetail = {
       text: string;
+      astrologerNote?: string;
+      fullAnswer?: string;
+      hasTemplate?: boolean;
       isPrivate?: boolean;
       noteType?: "reading" | "prediction" | "follow_up" | "observation";
       source?: "astrologer" | "ai_draft";
@@ -831,10 +868,34 @@ function ComposerPanel({ clientId }: { clientId: string }) {
       if (detail.noteType) setNoteType(detail.noteType);
       setPendingSource(detail.source ?? "astrologer");
       setPendingPromotedFromKey(detail.promotedFromKey ?? null);
+      // Smart-draft fields. Default to "" if not provided so the UI
+      // hides the toggle/expander cleanly for non-AI prefills.
+      setPendingAstroNote(detail.astrologerNote ?? "");
+      setPendingFullAnswer(detail.fullAnswer ?? "");
+      // Every new prefill starts with the footer OFF (user choice) and
+      // the full-answer expander collapsed (cleaner default).
+      setIncludeAstroNote(false);
+      setShowFullAnswer(false);
     };
     window.addEventListener("portal-prefill-composer", handler);
     return () => window.removeEventListener("portal-prefill-composer", handler);
   }, []);
+
+  /**
+   * Toggle the astrologer-reference footer. Idempotent — does NOT
+   * touch the body text outside the footer, so manual edits the
+   * astrologer made to the client-facing portion are preserved when
+   * they tick/untick the box.
+   */
+  function toggleAstroNote(next: boolean) {
+    setIncludeAstroNote(next);
+    if (!pendingAstroNote) return;
+    setText((cur) =>
+      next
+        ? withAstrologerNote(cur, pendingAstroNote)
+        : withoutAstrologerNote(cur),
+    );
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -852,6 +913,11 @@ function ComposerPanel({ clientId }: { clientId: string }) {
     // again astrologer-authored unless another prefill event fires.
     setPendingSource("astrologer");
     setPendingPromotedFromKey(null);
+    // Reset smart-draft scaffolding too.
+    setPendingAstroNote("");
+    setPendingFullAnswer("");
+    setIncludeAstroNote(false);
+    setShowFullAnswer(false);
   }
 
   return (
@@ -900,6 +966,99 @@ function ComposerPanel({ clientId }: { clientId: string }) {
             outline: "none",
           }}
         />
+
+        {/* Smart-draft helpers (only render when prefill came from AI) */}
+        {(pendingAstroNote || pendingFullAnswer) && (
+          <div
+            style={{
+              marginTop: 8,
+              display: "flex",
+              flexDirection: "column",
+              gap: 6,
+              padding: "8px 10px",
+              background: "rgba(0,200,255,0.04)",
+              border: "1px solid rgba(0,200,255,0.16)",
+              borderRadius: 7,
+            }}
+          >
+            {pendingAstroNote && (
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: 11,
+                  color: theme.text.muted,
+                  cursor: "pointer",
+                  userSelect: "none",
+                }}
+                title="Append a short private reference (CSL chain, current AD, breakthrough AD, confidence) below a divider — for your own records when you revisit later. You can edit or strip before publishing."
+              >
+                <input
+                  type="checkbox"
+                  checked={includeAstroNote}
+                  onChange={(e) => toggleAstroNote(e.target.checked)}
+                  style={{ accentColor: "#c9a96e" }}
+                />
+                <span>
+                  Include private astrologer notes for me{" "}
+                  <span style={{ opacity: 0.6 }}>
+                    (CSL · AD · breakthrough · confidence)
+                  </span>
+                </span>
+              </label>
+            )}
+            {pendingFullAnswer && (
+              <button
+                type="button"
+                onClick={() => setShowFullAnswer((v) => !v)}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: 0,
+                  background: "transparent",
+                  border: "none",
+                  color: theme.text.muted,
+                  fontSize: 11,
+                  cursor: "pointer",
+                  textAlign: "left",
+                  alignSelf: "flex-start",
+                }}
+              >
+                {showFullAnswer ? (
+                  <ChevronUp size={12} />
+                ) : (
+                  <ChevronDown size={12} />
+                )}
+                {showFullAnswer
+                  ? "Hide full original answer"
+                  : "Show full original answer (for your reference, not published)"}
+              </button>
+            )}
+            {showFullAnswer && pendingFullAnswer && (
+              <pre
+                style={{
+                  maxHeight: 280,
+                  overflow: "auto",
+                  margin: 0,
+                  padding: 10,
+                  background: "rgba(9,9,15,0.6)",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                  borderRadius: 6,
+                  fontSize: 11,
+                  color: theme.text.muted,
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  fontFamily: "'DM Sans', sans-serif",
+                  lineHeight: 1.5,
+                }}
+              >
+                {pendingFullAnswer}
+              </pre>
+            )}
+          </div>
+        )}
 
         {/* Controls row */}
         <div
