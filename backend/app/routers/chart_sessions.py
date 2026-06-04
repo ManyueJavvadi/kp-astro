@@ -265,20 +265,46 @@ async def get_session(
     return _session_to_public(row)
 
 
-@router.patch("/{session_id}", response_model=ChartSessionPublic)
+@router.patch("/{session_id}")
 async def update_session(
     session_id: UUID,
     payload: ChartSessionUpdate,
     astrologer: CurrentAstrologer,
     db: AsyncSession = Depends(get_db),
-) -> ChartSessionPublic:
-    """Update one or more fields. Unset fields are not touched."""
-    row = await _get_owned(session_id, astrologer, db)
-    changes = payload.model_dump(exclude_unset=True)
-    for field, value in changes.items():
-        setattr(row, field, value)
-    await db.flush()
-    return _session_to_public(row)
+):
+    """Update one or more fields. Unset fields are not touched.
+
+    2026-06-03 DIAGNOSTIC: temporarily wrapped in try/except that returns
+    the real exception class + message in the 500 body. The outer
+    RequestIdMiddleware swallows uncaught exceptions as a generic
+    `internal_server_error` and we cannot read Railway logs from the IDE
+    side. Once the actual failure is known we put the clean version back.
+    """
+    import traceback as _tb
+    from fastapi.responses import JSONResponse as _JR
+    try:
+        row = await _get_owned(session_id, astrologer, db)
+        changes = payload.model_dump(exclude_unset=True)
+        for field, value in changes.items():
+            setattr(row, field, value)
+        await db.flush()
+        # Manual serialization so the response_model removal above doesn't
+        # change the wire format. mode="json" handles UUID + datetime.
+        public = _session_to_public(row)
+        return _JR(public.model_dump(mode="json"), status_code=200)
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001 — diagnostic wrapper
+        return _JR(
+            {
+                "error": "chart_session_update_failed",
+                "exc_type": type(exc).__name__,
+                "exc_message": str(exc)[:600],
+                "traceback_tail": _tb.format_exc().splitlines()[-6:],
+                "payload_keys": list(payload.model_dump(exclude_unset=True).keys()),
+            },
+            status_code=500,
+        )
 
 
 @router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
