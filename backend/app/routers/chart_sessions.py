@@ -151,19 +151,30 @@ async def _get_owned(
 def _session_to_public(row: ChartSession) -> ChartSessionPublic:
     """Build ChartSessionPublic explicitly from a ChartSession row.
 
-    2026-06-03 fix (user reported PATCH 500): switched from
-    `ChartSessionPublic.model_validate(row)` (from_attributes=True) to
-    an explicit constructor. Same class of bug we fixed for
-    `_client_to_public` in clients.py — when Pydantic introspects the
-    SQLAlchemy row, it can incidentally access relationship attributes
-    (`row.astrologer`, `row.client`), and depending on the load state
-    those raise / require an extra round trip and the response throws.
+    2026-06-03 fix — real root cause of the AI-persist PATCH 500:
+    `MissingGreenlet: greenlet_spawn has not been called; can't call
+    await_only() here. Was IO attempted in an unexpected place?`
+    (https://sqlalche.me/e/20/xd2s)
 
-    The frontend reports every save attempt returns 500 with
-    `internal_server_error`. Console traces showed the save firing
-    correctly; the body was being PATCHed; the row was being mutated;
-    but the response serialization failed. Explicit scalar-only mapping
-    sidesteps the problem the same way clients.py did.
+    The path:
+      1. update_session() does `setattr(row, field, value)` then
+         `await db.flush()`.
+      2. TimestampMixin.updated_at has `onupdate=func.now()` — the DB
+         bumps it during flush.
+      3. SQLAlchemy marks `updated_at` as EXPIRED on the in-memory row
+         (it doesn't know the server-side value yet).
+      4. We synchronously read `row.updated_at` while building the
+         response. SQLAlchemy tries to lazy-load the expired column,
+         which requires an active async greenlet — but we are now
+         inside FastAPI's response builder, which is NOT inside an
+         `await`. Boom: MissingGreenlet.
+
+    The previous theory ("Pydantic walks relationship attrs") was wrong
+    — switching to an explicit constructor was harmless but did not
+    fix the bug. The actual fix is `await db.refresh(row)` after the
+    flush in any mutating handler (create + update). The explicit
+    constructor is kept anyway: it's clearer, slightly faster, and
+    insulates us from future from_attributes surprises.
 
     NB: if any of these column fields is renamed/removed in a future
     migration, update here. Pydantic won't auto-detect the drift.
@@ -251,6 +262,11 @@ async def create_session(
     )
     db.add(row)
     await db.flush()  # populate row.id + created_at
+    # See _session_to_public docstring — refresh required so that
+    # server_default / onupdate columns are populated *inside* the async
+    # greenlet (otherwise the next sync attribute read raises
+    # MissingGreenlet).
+    await db.refresh(row)
     return _session_to_public(row)
 
 
@@ -265,46 +281,28 @@ async def get_session(
     return _session_to_public(row)
 
 
-@router.patch("/{session_id}")
+@router.patch("/{session_id}", response_model=ChartSessionPublic)
 async def update_session(
     session_id: UUID,
     payload: ChartSessionUpdate,
     astrologer: CurrentAstrologer,
     db: AsyncSession = Depends(get_db),
-):
-    """Update one or more fields. Unset fields are not touched.
-
-    2026-06-03 DIAGNOSTIC: temporarily wrapped in try/except that returns
-    the real exception class + message in the 500 body. The outer
-    RequestIdMiddleware swallows uncaught exceptions as a generic
-    `internal_server_error` and we cannot read Railway logs from the IDE
-    side. Once the actual failure is known we put the clean version back.
-    """
-    import traceback as _tb
-    from fastapi.responses import JSONResponse as _JR
-    try:
-        row = await _get_owned(session_id, astrologer, db)
-        changes = payload.model_dump(exclude_unset=True)
-        for field, value in changes.items():
-            setattr(row, field, value)
-        await db.flush()
-        # Manual serialization so the response_model removal above doesn't
-        # change the wire format. mode="json" handles UUID + datetime.
-        public = _session_to_public(row)
-        return _JR(public.model_dump(mode="json"), status_code=200)
-    except HTTPException:
-        raise
-    except Exception as exc:  # noqa: BLE001 — diagnostic wrapper
-        return _JR(
-            {
-                "error": "chart_session_update_failed",
-                "exc_type": type(exc).__name__,
-                "exc_message": str(exc)[:600],
-                "traceback_tail": _tb.format_exc().splitlines()[-6:],
-                "payload_keys": list(payload.model_dump(exclude_unset=True).keys()),
-            },
-            status_code=500,
-        )
+) -> ChartSessionPublic:
+    """Update one or more fields. Unset fields are not touched."""
+    row = await _get_owned(session_id, astrologer, db)
+    changes = payload.model_dump(exclude_unset=True)
+    for field, value in changes.items():
+        setattr(row, field, value)
+    await db.flush()
+    # See _session_to_public docstring for why this refresh is required.
+    # Short version: TimestampMixin.updated_at has onupdate=func.now(),
+    # so flush() marks it expired. The next sync read of row.updated_at
+    # tries to lazy-load from the DB, which needs the async greenlet
+    # context — and raises MissingGreenlet ("greenlet_spawn has not been
+    # called") from inside the response builder. Refreshing INSIDE the
+    # awaitable populates the column safely.
+    await db.refresh(row)
+    return _session_to_public(row)
 
 
 @router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
