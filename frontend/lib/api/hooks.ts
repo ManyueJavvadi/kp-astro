@@ -484,6 +484,26 @@ export function useUpdateChartSessionByIdFactory() {
         .then((data) => {
           qc.setQueryData(queryKeys.chartSession(id), data);
           qc.invalidateQueries({ queryKey: queryKeys.chartSessions });
+          // Layer 2 (2026-06-03): the chart_session.analysis_messages
+          // we just persisted feeds the AI Drafts lane on the portal
+          // admin page (it projects per-client interactions from the
+          // analysis_messages JSONB). Invalidate clientAiDrafts so a
+          // subsequent portal open fetches fresh data instead of
+          // serving the pre-save cached list. The session row also
+          // carries the client_id — use it to scope precisely.
+          if (data.client_id) {
+            qc.invalidateQueries({
+              queryKey: ["clients", data.client_id, "ai-drafts"],
+            });
+            qc.invalidateQueries({
+              queryKey: ["chart-sessions", "by-client", data.client_id],
+            });
+          }
+          // eslint-disable-next-line no-console
+          console.info(
+            "[useUpdateChartSessionByIdFactory] PATCH ok:",
+            { id, msgs: (data.analysis_messages ?? []).length },
+          );
           options?.onSuccess?.(data);
         })
         .catch((err) => {

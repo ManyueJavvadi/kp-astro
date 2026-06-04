@@ -1,5 +1,7 @@
 "use client";
 import React, { useState } from "react";
+import Link from "next/link";
+import { Link2 } from "lucide-react";
 import { WorkspaceData } from "../../types/workspace";
 import { BirthDetails, ChartSession } from "../../types";
 import { useLanguage } from "@/lib/i18n";
@@ -42,12 +44,27 @@ interface PersonHeroBannerProps {
    * useLiveLocation state; this component just provides the slot.
    */
   liveLocSlot?: React.ReactNode;
+  /**
+   * 2026-06-03 — when the astrologer is inside a per-client workspace
+   * (/app/clients/[id]/*), pass the portal admin URL here. The header
+   * renders a gold "Portal" pill that links directly to it — saves
+   * the astrologer going back to the clients list to find the row's
+   * Portal button. When undefined (e.g., the legacy /app entry point
+   * before CRM-first redesign), the pill is hidden.
+   *
+   * Chart switching: the multi-chart chip strip below this header
+   * already lets astrologers tap to switch between loaded charts, so
+   * the old "Switch ▾" dropdown was redundant once the strip shipped.
+   * The dropdown is now hidden when portalHref is set (i.e., on the
+   * per-client routes where the chip strip is also active).
+   */
+  portalHref?: string;
 }
 
 export default function PersonHeroBanner({
   birthDetails, onNewChart, onPdf, pdfLoading,
   savedSessions, onSwitchSession, astrologerMode,
-  onEditChart, liveLocSlot,
+  onEditChart, liveLocSlot, portalHref,
 }: PersonHeroBannerProps) {
   const { t } = useLanguage();
   const [showSwitch, setShowSwitch] = useState(false);
@@ -201,7 +218,55 @@ export default function PersonHeroBanner({
           {pdfLoading ? "…" : t("PDF ↓", "PDF ↓")}
         </button>
 
-        {astrologerMode && savedSessions.length > 0 && (
+        {/* 2026-06-03 — Portal pill (replaces Switch dropdown when
+            inside a per-client route). Direct link saves the
+            astrologer a round trip through the clients list. */}
+        {portalHref && (
+          <Link
+            href={portalHref}
+            aria-label={t("Open client portal admin", "క్లయింట్ పోర్టల్ తెరువు")}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              height: 30,
+              padding: "0 12px",
+              borderRadius: 7,
+              background:
+                "linear-gradient(180deg, rgba(201,169,110,0.16) 0%, rgba(201,169,110,0.06) 100%)",
+              border: "1px solid rgba(201,169,110,0.45)",
+              color: "#c9a96e",
+              fontSize: 12,
+              fontWeight: 600,
+              letterSpacing: 0.3,
+              textTransform: "uppercase" as const,
+              textDecoration: "none",
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = "#c9a96e";
+              e.currentTarget.style.background =
+                "linear-gradient(180deg, rgba(201,169,110,0.22) 0%, rgba(201,169,110,0.12) 100%)";
+              e.currentTarget.style.boxShadow =
+                "0 0 0 1px rgba(201,169,110,0.35), 0 0 14px rgba(201,169,110,0.25)";
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = "rgba(201,169,110,0.45)";
+              e.currentTarget.style.background =
+                "linear-gradient(180deg, rgba(201,169,110,0.16) 0%, rgba(201,169,110,0.06) 100%)";
+              e.currentTarget.style.boxShadow = "none";
+            }}
+          >
+            <Link2 size={12} />
+            {t("Portal", "పోర్టల్")}
+          </Link>
+        )}
+
+        {/* Legacy Switch dropdown — hidden when portalHref is set
+            (per-client routes use the chip strip below this header
+            for chart switching). Kept for the legacy /app entry that
+            still uses the savedSessions sidebar pattern. */}
+        {!portalHref && astrologerMode && savedSessions.length > 0 && (
           <div style={{ position: "relative" }}>
             <button
               onClick={() => setShowSwitch(s => !s)}

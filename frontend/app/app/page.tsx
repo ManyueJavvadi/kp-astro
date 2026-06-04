@@ -176,6 +176,16 @@ export default function Home() {
   // setupDone gate (workspace UI takes over).
   const pathname = usePathname() ?? "";
   const onCrmHomeRoute = pathname === "/app";
+  // 2026-06-03: derive the portal admin URL for the currently-open
+  // client. Used to render the gold "Portal" pill in PersonHeroBanner
+  // (replaces the Switch dropdown on per-client routes — chart
+  // switching is handled by the chip strip below the header).
+  // Matches /app/clients/{id} and /app/clients/{id}/anything; captures
+  // the id segment.
+  const _perClientMatch = pathname.match(/^\/app\/clients\/([^/]+)/);
+  const portalHrefForCurrentClient = _perClientMatch
+    ? `/app/clients/${_perClientMatch[1]}/portal`
+    : undefined;
   // PR A1.1 — live location for Horary (and later: Muhurtha / Transit /
   // Panchang). KP RPs require the astrologer's CURRENT location, not
   // the natal location. No natal fallback.
@@ -1869,51 +1879,106 @@ export default function Home() {
     return { id: currentSessionId || Date.now().toString(), name: workspaceData.name, birthDetails: { ...birthDetails, timezone_offset: timezoneOffset }, workspaceData, analysisMessages: [...analysisMessages], activeTopic, selectedHouse, chatQ, analysisLang, activeTab };
   };
 
-  // ─── Wave 12 Part A (2026-06-03) — AI Q&A auto-persist ──────────────
-  // Item #3 fix: every time analysisMessages changes (new question
-  // submitted, stream completes appending the answer), schedule a
-  // PATCH /chart-sessions/{id} so the conversation survives a tab
-  // close / navigation away / browser crash. Without this, AI history
-  // lived only in React state and was lost when the user navigated
-  // back to /app.
+  // ─── Wave 12 + Layer 2 (2026-06-03) — AI Q&A auto-persist ──────────
   //
-  // Debounce 1500ms: while a stream is in-flight, chunks arrive every
-  // ~50ms and we'd otherwise PATCH dozens of times per answer. The
-  // timer keeps resetting until the stream is done; one save fires
-  // ~1.5s after the last chunk. Cancel-on-unmount preserves whatever
-  // state we have if the user navigates away mid-stream.
+  // Problem chain (user reported repeatedly):
+  //   1. Astrologer asks AI question in Analysis tab
+  //   2. Clicks Back to clients
+  //   3. Reopens client — chat history gone. Portal also empty.
   //
-  // Placed AFTER snapshotCurrentSession so we can reference it
-  // (TypeScript TDZ — const declarations aren't hoisted).
+  // Root cause is a save-timing race: the original debounce-only fix
+  // (Wave 12) scheduled a save 1500ms after analysisMessages changed.
+  // If the user navigated within that window, the unmount cleanup
+  // `clearTimeout(t)` CANCELLED the save. Net result: save never
+  // fired → DB has nothing → reopen shows nothing → portal shows
+  // nothing. Layer 1 (per-client page hydrate) didn't help because
+  // there was nothing in the DB to hydrate FROM.
   //
-  // Guards:
-  //   - currentSessionId must be present (Date.now() ids are local-
-  //     only; sessionsApi.saveSession handles that case as a no-op
-  //     anyway, but the guard avoids needless work)
-  //   - authCtx.status === "authenticated" — anonymous users have
-  //     no DB row to PATCH
-  //   - workspaceData present — empty workspaces have nothing to save
+  // Layer 2 fix (this code): TWO independent save triggers + a cache
+  // invalidation. Belt-and-braces — either trigger alone covers the
+  // common path; together they make the race irrelevant.
+  //
+  //   Trigger A: IMMEDIATE save on `analysisLoading` flipping
+  //              `true → false`. This is the most reliable signal:
+  //              the analyze-stream / chat / multi-chart code all
+  //              call setAnalysisLoading(false) in their finally
+  //              blocks. We fire the save synchronously the moment
+  //              the stream is done — no timer to cancel.
+  //
+  //   Trigger B: BACKUP debounced save (kept at 1500ms). Catches
+  //              cases where state changes WITHOUT a load flag
+  //              flip — e.g., future "edit a message" or manual
+  //              re-stream paths. If A already fired, B is a no-op
+  //              from the backend's perspective (same data).
+  //
+  //   Cache invalidation: after every save success, invalidate the
+  //              clientAiDrafts query so the portal admin lane sees
+  //              the fresh Q&A on next open. Done inside saveSession
+  //              callback (via the mutation factory).
+  //
+  // Placed AFTER snapshotCurrentSession so we can reference it.
   const persistOnChangeRef = useRef<() => ChartSession | null>(() => null);
   persistOnChangeRef.current = snapshotCurrentSession;
-  useEffect(() => {
-    if (authCtx.status !== "authenticated") return;
-    if (!currentSessionId) return;
-    if (!workspaceData) return;
-    if (analysisMessages.length === 0) return;
-    const t = setTimeout(() => {
-      const snap = persistOnChangeRef.current?.();
-      if (!snap) return;
-      sessionsApi.saveSession(snap, (err) => {
-        // Silent on transient errors — next change retries via the
-        // same effect. Persist failures are surfaced loud in the
-        // mutation factory's console.error (Wave 8 P1-5).
+
+  // Helper — fires a save and logs the outcome so the user can verify
+  // in browser devtools whether persistence succeeded. ALL save paths
+  // route through here.
+  const persistNow = useCallback(
+    (origin: string) => {
+      if (authCtx.status !== "authenticated") {
         // eslint-disable-next-line no-console
-        console.warn("[ai-persist] save failed (will retry on next change):", err.message);
+        console.debug(`[ai-persist:${origin}] skipped — anonymous`);
+        return;
+      }
+      if (!currentSessionId) {
+        // eslint-disable-next-line no-console
+        console.debug(`[ai-persist:${origin}] skipped — no currentSessionId`);
+        return;
+      }
+      if (!workspaceData) {
+        // eslint-disable-next-line no-console
+        console.debug(`[ai-persist:${origin}] skipped — no workspaceData`);
+        return;
+      }
+      const snap = persistOnChangeRef.current?.();
+      if (!snap) {
+        // eslint-disable-next-line no-console
+        console.debug(`[ai-persist:${origin}] skipped — snapshot returned null`);
+        return;
+      }
+      // eslint-disable-next-line no-console
+      console.info(
+        `[ai-persist:${origin}] saving session ${snap.id} with ${snap.analysisMessages?.length ?? 0} message(s)`,
+      );
+      sessionsApi.saveSession(snap, (err) => {
+        // eslint-disable-next-line no-console
+        console.error(`[ai-persist:${origin}] save FAILED:`, err.message);
       });
-    }, 1500);
-    return () => clearTimeout(t);
+    },
+    // saveSession + persistOnChangeRef are stable; rest are reactive deps
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [analysisMessages, currentSessionId, workspaceData, authCtx.status]);
+    [authCtx.status, currentSessionId, workspaceData, sessionsApi],
+  );
+
+  // Trigger A — fire IMMEDIATELY when analysisLoading flips true→false.
+  // This is the moment the stream ended; analysisMessages has the
+  // final assistant text. Fastest, most reliable signal.
+  const prevAnalysisLoadingRef = useRef(false);
+  useEffect(() => {
+    if (prevAnalysisLoadingRef.current && !analysisLoading) {
+      // Just finished a stream — save NOW.
+      persistNow("stream-complete");
+    }
+    prevAnalysisLoadingRef.current = analysisLoading;
+  }, [analysisLoading, persistNow]);
+
+  // Trigger B — debounced backup. Catches state changes without
+  // a load-flag flip (future edit flows, manual re-streams, etc).
+  useEffect(() => {
+    if (analysisMessages.length === 0) return;
+    const t = setTimeout(() => persistNow("debounce"), 1500);
+    return () => clearTimeout(t);
+  }, [analysisMessages, persistNow]);
 
   // ─── Layer 1 hydrate (2026-06-03) — rehydrate chat state on open ───
   // BUG (reported 2026-06-03): opening a client via /app/clients/[id]
@@ -4384,6 +4449,7 @@ export default function Home() {
         savedSessions={savedSessions}
         onSwitchSession={handleSwitchSession}
         astrologerMode={mode === "astrologer"}
+        portalHref={portalHrefForCurrentClient}
         // Trust-2 (May 2026) — "YOUR LOCATION" pill pinned to the
         // top-right next to PDF so the astrologer ALWAYS sees the
         // location feeding their Ruling Planets without scrolling
@@ -4872,6 +4938,7 @@ export default function Home() {
           savedSessions={savedSessions}
           onSwitchSession={handleSwitchSession}
           astrologerMode={true}
+          portalHref={portalHrefForCurrentClient}
           // Trust-2 (May 2026) — "YOUR LOCATION" pill pinned next to PDF.
           // page.tsx mounts PersonHeroBanner in TWO places (user-mode
           // path at ~L3278 + astrologer-mode path here at ~L3710); the
