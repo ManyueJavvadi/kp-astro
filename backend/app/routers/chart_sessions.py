@@ -148,6 +148,50 @@ async def _get_owned(
     return row
 
 
+def _session_to_public(row: ChartSession) -> ChartSessionPublic:
+    """Build ChartSessionPublic explicitly from a ChartSession row.
+
+    2026-06-03 fix (user reported PATCH 500): switched from
+    `ChartSessionPublic.model_validate(row)` (from_attributes=True) to
+    an explicit constructor. Same class of bug we fixed for
+    `_client_to_public` in clients.py — when Pydantic introspects the
+    SQLAlchemy row, it can incidentally access relationship attributes
+    (`row.astrologer`, `row.client`), and depending on the load state
+    those raise / require an extra round trip and the response throws.
+
+    The frontend reports every save attempt returns 500 with
+    `internal_server_error`. Console traces showed the save firing
+    correctly; the body was being PATCHed; the row was being mutated;
+    but the response serialization failed. Explicit scalar-only mapping
+    sidesteps the problem the same way clients.py did.
+
+    NB: if any of these column fields is renamed/removed in a future
+    migration, update here. Pydantic won't auto-detect the drift.
+    """
+    return ChartSessionPublic(
+        id=row.id,
+        astrologer_id=row.astrologer_id,
+        client_id=row.client_id,
+        name=row.name,
+        birth_name=row.birth_name,
+        birth_date=row.birth_date,
+        birth_time=row.birth_time,
+        birth_ampm=row.birth_ampm,
+        birth_place_name=row.birth_place_name,
+        birth_latitude=row.birth_latitude,
+        birth_longitude=row.birth_longitude,
+        birth_timezone_offset=row.birth_timezone_offset,
+        birth_gender=row.birth_gender,
+        chart_data=row.chart_data,
+        workspace_data=row.workspace_data,
+        analysis_messages=row.analysis_messages,
+        ui_state=row.ui_state,
+        session_notes=row.session_notes,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
 # ─── Routes ───────────────────────────────────────────────────────────
 
 
@@ -189,7 +233,7 @@ async def list_sessions(
     result = await db.execute(stmt)
     rows = result.scalars().all()
     return ChartSessionList(
-        items=[ChartSessionPublic.model_validate(r) for r in rows],
+        items=[_session_to_public(r) for r in rows],
         total=total,
     )
 
@@ -207,7 +251,7 @@ async def create_session(
     )
     db.add(row)
     await db.flush()  # populate row.id + created_at
-    return ChartSessionPublic.model_validate(row)
+    return _session_to_public(row)
 
 
 @router.get("/{session_id}", response_model=ChartSessionPublic)
@@ -218,7 +262,7 @@ async def get_session(
 ) -> ChartSessionPublic:
     """Read one session by id (must be owned by current astrologer)."""
     row = await _get_owned(session_id, astrologer, db)
-    return ChartSessionPublic.model_validate(row)
+    return _session_to_public(row)
 
 
 @router.patch("/{session_id}", response_model=ChartSessionPublic)
@@ -234,7 +278,7 @@ async def update_session(
     for field, value in changes.items():
         setattr(row, field, value)
     await db.flush()
-    return ChartSessionPublic.model_validate(row)
+    return _session_to_public(row)
 
 
 @router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)

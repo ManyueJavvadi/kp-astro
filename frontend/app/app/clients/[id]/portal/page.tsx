@@ -27,6 +27,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
   Link2,
@@ -42,6 +43,7 @@ import {
   Sparkles,
   CheckCircle2,
   Edit3,
+  ArrowLeft,
 } from "lucide-react";
 import { CrmShell } from "../../../_components/CrmShell";
 import {
@@ -134,7 +136,18 @@ export default function ClientPortalAdminPage() {
   return (
     <CrmShell
       pageTitle={isMobile ? "Portal" : `${client.name} — Portal`}
-      pageActions={!isMobile ? <CopyUrlButton url={portalUrl} /> : null}
+      pageActions={
+        !isMobile ? (
+          <>
+            {/* 2026-06-03 — Go to workspace pill, symmetric to the
+                Portal pill in PersonHeroBanner. Lets the astrologer
+                hop back to the chart/dasha/match etc. tabs for this
+                client without going through the clients list. */}
+            <GoToWorkspaceButton clientId={clientId} />
+            <CopyUrlButton url={portalUrl} />
+          </>
+        ) : null
+      }
       mobilePrimaryAction={{
         label: "Copy portal URL",
         icon: <Share2 size={20} />,
@@ -1588,6 +1601,58 @@ function VisibilityChip({
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────
+
+/**
+ * 2026-06-03 — Symmetric counterpart to the gold "Portal" pill that
+ * PersonHeroBanner renders in the workspace header. From the workspace
+ * → Portal; from Portal → Workspace. Saves the astrologer a round trip
+ * through the clients list when bouncing between the two views for the
+ * same client.
+ *
+ * Styled to MATCH the Portal pill (gold, uppercase, Link2-ish weight)
+ * so the two pairs read as obvious counterparts.
+ */
+function GoToWorkspaceButton({ clientId }: { clientId: string }) {
+  return (
+    <Link
+      href={`/app/clients/${clientId}`}
+      aria-label="Go to client workspace"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "8px 14px",
+        background:
+          "linear-gradient(180deg, rgba(201,169,110,0.16) 0%, rgba(201,169,110,0.06) 100%)",
+        border: "1px solid rgba(201,169,110,0.45)",
+        color: "#c9a96e",
+        borderRadius: 8,
+        fontSize: 12,
+        fontWeight: 600,
+        letterSpacing: 0.3,
+        textTransform: "uppercase" as const,
+        textDecoration: "none",
+        transition: "all 140ms",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = "#c9a96e";
+        e.currentTarget.style.background =
+          "linear-gradient(180deg, rgba(201,169,110,0.22) 0%, rgba(201,169,110,0.12) 100%)";
+        e.currentTarget.style.boxShadow =
+          "0 0 0 1px rgba(201,169,110,0.35), 0 0 14px rgba(201,169,110,0.25)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = "rgba(201,169,110,0.45)";
+        e.currentTarget.style.background =
+          "linear-gradient(180deg, rgba(201,169,110,0.16) 0%, rgba(201,169,110,0.06) 100%)";
+        e.currentTarget.style.boxShadow = "none";
+      }}
+    >
+      <ArrowLeft size={12} />
+      Workspace
+    </Link>
+  );
+}
 
 function CopyUrlButton({ url }: { url: string }) {
   const [copied, setCopied] = useState(false);
