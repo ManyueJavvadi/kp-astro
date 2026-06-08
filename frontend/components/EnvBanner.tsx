@@ -16,8 +16,23 @@
  * via pointer-events: none on the wrapper). Pure CSS, no JS state.
  */
 
-const ENV =
-  (process.env.NEXT_PUBLIC_ENV ?? "development").toLowerCase().trim();
+// Resolution order (first non-empty wins):
+//   1. NEXT_PUBLIC_ENV       — operator-set, highest priority. Use to
+//                              tag a staging or dev build explicitly.
+//   2. NEXT_PUBLIC_VERCEL_ENV — Vercel auto-injects "production" /
+//                              "preview" / "development" on every build.
+//                              Acts as a safe fallback so the banner
+//                              never accidentally shows on prod even if
+//                              you forget to set NEXT_PUBLIC_ENV.
+//   3. "development"         — local dev (npm run dev) without either set.
+const _vercelEnv = process.env.NEXT_PUBLIC_VERCEL_ENV;
+const ENV = (
+  process.env.NEXT_PUBLIC_ENV ||
+  // Map Vercel's "preview" to our "staging" label so the banner reads
+  // correctly on staging.devastroai.com without further config.
+  (_vercelEnv === "preview" ? "staging" : _vercelEnv) ||
+  "development"
+).toLowerCase().trim();
 
 const LABELS: Record<string, { text: string; bg: string; fg: string }> = {
   staging: { text: "STAGING", bg: "#f59e0b", fg: "#1c1c0e" },
