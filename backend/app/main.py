@@ -245,6 +245,12 @@ _default_cors = ",".join([
     "https://devastroai.up.railway.app",
     "https://devastroai.com",
     "https://www.devastroai.com",
+    # 2026-06-08 Step 1: staging origin added to the default allow-list
+    # so that out-of-the-box a fresh staging Railway service can serve
+    # staging.devastroai.com without the operator having to remember to
+    # also override CORS_ALLOWED_ORIGINS. Setting an explicit env var in
+    # Railway STILL overrides this default and is recommended in prod.
+    "https://staging.devastroai.com",
     "http://localhost:3000",
     "http://localhost:3001",
     "http://127.0.0.1:3000",

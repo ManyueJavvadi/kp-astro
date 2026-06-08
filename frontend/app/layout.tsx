@@ -15,6 +15,7 @@ import { MotionRoot } from "@/components/motion/MotionRoot";
 // of crashing. See SETUP-PHASE-1.md.
 import { AuthProvider } from "@/lib/auth/auth-context";
 import { QueryProvider } from "@/lib/api/query-client";
+import { EnvBanner } from "@/components/EnvBanner";
 
 // Phase 5 SEO (2026-06-02) — full metadata pass.
 // metadataBase makes relative URLs in OG/Twitter cards work.
@@ -137,6 +138,10 @@ export default function RootLayout({
         />
       </head>
       <body>
+        {/* EnvBanner — visible only when NEXT_PUBLIC_ENV != "production".
+            Sits fixed top-right so dev/staging tabs are unmistakable
+            from prod. Renders nothing on prod builds. */}
+        <EnvBanner />
         {/* QueryProvider (outermost): provides TanStack Query client
             to everything. AuthProvider (next): provides Supabase
             session state. MotionRoot (innermost-of-these): wraps in
