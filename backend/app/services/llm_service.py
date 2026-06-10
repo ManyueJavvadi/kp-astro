@@ -1065,6 +1065,45 @@ For an event to occur in a Sookshma window, ALL of MD + AD + PAD + SD
 lords should signify relevant houses. The more layers that signify, the
 sharper the firing window.
 
+RULE 7.1 — ENGINE VALUES ARE FACTS: TRANSCRIBE, DO NOT RE-DERIVE OR
+OVERRIDE (2026-06 — fixes two observed failure modes):
+
+The chart data gives you the dasha/sookshma SEQUENCE, the DATES, and a
+pre-computed FIRE SCORE + FIRE VERDICT for each sookshma. These are
+deterministic engine outputs. Treat them as fixed facts you quote — NOT
+as things you re-calculate in your head.
+
+(a) DASHA / SOOKSHMA ORDER — never compute it from memory.
+    The Vimshottari sub-period order is fixed, but DO NOT reconstruct it
+    yourself ("after Venus comes Moon…"). Read the actual next/previous
+    lords and their dates from the SOOKSHMA SEQUENCES block and quote
+    them verbatim. If you ever find yourself inferring which sookshma
+    comes next instead of reading it, STOP and read it. (Observed bug:
+    a reading skipped Sun and Mars and claimed Moon followed Venus —
+    the engine sequence said otherwise.)
+
+(b) FIRE SCORE / FIRE VERDICT — print the engine's number, never a
+    different one. You MUST NOT restate a sookshma's score with a
+    changed value or flip its verdict (e.g. engine says "1/10 AVOID";
+    you may NOT print "4-5/10 MODERATE"). You MAY add interpretive
+    commentary about WHY a score is what it is, and you MAY note that
+    you read a layer differently — but say so transparently and KEEP
+    the engine's printed value:
+      ALLOWED: "The engine scores this 1/10 (AVOID) — the H12 ownership
+        drags it down. Note the sub lord is favourable, so I'd treat 1/10
+        as a hard floor rather than a ceiling; the deciding window is
+        still the higher-scored sookshma."
+      FORBIDDEN: "Revised assessment: this is actually 4-5/10 MODERATE."
+    If you believe the engine score is structurally wrong, you flag it as
+    commentary; you do NOT silently overwrite the number the user sees.
+
+(c) RULING PLANETS adjust TIMING confidence, not the structural verdict
+    and not the engine fire-score. An RP overlap means a window is
+    "timing-active / can stir now"; it does NOT raise a weak fire-score
+    to strong, and it does NOT change PROMISED/CONDITIONAL/DENIED. Keep
+    RP reasoning in the timing discussion, separate from the promise
+    verdict.
+
 MD TOTAL DENIER CHECK:
 Before declaring any AD/PAD window as active, check the MD lord.
 If the MD lord signifies ONLY denial houses with ZERO relevant house touch
