@@ -17,21 +17,26 @@
  */
 
 import { useEffect, useState } from "react";
-import { MapPin, Sun, Moon } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { useLiveLocation } from "@/hooks/useLiveLocation";
 import { theme } from "@/lib/theme";
+import { DayRibbon, type DayRibbonData } from "./DayRibbon";
+import { PLANET_COLORS } from "../components/constants";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://devastroai.up.railway.app";
 
-interface PanchangSummary {
+interface PanchangSummary extends DayRibbonData {
   tithi_en?: string;
   nakshatra_en?: string;
+  nakshatra_pada?: number;
   yoga_en?: string;
   karana_en?: string;
-  sunrise_local?: string;
-  sunset_local?: string;
-  current_hora_en?: string;
+  // NB: the endpoint returns `sunrise`/`sunset` (DayRibbonData) — the old
+  // interface read `sunrise_local`/`sunset_local`, which never existed,
+  // so sun times silently never rendered. Fixed by extending DayRibbonData.
+  hora_lord?: string;
+  current_hora?: { lord?: string };
 }
 
 export function TodayPanchangStrip() {
@@ -90,41 +95,53 @@ export function TodayPanchangStrip() {
   }
 
   if (loading || !data) {
+    // Premium shimmer skeleton (replaces the old "Loading…" text) — mirrors
+    // the real card's shape so there's no layout jump when data lands.
     return (
       <div
         style={{
-          padding: "10px 16px",
-          background: "rgba(7,11,20,0.4)",
-          border: "1px solid rgba(255,255,255,0.06)",
-          borderRadius: 8,
-          fontSize: 12,
-          color: theme.text.muted,
-          opacity: 0.6,
+          padding: "14px 16px",
+          background:
+            "linear-gradient(180deg, rgba(201,169,110,0.05) 0%, rgba(201,169,110,0.015) 100%)",
+          border: "1px solid rgba(201,169,110,0.12)",
+          borderRadius: 12,
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
         }}
+        aria-busy="true"
+        aria-label="Loading today's panchang"
       >
-        Loading today's panchang…
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+          <div className="kp-skeleton" style={{ height: 14, width: "45%" }} />
+          <div className="kp-skeleton" style={{ height: 18, width: 90, borderRadius: 12 }} />
+        </div>
+        <div className="kp-skeleton" style={{ height: 18, width: "100%", borderRadius: 9 }} />
+        <div className="kp-skeleton" style={{ height: 12, width: "60%" }} />
       </div>
     );
   }
 
-  // Compact pill-grid layout — works equally well on a 320-wide phone
-  // and a desktop wide bar. Each fact gets its own pill so text never
-  // overlaps (the user previously saw "Krishna" wrap mid-word into the
-  // location row because everything shared one long flex line).
+  const horaLord = data.hora_lord || data.current_hora?.lord;
+  const horaColor = (horaLord && PLANET_COLORS[horaLord]) || "#c9a96e";
+
+  // Premium "day at a glance" card: location + current-hora chip, the
+  // sunrise→sunset DayRibbon (auspicious/inauspicious windows + live now
+  // marker), and a compact tithi/nakshatra line.
   return (
     <div
       style={{
-        padding: "12px 14px",
+        padding: "14px 16px",
         background:
-          "linear-gradient(180deg, rgba(201,169,110,0.06) 0%, rgba(201,169,110,0.015) 100%)",
-        border: "1px solid rgba(201,169,110,0.16)",
-        borderRadius: 10,
+          "linear-gradient(180deg, rgba(201,169,110,0.07) 0%, rgba(201,169,110,0.02) 100%)",
+        border: "1px solid rgba(201,169,110,0.18)",
+        borderRadius: 12,
         display: "flex",
         flexDirection: "column",
-        gap: 8,
+        gap: 10,
       }}
     >
-      {/* Location header */}
+      {/* Header row: location + live current-hora chip */}
       <div
         style={{
           display: "flex",
@@ -148,98 +165,69 @@ export function TodayPanchangStrip() {
           }}
         >
           <MapPin size={11} style={{ flexShrink: 0, color: "#c9a96e" }} />
-          <span
-            style={{
-              minWidth: 0,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
+          <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
             {liveLoc.location.display}
           </span>
         </span>
-        <span
+        {horaLord && (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              flexShrink: 0,
+              padding: "3px 9px",
+              borderRadius: 12,
+              background: "rgba(7,11,20,0.5)",
+              border: `0.5px solid ${horaColor}55`,
+              fontSize: 11,
+            }}
+            title="Current hora lord"
+          >
+            <span
+              className="day-ribbon-hora-dot"
+              style={{ width: 7, height: 7, borderRadius: "50%", background: horaColor }}
+            />
+            <span style={{ color: theme.text.muted }}>Hora</span>
+            <span style={{ color: horaColor, fontWeight: 600 }}>{horaLord}</span>
+          </span>
+        )}
+      </div>
+
+      {/* The sunrise→sunset day ribbon */}
+      <DayRibbon data={data} />
+
+      {/* Compact tithi · nakshatra line */}
+      {(data.tithi_en || data.nakshatra_en) && (
+        <div
           style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
+            display: "flex",
+            gap: 8,
+            flexWrap: "wrap",
+            fontSize: 12,
             color: theme.text.muted,
-            fontSize: 11,
-            flexShrink: 0,
+            paddingTop: 2,
           }}
         >
-          {data.sunrise_local && (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
-              <Sun size={11} /> {data.sunrise_local}
+          {data.tithi_en && (
+            <span>
+              <span style={{ opacity: 0.6 }}>Tithi </span>
+              <span style={{ color: theme.text.primary }}>{data.tithi_en}</span>
             </span>
           )}
-          {data.sunrise_local && data.sunset_local && (
-            <span style={{ opacity: 0.4 }}>·</span>
-          )}
-          {data.sunset_local && (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
-              <Moon size={11} /> {data.sunset_local}
+          {data.tithi_en && data.nakshatra_en && <span style={{ opacity: 0.3 }}>·</span>}
+          {data.nakshatra_en && (
+            <span>
+              <span style={{ opacity: 0.6 }}>Nakshatra </span>
+              <span style={{ color: theme.text.primary }}>
+                {data.nakshatra_en}
+                {data.nakshatra_pada ? ` (${data.nakshatra_pada})` : ""}
+              </span>
             </span>
           )}
-        </span>
-      </div>
-
-      {/* Facts grid — auto-flows nicely from 1 col mobile to 3 col desktop */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))",
-          gap: 6,
-        }}
-      >
-        {data.tithi_en && <PanchangFact label="Tithi" value={data.tithi_en} />}
-        {data.nakshatra_en && (
-          <PanchangFact label="Nakshatra" value={data.nakshatra_en} />
-        )}
-        {data.current_hora_en && (
-          <PanchangFact label="Hora" value={data.current_hora_en} />
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function PanchangFact({ label, value }: { label: string; value: string }) {
-  return (
-    <div
-      style={{
-        padding: "6px 10px",
-        background: "rgba(7,11,20,0.55)",
-        border: "1px solid rgba(255,255,255,0.04)",
-        borderRadius: 7,
-        minWidth: 0,
-      }}
-    >
-      <div
-        style={{
-          fontSize: 9,
-          fontWeight: 600,
-          color: theme.text.muted,
-          textTransform: "uppercase",
-          letterSpacing: 0.6,
-          marginBottom: 2,
-        }}
-      >
-        {label}
-      </div>
-      <div
-        style={{
-          fontSize: 13,
-          color: theme.text.primary,
-          fontWeight: 500,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-        title={value}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}

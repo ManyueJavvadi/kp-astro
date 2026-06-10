@@ -17,6 +17,7 @@ import { PLANET_COLORS } from "./components/constants";
 import { ContentCard } from "@/components/ui/content-card";
 import { PlacePicker } from "@/components/ui/place-picker";
 import { theme, styles as uiStyles } from "@/lib/theme";
+import { haptic, HAPTIC } from "@/lib/haptics";
 import { useLanguage } from "@/lib/i18n";
 // PR Phase 9.9 — primary mobile nav + AI shortcut. Replaces CommandOrb's
 // tab-switching role with a persistent 4-tab bottom strip (+ overflow
@@ -1258,6 +1259,7 @@ export default function Home() {
       setChartData(res.data);
       resultData = res.data;
       setSetupDone(true);
+      haptic(HAPTIC.reveal); // tactile beat under the chart-cast ceremony
       // Phase 16 — Moment #1: 3.5-second cinematic chart reveal ceremony.
       // The overlay self-dismisses via its own onComplete prop, so we
       // don't need a setTimeout here anymore. pointer-events:none
