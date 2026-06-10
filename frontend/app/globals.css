@@ -5139,6 +5139,19 @@ textarea:focus-visible {
   .topic-strip .topic-chip { min-height: 40px; }
 }
 
+/* ═══ DAY RIBBON (home "today at a glance") — breathing accents ═══ */
+@keyframes day-ribbon-breath {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.82); }
+}
+.day-ribbon-hora-dot {
+  display: inline-block;
+  animation: day-ribbon-breath 3.6s ease-in-out infinite;
+}
+.day-ribbon-now > span {
+  animation: day-ribbon-breath 2.4s ease-in-out infinite;
+}
+
 /* ═══════════════════════════════════════════════════════════════
    PR A1.1 — Live location pill + Ruling Planets context strip.
    Used by Horary (first), will be reused by Muhurtha/Transit/
