@@ -88,6 +88,10 @@ class ChartSessionPublic(ChartSessionBase):
     id: UUID
     astrologer_id: UUID
     name: str
+    # Astrology flavour (migration 0005). Read-only in the API: set
+    # server-side, defaults to 'kp'. Exposed so future Vedic readers can
+    # branch without sniffing JSONB keys.
+    system: str = "kp"
     created_at: datetime
     updated_at: datetime
 
@@ -219,6 +223,7 @@ def _session_to_public(row: ChartSession) -> ChartSessionPublic:
         astrologer_id=row.astrologer_id,
         client_id=row.client_id,
         name=row.name,
+        system=row.system,
         birth_name=row.birth_name,
         birth_date=row.birth_date,
         birth_time=row.birth_time,

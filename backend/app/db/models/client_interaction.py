@@ -33,7 +33,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional
 
-from sqlalchemy import ForeignKey, Index, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text, func, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -106,7 +106,14 @@ class ClientInteraction(Base, UUIDPKMixin):
             "fragile text matching."
         ),
     )
+    # 2026-06-08 audit fix (P2 model/migration drift): declare the type
+    # explicitly. Migration 0004 created this as TIMESTAMP(timezone=True);
+    # without the explicit DateTime(timezone=True) the model defaulted to
+    # a naive DateTime, so a future `alembic revision --autogenerate`
+    # (with compare_type=True) would emit a destructive ALTER COLUMN
+    # dropping the timezone. Now model == DB.
     created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
         nullable=False,
         server_default=func.current_timestamp(),
     )
@@ -122,10 +129,14 @@ class ClientInteraction(Base, UUIDPKMixin):
     promoted_to_note: Mapped[Optional["ClientNote"]] = relationship()
 
     __table_args__ = (
+        # 2026-06-08 audit fix (P2 drift): migration 0004 built this index
+        # with `created_at DESC`; declare the same direction so autogenerate
+        # doesn't propose a drop+recreate. Matches the timeline query
+        # (newest-first per client).
         Index(
             "ix_client_interactions_client_id_created_at",
             "client_id",
-            "created_at",
+            text("created_at DESC"),
         ),
         Index(
             "ix_client_interactions_tool",
