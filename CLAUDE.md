@@ -131,11 +131,13 @@ All 8 tabs are extracted to `frontend/app/app/tabs/`:
 ChartTab, HousesTab, DashaTab, AnalysisTab, HoraryTab, MatchTab,
 MuhurthaTab, PanchangTab.
 
-page.tsx: 8,589 → 3,889 lines (−54.7%). Holds the workspace shell,
-onboarding, modals, sidebar, mobile orb, and routing logic — tab content
-itself lives in `tabs/`. The original ≤3,500 target was a Phase-A-prep
-goal tied to v2; with v2 cancelled the line count is effectively where
-it needs to be.
+page.tsx: 8,589 → 3,889 lines at Phase-A completion. It has since grown
+back to **~5,800 lines** with the Phase 2/3 CRM + portal work and the
+2026-06-08 audit hardening — budget for that when sizing the Phase 2 S5
+per-tab-route refactor (the state-extraction surface is ~40% larger than
+the old 3,889 figure suggests). Holds the workspace shell, onboarding,
+modals, sidebar, mobile orb, and routing logic — tab content itself lives
+in `tabs/`.
 
 ### What "polish on top of the current UI" means in practice
 
@@ -189,7 +191,7 @@ forward.
 **For any new AI work** (with v2 cancelled, "new AI work" means anything
 ADDITIVE to the current Analysis tab — not a redesign of it):
 - Pure refactor / layout / mobile polish → zero AI impact, no regression
-  suite required, just `tsc + next build + 88/88 backend tests`.
+  suite required, just `tsc + next build + backend pytest`.
 - New ADDITIVE AI calls (e.g. a future quick-summary card or chart-
   briefing helper) → must use their OWN isolated system prompt and KB
   selection. NEVER edit `get_system_prompt()` or `format_chart_for_llm`
@@ -211,9 +213,9 @@ ADDITIVE to the current Analysis tab — not a redesign of it):
   the backend for Track A UI polish PRs** — the KP engines are production-
   stable.
 
-- **Frontend**: `frontend/` — Next.js 16 App Router + React 18 + TypeScript.
+- **Frontend**: `frontend/` — Next.js 16 App Router + React 19 + TypeScript.
   - `frontend/app/page.tsx` — polished landing page (PR2 era, stable)
-  - `frontend/app/app/page.tsx` — **the main app (~3,889 lines)**.
+  - `frontend/app/app/page.tsx` — **the main app (~5,800 lines)**.
     Workspace shell, onboarding, modals, sidebar, mobile orb, routing.
     Tab content itself lives in `tabs/` (Phase A refactor complete).
   - `frontend/app/app/tabs/` — extracted tab components: `ChartTab`,
@@ -502,9 +504,15 @@ Storage: `localStorage.devastroai:lang`.
 cd frontend
 npx tsc --noEmit       # must be EXIT=0
 npx next build         # must succeed, prerenders /, /app
+
+cd ../backend
+pytest                 # ~244 tests across 11 files (horary, panchang,
+                       # muhurtha, cross-/multi-chart, RP, timezone, …)
 ```
 
-Never push a PR without both passing. No tests yet (Track B adds Vitest).
+Never push a PR without tsc + next build + backend pytest all green.
+(Frontend Vitest is still a Track B add; the backend pytest suite
+already exists — the old "no tests yet" note was wrong.)
 
 ---
 
@@ -662,21 +670,18 @@ client construction).
 
 ---
 
-## `/quick-insights` endpoint — HARD-DISABLED (Phase 13.1) + cleaned up (May 2026)
+## `/quick-insights` endpoint — FULLY DELETED (wave-5 D6 cleanup, 2026-06-02)
 
-`POST /astrologer/quick-insights` raises **HTTP 410 Gone** at the top of
-the function body. Defense-in-depth: even if a stale Vercel CDN bundle
-still calls `loadQuickInsights()` (the frontend code was removed in
-Phase 13), the backend refuses to bill.
+The endpoint no longer exists. It was first hard-disabled (HTTP 410) in
+Phase 13.1, then **removed entirely** in the wave-5 D6 dead-code cleanup
+(2026-06-02). `routers/astrologer.py` now carries only a
+`── Quick Insights endpoint — DELETED ──` marker; `get_quick_insights()`,
+`QUICK_INSIGHT_TOPICS`, and the `QuickInsightsRequest` model are all
+gone. A stale call now gets FastAPI's default **404** (not 410).
 
-**Cost-optimization arc (May 2026) cleanup:**
-- Removed the unreachable dead body below the 410 raise in
-  `routers/astrologer.py` (~115 lines)
-- Removed `get_quick_insights()` function + `QUICK_INSIGHT_TOPICS` dict
-  from `services/llm_service.py` (~60 lines)
-- Removed `get_quick_insights` from the router's import line
-- The 410 raise + `QuickInsightsRequest` Pydantic model remain — so the
-  endpoint surface still answers cleanly (410, not 500)
+(Historical: the original cost incident was a `useEffect` auto-firing
+`loadQuickInsights()` on every Analysis-tab open — ~$5/day of Sonnet
+calls with no user click. Removed in Phase 13.)
 
 Original sin: a `useEffect` fired `loadQuickInsights()` every time the
 user opened the Analysis tab — burned Sonnet calls without the user

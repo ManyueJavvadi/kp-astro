@@ -336,7 +336,9 @@ New at `.claude/research/`. Created when the first audit doc is written. One mar
 - **Stripe / pay-per-use / subscription billing** — pricing model unresolved, needs research session first.
 - **RLS** — wait for B10 with Stripe; until then app-level `owner_id` checks.
 - **Google / Apple / SSO auth** — email-only first; OAuth only after we hit friction.
-- **PostHog / Sentry / analytics** — not needed pre-PMF.
+- **PostHog / analytics** — planned per the 2026-06-08 dev/prod-separation
+  discussion (was "not needed pre-PMF"). **Sentry already shipped** on the
+  backend (Wave 10, 2026-06-03) — frontend Sentry still pending.
 - **Mobile native apps** — mobile-responsive web first.
 - **Public social features** — no sharing, comments, profiles-public.
 - **Multi-language beyond en/te** — no Hindi, Tamil, Kannada yet. Scope creep risk.

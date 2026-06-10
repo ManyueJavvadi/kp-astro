@@ -1408,3 +1408,71 @@ Per master plan §7, after these slices the remaining work is:
 Quality bar: every slice this session was tsc-clean + next-build-
 clean + zero changes to sacred regions. Held the line on the user's
 "don't ruin quality" directive.
+
+---
+
+## 2026-06-08 — Launch-readiness audit + 4-round hardening fix sweep
+
+Ran an 8-auditor parallel codebase audit (security / cost / correctness
+/ data-integrity / infra-checklist / extensibility / docs-drift) with an
+adversarial verification pass. Then fixed everything on
+`fix/launch-hardening-audit`, merged to develop + main.
+
+**Audit headline:** secrets are CLEAN (all 555 commits, bundle, logs —
+no leaked key). The one real cluster was the paid AI surface being open
+to the anonymous internet with a spoofable rate limiter (denial-of-wallet,
+est. hundreds–thousands USD/hr).
+
+**Round 1 — zero-risk backend (commit 1557bcf):**
+- Rate limiter keyed on the spoofable LEFTMOST X-Forwarded-For → now uses
+  the rightmost trusted-proxy hop (`_ratelimit_client_ip`, TRUSTED_PROXY_HOPS).
+- `/astrologer/multi-analyze` (the most expensive call) had NO rate limit
+  (prefix-match gap) → added; also added caps for /chart /horary
+  /panchangam /transit /pdf.
+- PATCH /clients/{id} and PATCH /clients/{id}/notes/{id} both hit the same
+  MissingGreenlet 500 as the chart-sessions bug (commit 0988654) → added
+  `await db.refresh(row)`. These broke Edit Client, portal toggles, note
+  edit/publish, outcome marking.
+
+**Round 2 — auth on paid endpoints (commit e832a79):** every Anthropic-
+firing endpoint (/astrologer/analyze[-stream], /multi-analyze[-stream],
+/prediction/ask[-stream], /compatibility/analyze, /muhurtha/analyze) now
+requires a valid Supabase JWT (verify_supabase_jwt). Frontend attaches the
+token to all 7 call sites (new streamAuthHeaders() for the 4 SSE fetches;
+axios Authorization for compatibility + muhurtha). Also: 401 no longer
+echoes str(e) (info-disclosure), and WORKSPACE_AUTH_REQUIRED bypass is now
+prod-guarded + value-"0"-only (was a truthiness-inversion foot-gun).
+
+**Round 3 — correctness (commits 2503e7f, 59d3fcb):**
+- Cross-tenant client_id write guard (`_assert_client_owned`) on
+  create/update/migrate chart-sessions.
+- Delete-chart confirmation modal (both sidebar × and tab-close × — the
+  latter read as "close" but hard-deleted the chart + all AI history).
+- Duplicate chart_session rows fixed: local Date.now() id is now remapped
+  to the server UUID after first POST (+ in-flight create guard), so the
+  two-triggers-per-question no longer inserts ~2 dup rows each carrying
+  50KB JSONB. This was the real cause of the "duplicate manyue chips".
+
+**Round 4 — hardening + groundwork (commits 9e7ccca, + abort fix):**
+- Security headers (next.config.ts): XFO DENY, nosniff, Referrer-Policy
+  (protects portal slug), Permissions-Policy. CSP deferred.
+- .gitignore broadened to `.env*` (keeps *.env.example) — no stray
+  staging secret can be committed.
+- Vedic groundwork: migration 0005 + ChartSession.system column
+  (server_default 'kp'), exposed read-only in ChartSessionPublic,
+  answer_cache.make_key gains system kwarg (KP keys stay byte-identical).
+- Model/DB drift fixed (ClientInteraction.created_at tz + DESC index;
+  ClientNote promoted_from_key index) so autogenerate can't emit
+  destructive diffs. passive_deletes=True on Client children.
+- Abort in-flight AI stream on chart switch / new chart (was paying for
+  discarded answers).
+- Docs: CLAUDE.md page.tsx ~5,800 (was 3,889), React 19 (was 18),
+  pytest ~244 tests (was "no tests"/"88/88"), quick-insights now 404
+  (deleted, not 410).
+
+**Migration head is now 0005.** Sacred regions (llm_service, chart_engine,
+compatibility_engine, KB files, AnalysisTab streaming) untouched
+throughout. Every round: py_compile + configure_mappers + tsc + next build
+green. User to test on develop/main; deferred (noted, not done): full CSP,
+frontend Sentry, DB restore drill, /health disclosure trim, migrate-dedup
+key widening.
