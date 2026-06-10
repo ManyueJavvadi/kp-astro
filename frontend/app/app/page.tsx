@@ -211,6 +211,25 @@ export default function Home() {
   // the auth context is still initializing.
   const authCtx = useAuth();
 
+  // 2026-06-08 audit fix (P0): the streaming AI endpoints
+  // (/astrologer/analyze-stream, /multi-analyze-stream, /prediction/
+  // ask-stream) are now JWT-gated on the backend. These use raw fetch()
+  // (not the authedAxios wrapper, because they consume an SSE body), so
+  // we attach the bearer token here. Every caller is already inside the
+  // AuthGate, so getAccessToken resolves to a live token; the optional
+  // spread keeps the call working in the (unreachable) anonymous case
+  // rather than throwing. Mirrors authedAxiosPost's header logic.
+  const streamAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    try {
+      const token = await authCtx.getAccessToken();
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+    } catch {
+      /* no session — send unauthenticated; backend will 401, handled by caller */
+    }
+    return headers;
+  }, [authCtx]);
+
   // (Hand-off from /app/clients deferred to Slice 4 when proper
   // /app/clients/[id] routing replaces the sessionStorage trick.
   // For Slice 3, users open clients directly from the CRM home roster
@@ -1342,7 +1361,7 @@ export default function Home() {
       recordAiCall("user.ask-stream");
       const response = await fetch(`${API_URL}/prediction/ask-stream`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await streamAuthHeaders(),
         body: JSON.stringify({
           name: birthDetails.name, date: formattedDate, time: getTime24(),
           latitude: birthDetails.latitude, longitude: birthDetails.longitude,
@@ -1446,7 +1465,7 @@ export default function Home() {
       recordAiCall(`astrologer.analyze-stream:${topic}:${questionType}`);
       const response = await fetch(`${API_URL}/astrologer/analyze-stream`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await streamAuthHeaders(),
         body: JSON.stringify({
           name: birthDetails.name, date: formattedDate, time: getTime24(),
           latitude: birthDetails.latitude, longitude: birthDetails.longitude,
@@ -1542,7 +1561,7 @@ export default function Home() {
       recordAiCall(`astrologer.analyze-stream:scoped:${topic}`);
       const response = await fetch(`${API_URL}/astrologer/analyze-stream`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await streamAuthHeaders(),
         body: JSON.stringify({
           ...apiBd,
           topic, question, history, language: backendLang(),
@@ -1657,7 +1676,7 @@ export default function Home() {
       const charts = [primary, ...additionalCharts].map(sessionToApiPerson);
       const response = await fetch(`${API_URL}/astrologer/multi-analyze-stream`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await streamAuthHeaders(),
         body: JSON.stringify({
           charts,
           question,
@@ -1818,13 +1837,15 @@ export default function Home() {
     const topicLabels: Record<string,string> = { promise: "వివాహ ప్రమాణం — Marriage Promise", harmony: "సామరస్యం — Harmony & Compatibility", divorce_risk: "విడాకులు ప్రమాదం — Divorce Risk", timing: "సమయం — Timing & DBA", remedies: "పరిహారాలు — Remedies" };
     try {
       recordAiCall(`match.analyze:topic:${topic}`);
+      // 2026-06-08 audit fix (P0): /compatibility/analyze is now JWT-gated.
+      const _matchTok = await authCtx.getAccessToken();
       const res = await axios.post(`${API_URL}/compatibility/analyze`, {
         person1: sessionToApiPerson(matchPerson1),
         person2: sessionToApiPerson(p2),
         question: `Complete KP analysis for ${topic} between these two charts`,
         history: [],
         language: backendLang(),
-      });
+      }, _matchTok ? { headers: { Authorization: `Bearer ${_matchTok}` } } : undefined);
       setMatchAnalysisMessages(prev => [...prev, { q: topicLabels[topic] || topic, a: res.data.answer, isTopic: true }]);
     } catch {
       setMatchAnalysisMessages(prev => [...prev, { q: topicLabels[topic] || topic, a: "Analysis failed. Please try again.", isTopic: true }]);
@@ -1840,13 +1861,15 @@ export default function Home() {
     try {
       const history = matchAnalysisMessages.slice(-6).map(m => ({ question: m.q, answer: m.a }));
       recordAiCall("match.analyze:chat");
+      // 2026-06-08 audit fix (P0): /compatibility/analyze is now JWT-gated.
+      const _matchChatTok = await authCtx.getAccessToken();
       const res = await axios.post(`${API_URL}/compatibility/analyze`, {
         person1: sessionToApiPerson(matchPerson1),
         person2: sessionToApiPerson(p2),
         question: q,
         history,
         language: backendLang(),
-      });
+      }, _matchChatTok ? { headers: { Authorization: `Bearer ${_matchChatTok}` } } : undefined);
       setMatchAnalysisMessages(prev => [...prev, { q, a: res.data.answer }]);
     } catch { } finally { setMatchAnalysisLoading(false); }
   };
