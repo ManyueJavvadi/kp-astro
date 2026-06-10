@@ -15,10 +15,18 @@ without a Supabase round-trip. Used by:
 from __future__ import annotations
 
 import uuid
-from datetime import date
+from datetime import date, datetime
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Boolean, Date, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -78,6 +86,16 @@ class Astrologer(Base, UUIDPKMixin, TimestampMixin):
 
     # ─── Onboarding state ─────────────────────────────────────────────
     onboarded_at: Mapped[Optional[date]] = mapped_column(Date)
+
+    # ─── Activity / retention (migration 0006, 2026-06-10) ────────────
+    # Last time this astrologer made an authenticated request. Touched
+    # (throttled to ~15 min) in get_current_astrologer. Powers churn
+    # queries + the 3-day-inactivity check-in email. Nullable: existing
+    # rows backfill lazily on their next request.
+    last_active_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        comment="Last authenticated-request time (throttled). Retention/churn.",
+    )
 
     # ─── Relationships ────────────────────────────────────────────────
     # cascade='all, delete-orphan' so deleting an astrologer (rare —

@@ -49,6 +49,7 @@ from sqlalchemy.orm import selectinload
 
 from app.db import get_db
 from app.db.models import Astrologer, ChartSession, Client, ClientNote
+from app.services.usage_log import record_event
 
 router = APIRouter()
 
@@ -293,6 +294,18 @@ async def get_portal(
     def _show(key: str) -> bool:
         v = visibility.get(key)
         return True if v is None else bool(v)
+
+    # 2026-06-10 tracking: log that a client opened their portal — the one
+    # signal that measures whether the killer differentiator actually gets
+    # used. Attributed to the owning astrologer + client. Best-effort,
+    # rides the request's commit (bounded by the 60/min/IP rate limit).
+    record_event(
+        db,
+        event_type="client_portal_opened",
+        astrologer_id=client.astrologer_id,
+        client_id=client.id,
+        payload={"portal_slug": str(portal_slug)},
+    )
 
     return PortalResponse(
         client_name=client.name,
