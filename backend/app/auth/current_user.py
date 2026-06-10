@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
@@ -31,6 +32,28 @@ from app.db import get_db
 from app.db.models import Astrologer
 
 _log = logging.getLogger("kp_astro.auth")
+
+# Throttle: only re-stamp last_active_at if it's older than this. Avoids a
+# DB write on every single authenticated request while still giving
+# day-granularity retention data.
+_LAST_ACTIVE_THROTTLE = timedelta(minutes=15)
+
+
+def _touch_last_active(astrologer: Astrologer) -> None:
+    """Mark the astrologer active now, throttled to ~15 min.
+
+    Mutates the dirty attribute only — get_db commits at request end. No
+    flush + no sync read of the row's onupdate column happens in the
+    handler afterward, so this is safe re: the MissingGreenlet pattern.
+    Best-effort: any error here must never break the actual request.
+    """
+    try:
+        now = datetime.now(timezone.utc)
+        last = astrologer.last_active_at
+        if last is None or (now - last) > _LAST_ACTIVE_THROTTLE:
+            astrologer.last_active_at = now
+    except Exception:  # noqa: BLE001 — telemetry must not break auth
+        pass
 
 
 async def get_current_astrologer(
@@ -74,6 +97,7 @@ async def get_current_astrologer(
     astrologer = result.scalar_one_or_none()
 
     if astrologer is not None:
+        _touch_last_active(astrologer)
         return astrologer
 
     # First-touch provision. We require the email from the JWT — it's
