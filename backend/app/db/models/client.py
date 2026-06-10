@@ -147,14 +147,23 @@ class Client(Base, UUIDPKMixin, TimestampMixin):
 
     # ─── Relationships ────────────────────────────────────────────────
     astrologer: Mapped["Astrologer"] = relationship(back_populates="clients")
+    # 2026-06-08 audit fix (P2 perf): passive_deletes=True lets the
+    # DB-level ON DELETE CASCADE (declared on the chart_sessions /
+    # client_notes FKs) do the deletion, instead of the ORM SELECTing and
+    # fully hydrating every child row — including chart_sessions'
+    # multi-MB workspace_data JSONB — just to issue per-row DELETEs.
+    # Deleting a long-lived client no longer spikes memory / N+1 DELETEs.
+    # cascade="all, delete-orphan" is kept for in-session orphan handling.
     chart_sessions: Mapped[list["ChartSession"]] = relationship(
         back_populates="client",
         cascade="all, delete-orphan",
+        passive_deletes=True,
         lazy="raise",
     )
     notes: Mapped[list["ClientNote"]] = relationship(
         back_populates="client",
         cascade="all, delete-orphan",
+        passive_deletes=True,
         lazy="raise",
     )
 

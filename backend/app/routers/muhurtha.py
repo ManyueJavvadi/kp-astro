@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from typing import Optional, List
 
@@ -6,6 +6,10 @@ from app.services.muhurtha_engine import find_muhurtha_windows
 from app.services.llm_service import get_muhurtha_prediction
 from app.services.timezone_utils import resolve_birth_offset, resolve_timezone
 from datetime import datetime as _dt
+# 2026-06-08 audit fix (P0): gate the paid Anthropic muhurtha-analysis
+# endpoint behind a valid Supabase JWT. /find (free engine compute) stays
+# open; only /analyze (LLM) is gated.
+from app.auth.supabase_jwt import verify_supabase_jwt, SupabaseJWTPayload
 
 router = APIRouter()
 
@@ -119,7 +123,10 @@ def find_muhurtha(request: MuhurthaRequest):
 
 
 @router.post("/analyze")
-def analyze_muhurtha(request: MuhurthaAnalyzeRequest):
+def analyze_muhurtha(
+    request: MuhurthaAnalyzeRequest,
+    _auth: SupabaseJWTPayload = Depends(verify_supabase_jwt),
+):
     """AI-powered deep analysis of muhurtha windows."""
     answer = get_muhurtha_prediction(
         request.muhurtha_data,

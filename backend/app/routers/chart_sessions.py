@@ -88,6 +88,10 @@ class ChartSessionPublic(ChartSessionBase):
     id: UUID
     astrologer_id: UUID
     name: str
+    # Astrology flavour (migration 0005). Read-only in the API: set
+    # server-side, defaults to 'kp'. Exposed so future Vedic readers can
+    # branch without sniffing JSONB keys.
+    system: str = "kp"
     created_at: datetime
     updated_at: datetime
 
@@ -148,6 +152,41 @@ async def _get_owned(
     return row
 
 
+async def _assert_client_owned(
+    client_id: Optional[UUID],
+    astrologer: CurrentAstrologer,
+    db: AsyncSession,
+) -> None:
+    """If a client_id is supplied, verify it belongs to the caller.
+
+    2026-06-08 audit fix (P1 cross-tenant write): chart_sessions exposes a
+    writable `client_id` (ChartSessionBase). Previously create/update/
+    migrate wrote it verbatim with no ownership check, so an astrologer who
+    knew another tenant's client UUID could attach an attacker-controlled
+    session to that client — surfacing injected content in the victim's
+    AI-drafts lane and public /c/{slug} snapshot — and a bogus/foreign id
+    raised an unhandled FK 500. Exploitation needs a non-leaked 128-bit
+    UUID, so this is defense-in-depth, but it closes the hole cleanly.
+
+    Raises 404 (not 403) on miss so we never confirm a client's existence
+    to a non-owner — same don't-leak-existence pattern as _get_owned.
+    """
+    if client_id is None:
+        return
+    # Local import avoids widening the module's top-level import surface.
+    from app.db.models import Client
+
+    stmt = select(Client.id).where(
+        Client.id == client_id,
+        Client.astrologer_id == astrologer.id,
+    )
+    if (await db.execute(stmt)).scalar_one_or_none() is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "client_not_found"},
+        )
+
+
 def _session_to_public(row: ChartSession) -> ChartSessionPublic:
     """Build ChartSessionPublic explicitly from a ChartSession row.
 
@@ -184,6 +223,7 @@ def _session_to_public(row: ChartSession) -> ChartSessionPublic:
         astrologer_id=row.astrologer_id,
         client_id=row.client_id,
         name=row.name,
+        system=row.system,
         birth_name=row.birth_name,
         birth_date=row.birth_date,
         birth_time=row.birth_time,
@@ -256,6 +296,8 @@ async def create_session(
     db: AsyncSession = Depends(get_db),
 ) -> ChartSessionPublic:
     """Create a new chart session owned by the current astrologer."""
+    # 2026-06-08 audit fix (P1): reject a client_id the caller doesn't own.
+    await _assert_client_owned(payload.client_id, astrologer, db)
     row = ChartSession(
         astrologer_id=astrologer.id,
         **payload.model_dump(exclude_unset=True),
@@ -291,6 +333,10 @@ async def update_session(
     """Update one or more fields. Unset fields are not touched."""
     row = await _get_owned(session_id, astrologer, db)
     changes = payload.model_dump(exclude_unset=True)
+    # 2026-06-08 audit fix (P1): if the PATCH re-points client_id, verify
+    # the caller owns the new client before writing it.
+    if "client_id" in changes:
+        await _assert_client_owned(changes["client_id"], astrologer, db)
     for field, value in changes.items():
         setattr(row, field, value)
     await db.flush()
@@ -352,6 +398,26 @@ async def migrate_sessions(
         (r[0], r[1] or "", r[2] or "", r[3] or "") for r in existing_rows
     }
 
+    # 2026-06-08 audit fix (P1): batch-resolve which referenced client_ids
+    # the caller actually owns (one query, not per-row). Any session that
+    # carries a foreign client_id has the link SEVERED (chart still
+    # imported, cross-tenant reference dropped) rather than failing the
+    # whole migration. localStorage-era sessions normally carry no
+    # client_id at all, so this is belt-and-braces against a crafted body.
+    from app.db.models import Client as _Client
+    _candidate_cids = {
+        s.client_id for s in payload.sessions if s.client_id is not None
+    }
+    _owned_cids: set = set()
+    if _candidate_cids:
+        _owned_rows = await db.execute(
+            select(_Client.id).where(
+                _Client.id.in_(_candidate_cids),
+                _Client.astrologer_id == astrologer.id,
+            )
+        )
+        _owned_cids = {r[0] for r in _owned_rows}
+
     for s in payload.sessions:
         key = (
             s.name or "",
@@ -362,10 +428,13 @@ async def migrate_sessions(
         if key in existing_keys:
             skipped += 1
             continue
+        data = s.model_dump(exclude_unset=True)
+        if data.get("client_id") is not None and data["client_id"] not in _owned_cids:
+            data.pop("client_id", None)  # sever foreign/unknown client link
         db.add(
             ChartSession(
                 astrologer_id=astrologer.id,
-                **s.model_dump(exclude_unset=True),
+                **data,
             )
         )
         existing_keys.add(key)

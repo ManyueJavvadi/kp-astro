@@ -36,7 +36,7 @@
  *   without any extra bookkeeping flag.
  */
 
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import {
   useCreateChartSession,
   useUpdateChartSessionByIdFactory,
@@ -111,14 +111,20 @@ export interface SessionPersistence {
    * callback if provided. The local sidebar already reflects the change
    * before this returns; the API call is purely for cross-device durability.
    *
-   * @param session  — the chart session (after page.tsx has applied its
-   *                   local state update)
-   * @param onError  — optional callback for displaying a user-visible
-   *                   error toast
+   * @param session    — the chart session (after page.tsx has applied its
+   *                     local state update)
+   * @param onError    — optional callback for displaying a user-visible
+   *                     error toast
+   * @param onCreated  — optional callback fired once, after a CREATE
+   *                     (POST) succeeds, with the server-issued UUID. The
+   *                     caller uses it to remap the local Date.now() id to
+   *                     the real id so subsequent saves PATCH instead of
+   *                     creating duplicate rows. (2026-06-08 audit fix.)
    */
   saveSession(
     session: ChartSession,
     onError?: (err: Error) => void,
+    onCreated?: (serverId: string) => void,
   ): void;
 
   /**
@@ -136,8 +142,23 @@ export function useSessionPersistence(): SessionPersistence {
   const updateFactory = useUpdateChartSessionByIdFactory();
   const deleteMutation = useDeleteChartSession();
 
+  // 2026-06-08 audit fix (P1 duplicate rows): local-id sessions used to
+  // take the CREATE branch on EVERY save. The AI-persist code fires two
+  // saves per question (stream-complete + 1500ms debounce), and nothing
+  // ever remapped the local Date.now() id to the server UUID — so each
+  // question inserted up to 2 duplicate chart_sessions rows (each
+  // carrying the full ~50KB workspace_data JSONB), accumulating forever
+  // and showing duplicate sidebar chips. Two guards fix it:
+  //   1. inFlightCreates — while a CREATE for a given local id is in
+  //      flight, skip further CREATEs for that same id (kills the
+  //      2-triggers-per-question double-insert).
+  //   2. onCreated remap — when the CREATE resolves, the caller swaps
+  //      currentSessionId/savedSessions to the server UUID, so every
+  //      later save for that session PATCHes the one row.
+  const inFlightCreates = useRef<Set<string>>(new Set());
+
   const saveSession = useCallback<SessionPersistence["saveSession"]>(
-    (session, onError) => {
+    (session, onError, onCreated) => {
       if (!isAuthenticated) return; // anonymous mode: in-memory only
 
       if (isServerIssuedId(session.id)) {
@@ -147,13 +168,25 @@ export function useSessionPersistence(): SessionPersistence {
           onError: (err) => onError?.(err as Error),
         });
       } else {
-        // Local-only id → POST. The new server id will appear in the
-        // next SessionsBridge re-read; local id stays until then. This
-        // is fine because page.tsx references sessions by content
-        // (workspaceData, birthDetails) not strictly by id — and the
-        // sidebar updates seamlessly when the DB list arrives.
+        // Local-only id → POST. Guard against concurrent CREATEs for the
+        // same local id: the first one wins and remaps the id; any save
+        // that fires before it resolves is dropped here (the post-remap
+        // PATCH path will persist the latest state on the next trigger).
+        if (inFlightCreates.current.has(session.id)) return;
+        inFlightCreates.current.add(session.id);
+        const localId = session.id;
         createMutation.mutate(workspaceToApiCreate(session), {
-          onError: (err) => onError?.(err as Error),
+          onSuccess: (data) => {
+            inFlightCreates.current.delete(localId);
+            // data is the ChartSessionPublic the server created; its id
+            // is the canonical UUID. Hand it back so the caller remaps.
+            const serverId = (data as { id?: string } | undefined)?.id;
+            if (serverId) onCreated?.(serverId);
+          },
+          onError: (err) => {
+            inFlightCreates.current.delete(localId);
+            onError?.(err as Error);
+          },
         });
       }
     },

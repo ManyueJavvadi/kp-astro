@@ -1,11 +1,15 @@
 import logging
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from app.services.compatibility_engine import compute_compatibility
 from app.services.llm_service import get_match_prediction
 from app.services import answer_cache
+# 2026-06-08 audit fix (P0): gate the paid Anthropic match-analysis
+# endpoint behind a valid Supabase JWT. /match (free engine compute)
+# stays open; only /analyze (LLM) is gated.
+from app.auth.supabase_jwt import verify_supabase_jwt, SupabaseJWTPayload
 
 router = APIRouter()
 _log = logging.getLogger("anthropic_audit")
@@ -51,7 +55,10 @@ def match_compatibility(request: CompatibilityRequest):
 
 
 @router.post("/analyze")
-def analyze_compatibility(request: CompatibilityAnalyzeRequest):
+def analyze_compatibility(
+    request: CompatibilityAnalyzeRequest,
+    _auth: SupabaseJWTPayload = Depends(verify_supabase_jwt),
+):
     """AI-powered deep analysis of marriage compatibility.
 
     PR M1.11 — Server-side answer cache. Same couple + same question

@@ -175,6 +175,7 @@ def make_key(
     mode: str,
     question: str,
     question_type: str = "",
+    system: str = "kp",
 ) -> str:
     """Build the cache key. today_date is included so caches roll over
     daily — important because the engine's "current dasha" output and
@@ -195,7 +196,7 @@ def make_key(
     again as Format B (or vice versa), serving the wrong shape. Default
     "" preserves existing behavior for callers that don't pass it.
     """
-    raw = "|".join([
+    parts = [
         birth_date or "",
         birth_time or "",
         f"{latitude:.4f}",
@@ -207,7 +208,16 @@ def make_key(
         (mode or "").lower(),
         _normalize_question(question),
         (question_type or "").lower(),
-    ])
+    ]
+    # 2026-06-08 audit fix (P2 extensibility): include the astrology
+    # system so a future flavour (Vedic) reusing this cache can never
+    # replay a KP answer for a Vedic question (same failure class as the
+    # fix-17 timezone and fix-23 question_type collisions). Appended ONLY
+    # for non-KP systems, so today's KP keys remain BYTE-IDENTICAL — no
+    # cache flush, zero impact on existing answers.
+    if (system or "kp").lower() != "kp":
+        parts.append("system:" + (system or "").lower())
+    raw = "|".join(parts)
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 

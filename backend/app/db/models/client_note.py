@@ -140,6 +140,16 @@ class ClientNote(Base, UUIDPKMixin, TimestampMixin):
             "created_at",
             postgresql_where="is_private = false",
         ),
+        # 2026-06-08 audit fix (P2 drift): migration 0003 created this
+        # partial index (the AI-drafts "already promoted?" O(1) lookup),
+        # but the model never declared it — so a future autogenerate would
+        # propose DROP INDEX, deleting it. Declared here to match the DB.
+        Index(
+            "ix_client_notes_promoted_from_key",
+            "client_id",
+            "promoted_from_key",
+            postgresql_where="promoted_from_key IS NOT NULL",
+        ),
     )
 
     def __repr__(self) -> str:

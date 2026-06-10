@@ -20,10 +20,14 @@ After this rev:
 import json
 import logging
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from typing import List
+
+# 2026-06-08 audit fix (P0): gate the paid Anthropic prediction endpoints
+# behind a valid Supabase JWT. Previously fully anonymous → denial-of-wallet.
+from app.auth.supabase_jwt import verify_supabase_jwt, SupabaseJWTPayload
 
 # PR A1.3-fix-24 — proper logger instead of print() (was leaking full
 # user questions to stdout; Railway retains stdout indefinitely).
@@ -64,7 +68,10 @@ class PredictionRequest(BaseModel):
 
 
 @router.post("/ask")
-def ask_prediction(request: PredictionRequest):
+def ask_prediction(
+    request: PredictionRequest,
+    _auth: SupabaseJWTPayload = Depends(verify_supabase_jwt),
+):
     # PR A2.7 — Upgrade topic to one with engine-house support if frontend
     # sent "general"/"auto"/unknown/None. Was previously special-casing only
     # "auto"; "general" silently fell through and produced 25/100 engine
@@ -163,7 +170,10 @@ def ask_prediction(request: PredictionRequest):
 #   - "error"     — error during stream; frontend shows fallback.
 
 @router.post("/ask-stream")
-async def ask_prediction_stream(request: PredictionRequest):
+async def ask_prediction_stream(
+    request: PredictionRequest,
+    _auth: SupabaseJWTPayload = Depends(verify_supabase_jwt),
+):
     # PR A2.7 — same fix as /ask above. See resolve_effective_topic docstring
     # in llm_service.py for full rationale.
     topic = resolve_effective_topic(request.topic, request.question)
