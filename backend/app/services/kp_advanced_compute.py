@@ -949,6 +949,71 @@ def verify_past_event(
     }
 
 
+# ── Layered significator helper (SINGLE SOURCE OF TRUTH) ────────────
+# 2026-06 fix: the sookshma fire-score (rank_sookshmas_by_fire_score) and
+# the Star-Sub Harmony (compute_star_sub_harmony) both answer the question
+# "which houses does this planet signify?" — but they used to compute it
+# DIFFERENTLY. Harmony correctly used all three KP layers (self + star +
+# sub) plus the Rahu/Ketu conjunction proxy; the fire-score used only
+# self + star (no sub layer, no node proxy). That contradicted KP doctrine
+# ("the sub lord is the deciding factor") AND the engine's own harmony
+# function, and it systematically mis-scored sookshmas whose deciding
+# signal lives in the sub lord or whose lord is a node.
+#
+# This helper extracts the layered computation verbatim from
+# compute_star_sub_harmony so BOTH callers share ONE implementation and
+# can never drift again. Harmony keeps the layers separate (to score Star
+# vs Sub leans); the fire-score unions them. Behaviour of harmony is
+# unchanged — it now calls this instead of inlining the identical logic.
+
+def _layered_signified_houses(
+    planet_name: str,
+    planets: dict,
+    cusps: dict,
+    planet_positions: dict,
+) -> Tuple[set, set, set]:
+    """Return (self_houses, star_houses, sub_houses) a planet signifies.
+
+    SELF — planet's own occupation + ownership (+ Rahu/Ketu conjunction
+           proxy folded in, since the nodes own no sign).
+    STAR — star lord's occupation + ownership (KSK: nature of the matter).
+    SUB  — sub lord's occupation + ownership (KSK: the DECIDING gate).
+    """
+    p = planets.get(planet_name, {}) or {}
+    star_lord = p.get("star_lord")
+    sub_lord = p.get("sub_lord")
+
+    self_houses: set = set()
+    if planet_name in planet_positions:
+        self_houses.add(planet_positions[planet_name])
+    if cusps:
+        self_houses.update(get_houses_owned_by_planet(planet_name, cusps))
+    # Rahu/Ketu have no sign rulership; without the conjunction proxy their
+    # SELF layer is just the occupation house — drastically under-counted.
+    if planet_name in ("Rahu", "Ketu"):
+        try:
+            rk = get_rahu_ketu_significations(planet_name, planets, cusps, planet_positions)
+            for h in rk.get("all_signified_houses", []) or []:
+                if isinstance(h, int) and 1 <= h <= 12:
+                    self_houses.add(h)
+        except Exception:
+            pass  # never fail compute on the RK proxy — fall back to occupation only
+
+    star_houses: set = set()
+    if star_lord and star_lord in planet_positions:
+        star_houses.add(planet_positions[star_lord])
+    if star_lord and cusps:
+        star_houses.update(get_houses_owned_by_planet(star_lord, cusps))
+
+    sub_houses: set = set()
+    if sub_lord and sub_lord in planet_positions:
+        sub_houses.add(planet_positions[sub_lord])
+    if sub_lord and cusps:
+        sub_houses.update(get_houses_owned_by_planet(sub_lord, cusps))
+
+    return self_houses, star_houses, sub_houses
+
+
 # ── Sookshma fire-score ranking (PR fix-10, #12) ────────────────────
 # Pre-rank sookshmas within a PAD by composite "fire likelihood" so the
 # LLM doesn't have to derive the ranking ad-hoc each time.
@@ -986,18 +1051,16 @@ def rank_sookshmas_by_fire_score(
             continue
         score = 0.0
         notes = []
-        # Lord's signified houses (4-step UNION)
-        signified = set()
-        if lord in planet_positions:
-            signified.add(planet_positions[lord])
-        if cusps:
-            signified.update(get_houses_owned_by_planet(lord, cusps))
-        p = planets.get(lord, {})
-        sl = p.get("star_lord")
-        if sl and sl in planet_positions:
-            signified.add(planet_positions[sl])
-        if sl and cusps:
-            signified.update(get_houses_owned_by_planet(sl, cusps))
+        # Lord's signified houses — SELF + STAR + SUB layers (+ Rahu/Ketu
+        # proxy), via the shared helper so this matches compute_star_sub_
+        # harmony exactly. 2026-06 fix: previously this used only self+star
+        # and omitted the SUB layer (the KSK deciding factor) and the node
+        # proxy, under-scoring sookshmas whose key signal is in the sub lord
+        # or whose lord is Rahu/Ketu.
+        self_h, star_h, sub_h = _layered_signified_houses(
+            lord, planets, cusps, planet_positions
+        )
+        signified = self_h | star_h | sub_h
 
         rel_hits = signified & rel_set
         den_hits = signified & den_set
@@ -1552,39 +1615,14 @@ def compute_star_sub_harmony(
     star_lord = p.get("star_lord")
     sub_lord  = p.get("sub_lord")
 
-    # SELF layer — CSL's own occupation + ownership
-    self_houses: set = set()
-    if csl_planet in planet_positions:
-        self_houses.add(planet_positions[csl_planet])
-    if cusps:
-        self_houses.update(get_houses_owned_by_planet(csl_planet, cusps))
-
-    # PR A1.3-fix-2 (C2): Rahu/Ketu proxy. Nodes have no sign rulership,
-    # so without the proxy their SELF layer is just their occupation house
-    # — drastically under-counts. Delegate to chart_engine's helper which
-    # walks conjunction + star-lord chains correctly.
-    if csl_planet in ("Rahu", "Ketu"):
-        try:
-            rk = get_rahu_ketu_significations(csl_planet, planets, cusps, planet_positions)
-            for h in rk.get("all_signified_houses", []) or []:
-                if isinstance(h, int) and 1 <= h <= 12:
-                    self_houses.add(h)
-        except Exception:
-            pass  # never fail compute on RK proxy — fall back to occupation only
-
-    # STAR layer — star lord's occupation + ownership
-    star_houses: set = set()
-    if star_lord and star_lord in planet_positions:
-        star_houses.add(planet_positions[star_lord])
-    if star_lord and cusps:
-        star_houses.update(get_houses_owned_by_planet(star_lord, cusps))
-
-    # SUB layer — sub lord's occupation + ownership
-    sub_houses: set = set()
-    if sub_lord and sub_lord in planet_positions:
-        sub_houses.add(planet_positions[sub_lord])
-    if sub_lord and cusps:
-        sub_houses.update(get_houses_owned_by_planet(sub_lord, cusps))
+    # SELF / STAR / SUB layers via the shared helper (single source of
+    # truth — see _layered_signified_houses above). The SELF layer folds
+    # in the Rahu/Ketu conjunction proxy. Behaviour is identical to the
+    # previous inline computation; extracted so the sookshma fire-score
+    # can reuse the exact same significator logic and never drift from it.
+    self_houses, star_houses, sub_houses = _layered_signified_houses(
+        csl_planet, planets, cusps, planet_positions
+    )
 
     rel_set = set(relevant_houses or [])
     den_set = set(denial_houses or [])
