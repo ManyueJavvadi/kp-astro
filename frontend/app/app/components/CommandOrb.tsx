@@ -27,6 +27,7 @@ import type { LucideIcon } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
 import { useSheetDrag } from "@/hooks/useSheetDrag";
 import { LogoMark } from "@/components/ui/logo";
+import { haptic } from "@/lib/haptics";
 import type { ChartSession } from "../types";
 
 type Tab = {
@@ -66,14 +67,7 @@ const ZONE_MAP: string[][] = [
   ["muhurtha", "horary", "match"],
 ];
 
-// Haptic helpers (no-op on browsers without navigator.vibrate, e.g. iOS Safari)
-function haptic(ms: number | number[]) {
-  try {
-    if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
-      navigator.vibrate(ms);
-    }
-  } catch { /* ignore */ }
-}
+// Haptic helper now lives in @/lib/haptics (imported at top of file).
 
 export default function CommandOrb({
   tabs,

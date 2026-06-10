@@ -5152,6 +5152,23 @@ textarea:focus-visible {
   animation: day-ribbon-breath 2.4s ease-in-out infinite;
 }
 
+/* ═══ SKELETON SHIMMER — premium loading placeholder ═══ */
+@keyframes kp-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.kp-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.03) 25%,
+    rgba(201,169,110,0.11) 37%,
+    rgba(255,255,255,0.03) 63%
+  );
+  background-size: 200% 100%;
+  animation: kp-shimmer 1.5s ease-in-out infinite;
+  border-radius: 8px;
+}
+
 /* ═══════════════════════════════════════════════════════════════
    PR A1.1 — Live location pill + Ruling Planets context strip.
    Used by Horary (first), will be reused by Muhurtha/Transit/

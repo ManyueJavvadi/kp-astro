@@ -95,19 +95,29 @@ export function TodayPanchangStrip() {
   }
 
   if (loading || !data) {
+    // Premium shimmer skeleton (replaces the old "Loading…" text) — mirrors
+    // the real card's shape so there's no layout jump when data lands.
     return (
       <div
         style={{
-          padding: "10px 16px",
-          background: "rgba(7,11,20,0.4)",
-          border: "1px solid rgba(255,255,255,0.06)",
-          borderRadius: 8,
-          fontSize: 12,
-          color: theme.text.muted,
-          opacity: 0.6,
+          padding: "14px 16px",
+          background:
+            "linear-gradient(180deg, rgba(201,169,110,0.05) 0%, rgba(201,169,110,0.015) 100%)",
+          border: "1px solid rgba(201,169,110,0.12)",
+          borderRadius: 12,
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
         }}
+        aria-busy="true"
+        aria-label="Loading today's panchang"
       >
-        Loading today's panchang…
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+          <div className="kp-skeleton" style={{ height: 14, width: "45%" }} />
+          <div className="kp-skeleton" style={{ height: 18, width: 90, borderRadius: 12 }} />
+        </div>
+        <div className="kp-skeleton" style={{ height: 18, width: "100%", borderRadius: 9 }} />
+        <div className="kp-skeleton" style={{ height: 12, width: "60%" }} />
       </div>
     );
   }

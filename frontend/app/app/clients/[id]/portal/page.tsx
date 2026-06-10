@@ -63,6 +63,7 @@ import {
 } from "@/lib/api/hooks";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { theme } from "@/lib/theme";
+import { haptic, HAPTIC } from "@/lib/haptics";
 import {
   extractDraft,
   withAstrologerNote,
@@ -1820,6 +1821,7 @@ function CopyUrlButton({ url }: { url: string }) {
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
+      haptic(HAPTIC.success); // subtle confirm on the portal-link copy
       setTimeout(() => setCopied(false), 2000);
     } catch {
       // Clipboard API can fail (insecure context, permissions).
