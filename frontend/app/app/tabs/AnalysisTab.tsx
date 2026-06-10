@@ -44,6 +44,7 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useLanguage } from "@/lib/i18n";
+import { AnalysisOutline, type OutlineItem } from "../components/AnalysisOutline";
 import { PageHero } from "@/components/ui/PageHero";
 import { StaggerChildren, StaggerItem } from "@/components/motion";
 import { TOPICS, TOPIC_EMOJI } from "../lib/topics";
@@ -493,47 +494,39 @@ export function AnalysisTab({
           get a light truncated preview. Hidden on viewports
           below 1100px (mobile/tablet) and when there are
           fewer than 2 messages. */}
-      {analysisMessages.length >= 2 && (
-        <nav
-          className="analysis-toc kp-hide-below-1100"
-          aria-label={t("Conversation outline", "సంభాషణ సూచిక")}
-        >
-          <div className="analysis-toc-eyebrow">
-            {t("Outline", "సూచిక")}
-          </div>
-          {analysisMessages.map((msg, i) => {
-            const isTopic = !!msg.isTopic;
-            // For topic messages, find the topic to grab the emoji.
-            const topic = isTopic
-              ? TOPICS.find(tp =>
-                  msg.q.startsWith((lang === "en" ? tp.en : tp.te))
-                )
-              : undefined;
-            const TopicIcon = topic ? TOPIC_ICONS[topic.id] : undefined;
-            const preview = isTopic
-              ? (topic ? (lang === "en" ? topic.en : topic.te) : msg.q)
-              : msg.q.length > 38 ? `${msg.q.slice(0, 38)}…` : msg.q;
-            return (
-              <button
-                key={msg.id ?? i}
-                type="button"
-                className={`analysis-toc-item ${isTopic ? "is-topic" : "is-followup"}`}
-                onClick={() => {
-                  const el = document.getElementById(`analysis-msg-${msg.id ?? i}`);
-                  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-                }}
-              >
-                {isTopic && (
-                  <span className="analysis-toc-emoji" style={{ display: "inline-flex", alignItems: "center", marginRight: 6 }}>
-                    {TopicIcon ? <TopicIcon size={12} style={{ color: "var(--accent)" }} /> : "◈"}
-                  </span>
-                )}
-                {preview}
-              </button>
-            );
-          })}
-        </nav>
-      )}
+      {(() => {
+        // 2026-06-10: build the navigator items (label/icon/topic flag)
+        // and hand off to <AnalysisOutline>, which renders the slim
+        // hover-expand tick-rail on desktop and a jump-to-question sheet
+        // on mobile, with scroll-spy highlighting the in-view message.
+        const outlineItems: OutlineItem[] = analysisMessages.map((msg, i) => {
+          const isTopic = !!msg.isTopic;
+          const topic = isTopic
+            ? TOPICS.find(tp => msg.q.startsWith(lang === "en" ? tp.en : tp.te))
+            : undefined;
+          const TopicIcon = topic ? TOPIC_ICONS[topic.id] : undefined;
+          const label = isTopic
+            ? (topic ? (lang === "en" ? topic.en : topic.te) : msg.q)
+            : (msg.q.length > 38 ? `${msg.q.slice(0, 38)}…` : msg.q);
+          return {
+            key: String(msg.id ?? i),
+            label,
+            isTopic,
+            icon: isTopic
+              ? (TopicIcon
+                  ? <TopicIcon size={12} style={{ color: "var(--accent)" }} />
+                  : <span style={{ color: "var(--accent)" }}>◈</span>)
+              : undefined,
+          };
+        });
+        return (
+          <AnalysisOutline
+            items={outlineItems}
+            outlineLabel={t("Outline", "సూచిక")}
+            jumpLabel={t("Jump to", "వెళ్ళండి")}
+          />
+        );
+      })()}
       </div>
     </div>
   );
