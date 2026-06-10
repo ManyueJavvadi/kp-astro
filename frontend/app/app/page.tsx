@@ -2145,6 +2145,35 @@ export default function Home() {
     setNewChartModalOpen(false);
   };
 
+  // 2026-06-08 audit fix (P1 data-loss): chart deletion used to fire on a
+  // single un-confirmed click — and the tab-close "×" (which reads as
+  // "close tab") actually hard-deleted the chart + its entire AI
+  // conversation, with no undo and no deleted_at soft-delete anywhere.
+  // Now BOTH affordances route through a confirmation modal that names
+  // exactly what is lost. The actual delete (handleRemoveSession) is
+  // unchanged; we just gate it.
+  const [pendingDeleteSession, setPendingDeleteSession] = useState<ChartSession | null>(null);
+
+  const requestRemoveSession = (session: ChartSession) => {
+    setPendingDeleteSession(session);
+  };
+
+  const confirmDeleteSession = () => {
+    const s = pendingDeleteSession;
+    if (!s) return;
+    const wasActive = s.id === currentSessionId;
+    handleRemoveSession(s.id);
+    // If we just deleted the chart the user was viewing, move them to
+    // another open chart (or a fresh one) so they're never left on a
+    // dangling/blank workspace — mirrors the old tab-close behaviour.
+    if (wasActive) {
+      const other = openSessions.find(o => o.id !== s.id);
+      if (other) handleSwitchSession(other);
+      else handleNewChart();
+    }
+    setPendingDeleteSession(null);
+  };
+
   const handleRemoveSession = (id: string) => {
     setSavedSessions(prev => prev.filter(s => s.id !== id));
     // Phase 1.5b — mirror delete to DB (no-op for local-only ids).
@@ -4154,6 +4183,91 @@ export default function Home() {
           modal without a mouse. (No focus trap helper yet — it's a future
           PR; for now, Tab cycles into the workspace background which is
           blurred but still visually present.) */}
+      {/* 2026-06-08 audit fix (P1 data-loss): delete-chart confirmation.
+          Gates the sidebar "×" and the tab-close "×" so a single misclick
+          can no longer permanently destroy a chart + its full AI
+          conversation (analysis_messages is the only copy; no soft-delete
+          exists). Mirrors the typed-confirm spirit of DeleteClientDialog
+          but lighter — a chart is a smaller unit than a whole client. */}
+      {pendingDeleteSession && (
+        <div
+          onClick={() => setPendingDeleteSession(null)}
+          onKeyDown={(e) => { if (e.key === "Escape") setPendingDeleteSession(null); }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-session-title"
+          tabIndex={-1}
+          style={{
+            position: "fixed", inset: 0, zIndex: 210,
+            background: "rgba(9,9,15,0.55)",
+            backdropFilter: "blur(8px) saturate(0.9)",
+            WebkitBackdropFilter: "blur(8px) saturate(0.9)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%", maxWidth: 420,
+              background: "var(--card)",
+              border: "1px solid var(--border2)",
+              borderRadius: 14,
+              padding: 24,
+              boxShadow: "0 24px 64px rgba(0,0,0,0.5)",
+            }}
+          >
+            <h2
+              id="delete-session-title"
+              style={{
+                fontFamily: "'DM Serif Display', serif",
+                fontSize: 20, margin: "0 0 10px", color: "var(--text)",
+              }}
+            >
+              Delete this chart?
+            </h2>
+            <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.6, margin: "0 0 8px" }}>
+              <strong style={{ color: "var(--text)" }}>
+                {pendingDeleteSession.name || "Unnamed chart"}
+              </strong>{" "}
+              and its{" "}
+              <strong style={{ color: "var(--text)" }}>
+                {pendingDeleteSession.analysisMessages?.length || 0} saved AI{" "}
+                {(pendingDeleteSession.analysisMessages?.length || 0) === 1 ? "answer" : "answers"}
+              </strong>{" "}
+              will be permanently removed. This cannot be undone.
+            </p>
+            <div style={{ display: "flex", gap: 10, marginTop: 20, justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => setPendingDeleteSession(null)}
+                style={{
+                  padding: "9px 16px", borderRadius: 8,
+                  background: "transparent", border: "1px solid var(--border2)",
+                  color: "var(--text)", fontSize: 13, fontWeight: 500,
+                  cursor: "pointer", fontFamily: "inherit",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteSession}
+                style={{
+                  padding: "9px 16px", borderRadius: 8,
+                  background: "rgba(248,113,113,0.12)",
+                  border: "1px solid rgba(248,113,113,0.4)",
+                  color: "#f87171", fontSize: 13, fontWeight: 600,
+                  cursor: "pointer", fontFamily: "inherit",
+                }}
+              >
+                Delete chart
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {newChartModalOpen && (
         <div
           onClick={handleCancelNewChartModal}
@@ -4623,7 +4737,8 @@ export default function Home() {
                         {dashaLabel && <div style={{ fontSize: 10, color: "var(--accent)", marginBottom: 1 }}>{dashaLabel}</div>}
                         {birthYear && <div style={{ fontSize: 10, color: "var(--muted)" }}>{t(`Born ${birthYear}`, `${birthYear} జన్మ`)}</div>}
                       </button>
-                      <button onClick={() => handleRemoveSession(s.id)}
+                      <button onClick={() => requestRemoveSession(s)}
+                        title="Delete chart"
                         style={{ position: "absolute", top: 6, right: 6, background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "2px 4px", opacity: 0.5 }}
                         onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
                         onMouseLeave={e => (e.currentTarget.style.opacity = "0.5")}>×</button>
@@ -5031,17 +5146,14 @@ export default function Home() {
                   <button
                     type="button"
                     className="client-tab-close"
+                    title="Delete chart"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleRemoveSession(session.id);
-                      if (isActive) {
-                        const other = openSessions.find(s => s.id !== session.id);
-                        if (other) {
-                          handleSwitchSession(other);
-                        } else {
-                          handleNewChart();
-                        }
-                      }
+                      // 2026-06-08 audit fix (P1): route through the
+                      // confirmation modal instead of deleting on the
+                      // spot. confirmDeleteSession handles the post-delete
+                      // tab switch when the active chart is removed.
+                      requestRemoveSession(session);
                     }}
                     style={{
                       background: "transparent",
