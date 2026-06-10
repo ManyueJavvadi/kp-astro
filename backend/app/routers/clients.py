@@ -411,6 +411,16 @@ async def update_client(
     for field, value in changes.items():
         setattr(row, field, value)
     await db.flush()
+    # 2026-06-08 audit fix (P1): same MissingGreenlet bug class fixed in
+    # chart_sessions.update_session (commit 0988654) — TimestampMixin's
+    # updated_at has onupdate=func.now(), so flush() of the UPDATE expires
+    # the column; the later synchronous read of row.updated_at in
+    # _client_to_public (via _attach_counts) would lazy-load outside the
+    # async greenlet → MissingGreenlet → 500, and every PATCH /clients/{id}
+    # (Edit Client modal, portal_enabled / portal_visibility toggles) was
+    # rolling back. refresh() repopulates the expired column inside the
+    # awaitable before any sync read.
+    await db.refresh(row)
     enriched = await _attach_counts([row], db)
     return enriched[0]
 
