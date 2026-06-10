@@ -4917,6 +4917,80 @@ textarea:focus-visible {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   MOBILE UX OVERHAUL — 2026-06-10
+   Best-in-class mobile polish: readable dense grids, ≥44px tap
+   targets on the highest-traffic tab, and horizontal-scroll
+   affordances. Honors the CLAUDE.md one-codebase rule (no component
+   forking) + the ≥44px tap-target convention.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Houses significator grid — was a hardcoded `repeat(4,1fr)` INLINE
+   style (unreadable ~80px cards at 380px; the old .grid-4col class had
+   no rule). Now a real responsive class: 4 cols desktop, 2 on phones. */
+.significator-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+/* Analysis empty-state topic grid (8 KP topics) — same 4→2 treatment. */
+.analysis-topic-grid {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+/* Horizontal-scroll affordance — a soft right-edge fade so users know
+   a dense table/chart scrolls sideways. Apply to any overflow-x:auto
+   wrapper via .kp-scroll-x. Fade is mobile-only (desktop tables fit,
+   so a gradient there would falsely imply hidden content). */
+.kp-scroll-x {
+  position: relative;
+}
+
+@media (max-width: 640px) {
+  .significator-grid { grid-template-columns: repeat(2, 1fr); }
+  .analysis-topic-grid { grid-template-columns: repeat(2, 1fr); }
+
+  .kp-scroll-x::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 28px;
+    pointer-events: none;
+    background: linear-gradient(to right, transparent, var(--bg));
+    opacity: 0.85;
+  }
+
+  /* ≥44px tap targets on the Analysis tab (the busiest screen — its
+     follow-up chips were ~26px and the regen button ~22px, both below
+     the CLAUDE.md 44px floor). */
+  .followup-chip {
+    min-height: 44px;
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+    display: inline-flex;
+    align-items: center;
+  }
+  .analysis-regen-btn {
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .analysis-clear-btn {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+  }
+  /* Empty-state topic chips: comfortable thumb target. */
+  .analysis-topic-grid button { min-height: 60px; }
+  /* Topic strip (sticky row of asked topics) — taller chips. */
+  .topic-strip button,
+  .topic-strip .topic-chip { min-height: 40px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
    PR A1.1 — Live location pill + Ruling Planets context strip.
    Used by Horary (first), will be reused by Muhurtha/Transit/
    Panchang/Analysis in subsequent accuracy PRs.
