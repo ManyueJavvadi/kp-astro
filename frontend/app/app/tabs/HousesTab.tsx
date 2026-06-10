@@ -183,7 +183,7 @@ export function HousesTab({ workspaceData, selectedHouse, setSelectedHouse }: Ho
       {/* CUSPS sub-tab */}
       {housesSubTab === "cusps" && (
         <div className="tab-content" style={{ display: "flex", gap: "1rem", alignItems: "start" }}>
-          <div style={{ flex: 1, overflowX: "auto" }}>
+          <div className="kp-scroll-x" style={{ flex: 1, overflowX: "auto" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
               <div style={{ fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>{t("House cusps · KP key", "భావ కస్పాల పట్టిక · KP కీలకం")}</div>
               <div style={{ fontSize: 9, color: "var(--muted)" }}>{t("Click any row → house panel", "ఏదైనా అడ్డంగా నొక్కండి → భావ వివరాలు")}</div>
@@ -307,7 +307,7 @@ export function HousesTab({ workspaceData, selectedHouse, setSelectedHouse }: Ho
                 </>
               );
             })()}
-            <div className="grid-4col" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
+            <div className="significator-grid">
               {Object.entries(wd.significators).map(([key, sig]: [string, any]) => {
                 const houseSub = lang === "en" ? "" : (sig.house_te ?? "");
                 const occNames = lang === "en" ? (sig.occupants_en ?? []) : (sig.occupants_te ?? sig.occupants_en ?? []);

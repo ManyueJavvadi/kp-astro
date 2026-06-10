@@ -40,9 +40,11 @@
  */
 
 import type { RefObject } from "react";
+import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useLanguage } from "@/lib/i18n";
+import { AnalysisOutline, type OutlineItem } from "../components/AnalysisOutline";
 import { PageHero } from "@/components/ui/PageHero";
 import { StaggerChildren, StaggerItem } from "@/components/motion";
 import { TOPICS, TOPIC_EMOJI } from "../lib/topics";
@@ -126,6 +128,10 @@ export function AnalysisTab({
   chatEndRef,
 }: AnalysisTabProps) {
   const { t, lang } = useLanguage();
+  // 2026-06-10 UX overhaul: two-tap "Clear" instead of a native
+  // window.confirm() (which shattered the premium dark-gold look,
+  // worst on mobile). First tap arms; second within 3s clears.
+  const [clearArmed, setClearArmed] = useState(false);
 
   return (
     <div className="tab-content" style={{ display: "flex", flexDirection: "column", height: "100%", gap: 0 }}>
@@ -169,19 +175,30 @@ export function AnalysisTab({
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {analysisMessages.length > 0 && (
               <button
+                className="analysis-clear-btn"
                 onClick={() => {
-                  // Phase 11 / PR 28 (#A8) — confirm before destructive wipe.
-                  const ok = typeof window !== "undefined"
-                    ? window.confirm(t(
-                        "Clear the entire analysis conversation? This cannot be undone.",
-                        "మొత్తం విశ్లేషణ సంభాషణను తుడిచివేయాలా? దీన్ని తిరిగి పొందలేరు."
-                      ))
-                    : true;
-                  if (!ok) return;
+                  // Two-tap confirm (no native dialog). First tap arms +
+                  // auto-disarms after 3s; second tap clears.
+                  if (!clearArmed) {
+                    setClearArmed(true);
+                    setTimeout(() => setClearArmed(false), 3000);
+                    return;
+                  }
+                  setClearArmed(false);
                   setAnalysisMessages([]); setActiveTopic("");
                 }}
-                style={{ background: "transparent", border: "0.5px solid var(--border2)", borderRadius: 4, padding: "3px 10px", fontSize: 11, color: "var(--muted)", cursor: "pointer" }}
-              >{t("Clear", "క్లియర్")}</button>
+                style={{
+                  background: clearArmed ? "rgba(248,113,113,0.12)" : "transparent",
+                  border: `0.5px solid ${clearArmed ? "rgba(248,113,113,0.5)" : "var(--border2)"}`,
+                  borderRadius: 6,
+                  padding: "3px 10px",
+                  fontSize: 11,
+                  color: clearArmed ? "#f87171" : "var(--muted)",
+                  cursor: "pointer",
+                  transition: "all 0.15s",
+                  whiteSpace: "nowrap",
+                }}
+              >{clearArmed ? t("Tap to confirm", "నిర్ధారించండి") : t("Clear", "క్లియర్")}</button>
             )}
             <div style={{ display: "flex", background: "var(--surface2)", borderRadius: 6, border: "0.5px solid var(--border2)", overflow: "hidden" }}>
               {([["english", "EN"], ["telugu_english", "తె+EN"]] as const).map(([val, label]) => (
@@ -203,7 +220,8 @@ export function AnalysisTab({
             gap="base"
             delay={0.5}
             immediate
-            style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}
+            className="analysis-topic-grid"
+            style={{ display: "grid", gap: 8 }}
           >
             {TOPICS.map(tp => (
               <StaggerItem key={tp.id}>
@@ -476,47 +494,39 @@ export function AnalysisTab({
           get a light truncated preview. Hidden on viewports
           below 1100px (mobile/tablet) and when there are
           fewer than 2 messages. */}
-      {analysisMessages.length >= 2 && (
-        <nav
-          className="analysis-toc kp-hide-below-1100"
-          aria-label={t("Conversation outline", "సంభాషణ సూచిక")}
-        >
-          <div className="analysis-toc-eyebrow">
-            {t("Outline", "సూచిక")}
-          </div>
-          {analysisMessages.map((msg, i) => {
-            const isTopic = !!msg.isTopic;
-            // For topic messages, find the topic to grab the emoji.
-            const topic = isTopic
-              ? TOPICS.find(tp =>
-                  msg.q.startsWith((lang === "en" ? tp.en : tp.te))
-                )
-              : undefined;
-            const TopicIcon = topic ? TOPIC_ICONS[topic.id] : undefined;
-            const preview = isTopic
-              ? (topic ? (lang === "en" ? topic.en : topic.te) : msg.q)
-              : msg.q.length > 38 ? `${msg.q.slice(0, 38)}…` : msg.q;
-            return (
-              <button
-                key={msg.id ?? i}
-                type="button"
-                className={`analysis-toc-item ${isTopic ? "is-topic" : "is-followup"}`}
-                onClick={() => {
-                  const el = document.getElementById(`analysis-msg-${msg.id ?? i}`);
-                  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-                }}
-              >
-                {isTopic && (
-                  <span className="analysis-toc-emoji" style={{ display: "inline-flex", alignItems: "center", marginRight: 6 }}>
-                    {TopicIcon ? <TopicIcon size={12} style={{ color: "var(--accent)" }} /> : "◈"}
-                  </span>
-                )}
-                {preview}
-              </button>
-            );
-          })}
-        </nav>
-      )}
+      {(() => {
+        // 2026-06-10: build the navigator items (label/icon/topic flag)
+        // and hand off to <AnalysisOutline>, which renders the slim
+        // hover-expand tick-rail on desktop and a jump-to-question sheet
+        // on mobile, with scroll-spy highlighting the in-view message.
+        const outlineItems: OutlineItem[] = analysisMessages.map((msg, i) => {
+          const isTopic = !!msg.isTopic;
+          const topic = isTopic
+            ? TOPICS.find(tp => msg.q.startsWith(lang === "en" ? tp.en : tp.te))
+            : undefined;
+          const TopicIcon = topic ? TOPIC_ICONS[topic.id] : undefined;
+          const label = isTopic
+            ? (topic ? (lang === "en" ? topic.en : topic.te) : msg.q)
+            : (msg.q.length > 38 ? `${msg.q.slice(0, 38)}…` : msg.q);
+          return {
+            key: String(msg.id ?? i),
+            label,
+            isTopic,
+            icon: isTopic
+              ? (TopicIcon
+                  ? <TopicIcon size={12} style={{ color: "var(--accent)" }} />
+                  : <span style={{ color: "var(--accent)" }}>◈</span>)
+              : undefined,
+          };
+        });
+        return (
+          <AnalysisOutline
+            items={outlineItems}
+            outlineLabel={t("Outline", "సూచిక")}
+            jumpLabel={t("Jump to", "వెళ్ళండి")}
+          />
+        );
+      })()}
       </div>
     </div>
   );
