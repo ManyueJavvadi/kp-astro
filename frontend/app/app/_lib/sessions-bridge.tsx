@@ -100,7 +100,16 @@ export function SessionsBridge() {
   // Only destructure setSavedSessions — the other workspace setters
   // were used by the (now-removed) auto-load block.
   const { setSavedSessions } = useWorkspace();
-  const { data, isSuccess } = useChartSessions();
+  // 2026-06-10 cross-device sync: refetch the sessions list when the tab
+  // regains focus, so returning to a laptop pulls AI Q&A added from
+  // another device (e.g. the phone). The global default disables
+  // focus-refetch (astrologers alt-tab constantly); we opt THIS query
+  // back in because it's the source the analysis-tab fast-forward reads.
+  // staleTime keeps it from re-firing on every rapid focus flip.
+  const { data, isSuccess } = useChartSessions({
+    refetchOnWindowFocus: true,
+    staleTime: 15 * 1000,
+  });
 
   useEffect(() => {
     if (status !== "authenticated") return;
