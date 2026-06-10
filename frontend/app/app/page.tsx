@@ -2057,6 +2057,10 @@ export default function Home() {
   }, [currentSessionId, savedSessions]);
 
   const handleNewChart = () => {
+    // 2026-06-08 audit fix (P2 cost): abort any in-flight AI stream before
+    // starting a new chart — same rationale as handleSwitchSession.
+    askStreamAbortRef.current?.abort();
+    analyzeStreamAbortRef.current?.abort();
     // If there's no workspace yet (first-time user or already on onboarding),
     // fall through to the original full-page setup flow — no modal needed.
     if (!setupDone || !workspaceData) {
@@ -2197,6 +2201,13 @@ export default function Home() {
   };
 
   const handleSwitchSession = async (target: ChartSession) => {
+    // 2026-06-08 audit fix (P2 cost): abort any in-flight AI stream before
+    // switching charts. Without this the paid Anthropic stream kept
+    // running for the OLD chart while its message was already removed from
+    // state, so every chunk was discarded — the astrologer paid for an
+    // answer no one ever saw. Mirrors the unmount-cleanup aborts.
+    askStreamAbortRef.current?.abort();
+    analyzeStreamAbortRef.current?.abort();
     const snap = snapshotCurrentSession();
     setCurrentSessionId(target.id);
     setBirthDetails(target.birthDetails);
