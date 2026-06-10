@@ -2019,6 +2019,37 @@ export default function Home() {
     return () => clearTimeout(t);
   }, [analysisMessages, persistNow]);
 
+  // Trigger C — IMMEDIATE save the instant a new Q&A entry is added
+  // (2026-06-10 sync fix). The moment a question is asked, the message
+  // list grows; persist right then so the QUESTION can never be lost —
+  // even if the user switches to another device before the answer
+  // finishes streaming, or before the 1500ms debounce (Trigger B)
+  // fires. Symptom this fixes: "asked on phone, didn't show on laptop
+  // until I refreshed the phone" — the save was racing the navigation.
+  // Safe on the per-client page (currentSessionId is a server UUID →
+  // PATCH, not a duplicate POST).
+  const prevMsgCountRef = useRef(0);
+  useEffect(() => {
+    if (analysisMessages.length > prevMsgCountRef.current) {
+      persistNow("message-added");
+    }
+    prevMsgCountRef.current = analysisMessages.length;
+  }, [analysisMessages, persistNow]);
+
+  // Trigger D — flush a save when the tab is backgrounded/hidden
+  // (2026-06-10). On mobile, switching apps (e.g. phone → laptop) fires
+  // visibilitychange→hidden; persist then so the latest conversation is
+  // in the DB before the browser freezes the page. Best-effort — the
+  // PATCH may not complete if the OS kills the page immediately, but
+  // combined with Trigger C the question is already saved by this point.
+  useEffect(() => {
+    const onHide = () => {
+      if (document.visibilityState === "hidden") persistNow("page-hidden");
+    };
+    document.addEventListener("visibilitychange", onHide);
+    return () => document.removeEventListener("visibilitychange", onHide);
+  }, [persistNow]);
+
   // ─── Layer 1 hydrate (2026-06-03) — rehydrate chat state on open ───
   // BUG (reported 2026-06-03): opening a client via /app/clients/[id]
   // pushed birthDetails + workspaceData + currentSessionId into context,
@@ -2045,18 +2076,33 @@ export default function Home() {
       hydratedSessionIdRef.current = null;
       return;
     }
-    if (hydratedSessionIdRef.current === currentSessionId) return;
     const session = savedSessions.find((s) => s.id === currentSessionId);
     if (!session) return; // SessionsBridge hasn't loaded yet — wait for next tick
-    hydratedSessionIdRef.current = currentSessionId;
-    // Hydrate chat + UI state from the persisted session.
-    setAnalysisMessages(session.analysisMessages || []);
-    setActiveTopic(session.activeTopic || "");
-    setSelectedHouse(session.selectedHouse ?? null);
-    setChatQ(session.chatQ || "");
-    setAnalysisLang(session.analysisLang || "english");
-    setActiveTab(session.activeTab || "chart");
-  }, [currentSessionId, savedSessions]);
+    const serverMsgs = session.analysisMessages || [];
+
+    if (hydratedSessionIdRef.current !== currentSessionId) {
+      // First open of this session id → full hydrate of all UI state.
+      hydratedSessionIdRef.current = currentSessionId;
+      setAnalysisMessages(serverMsgs);
+      setActiveTopic(session.activeTopic || "");
+      setSelectedHouse(session.selectedHouse ?? null);
+      setChatQ(session.chatQ || "");
+      setAnalysisLang(session.analysisLang || "english");
+      setActiveTab(session.activeTab || "chart");
+      return;
+    }
+
+    // Same session, but a refetch (e.g. on window-focus) brought MORE
+    // messages than we hold locally — another DEVICE added to this
+    // conversation (2026-06-10 cross-device sync fix). Fast-forward our
+    // view, but ONLY when idle (not mid-stream) AND the server is
+    // STRICTLY ahead of the local list. By construction this can never
+    // clobber an in-progress local answer or a local question that
+    // hasn't round-tripped yet (in those cases server is not ahead).
+    if (!analysisLoading && serverMsgs.length > analysisMessages.length) {
+      setAnalysisMessages(serverMsgs);
+    }
+  }, [currentSessionId, savedSessions, analysisLoading, analysisMessages.length]);
 
   const handleNewChart = () => {
     // 2026-06-08 audit fix (P2 cost): abort any in-flight AI stream before
