@@ -442,6 +442,20 @@ export default function Home() {
   // Analysis/Match tabs (the multi-chart switcher pulls from savedSessions;
   // analysisMessages key off currentSessionId).
   const { savedSessions, setSavedSessions, currentSessionId, setCurrentSessionId } = useWorkspace();
+
+  // 2026-06-08 audit fix (P1 duplicate rows): when a session created via
+  // the in-workspace New-chart flow (local Date.now() id) is first POSTed
+  // to the DB, swap its id for the server UUID everywhere it lives, so
+  // every subsequent save PATCHes the one row instead of inserting a new
+  // duplicate on every AI question. Passed as the onCreated callback to
+  // sessionsApi.saveSession. Defined here (after useWorkspace) so the
+  // setters it closes over are in scope.
+  const remapLocalSession = useCallback((localId: string, serverId: string) => {
+    if (!serverId || serverId === localId) return;
+    setCurrentSessionId(prev => (prev === localId ? serverId : prev));
+    setSavedSessions(prev => prev.map(s => (s.id === localId ? { ...s, id: serverId } : s)));
+  }, [setCurrentSessionId, setSavedSessions]);
+
   // New-chart floating modal: kept separate from the initial `!setupDone`
   // onboarding so the workspace stays mounted (and visibly blurred) behind.
   const [newChartModalOpen, setNewChartModalOpen] = useState(false);
@@ -1976,11 +1990,11 @@ export default function Home() {
       sessionsApi.saveSession(snap, (err) => {
         // eslint-disable-next-line no-console
         console.error(`[ai-persist:${origin}] save FAILED:`, err.message);
-      });
+      }, (serverId) => remapLocalSession(snap.id, serverId));
     },
     // saveSession + persistOnChangeRef are stable; rest are reactive deps
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [authCtx.status, currentSessionId, workspaceData, sessionsApi],
+    [authCtx.status, currentSessionId, workspaceData, sessionsApi, remapLocalSession],
   );
 
   // Trigger A — fire IMMEDIATELY when analysisLoading flips true→false.
@@ -2069,7 +2083,7 @@ export default function Home() {
       // from an expired token mid-session).
       sessionsApi.saveSession(snap, (err) => {
         setToast({ msg: `Couldn't save chart to your account: ${err.message}`, tone: "error" });
-      });
+      }, (serverId) => remapLocalSession(snap.id, serverId));
     }
     setPrevBirthDetailsStash(birthDetails);
     setPrevTimezoneStash({ offset: timezoneOffset, label: timezoneLabel });
@@ -2278,8 +2292,9 @@ export default function Home() {
     if (snap) {
       sessionsApi.saveSession(snap, (err) => {
         setToast({ msg: `Couldn't save previous chart state: ${err.message}`, tone: "error" });
-      });
+      }, (serverId) => remapLocalSession(snap.id, serverId));
     }
+
   };
 
   const inputStyle: React.CSSProperties = { width: "100%", background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 8, padding: "10px 14px", fontSize: 14, color: "var(--text)", outline: "none" };
