@@ -41,10 +41,20 @@ async def _require_workspace_auth(
     """Auth gate for /astrologer/workspace.
 
     Honors WORKSPACE_AUTH_REQUIRED env var (default '1' = required).
-    Set '0' for local dev / smoke-tests; production should always be '1'.
+    Set '0' for local dev / smoke-tests; production ALWAYS requires auth.
+
+    2026-06-08 audit fix (foot-gun hardening): the old check was
+    `!= "1"` which inverted truthiness — any value other than the exact
+    string "1" (e.g. "true", "yes") silently DISABLED auth, the opposite
+    of an operator's intent. And it never consulted ENVIRONMENT, so a
+    stray env var could open this CPU-heavy endpoint in production. Now:
+    (a) the bypass is honored ONLY outside production, and (b) it
+    requires the explicit value "0" — anything else means "required".
     """
-    if os.getenv("WORKSPACE_AUTH_REQUIRED", "1") != "1":
-        return None  # Anonymous mode (legacy / dev only)
+    _env = _wkspc_get_settings().ENVIRONMENT
+    _bypass = os.getenv("WORKSPACE_AUTH_REQUIRED", "1").strip() == "0"
+    if _env != "production" and _bypass:
+        return None  # Anonymous mode (local dev / smoke-tests only)
     if not authorization:
         raise HTTPException(
             status_code=401,
@@ -643,7 +653,13 @@ def get_workspace(
 # ── Analysis endpoint ─────────────────────────────────────────
 
 @router.post("/analyze")
-def analyze_topic(request: AnalysisRequest):
+def analyze_topic(
+    request: AnalysisRequest,
+    # 2026-06-08 audit fix (P0): require a valid Supabase JWT before any
+    # paid Anthropic call. Previously fully anonymous → denial-of-wallet.
+    # JWT-only (no DB roundtrip) — we just need proof someone is signed in.
+    _auth: SupabaseJWTPayload = Depends(verify_supabase_jwt),
+):
     # PR A1.3-fix-14 — refactored to use the shared chart_pipeline so
     # /astrologer/analyze and /prediction/ask have identical compute.
     # The 200+ lines of compute orchestration that used to live here now
@@ -738,6 +754,8 @@ If you cannot write a word in Telugu, write it in English instead.
 async def analyze_topic_stream(
     request: AnalysisRequest,
     http_request: Request,
+    # 2026-06-08 audit fix (P0): require a valid Supabase JWT (see /analyze).
+    _auth: SupabaseJWTPayload = Depends(verify_supabase_jwt),
 ):
     # O1 (deep-scan-2): capture the request_id (set by
     # RequestIdMiddleware) so SSE exception logs correlate to the
@@ -944,7 +962,11 @@ def _multi_chart_context_dict_to_meta(multi_context: dict) -> dict:
 
 
 @router.post("/multi-analyze")
-def multi_analyze(request: MultiChartRequest):
+def multi_analyze(
+    request: MultiChartRequest,
+    # 2026-06-08 audit fix (P0): require a valid Supabase JWT (see /analyze).
+    _auth: SupabaseJWTPayload = Depends(verify_supabase_jwt),
+):
     """Non-streaming multi-chart analysis.
 
     Use the streaming variant `/multi-analyze-stream` for interactive UX;
@@ -976,6 +998,8 @@ def multi_analyze(request: MultiChartRequest):
 async def multi_analyze_stream(
     request: MultiChartRequest,
     http_request: Request,
+    # 2026-06-08 audit fix (P0): require a valid Supabase JWT (see /analyze).
+    _auth: SupabaseJWTPayload = Depends(verify_supabase_jwt),
 ):
     # O1 (deep-scan-2): same rid capture pattern as analyze-stream
     # so SSE errors correlate to the access log line.

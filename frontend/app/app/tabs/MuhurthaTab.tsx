@@ -29,6 +29,7 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useLanguage } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth/auth-context";
 import { PageHero } from "@/components/ui/PageHero";
 import { PlacePicker } from "@/components/ui/place-picker";
 import { RpSourcePill } from "../components/RpSourcePill";
@@ -78,6 +79,10 @@ interface MuhurthaTabProps {
 
 export function MuhurthaTab(props: MuhurthaTabProps) {
   const { t, lang } = useLanguage();
+  // 2026-06-08 audit fix (P0): /muhurtha/analyze is now JWT-gated on the
+  // backend. MuhurthaTab renders only inside the AuthGate, so a live token
+  // is always available here.
+  const { getAccessToken } = useAuth();
   const {
     workspaceData, apiUrl, liveLoc, birthDetails, timezoneOffset,
     savedSessions, setSavedSessions, mEventLocSearching,
@@ -800,11 +805,12 @@ export function MuhurthaTab(props: MuhurthaTabProps) {
               setMAiQuestion("");
               try {
                 recordAiCall(isTopic ? "muhurtha.analyze:topic" : "muhurtha.analyze:chat");
+                const _muTok = await getAccessToken();
                 const res = await axios.post(`${API_URL}/muhurtha/analyze`, {
                   muhurtha_data: mResults,
                   question: questionText,
                   history: mAiMessages.map(m => ({ question: m.q, answer: m.a })),
-                });
+                }, _muTok ? { headers: { Authorization: `Bearer ${_muTok}` } } : undefined);
                 setMAiMessages(prev => [...prev, { q: questionText, a: res.data.answer, isTopic }]);
               } catch {
                 setMAiMessages(prev => [...prev, { q: questionText, a: t("Could not load analysis. Please try again.", "విశ్లేషణ లోడ్ చేయడంలో సమస్య. మళ్ళీ ప్రయత్నించండి."), isTopic }]);

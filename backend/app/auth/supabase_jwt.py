@@ -289,9 +289,13 @@ async def verify_supabase_jwt(
             request.url.path,
             e,
         )
+        # 2026-06-08 audit fix (P2): do NOT echo str(e) to the caller —
+        # PyJWT messages reveal which algorithms/config the backend accepts
+        # (a free oracle for an attacker). The full reason is already in the
+        # server-side _log.warning above; the client gets a stable code only.
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"error": "invalid_token", "hint": str(e)},
+            detail={"error": "invalid_token"},
             headers={"WWW-Authenticate": "Bearer"},
         )
 

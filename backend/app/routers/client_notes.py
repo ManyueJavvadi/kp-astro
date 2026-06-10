@@ -269,6 +269,14 @@ async def update_note(
     for field, value in changes.items():
         setattr(row, field, value)
     await db.flush()
+    # 2026-06-08 audit fix (P1): same MissingGreenlet bug class fixed in
+    # chart_sessions.update_session (commit 0988654). NotePublic declares
+    # updated_at, so model_validate reads row.updated_at, which flush()
+    # just expired via TimestampMixin's onupdate=func.now(); the sync read
+    # would lazy-load outside the greenlet → 500. Every note PATCH (edit
+    # text, flip is_private to publish/unpublish on the portal, mark
+    # prediction outcome) was failing. refresh() repopulates first.
+    await db.refresh(row)
     return NotePublic.model_validate(row)
 
 

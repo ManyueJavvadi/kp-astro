@@ -66,6 +66,18 @@ class ChartSession(Base, UUIDPKMixin, TimestampMixin):
         comment="Sidebar label. Initial value = client/birth name.",
     )
 
+    # ─── Astrology flavour (migration 0005, 2026-06-08) ───────────────
+    # Which system produced chart_data + workspace_data. 'kp' today;
+    # future flavours (vedic, …) ship as new values without a type
+    # migration. Loose string by design (same convention as note_type).
+    # Forward-compat groundwork only — the KP pipeline ignores it.
+    system: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        server_default="kp",
+        comment="Astrology system: 'kp' (default) | future 'vedic' etc.",
+    )
+
     # ─── Birth input snapshot (denormalized for anonymous sessions) ───
     # When client_id is set, this duplicates Client.birth_*. The duplication
     # is intentional: it captures the exact input the astrologer used at

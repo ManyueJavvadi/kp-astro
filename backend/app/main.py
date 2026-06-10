@@ -370,10 +370,29 @@ _RATE_LIMITS: Dict[str, tuple[int, int]] = {
     "/prediction/ask-stream":   (15, 60),
     "/astrologer/analyze":      (20, 60),
     "/astrologer/analyze-stream": (20, 60),
+    # 2026-06-08 audit fix (P0): the multi-chart analyze endpoints are
+    # the MOST expensive calls (up to MAX_CHARTS charts, Sonnet at
+    # max_tokens=8000) yet were NOT rate-limited at all — the prefix
+    # "/astrologer/analyze" does NOT match "/astrologer/multi-analyze"
+    # (diverges at 'm' vs 'a'), so they fell outside the table entirely.
+    # This single prefix covers both /multi-analyze and
+    # /multi-analyze-stream via the longest-prefix matcher below. Tight
+    # cap because each call fans out to several full KP analyses.
+    "/astrologer/multi-analyze": (8, 60),
     # D6 cleanup (2026-06-02): /astrologer/quick-insights entry removed
     # — endpoint deleted in routers/astrologer.py.
     "/compatibility/analyze":   (15, 60),
     "/muhurtha/analyze":        (15, 60),
+    # 2026-06-08 audit fix (P2): the unauthenticated Swiss-Ephemeris
+    # compute endpoints were unrated — an unthrottled loop could pin the
+    # threadpool and starve real users (CPU DoS, no auth needed). Generous
+    # caps for human use, hard ceiling on automation. /pdf is heavier
+    # (ReportLab) so a slightly lower cap.
+    "/chart":                   (40, 60),
+    "/horary":                  (40, 60),
+    "/panchangam":              (40, 60),
+    "/transit":                 (40, 60),
+    "/pdf":                     (20, 60),
     # S4 hardening (2026-06-02): /astrologer/workspace is the chart
     # engine compute path (Swiss Ephemeris — CPU-heavy). Previously
     # unrated. With auth-gate added (see route handler) AND this
@@ -404,6 +423,42 @@ _request_log: Dict[str, Deque[float]] = {}
 _request_log_last_touch: Dict[str, float] = {}
 _REQUEST_LOG_MAX_KEYS = int(os.getenv("RATE_LIMIT_MAX_KEYS", "20000"))
 
+# 2026-06-08 audit fix (P0): number of trusted reverse-proxy hops in
+# front of the app. The rate-limit client IP is taken this many entries
+# from the RIGHT of X-Forwarded-For — i.e. the value appended by our own
+# edge proxy, which a client cannot forge. The OLD code took the LEFTMOST
+# XFF entry, which is fully client-controlled: an attacker rotating
+# `X-Forwarded-For: <random-ip>` per request minted a fresh bucket every
+# time and the caps never tripped, nullifying the only cost control.
+#
+# Railway's edge appends exactly one entry, so the default of 1 (rightmost)
+# is correct: legit users (who send no XFF) are keyed by their real IP,
+# and an attacker who prepends fakes still can't change the rightmost hop
+# Railway stamps. If the platform ever adds more hops, bump this env var
+# to match — setting it too low buckets distinct users together (false
+# 429s); too high re-opens the spoof. See _ratelimit_client_ip().
+_TRUSTED_PROXY_HOPS = max(1, int(os.getenv("TRUSTED_PROXY_HOPS", "1")))
+
+
+def _ratelimit_client_ip(request: Request) -> str:
+    """Resolve the client IP used as the rate-limit bucket key.
+
+    Spoof-resistant: reads X-Forwarded-For from the RIGHT (the hop our
+    own proxy appended) rather than the attacker-controllable leftmost
+    entry. Falls back to the direct peer when no XFF is present.
+    """
+    xff = request.headers.get("x-forwarded-for", "")
+    if xff:
+        parts = [p.strip() for p in xff.split(",") if p.strip()]
+        if parts:
+            # Index _TRUSTED_PROXY_HOPS from the right. With the default
+            # of 1 this is parts[-1]; clamp so a shorter-than-expected
+            # chain just yields the leftmost present entry rather than
+            # an IndexError.
+            idx = max(0, len(parts) - _TRUSTED_PROXY_HOPS)
+            return parts[idx]
+    return request.client.host if request.client else "unknown"
+
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Per-IP sliding-window rate limit on cost-paid endpoints.
 
@@ -423,11 +478,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if match is None:
             return await call_next(request)
 
-        # Identify client. X-Forwarded-For first (Railway/Vercel set this),
-        # then request.client.host as fallback. Take the first IP in the
-        # XFF chain (the original client, not intermediate proxies).
-        xff = request.headers.get("x-forwarded-for", "")
-        ip = (xff.split(",")[0].strip() if xff else "") or (request.client.host if request.client else "unknown")
+        # Identify client. 2026-06-08 audit fix (P0): use the spoof-
+        # resistant rightmost-hop resolver instead of the old
+        # leftmost-XFF read (which let an attacker mint unlimited buckets
+        # by forging the header). See _ratelimit_client_ip().
+        ip = _ratelimit_client_ip(request)
 
         max_req, window = _RATE_LIMITS[match]
         key = f"{match}|{ip}"

@@ -7,12 +7,22 @@ backend/app/services/__pycache__/
 **/__pycache__/
 *.pyc
 *.pyo
+
+# Env files — 2026-06-08 audit fix (P2): broadened from the single
+# ".env" pattern. With staging now documented in DEPLOYMENT.md, a stray
+# backend/.env.staging or .env.production holding real DATABASE_URL /
+# SUPABASE_JWT_SECRET / ANTHROPIC_API_KEY could otherwise be committed.
+# Ignore ALL .env* anywhere, but keep the tracked *.env.example templates.
 .env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
 
 # Node
 frontend/node_modules/
 frontend/.next/
-frontend/.env.local
 
 # OS
 .DS_Store

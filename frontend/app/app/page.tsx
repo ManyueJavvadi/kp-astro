@@ -211,6 +211,25 @@ export default function Home() {
   // the auth context is still initializing.
   const authCtx = useAuth();
 
+  // 2026-06-08 audit fix (P0): the streaming AI endpoints
+  // (/astrologer/analyze-stream, /multi-analyze-stream, /prediction/
+  // ask-stream) are now JWT-gated on the backend. These use raw fetch()
+  // (not the authedAxios wrapper, because they consume an SSE body), so
+  // we attach the bearer token here. Every caller is already inside the
+  // AuthGate, so getAccessToken resolves to a live token; the optional
+  // spread keeps the call working in the (unreachable) anonymous case
+  // rather than throwing. Mirrors authedAxiosPost's header logic.
+  const streamAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    try {
+      const token = await authCtx.getAccessToken();
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+    } catch {
+      /* no session — send unauthenticated; backend will 401, handled by caller */
+    }
+    return headers;
+  }, [authCtx]);
+
   // (Hand-off from /app/clients deferred to Slice 4 when proper
   // /app/clients/[id] routing replaces the sessionStorage trick.
   // For Slice 3, users open clients directly from the CRM home roster
@@ -423,6 +442,20 @@ export default function Home() {
   // Analysis/Match tabs (the multi-chart switcher pulls from savedSessions;
   // analysisMessages key off currentSessionId).
   const { savedSessions, setSavedSessions, currentSessionId, setCurrentSessionId } = useWorkspace();
+
+  // 2026-06-08 audit fix (P1 duplicate rows): when a session created via
+  // the in-workspace New-chart flow (local Date.now() id) is first POSTed
+  // to the DB, swap its id for the server UUID everywhere it lives, so
+  // every subsequent save PATCHes the one row instead of inserting a new
+  // duplicate on every AI question. Passed as the onCreated callback to
+  // sessionsApi.saveSession. Defined here (after useWorkspace) so the
+  // setters it closes over are in scope.
+  const remapLocalSession = useCallback((localId: string, serverId: string) => {
+    if (!serverId || serverId === localId) return;
+    setCurrentSessionId(prev => (prev === localId ? serverId : prev));
+    setSavedSessions(prev => prev.map(s => (s.id === localId ? { ...s, id: serverId } : s)));
+  }, [setCurrentSessionId, setSavedSessions]);
+
   // New-chart floating modal: kept separate from the initial `!setupDone`
   // onboarding so the workspace stays mounted (and visibly blurred) behind.
   const [newChartModalOpen, setNewChartModalOpen] = useState(false);
@@ -1342,7 +1375,7 @@ export default function Home() {
       recordAiCall("user.ask-stream");
       const response = await fetch(`${API_URL}/prediction/ask-stream`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await streamAuthHeaders(),
         body: JSON.stringify({
           name: birthDetails.name, date: formattedDate, time: getTime24(),
           latitude: birthDetails.latitude, longitude: birthDetails.longitude,
@@ -1446,7 +1479,7 @@ export default function Home() {
       recordAiCall(`astrologer.analyze-stream:${topic}:${questionType}`);
       const response = await fetch(`${API_URL}/astrologer/analyze-stream`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await streamAuthHeaders(),
         body: JSON.stringify({
           name: birthDetails.name, date: formattedDate, time: getTime24(),
           latitude: birthDetails.latitude, longitude: birthDetails.longitude,
@@ -1542,7 +1575,7 @@ export default function Home() {
       recordAiCall(`astrologer.analyze-stream:scoped:${topic}`);
       const response = await fetch(`${API_URL}/astrologer/analyze-stream`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await streamAuthHeaders(),
         body: JSON.stringify({
           ...apiBd,
           topic, question, history, language: backendLang(),
@@ -1657,7 +1690,7 @@ export default function Home() {
       const charts = [primary, ...additionalCharts].map(sessionToApiPerson);
       const response = await fetch(`${API_URL}/astrologer/multi-analyze-stream`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await streamAuthHeaders(),
         body: JSON.stringify({
           charts,
           question,
@@ -1818,13 +1851,15 @@ export default function Home() {
     const topicLabels: Record<string,string> = { promise: "వివాహ ప్రమాణం — Marriage Promise", harmony: "సామరస్యం — Harmony & Compatibility", divorce_risk: "విడాకులు ప్రమాదం — Divorce Risk", timing: "సమయం — Timing & DBA", remedies: "పరిహారాలు — Remedies" };
     try {
       recordAiCall(`match.analyze:topic:${topic}`);
+      // 2026-06-08 audit fix (P0): /compatibility/analyze is now JWT-gated.
+      const _matchTok = await authCtx.getAccessToken();
       const res = await axios.post(`${API_URL}/compatibility/analyze`, {
         person1: sessionToApiPerson(matchPerson1),
         person2: sessionToApiPerson(p2),
         question: `Complete KP analysis for ${topic} between these two charts`,
         history: [],
         language: backendLang(),
-      });
+      }, _matchTok ? { headers: { Authorization: `Bearer ${_matchTok}` } } : undefined);
       setMatchAnalysisMessages(prev => [...prev, { q: topicLabels[topic] || topic, a: res.data.answer, isTopic: true }]);
     } catch {
       setMatchAnalysisMessages(prev => [...prev, { q: topicLabels[topic] || topic, a: "Analysis failed. Please try again.", isTopic: true }]);
@@ -1840,13 +1875,15 @@ export default function Home() {
     try {
       const history = matchAnalysisMessages.slice(-6).map(m => ({ question: m.q, answer: m.a }));
       recordAiCall("match.analyze:chat");
+      // 2026-06-08 audit fix (P0): /compatibility/analyze is now JWT-gated.
+      const _matchChatTok = await authCtx.getAccessToken();
       const res = await axios.post(`${API_URL}/compatibility/analyze`, {
         person1: sessionToApiPerson(matchPerson1),
         person2: sessionToApiPerson(p2),
         question: q,
         history,
         language: backendLang(),
-      });
+      }, _matchChatTok ? { headers: { Authorization: `Bearer ${_matchChatTok}` } } : undefined);
       setMatchAnalysisMessages(prev => [...prev, { q, a: res.data.answer }]);
     } catch { } finally { setMatchAnalysisLoading(false); }
   };
@@ -1953,11 +1990,11 @@ export default function Home() {
       sessionsApi.saveSession(snap, (err) => {
         // eslint-disable-next-line no-console
         console.error(`[ai-persist:${origin}] save FAILED:`, err.message);
-      });
+      }, (serverId) => remapLocalSession(snap.id, serverId));
     },
     // saveSession + persistOnChangeRef are stable; rest are reactive deps
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [authCtx.status, currentSessionId, workspaceData, sessionsApi],
+    [authCtx.status, currentSessionId, workspaceData, sessionsApi, remapLocalSession],
   );
 
   // Trigger A — fire IMMEDIATELY when analysisLoading flips true→false.
@@ -2020,6 +2057,10 @@ export default function Home() {
   }, [currentSessionId, savedSessions]);
 
   const handleNewChart = () => {
+    // 2026-06-08 audit fix (P2 cost): abort any in-flight AI stream before
+    // starting a new chart — same rationale as handleSwitchSession.
+    askStreamAbortRef.current?.abort();
+    analyzeStreamAbortRef.current?.abort();
     // If there's no workspace yet (first-time user or already on onboarding),
     // fall through to the original full-page setup flow — no modal needed.
     if (!setupDone || !workspaceData) {
@@ -2046,7 +2087,7 @@ export default function Home() {
       // from an expired token mid-session).
       sessionsApi.saveSession(snap, (err) => {
         setToast({ msg: `Couldn't save chart to your account: ${err.message}`, tone: "error" });
-      });
+      }, (serverId) => remapLocalSession(snap.id, serverId));
     }
     setPrevBirthDetailsStash(birthDetails);
     setPrevTimezoneStash({ offset: timezoneOffset, label: timezoneLabel });
@@ -2122,6 +2163,35 @@ export default function Home() {
     setNewChartModalOpen(false);
   };
 
+  // 2026-06-08 audit fix (P1 data-loss): chart deletion used to fire on a
+  // single un-confirmed click — and the tab-close "×" (which reads as
+  // "close tab") actually hard-deleted the chart + its entire AI
+  // conversation, with no undo and no deleted_at soft-delete anywhere.
+  // Now BOTH affordances route through a confirmation modal that names
+  // exactly what is lost. The actual delete (handleRemoveSession) is
+  // unchanged; we just gate it.
+  const [pendingDeleteSession, setPendingDeleteSession] = useState<ChartSession | null>(null);
+
+  const requestRemoveSession = (session: ChartSession) => {
+    setPendingDeleteSession(session);
+  };
+
+  const confirmDeleteSession = () => {
+    const s = pendingDeleteSession;
+    if (!s) return;
+    const wasActive = s.id === currentSessionId;
+    handleRemoveSession(s.id);
+    // If we just deleted the chart the user was viewing, move them to
+    // another open chart (or a fresh one) so they're never left on a
+    // dangling/blank workspace — mirrors the old tab-close behaviour.
+    if (wasActive) {
+      const other = openSessions.find(o => o.id !== s.id);
+      if (other) handleSwitchSession(other);
+      else handleNewChart();
+    }
+    setPendingDeleteSession(null);
+  };
+
   const handleRemoveSession = (id: string) => {
     setSavedSessions(prev => prev.filter(s => s.id !== id));
     // Phase 1.5b — mirror delete to DB (no-op for local-only ids).
@@ -2131,6 +2201,13 @@ export default function Home() {
   };
 
   const handleSwitchSession = async (target: ChartSession) => {
+    // 2026-06-08 audit fix (P2 cost): abort any in-flight AI stream before
+    // switching charts. Without this the paid Anthropic stream kept
+    // running for the OLD chart while its message was already removed from
+    // state, so every chunk was discarded — the astrologer paid for an
+    // answer no one ever saw. Mirrors the unmount-cleanup aborts.
+    askStreamAbortRef.current?.abort();
+    analyzeStreamAbortRef.current?.abort();
     const snap = snapshotCurrentSession();
     setCurrentSessionId(target.id);
     setBirthDetails(target.birthDetails);
@@ -2226,8 +2303,9 @@ export default function Home() {
     if (snap) {
       sessionsApi.saveSession(snap, (err) => {
         setToast({ msg: `Couldn't save previous chart state: ${err.message}`, tone: "error" });
-      });
+      }, (serverId) => remapLocalSession(snap.id, serverId));
     }
+
   };
 
   const inputStyle: React.CSSProperties = { width: "100%", background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 8, padding: "10px 14px", fontSize: 14, color: "var(--text)", outline: "none" };
@@ -4131,6 +4209,91 @@ export default function Home() {
           modal without a mouse. (No focus trap helper yet — it's a future
           PR; for now, Tab cycles into the workspace background which is
           blurred but still visually present.) */}
+      {/* 2026-06-08 audit fix (P1 data-loss): delete-chart confirmation.
+          Gates the sidebar "×" and the tab-close "×" so a single misclick
+          can no longer permanently destroy a chart + its full AI
+          conversation (analysis_messages is the only copy; no soft-delete
+          exists). Mirrors the typed-confirm spirit of DeleteClientDialog
+          but lighter — a chart is a smaller unit than a whole client. */}
+      {pendingDeleteSession && (
+        <div
+          onClick={() => setPendingDeleteSession(null)}
+          onKeyDown={(e) => { if (e.key === "Escape") setPendingDeleteSession(null); }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-session-title"
+          tabIndex={-1}
+          style={{
+            position: "fixed", inset: 0, zIndex: 210,
+            background: "rgba(9,9,15,0.55)",
+            backdropFilter: "blur(8px) saturate(0.9)",
+            WebkitBackdropFilter: "blur(8px) saturate(0.9)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%", maxWidth: 420,
+              background: "var(--card)",
+              border: "1px solid var(--border2)",
+              borderRadius: 14,
+              padding: 24,
+              boxShadow: "0 24px 64px rgba(0,0,0,0.5)",
+            }}
+          >
+            <h2
+              id="delete-session-title"
+              style={{
+                fontFamily: "'DM Serif Display', serif",
+                fontSize: 20, margin: "0 0 10px", color: "var(--text)",
+              }}
+            >
+              Delete this chart?
+            </h2>
+            <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.6, margin: "0 0 8px" }}>
+              <strong style={{ color: "var(--text)" }}>
+                {pendingDeleteSession.name || "Unnamed chart"}
+              </strong>{" "}
+              and its{" "}
+              <strong style={{ color: "var(--text)" }}>
+                {pendingDeleteSession.analysisMessages?.length || 0} saved AI{" "}
+                {(pendingDeleteSession.analysisMessages?.length || 0) === 1 ? "answer" : "answers"}
+              </strong>{" "}
+              will be permanently removed. This cannot be undone.
+            </p>
+            <div style={{ display: "flex", gap: 10, marginTop: 20, justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => setPendingDeleteSession(null)}
+                style={{
+                  padding: "9px 16px", borderRadius: 8,
+                  background: "transparent", border: "1px solid var(--border2)",
+                  color: "var(--text)", fontSize: 13, fontWeight: 500,
+                  cursor: "pointer", fontFamily: "inherit",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteSession}
+                style={{
+                  padding: "9px 16px", borderRadius: 8,
+                  background: "rgba(248,113,113,0.12)",
+                  border: "1px solid rgba(248,113,113,0.4)",
+                  color: "#f87171", fontSize: 13, fontWeight: 600,
+                  cursor: "pointer", fontFamily: "inherit",
+                }}
+              >
+                Delete chart
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {newChartModalOpen && (
         <div
           onClick={handleCancelNewChartModal}
@@ -4600,7 +4763,8 @@ export default function Home() {
                         {dashaLabel && <div style={{ fontSize: 10, color: "var(--accent)", marginBottom: 1 }}>{dashaLabel}</div>}
                         {birthYear && <div style={{ fontSize: 10, color: "var(--muted)" }}>{t(`Born ${birthYear}`, `${birthYear} జన్మ`)}</div>}
                       </button>
-                      <button onClick={() => handleRemoveSession(s.id)}
+                      <button onClick={() => requestRemoveSession(s)}
+                        title="Delete chart"
                         style={{ position: "absolute", top: 6, right: 6, background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "2px 4px", opacity: 0.5 }}
                         onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
                         onMouseLeave={e => (e.currentTarget.style.opacity = "0.5")}>×</button>
@@ -5008,17 +5172,14 @@ export default function Home() {
                   <button
                     type="button"
                     className="client-tab-close"
+                    title="Delete chart"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleRemoveSession(session.id);
-                      if (isActive) {
-                        const other = openSessions.find(s => s.id !== session.id);
-                        if (other) {
-                          handleSwitchSession(other);
-                        } else {
-                          handleNewChart();
-                        }
-                      }
+                      // 2026-06-08 audit fix (P1): route through the
+                      // confirmation modal instead of deleting on the
+                      // spot. confirmDeleteSession handles the post-delete
+                      // tab switch when the active chart is removed.
+                      requestRemoveSession(session);
                     }}
                     style={{
                       background: "transparent",
