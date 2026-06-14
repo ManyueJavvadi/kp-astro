@@ -1784,6 +1784,81 @@ def compute_supporting_cusp_activations(
     return out
 
 
+# ── Multi-cusp confirmation TIER (RULE 34) — deterministic ──────────
+# 2026-06-14: the confirmation tier (TIER 3/2/1/0/-1) shown in EVERY
+# reading's DIRECT VERDICT was previously COUNTED by the LLM in prose,
+# which drifted (e.g. header "TIER 1" while the body said "TIER 2" on the
+# same chart). This computes it once from the already-built supporting-
+# cusp activations so the narration can transcribe it (see RULE 34).
+#
+# Counting rule per kp_multi_cusp_confirmation.md:
+#   - A supporting cusp "agrees" if its CSL chain signifies >=1 relevant
+#     house (signified_relevant non-empty).
+#   - PITFALL 1 (line 193 of that KB): a CSL planet shared across cusps is
+#     ONE confirmation source, not several — so we count DISTINCT agreeing
+#     CSL planets, and we exclude any supporting CSL that is the SAME planet
+#     as the primary CSL (not an independent confirmation).
+# Ladder:
+#   primary signifies + >=2 distinct supporting sources  → TIER 3
+#   primary signifies + 1 distinct supporting source     → TIER 2
+#   primary signifies + 0 supporting (or only denial)    → TIER 1 (or 0 if deny)
+#   primary does NOT signify but supporting do           → TIER -1
+
+def classify_confirmation_tier(
+    supporting_cusp_activations: List[Dict[str, object]],
+) -> Optional[Dict[str, object]]:
+    acts = supporting_cusp_activations or []
+    primary = next((a for a in acts if a.get("is_primary")), None)
+    if primary is None:
+        return None
+    primary_csl = primary.get("sub_lord")
+    primary_signifies = len(primary.get("signified_relevant") or []) >= 1
+
+    agreeing: set = set()
+    denying: set = set()
+    for a in acts:
+        if a.get("is_primary"):
+            continue
+        csl = a.get("sub_lord")
+        if not csl or csl == primary_csl:
+            continue  # shared-with-primary planet is not an independent source
+        if len(a.get("signified_relevant") or []) >= 1:
+            agreeing.add(csl)
+        elif a.get("signified_denial"):
+            denying.add(csl)
+
+    n_agree = len(agreeing)
+    if primary_signifies:
+        if n_agree >= 2:
+            tier = 3
+        elif n_agree == 1:
+            tier = 2
+        elif denying and not agreeing:
+            tier = 0
+        else:
+            tier = 1
+    else:
+        tier = -1 if n_agree >= 1 else 0
+
+    conf_band = {3: "80-95%", 2: "65-80%", 1: "50-65%", 0: "35-50%", -1: "below 35%"}
+    label = {
+        3: "STRONGLY PROMISED — near-certain in the right dasha",
+        2: "STRONGLY PROMISED",
+        1: "PROMISED (KSK minimum)",
+        0: "CONDITIONAL — friction (primary signifies, supporting deny)",
+        -1: "effects of supporting houses without primary fruition",
+    }
+    return {
+        "tier": tier,
+        "label": label[tier],
+        "confidence_band": conf_band[tier],
+        "primary_csl": primary_csl,
+        "primary_signifies": primary_signifies,
+        "agreeing_supporting_csls": sorted(agreeing),
+        "denying_supporting_csls": sorted(denying),
+    }
+
+
 # ── RP overlap per Antardasha lord ──────────────────────────────────
 
 def compute_rp_overlap(planet: str, ruling_planets_list: List[dict]) -> int:
@@ -2012,6 +2087,9 @@ def compute_advanced_for_topic(
         "primary_cusp_sign_type": primary_cusp_sign,
         "star_sub_harmony":      harmony,
         "supporting_cusp_activations": supporting_cusps,  # PR A1.3-fix-5
+        # 2026-06-14 — deterministic RULE-34 multi-cusp tier (transcribe,
+        # don't re-count in prose). Computed from the activations above.
+        "confirmation_tier": classify_confirmation_tier(supporting_cusps),
         "ad_sublord_triggers":         ad_sublord_triggers,  # PR A1.3-fix-5
         "rp_overlap": {
             "md":  {"lord": current_md_lord, "slots": md_overlap},
