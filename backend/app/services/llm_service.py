@@ -1949,6 +1949,25 @@ The "first pass got it wrong, second pass corrected" anti-pattern
 is a violation of this rule. The AI does NOT get two passes — the
 first pass must be the correct pass.
 
+MARRIAGE TYPE — DETERMINISTIC ENGINE VERDICT (2026-06-14, highest
+priority for marriage love-vs-arranged questions):
+For MARRIAGE type questions the chart data now contains a block titled
+"MARRIAGE TYPE — ENGINE FIVE-SIGNAL CLASSIFICATION". When that block is
+present you MUST:
+  • Use its VERDICT verbatim as your verdict. Do NOT reach a different
+    category, and do NOT soften/upgrade/downgrade it.
+  • Present its S1–S5 readings as your signal table (you may add the
+    plain-English meaning of each, but the True/False / house values are
+    the engine's and are fixed).
+  • NEVER re-derive the five signals or the chains yourself — the engine
+    already computed them deterministically. Re-deriving in prose is what
+    produced different verdicts on the SAME chart across re-asks; it is
+    now FORBIDDEN for marriage type.
+This block is the authoritative type verdict. (It is NOT the old one-line
+"marriage_type" heuristic that RULE 18 says to ignore — that is a
+different, deprecated field.) For NON-marriage type questions, or if the
+block is absent, run the framework below as before.
+
 When the user asks a TYPE question (not just yes/no), you MUST run the
 full classification framework from the relevant KB topic file BEFORE
 giving the verdict. Type questions include:
@@ -4469,6 +4488,40 @@ def format_chart_for_llm(chart_data: dict, mode: str = "astrologer") -> str:
             lines.append(f"  Signified houses: {h8d.get('signified_houses', [])}")
             for tag in (h8d.get("tags") or []):
                 lines.append(f"  - {tag}")
+
+        # 2026-06-14 — Deterministic five-signal marriage-TYPE classification
+        # (love vs arranged). Wired in from compatibility_engine so the
+        # single-chart flow no longer re-derives it in prose. TRANSCRIBE
+        # this verdict + signal table; do NOT recompute (see RULE 33).
+        # This is the authoritative type verdict — distinct from the older
+        # one-line "marriage_type" heuristic that RULE 18 says to ignore.
+        mc = adv.get("marriage_classification") or {}
+        if mc.get("category"):
+            lines.append(
+                "\nMARRIAGE TYPE — ENGINE FIVE-SIGNAL CLASSIFICATION "
+                "(authoritative; transcribe the verdict + signals, do NOT re-derive):"
+            )
+            lines.append(f"  VERDICT: {mc.get('category')}")
+            lines.append(
+                f"  S1 H5 in H7-CSL chain: {mc.get('signal_1_h5_in_chain')}"
+            )
+            lines.append(
+                f"  S2 5CSL={mc.get('signal_2_fifth_csl')} chain={mc.get('signal_2_h5_csl_chain_houses')} "
+                f"| marriage-anchor(2,7,11)={mc.get('signal_2_chain_has_marriage_anchor')} "
+                f"affliction(5,8,12)={mc.get('signal_2_chain_has_5_8_12')}"
+            )
+            lines.append(
+                f"  S3 H4 in chain={mc.get('signal_3_h4_in_chain')} "
+                f"H9 in chain={mc.get('signal_3_h9_in_chain')}"
+            )
+            lines.append(
+                f"  S4 Moon H{mc.get('signal_4_moon_house')} ({mc.get('signal_4_moon_mode')})"
+            )
+            lines.append(
+                f"  S5 {mc.get('signal_5_relation')} ({mc.get('signal_5_strength')})"
+            )
+            if mc.get("reasoning"):
+                lines.append(f"  Reasoning: {mc.get('reasoning')}")
 
         # PR A1.3-fix-6 — Partner profile (marriage topic only)
         pp = adv.get("partner_profile") or {}
