@@ -325,6 +325,36 @@ def build_full_chart_data(
         promise_verdict=promise_verdict_hint,
     )
 
+    # ── 6b. Marriage TYPE — deterministic five-signal classification ────
+    # 2026-06-14: the five-signal love-vs-arranged classifier already exists
+    # in compatibility_engine (used by the Match feature) but was never wired
+    # into the single-chart marriage Q&A. Result: the LLM re-derived the five
+    # signals in prose on every call and gave inconsistent verdicts across
+    # re-asks (love-cum-arranged → family-arranged → "love denied" on the
+    # SAME chart). Here we compute the deterministic verdict ONCE so the
+    # narration can TRANSCRIBE it (see RULE 33) instead of recomputing.
+    #
+    # Import is safe: compatibility_engine does NOT import chart_pipeline (no
+    # cycle); it only depends on chart_engine/kp_advanced_compute siblings.
+    # Degrades silently — a failure here just omits the block; the LLM then
+    # falls back to the framework, i.e. never worse than before this change.
+    if topic == "marriage":
+        try:
+            from app.services.compatibility_engine import (
+                _five_signal_classification, get_sub_lord as _get_sub_lord,
+            )
+            _cusp_lons = [
+                chart["cusps"][f"House_{i}"]["cusp_longitude"] for i in range(1, 13)
+            ]
+            advanced["marriage_classification"] = _five_signal_classification({
+                "planets": chart["planets"],
+                "cusp_lons": _cusp_lons,
+                "moon_lon": chart["planets"].get("Moon", {}).get("longitude", 0),
+                "h7_sub_lord": _get_sub_lord(_cusp_lons[6] % 360),
+            })
+        except Exception as e:
+            _log.warning("marriage_classification compute failed: %s", e)
+
     # ── 7. Transit bundle (degrades silently) ───────────────────────
     try:
         from app.services.kp_transit_compute import compute_transit_bundle
