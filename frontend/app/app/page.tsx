@@ -1999,6 +1999,11 @@ export default function Home() {
     [authCtx.status, currentSessionId, workspaceData, sessionsApi, remapLocalSession],
   );
 
+  // Live mirror of analysisLoading so event handlers (Trigger D) can read
+  // the current streaming state without re-subscribing on every flip.
+  const analysisLoadingRef = useRef(false);
+  analysisLoadingRef.current = analysisLoading;
+
   // Trigger A — fire IMMEDIATELY when analysisLoading flips true→false.
   // This is the moment the stream ended; analysisMessages has the
   // final assistant text. Fastest, most reliable signal.
@@ -2044,7 +2049,16 @@ export default function Home() {
   // combined with Trigger C the question is already saved by this point.
   useEffect(() => {
     const onHide = () => {
-      if (document.visibilityState === "hidden") persistNow("page-hidden");
+      if (document.visibilityState !== "hidden") return;
+      // Don't persist a HALF-STREAMED answer. If we're mid-stream the
+      // question is already in the DB (Trigger C saved it on message-add),
+      // and Trigger A will save the full answer on completion. Writing the
+      // in-progress answer here risks a freeze/kill making a TRUNCATED
+      // answer permanent — on the next device the user would see a
+      // cut-off reply. Skipping keeps the (better) "question, no answer
+      // yet" state, which the user can simply re-ask.
+      if (analysisLoadingRef.current) return;
+      persistNow("page-hidden");
     };
     document.addEventListener("visibilitychange", onHide);
     return () => document.removeEventListener("visibilitychange", onHide);
@@ -2092,17 +2106,32 @@ export default function Home() {
       return;
     }
 
-    // Same session, but a refetch (e.g. on window-focus) brought MORE
-    // messages than we hold locally — another DEVICE added to this
-    // conversation (2026-06-10 cross-device sync fix). Fast-forward our
-    // view, but ONLY when idle (not mid-stream) AND the server is
-    // STRICTLY ahead of the local list. By construction this can never
-    // clobber an in-progress local answer or a local question that
-    // hasn't round-tripped yet (in those cases server is not ahead).
-    if (!analysisLoading && serverMsgs.length > analysisMessages.length) {
-      setAnalysisMessages(serverMsgs);
+    // Same session, but a refetch (e.g. on window-focus) brought a
+    // DIFFERENT conversation from another DEVICE (2026-06-10 cross-device
+    // sync fix). Fast-forward our view — but only when idle (not mid-stream).
+    if (!analysisLoading) {
+      const serverAhead = serverMsgs.length > analysisMessages.length;
+      // Equal-length divergence (2026-06-14): two devices each appended one
+      // Q&A to the same base, so both lists are length N but differ, and the
+      // server kept whichever wrote last. Neither side is "ahead", so the
+      // strictly-greater check never fires and the devices would stay
+      // permanently forked. Adopt the server's canonical copy so they
+      // converge — but ONLY when the server's last answer is COMPLETE
+      // (non-empty). That clobber-safety guard means we never replace a
+      // freshly-finished LOCAL answer with a still-streaming/empty server
+      // snapshot in the brief window before Trigger A's save lands.
+      const lastServer = serverMsgs[serverMsgs.length - 1];
+      const sameLenButDiverged =
+        serverMsgs.length === analysisMessages.length &&
+        serverMsgs.length > 0 &&
+        typeof lastServer?.a === "string" &&
+        lastServer.a.trim().length > 0 &&
+        JSON.stringify(serverMsgs) !== JSON.stringify(analysisMessages);
+      if (serverAhead || sameLenButDiverged) {
+        setAnalysisMessages(serverMsgs);
+      }
     }
-  }, [currentSessionId, savedSessions, analysisLoading, analysisMessages.length]);
+  }, [currentSessionId, savedSessions, analysisLoading, analysisMessages]);
 
   const handleNewChart = () => {
     // 2026-06-08 audit fix (P2 cost): abort any in-flight AI stream before
