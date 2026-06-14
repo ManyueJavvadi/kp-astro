@@ -2112,6 +2112,17 @@ Never make up false certainty to comfort.
 
 RULE 34 — MULTI-CUSP CONFIRMATION TIER (PR A1.3-fix-26 Part C):
 
+DETERMINISTIC ENGINE TIER (2026-06-14): the chart data now contains a
+"MULTI-CUSP CONFIRMATION TIER (RULE 34 — authoritative...)" line giving
+the computed TIER and confidence band. When present, you MUST use that
+TIER number verbatim in the DIRECT VERDICT — do NOT re-count the
+supporting CSLs yourself, and do NOT state a different tier in the header
+than in the body. The engine has already collapsed shared CSL planets to
+one source (Pitfall 1). Re-counting in prose is what caused the same
+chart to show "TIER 1" in the header and "TIER 2" in the body — that is
+now FORBIDDEN. The ladder below documents the meaning of each tier so you
+can explain it; it is NOT an invitation to recompute the count.
+
 KSK gives PROMISE/DENIAL via the PRIMARY cusp's sub lord alone. But a
 20-year astrologer ALWAYS cross-checks: when the supporting cusps' sub
 lords ALSO signify the same house group, confidence multiplies.
@@ -4332,6 +4343,27 @@ def format_chart_for_llm(chart_data: dict, mode: str = "astrologer") -> str:
                 lines.append(
                     f"  H{house}:  A={a or '—'}  B={b or '—'}  C={c or '—'}  D={d or '—'}"
                 )
+
+        # 2026-06-14 — deterministic RULE-34 multi-cusp confirmation tier.
+        # TRANSCRIBE this in the DIRECT VERDICT; do NOT re-count the
+        # supporting CSLs yourself (that drifted between TIER 1/2/3 on the
+        # same chart). Shared CSL planets are already collapsed to one
+        # source per the engine (Pitfall 1).
+        ct = adv.get("confirmation_tier") or {}
+        if ct.get("tier") is not None:
+            lines.append(
+                f"\nMULTI-CUSP CONFIRMATION TIER (RULE 34 — authoritative, "
+                f"transcribe; do NOT re-count): TIER {ct.get('tier')} — "
+                f"{ct.get('label')} (confidence band {ct.get('confidence_band')})"
+            )
+            lines.append(
+                f"  primary CSL = {ct.get('primary_csl')} "
+                f"(signifies relevant houses: {ct.get('primary_signifies')}); "
+                f"distinct supporting CSLs that agree: "
+                f"{ct.get('agreeing_supporting_csls') or 'none'}"
+                + (f"; supporting CSLs that deny: {ct.get('denying_supporting_csls')}"
+                   if ct.get('denying_supporting_csls') else "")
+            )
 
         # Fruitful significators (significator ∩ Ruling Planets)
         fruitful = adv.get("fruitful_significators") or []
