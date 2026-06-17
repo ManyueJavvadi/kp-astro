@@ -305,7 +305,12 @@ app.add_middleware(
 # ════════════════════════════════════════════════════════════════
 # Request body size cap — was unlimited (a 1GB POST could pin a worker)
 # ════════════════════════════════════════════════════════════════
-_MAX_BODY_BYTES = int(os.getenv("MAX_REQUEST_BODY_BYTES", str(256 * 1024)))  # 256 KB default
+# 2026-06-16: raised 256 KB → 2 MB. Chart-session saves legitimately carry
+# the full workspace blob + a growing AI Q&A history; at ~25 long KP answers
+# the PATCH body crossed 256 KB and the save was rejected with 413
+# request_too_large (→ answers silently failed to persist). 2 MB is still a
+# sane DoS backstop and stays env-overridable via MAX_REQUEST_BODY_BYTES.
+_MAX_BODY_BYTES = int(os.getenv("MAX_REQUEST_BODY_BYTES", str(2 * 1024 * 1024)))  # 2 MB default
 
 def _cors_headers_for(request: Request) -> Dict[str, str]:
     """Compute CORS headers for early-return responses that bypass the
