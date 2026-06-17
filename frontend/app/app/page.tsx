@@ -1913,9 +1913,39 @@ export default function Home() {
     setPlaceStatus("idle"); setSavedSessions([]); setCurrentSessionId("");
   };
 
+  // ─── 2026-06-16 DATA-LOSS FIX: a blank answer must never overwrite a
+  // real one ──────────────────────────────────────────────────────────
+  // Root cause of "answers vanished": the in-flight {q, a:""} placeholder
+  // could become the canonical DB copy when the full-answer save didn't
+  // land (navigation / abort / cross-device race); on reopen the blank was
+  // loaded and re-saved, locking it in. Defence: remember the best (longest)
+  // non-empty answer seen this session per message — keyed by stable id,
+  // falling back to the question text. Every SAVE and every HYDRATE fills an
+  // empty `a` from that memory, so a placeholder or a stale/blank server
+  // copy can never clobber a generated answer.
+  const bestAnswersRef = useRef<Map<string, string>>(new Map());
+  useEffect(() => {
+    for (const m of analysisMessages) {
+      const key = m.id || m.q;
+      if (key && typeof m.a === "string" && m.a.trim()) {
+        const prev = bestAnswersRef.current.get(key);
+        if (!prev || m.a.length >= prev.length) bestAnswersRef.current.set(key, m.a);
+      }
+    }
+  }, [analysisMessages]);
+  const fillFromBest = (
+    msgs: Array<{ id?: string; q: string; a: string; isTopic?: boolean; t?: number }>,
+  ) =>
+    msgs.map((m) => {
+      if (typeof m.a === "string" && m.a.trim()) return m;
+      const key = m.id || m.q;
+      const best = key ? bestAnswersRef.current.get(key) : undefined;
+      return best ? { ...m, a: best } : m;
+    });
+
   const snapshotCurrentSession = (): ChartSession | null => {
     if (!workspaceData) return null;
-    return { id: currentSessionId || Date.now().toString(), name: workspaceData.name, birthDetails: { ...birthDetails, timezone_offset: timezoneOffset }, workspaceData, analysisMessages: [...analysisMessages], activeTopic, selectedHouse, chatQ, analysisLang, activeTab };
+    return { id: currentSessionId || Date.now().toString(), name: workspaceData.name, birthDetails: { ...birthDetails, timezone_offset: timezoneOffset }, workspaceData, analysisMessages: fillFromBest([...analysisMessages]), activeTopic, selectedHouse, chatQ, analysisLang, activeTab };
   };
 
   // ─── Wave 12 + Layer 2 (2026-06-03) — AI Q&A auto-persist ──────────
@@ -1999,11 +2029,6 @@ export default function Home() {
     [authCtx.status, currentSessionId, workspaceData, sessionsApi, remapLocalSession],
   );
 
-  // Live mirror of analysisLoading so event handlers (Trigger D) can read
-  // the current streaming state without re-subscribing on every flip.
-  const analysisLoadingRef = useRef(false);
-  analysisLoadingRef.current = analysisLoading;
-
   // Trigger A — fire IMMEDIATELY when analysisLoading flips true→false.
   // This is the moment the stream ended; analysisMessages has the
   // final assistant text. Fastest, most reliable signal.
@@ -2036,7 +2061,16 @@ export default function Home() {
   const prevMsgCountRef = useRef(0);
   useEffect(() => {
     if (analysisMessages.length > prevMsgCountRef.current) {
-      persistNow("message-added");
+      // 2026-06-16 data-loss fix: only persist once the new entry actually
+      // HAS an answer. Saving a bare {q, a:""} placeholder is what let a
+      // blank become the canonical DB copy when the full-answer save later
+      // failed to land. The question + answer now save together on
+      // stream-complete (Trigger A) / debounce (B) / background (D), all of
+      // which run through fillFromBest.
+      const last = analysisMessages[analysisMessages.length - 1];
+      if (last && typeof last.a === "string" && last.a.trim()) {
+        persistNow("message-added");
+      }
     }
     prevMsgCountRef.current = analysisMessages.length;
   }, [analysisMessages, persistNow]);
@@ -2050,14 +2084,12 @@ export default function Home() {
   useEffect(() => {
     const onHide = () => {
       if (document.visibilityState !== "hidden") return;
-      // Don't persist a HALF-STREAMED answer. If we're mid-stream the
-      // question is already in the DB (Trigger C saved it on message-add),
-      // and Trigger A will save the full answer on completion. Writing the
-      // in-progress answer here risks a freeze/kill making a TRUNCATED
-      // answer permanent — on the next device the user would see a
-      // cut-off reply. Skipping keeps the (better) "question, no answer
-      // yet" state, which the user can simply re-ask.
-      if (analysisLoadingRef.current) return;
+      // Persist on background so a mid-session conversation reaches the DB
+      // before the OS freezes the page. Safe to save even mid-stream now:
+      // every save runs through fillFromBest, so a partial/blank `a` can
+      // never overwrite a fuller answer already seen this session. (This
+      // restores the partial-save fallback removed on 2026-06-14, which had
+      // unintentionally widened the blank-answer window.)
       persistNow("page-hidden");
     };
     document.addEventListener("visibilitychange", onHide);
@@ -2092,7 +2124,10 @@ export default function Home() {
     }
     const session = savedSessions.find((s) => s.id === currentSessionId);
     if (!session) return; // SessionsBridge hasn't loaded yet — wait for next tick
-    const serverMsgs = session.analysisMessages || [];
+    // fillFromBest: if the DB copy lost an answer (blank `a`) but we've seen
+    // that answer this session, restore it so the display never goes blank
+    // and a later save re-persists the good text (2026-06-16 data-loss fix).
+    const serverMsgs = fillFromBest(session.analysisMessages || []);
 
     if (hydratedSessionIdRef.current !== currentSessionId) {
       // First open of this session id → full hydrate of all UI state.
