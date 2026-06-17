@@ -1992,6 +1992,13 @@ export default function Home() {
   // Helper — fires a save and logs the outcome so the user can verify
   // in browser devtools whether persistence succeeded. ALL save paths
   // route through here.
+  // 2026-06-16 RATE-LIMIT FIX: only PATCH when chat state actually changed
+  // since the last save. Tab-switches, re-renders and the cross-device
+  // fast-forward were each firing redundant full saves, and a burst of them
+  // tripped the per-IP rate limit (429 → save failed → answer lost). This
+  // dedup makes those no-op. Reset on error so a genuinely-failed save is
+  // retried by the next trigger.
+  const lastSavedSigRef = useRef("");
   const persistNow = useCallback(
     (origin: string) => {
       if (authCtx.status !== "authenticated") {
@@ -2015,11 +2022,30 @@ export default function Home() {
         console.debug(`[ai-persist:${origin}] skipped — snapshot returned null`);
         return;
       }
+      // Dedup: skip if nothing relevant changed since the last save attempt.
+      const sig = JSON.stringify({
+        id: snap.id,
+        m: snap.analysisMessages,
+        topic: snap.activeTopic,
+        house: snap.selectedHouse,
+        q: snap.chatQ,
+        lang: snap.analysisLang,
+        tab: snap.activeTab,
+      });
+      if (sig === lastSavedSigRef.current) {
+        // eslint-disable-next-line no-console
+        console.debug(`[ai-persist:${origin}] skipped — unchanged since last save`);
+        return;
+      }
+      lastSavedSigRef.current = sig;
       // eslint-disable-next-line no-console
       console.info(
         `[ai-persist:${origin}] saving session ${snap.id} with ${snap.analysisMessages?.length ?? 0} message(s)`,
       );
       sessionsApi.saveSession(snap, (err) => {
+        // A failed save (e.g. transient 429) must be retryable: clear the
+        // signature so the next trigger attempts it again.
+        lastSavedSigRef.current = "";
         // eslint-disable-next-line no-console
         console.error(`[ai-persist:${origin}] save FAILED:`, err.message);
       }, (serverId) => remapLocalSession(snap.id, serverId));
