@@ -156,7 +156,8 @@ import { useSessionPersistence } from "./_lib/sessions-persistence";
 // them to /auth/login first.
 import { CrmHome } from "./_components/CrmHome";
 import { useAuth } from "@/lib/auth/auth-context";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useClients } from "@/lib/api/hooks";
 
 // PR A1.3-fix-24 — env-derived. NEXT_PUBLIC_API_URL overrides for staging
 // or local dev; production fallback unchanged. Set in .env.local for dev.
@@ -2156,6 +2157,11 @@ export default function Home() {
   }, [currentSessionId, addRecent]);
   // Quick-search box that replaces the 2nd "+ New Client" in the tab bar.
   const [clientSearch, setClientSearch] = useState("");
+  const router = useRouter();
+  // ALL clients (not the per-client-scoped savedSessions) so search can find
+  // ANY client — mirroring the Clients page. Selecting one navigates to its
+  // workspace, exactly like clicking it on the Clients page.
+  const { data: clientsData } = useClients();
 
   // ─── Layer 1 hydrate (2026-06-03) — rehydrate chat state on open ───
   // BUG (reported 2026-06-03): opening a client via /app/clients/[id]
@@ -5410,12 +5416,16 @@ export default function Home() {
             />
             {clientSearch.trim() && (() => {
               const q = clientSearch.trim().toLowerCase();
-              const matches = savedSessions
-                .filter(s => (s.name || "").toLowerCase().includes(q) && s.id !== activeSessionId)
+              const matches = (clientsData?.items ?? [])
+                .filter(c =>
+                  c.name.toLowerCase().includes(q) ||
+                  (c.phone || "").toLowerCase().includes(q) ||
+                  (c.birth_place_name || "").toLowerCase().includes(q)
+                )
                 .slice(0, 8);
               return (
                 <div style={{
-                  position: "absolute", top: "calc(100% + 4px)", right: 0, minWidth: 210, maxHeight: 300,
+                  position: "absolute", top: "calc(100% + 4px)", right: 0, minWidth: 230, maxHeight: 320,
                   overflowY: "auto", background: "var(--elevated)", border: "0.5px solid var(--border)",
                   borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.45)", zIndex: 60, padding: 4,
                 }}>
@@ -5423,28 +5433,26 @@ export default function Home() {
                     <div style={{ padding: "8px 10px", fontSize: 12, color: "var(--muted)" }}>
                       {t("No matching client", "సరిపోలే క్లయింట్ లేదు")}
                     </div>
-                  ) : matches.map(s => {
-                    const g = s.birthDetails?.gender;
-                    const sym = g === "male" ? "♂" : g === "female" ? "♀" : "";
-                    return (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onMouseDown={(e) => { e.preventDefault(); }}
-                        onClick={() => { handleSwitchSession(s); addRecent(s.id); setClientSearch(""); }}
-                        style={{
-                          display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left",
-                          padding: "7px 10px", borderRadius: 6, background: "transparent", border: "none",
-                          color: "var(--text)", fontSize: 12, cursor: "pointer", whiteSpace: "nowrap",
-                        }}
-                        onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.1)")}
-                        onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                      >
-                        {sym && <span style={{ opacity: 0.7 }}>{sym}</span>}
-                        <span>{s.name || t("Unnamed", "పేరు లేదు")}</span>
-                      </button>
-                    );
-                  })}
+                  ) : matches.map(c => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onMouseDown={(e) => { e.preventDefault(); }}
+                      onClick={() => { setClientSearch(""); router.push(`/app/clients/${c.id}`); }}
+                      style={{
+                        display: "flex", flexDirection: "column", gap: 1, width: "100%", textAlign: "left",
+                        padding: "7px 10px", borderRadius: 6, background: "transparent", border: "none",
+                        color: "var(--text)", fontSize: 12, cursor: "pointer",
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.1)")}
+                      onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                    >
+                      <span style={{ whiteSpace: "nowrap" }}>{c.name || t("Unnamed", "పేరు లేదు")}</span>
+                      {c.birth_place_name && (
+                        <span style={{ fontSize: 10, color: "var(--muted)", whiteSpace: "nowrap" }}>{c.birth_place_name}</span>
+                      )}
+                    </button>
+                  ))}
                 </div>
               );
             })()}
