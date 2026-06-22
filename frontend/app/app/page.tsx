@@ -35,6 +35,7 @@ import MobileChartPillStrip from "./components/mobile/MobileChartPillStrip";
 // deeper question" input on mobile so multi-chart context works the
 // same way it does on desktop.
 import MobileChatChipsBar from "./components/mobile/MobileChatChipsBar";
+import WorkspaceAskInput from "./components/WorkspaceAskInput";
 // PR Phase 9.10f — the missing toast renderer. setToast() was being
 // called from 9 places but nothing ever rendered the state — silent
 // failures since forever. AppToast closes the gap.
@@ -533,17 +534,16 @@ export default function Home() {
   // handleWorkspaceChat routes to /astrologer/multi-analyze-stream
   // instead of the single-chart /analyze-stream.
   //
-  // mentionPopoverOpen + mentionQuery drive the @-mention autocomplete
-  // that lets the astrologer type "@ramya" to add Ramya's saved chart
-  // to context.  Click the [+] button on the chip strip for the same
-  // result via dropdown.
+  // mentionPopoverOpen drives the [+] chip-strip dropdown that lets the
+  // astrologer pick a saved chart to add to context. (The in-input
+  // "@ramya" autocomplete now lives inside WorkspaceAskInput, which keeps
+  // its own local query state so keystrokes don't re-render the workspace.)
   //
   // lastMultiChartMeta caches the latest meta payload from a
   // /multi-analyze-stream response so we can render the chart-labels
   // pill above each answer.
   const [chartsInContext, setChartsInContext] = useState<ChartSession[]>([]);
   const [mentionPopoverOpen, setMentionPopoverOpen] = useState(false);
-  const [mentionQuery, setMentionQuery] = useState("");
   const [lastMultiChartMeta, setLastMultiChartMeta] = useState<{
     chart_labels?: string[];
     playbook?: string;
@@ -1749,9 +1749,13 @@ export default function Home() {
     }
   };
 
-  const handleWorkspaceChat = async () => {
-    if (!chatQ.trim()) return;
-    const q = chatQ; setChatQ(""); setAnalysisLoading(true); setActiveTab("analysis");
+  const handleWorkspaceChat = async (textArg?: string) => {
+    // textArg comes from WorkspaceAskInput (its local draft). The typeof
+    // guard means any legacy onClick={handleWorkspaceChat} that passes an
+    // event still falls back to chatQ instead of treating the event as text.
+    const raw = typeof textArg === "string" ? textArg : chatQ;
+    if (!raw.trim()) return;
+    const q = raw; setChatQ(""); setAnalysisLoading(true); setActiveTab("analysis");
     if (!isMobile) {
       setSidebarOpen(true);
       setAiMaximized(true);
@@ -3439,168 +3443,22 @@ export default function Home() {
         {/* Sidebar Ask input strip */}
         <div style={{ borderTop: "0.5px solid rgba(255,255,255,0.08)", padding: isMax ? "16px 40px" : "10px 12px", background: "rgba(13, 13, 22, 0.6)", display: "flex", gap: 8, alignItems: "center", flexShrink: 0, justifyContent: "center" }}>
           <div style={{ width: "100%", maxWidth: isMax ? "800px" : "100%", display: "flex", gap: 8, alignItems: "center", position: "relative" }}>
-            <input
-              value={chatQ}
-              onChange={e => {
-                const v = e.target.value;
-                setChatQ(v);
-                // PR MultiChart-Phase-3.1 — @-mention detection.
-                // If the most recent token in the input starts with "@",
-                // open the mention popover and filter savedSessions by
-                // the token (case-insensitive substring match).  Clicking
-                // a result replaces the "@xxx" token with the chart name
-                // AND pins the chart into chartsInContext.
-                const cursor = e.target.selectionStart ?? v.length;
-                const beforeCursor = v.slice(0, cursor);
-                const atIdx = beforeCursor.lastIndexOf("@");
-                if (atIdx >= 0) {
-                  // Only trigger if @ is at start or follows a space — no
-                  // false positives on email-looking text.
-                  const charBefore = atIdx === 0 ? " " : beforeCursor[atIdx - 1];
-                  const isWordBoundary = /\s/.test(charBefore);
-                  if (isWordBoundary) {
-                    const token = beforeCursor.slice(atIdx + 1);
-                    // Cancel if the token already contains whitespace
-                    if (!/\s/.test(token)) {
-                      setMentionQuery(token);
-                      setMentionPopoverOpen(true);
-                      return;
-                    }
-                  }
-                }
-                setMentionPopoverOpen(false);
-                setMentionQuery("");
-              }}
-              onKeyDown={e => {
-                if (e.key === "Escape") {
-                  setMentionPopoverOpen(false);
-                  setMentionQuery("");
-                  return;
-                }
-                if (e.key === "Enter" && !mentionPopoverOpen) handleWorkspaceChat();
-              }}
-              placeholder={isMax ? t("Ask AI Companion a deeper question — type @ to pull in another chart", "జన్మ కుండలి గురించి లోతైన విశ్లేషణ కోసం తోడు AI ని అడగండి…") : t("Ask AI Companion… (type @ to add a chart)", "తోడు AI ని అడగండి…")}
-              style={{
-                flex: 1,
-                background: "rgba(255, 255, 255, 0.03)",
-                border: "0.5px solid rgba(255, 255, 255, 0.08)",
-                borderRadius: 10,
-                padding: isMax ? "12px 18px" : "8px 12px",
-                fontSize: isMax ? 14 : 12,
-                color: "var(--text)",
-                outline: "none",
-                fontFamily: "inherit",
-                transition: "all 0.15s"
-              }}
-              onFocus={e => {
-                e.currentTarget.style.borderColor = "var(--accent)";
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
-              }}
-              onBlur={e => {
-                e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.08)";
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.03)";
-                // Slight delay so click on dropdown items registers before blur closes it
-                setTimeout(() => setMentionPopoverOpen(false), 150);
-              }}
+            {/* Perf: input draft is isolated inside WorkspaceAskInput so
+                keystrokes don't re-render the whole workspace (2026-06-22). */}
+            <WorkspaceAskInput
+              variant="sidebar"
+              isMax={isMax}
+              enableMentions
+              seed={chatQ}
+              onSubmit={(text) => handleWorkspaceChat(text)}
+              onCommit={(text) => setChatQ(text)}
+              disabled={analysisLoading}
+              t={t}
+              savedSessions={savedSessions}
+              currentSessionId={currentSessionId}
+              chartsInContext={chartsInContext}
+              onPinChart={(s) => setChartsInContext(prev => prev.some(c => c.id === s.id) ? prev : [...prev, s as ChartSession])}
             />
-            {/* @-mention autocomplete dropdown */}
-            {mentionPopoverOpen && savedSessions.length > 0 && (() => {
-              const q = mentionQuery.toLowerCase();
-              const matches = savedSessions
-                .filter(s =>
-                  s.id !== currentSessionId &&
-                  !chartsInContext.some(c => c.id === s.id) &&
-                  (q === "" || (s.name || s.birthDetails?.name || "").toLowerCase().includes(q))
-                )
-                .slice(0, 6);
-              if (matches.length === 0) return null;
-              return (
-                <div
-                  style={{
-                    position: "absolute",
-                    bottom: "calc(100% + 6px)",
-                    left: 0,
-                    right: 80,
-                    zIndex: 30,
-                    background: "rgba(13, 13, 22, 0.98)",
-                    backdropFilter: "blur(8px)",
-                    border: "0.5px solid rgba(201,169,110,0.4)",
-                    borderRadius: 8,
-                    padding: 6,
-                    boxShadow: "0 -8px 24px rgba(0,0,0,0.5)",
-                    maxHeight: 220,
-                    overflowY: "auto",
-                  }}
-                >
-                  <div style={{ fontSize: 9, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.08em", padding: "4px 6px" }}>
-                    Add a chart to this chat
-                  </div>
-                  {matches.map(s => {
-                    const g = s.birthDetails?.gender;
-                    const gsym = g === "male" ? "♂" : g === "female" ? "♀" : "·";
-                    const sName = s.name || s.birthDetails?.name || "Unnamed";
-                    return (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onMouseDown={e => e.preventDefault()}  // prevent input blur
-                        onClick={() => {
-                          // Pin the chart
-                          setChartsInContext(prev => prev.some(c => c.id === s.id) ? prev : [...prev, s]);
-                          // Replace the "@xxx" token in chatQ with the chart name
-                          setChatQ(prev => {
-                            const atIdx = prev.lastIndexOf("@");
-                            if (atIdx < 0) return prev;
-                            return prev.slice(0, atIdx) + sName + " ";
-                          });
-                          setMentionPopoverOpen(false);
-                          setMentionQuery("");
-                        }}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 8,
-                          width: "100%",
-                          padding: "8px 10px",
-                          borderRadius: 6,
-                          border: "none",
-                          background: "transparent",
-                          color: "var(--text)",
-                          fontSize: 12,
-                          textAlign: "left",
-                          cursor: "pointer",
-                          fontFamily: "inherit",
-                        }}
-                        onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = "rgba(201,169,110,0.10)"}
-                        onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = "transparent"}
-                      >
-                        <span style={{ opacity: 0.7 }}>{gsym}</span>
-                        <span style={{ fontWeight: 600 }}>{sName}</span>
-                        <span style={{ fontSize: 10, color: "var(--muted)", marginLeft: "auto" }}>
-                          {s.birthDetails?.date}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              );
-            })()}
-            <button onClick={handleWorkspaceChat} disabled={analysisLoading || !chatQ.trim()}
-              style={{
-                background: chatQ.trim() ? "var(--accent)" : "rgba(255,255,255,0.03)",
-                color: chatQ.trim() ? "#09090f" : "var(--muted)",
-                border: "none",
-                borderRadius: 10,
-                padding: isMax ? "12px 24px" : "8px 14px",
-                fontSize: isMax ? 14 : 12,
-                cursor: chatQ.trim() ? "pointer" : "default",
-                fontWeight: 600,
-                fontFamily: "inherit",
-                transition: "all 0.15s"
-              }}
-            >
-              {t("Ask", "అడగు")}
-            </button>
           </div>
         </div>
       </div>
@@ -5223,17 +5081,14 @@ export default function Home() {
           )}
           {activeTab !== "horary" && activeTab !== "panchang" && activeTab !== "muhurtha" && !selectedHouse && (
             <div style={{ borderTop: "0.5px solid var(--border)", padding: "0.75rem 1.25rem", background: "var(--surface)", display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
-              <input
-                value={chatQ}
-                onChange={e => setChatQ(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") handleWorkspaceChat(); }}
-                placeholder={t("Ask a deeper question…", "లోతైన విశ్లేషణ కోసం అడగండి…")}
-                style={{ flex: 1, background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 8, padding: "9px 14px", fontSize: 13, color: "var(--text)", outline: "none", fontFamily: "inherit" }}
+              <WorkspaceAskInput
+                variant="compact"
+                seed={chatQ}
+                onSubmit={(text) => handleWorkspaceChat(text)}
+                onCommit={(text) => setChatQ(text)}
+                disabled={analysisLoading}
+                t={t}
               />
-              <button onClick={handleWorkspaceChat} disabled={analysisLoading || !chatQ.trim()}
-                style={{ background: chatQ.trim() ? "var(--accent)" : "var(--surface2)", color: chatQ.trim() ? "#09090f" : "var(--muted)", border: "none", borderRadius: 8, padding: "9px 18px", fontSize: 13, cursor: chatQ.trim() ? "pointer" : "default", fontWeight: 500, fontFamily: "inherit" }}>
-                {t("Ask", "అడగు")}
-              </button>
             </div>
           )}
         </div>
@@ -5811,17 +5666,14 @@ export default function Home() {
             {/* Workspace Ask Bar */}
             {activeTab !== "horary" && activeTab !== "panchang" && activeTab !== "muhurtha" && (
               <div style={{ borderTop: "0.5px solid var(--border)", padding: "0.75rem 1.25rem", background: "var(--surface)", display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
-                <input
-                  value={chatQ}
-                  onChange={e => setChatQ(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter") handleWorkspaceChat(); }}
-                  placeholder={t("Ask a deeper question…", "లోతైన విశ్లేషణ కోసం అడగండి…")}
-                  style={{ flex: 1, background: "var(--surface2)", border: "0.5px solid var(--border2)", borderRadius: 8, padding: "9px 14px", fontSize: 13, color: "var(--text)", outline: "none", fontFamily: "inherit" }}
+                <WorkspaceAskInput
+                  variant="compact"
+                  seed={chatQ}
+                  onSubmit={(text) => handleWorkspaceChat(text)}
+                  onCommit={(text) => setChatQ(text)}
+                  disabled={analysisLoading}
+                  t={t}
                 />
-                <button onClick={handleWorkspaceChat} disabled={analysisLoading || !chatQ.trim()}
-                  style={{ background: chatQ.trim() ? "var(--accent)" : "var(--surface2)", color: chatQ.trim() ? "#09090f" : "var(--muted)", border: "none", borderRadius: 8, padding: "9px 18px", fontSize: 13, cursor: chatQ.trim() ? "pointer" : "default", fontWeight: 500, fontFamily: "inherit" }}>
-                  {t("Ask", "అడగు")}
-                </button>
               </div>
             )}
           </div>
