@@ -130,6 +130,42 @@ export default function DashaTimeline({ mahadasha, antardashas, workspaceData }:
     });
   };
 
+  // 2026-06-22 — Sookshma (4th level) generator. Mirrors generatePADsForAd
+  // AND the backend `calculate_sookshma_dashas` EXACTLY (duration =
+  // parent × lord-years/120, sequence from the PAD lord), so the dates
+  // match what the AI receives. For the CURRENT AD we instead render the
+  // backend's `sookshmas_current_ad` verbatim — it carries the very same
+  // fire-scores the AI uses, so the UI and the AI are provably consistent.
+  const generateSookshmasForPad = (padLordEn: string, padStart: string, padEnd: string) => {
+    const startIndex = PLANETS_ORDER.indexOf(padLordEn);
+    if (startIndex === -1) return [];
+    const startMs = new Date(padStart).getTime();
+    const endMs = new Date(padEnd).getTime();
+    const total = endMs - startMs;
+    if (total <= 0) return [];
+    const ordered = [...PLANETS_ORDER.slice(startIndex), ...PLANETS_ORDER.slice(0, startIndex)];
+    let cur = startMs;
+    return ordered.map((lord) => {
+      const dur = total * (VIMSHOTTARI_YEARS[lord] / 120);
+      const s = new Date(cur);
+      const e = new Date(cur + dur);
+      cur += dur;
+      const nowMs = today.getTime();
+      return {
+        sookshma_lord: lord, lord_en: lord, lord_te: lord,
+        start: s.toISOString().split("T")[0],
+        end: e.toISOString().split("T")[0],
+        is_current: nowMs >= s.getTime() && nowMs <= e.getTime(),
+      };
+    });
+  };
+  // Backend sookshma for the current AD (keyed by PAD lord) — the exact
+  // array the AI consumes, including pre-computed fire scores.
+  const sookshmasCurrentAd =
+    (workspaceData as { sookshmas_current_ad?: Record<string, any[]> } | undefined)
+      ?.sookshmas_current_ad ?? {};
+  const [expandedPadKey, setExpandedPadKey] = useState<string | null>(null);
+
   return (
     <div>
       {/* Mahadasha Header with visual gold-indigo gradient bar */}
@@ -278,68 +314,121 @@ export default function DashaTimeline({ mahadasha, antardashas, workspaceData }:
                   {generatePADsForAd(adLordEn, ad.start, ad.end).map((pad, pidx) => {
                     const padColor = PLANET_COLORS[pad.lord_en] ?? "#c9a96e";
                     const padBadges = getTopicBadges(pad.lord_en);
+                    const padKey = `${idx}-${pidx}`;
+                    const isPadOpen = expandedPadKey === padKey;
+                    // Sookshma source: backend (AI-exact, fire scores) for the
+                    // CURRENT AD; identical-method generation for other ADs.
+                    const backendSooks = ad.is_current ? (sookshmasCurrentAd[pad.lord_en] ?? null) : null;
+                    const sooks: any[] = backendSooks && backendSooks.length
+                      ? [...backendSooks].sort((a, b) => String(a.start).localeCompare(String(b.start)))
+                      : generateSookshmasForPad(pad.lord_en, pad.start, pad.end);
+                    const hasSooks = sooks.length > 0;
                     return (
-                      <div key={pidx} style={{
-                        display: "flex",
-                        alignItems: "center",
-                        padding: "5px 8px",
-                        borderRadius: 6,
-                        background: pad.is_current ? "rgba(255,255,255,0.03)" : "transparent",
-                        border: pad.is_current ? `0.5px solid ${padColor}40` : "0.5px solid transparent",
-                      }}>
-                        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.15)", marginRight: 6 }}>↳</span>
-                        
-                        {/* PAD Color dot */}
-                        <div style={{
-                          width: 6, height: 6, borderRadius: "50%",
-                          background: padColor,
-                          marginRight: 8,
-                          flexShrink: 0
-                        }} />
+                      <div key={pidx}>
+                        <div
+                          onClick={hasSooks ? () => setExpandedPadKey(isPadOpen ? null : padKey) : undefined}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            padding: "5px 8px",
+                            borderRadius: 6,
+                            background: pad.is_current ? "rgba(255,255,255,0.03)" : "transparent",
+                            border: pad.is_current ? `0.5px solid ${padColor}40` : "0.5px solid transparent",
+                            cursor: hasSooks ? "pointer" : "default",
+                          }}
+                        >
+                          <span style={{ fontSize: 10, color: "rgba(255,255,255,0.15)", marginRight: 6 }}>↳</span>
+                          {hasSooks && (
+                            <span style={{ fontSize: 8, color: padColor, marginRight: 4, width: 8, display: "inline-block", flexShrink: 0 }}>
+                              {isPadOpen ? "▾" : "▸"}
+                            </span>
+                          )}
 
-                        <span style={{
-                          fontSize: 12,
-                          color: pad.is_current ? padColor : "#a0a0b0",
-                          fontWeight: pad.is_current ? 600 : 400,
-                          minWidth: 80
-                        }}>
-                          {pick(pad, "lord")}
-                        </span>
+                          {/* PAD Color dot */}
+                          <div style={{
+                            width: 6, height: 6, borderRadius: "50%",
+                            background: padColor,
+                            marginRight: 8,
+                            flexShrink: 0
+                          }} />
 
-                        <span style={{ fontSize: 9.5, color: "rgba(255,255,255,0.3)" }}>
-                          {pad.start} → {pad.end}
-                        </span>
-
-                        {/* PAD level badges (only if active) */}
-                        {pad.is_current && (
-                          <div style={{ display: "flex", gap: 3, marginLeft: "auto", marginRight: 6 }}>
-                            {padBadges.map(b => (
-                              <span key={b.id} style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: 1,
-                                fontSize: 7.5,
-                                padding: "1px 4px",
-                                borderRadius: 3,
-                                background: b.bg,
-                                color: b.color,
-                              }}>
-                                {b.icon}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-
-                        {pad.is_current && (
                           <span style={{
-                            fontSize: 8,
-                            color: padColor,
-                            fontWeight: 700,
-                            letterSpacing: "0.04em",
-                            marginLeft: pad.is_current ? "0" : "auto"
+                            fontSize: 12,
+                            color: pad.is_current ? padColor : "#a0a0b0",
+                            fontWeight: pad.is_current ? 600 : 400,
+                            minWidth: 80
                           }}>
-                            ◀ {t("ACTIVE", "యాక్టివ్")}
+                            {pick(pad, "lord")}
                           </span>
+
+                          <span style={{ fontSize: 9.5, color: "rgba(255,255,255,0.3)" }}>
+                            {pad.start} → {pad.end}
+                          </span>
+
+                          {/* PAD level badges (only if active) */}
+                          {pad.is_current && (
+                            <div style={{ display: "flex", gap: 3, marginLeft: "auto", marginRight: 6 }}>
+                              {padBadges.map(b => (
+                                <span key={b.id} style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 1,
+                                  fontSize: 7.5,
+                                  padding: "1px 4px",
+                                  borderRadius: 3,
+                                  background: b.bg,
+                                  color: b.color,
+                                }}>
+                                  {b.icon}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          {pad.is_current && (
+                            <span style={{
+                              fontSize: 8,
+                              color: padColor,
+                              fontWeight: 700,
+                              letterSpacing: "0.04em",
+                              marginLeft: pad.is_current ? "0" : "auto"
+                            }}>
+                              ◀ {t("ACTIVE", "యాక్టివ్")}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Sookshma (4th level) — day-precision sub-windows */}
+                        {isPadOpen && hasSooks && (
+                          <div style={{ paddingLeft: 26, marginTop: 2, marginBottom: 4, display: "flex", flexDirection: "column", gap: 1 }}>
+                            <div style={{ fontSize: 8, color: "rgba(255,255,255,0.2)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>
+                              {t("Sookshma (day-level)", "సూక్ష్మ (రోజు-స్థాయి)")}
+                              {backendSooks ? ` · ${t("AI-synced", "AI-సమకాలీకృతం")}` : ""}
+                            </div>
+                            {sooks.map((sd: any, sidx: number) => {
+                              const sdLord = sd.sookshma_lord ?? sd.lord_en ?? sd.lord ?? "?";
+                              const sdColor = PLANET_COLORS[sdLord] ?? "#888899";
+                              const fire = typeof sd.fire_score === "number" ? sd.fire_score : undefined;
+                              const nowMs = today.getTime();
+                              const sdCur = sd.is_current ?? (nowMs >= new Date(sd.start).getTime() && nowMs <= new Date(sd.end).getTime());
+                              return (
+                                <div key={sidx} style={{
+                                  display: "flex", alignItems: "center", gap: 6,
+                                  padding: "2px 6px", borderRadius: 5,
+                                  background: sdCur ? `${sdColor}14` : "transparent",
+                                }}>
+                                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.12)" }}>·</span>
+                                  <span style={{ width: 5, height: 5, borderRadius: "50%", background: sdColor, flexShrink: 0 }} />
+                                  <span style={{ fontSize: 10.5, color: sdCur ? sdColor : "#9090a0", fontWeight: sdCur ? 600 : 400, minWidth: 70 }}>{sdLord}</span>
+                                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.28)" }}>{sd.start} → {sd.end}</span>
+                                  {fire !== undefined && (
+                                    <span title={t("Fire score — the exact value sent to the AI", "ఫైర్ స్కోర్ — AI కి పంపే విలువ")} style={{ fontSize: 8, fontWeight: 700, color: sdColor, marginLeft: 2, opacity: 0.85 }}>🔥{fire}</span>
+                                  )}
+                                  {sdCur && <span style={{ fontSize: 7.5, color: sdColor, fontWeight: 700, marginLeft: 2 }}>◀ {t("NOW", "ప్రస్తుతం")}</span>}
+                                </div>
+                              );
+                            })}
+                          </div>
                         )}
                       </div>
                     );
