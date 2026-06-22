@@ -2162,6 +2162,7 @@ export default function Home() {
   // ANY client — mirroring the Clients page. Selecting one navigates to its
   // workspace, exactly like clicking it on the Clients page.
   const { data: clientsData } = useClients();
+  const clientSearchRef = useRef<HTMLDivElement | null>(null);
 
   // ─── Layer 1 hydrate (2026-06-03) — rehydrate chat state on open ───
   // BUG (reported 2026-06-03): opening a client via /app/clients/[id]
@@ -5390,7 +5391,7 @@ export default function Home() {
               type a name → suggestions from saved clients → open it,
               instead of navigating to the Clients page. The header still
               has the primary "+ New Client". */}
-          <div style={{ marginLeft: "auto", position: "relative", flexShrink: 0 }}>
+          <div ref={clientSearchRef} style={{ marginLeft: "auto", position: "relative", flexShrink: 0 }}>
             <input
               type="text"
               value={clientSearch}
@@ -5416,6 +5417,14 @@ export default function Home() {
             />
             {clientSearch.trim() && (() => {
               const q = clientSearch.trim().toLowerCase();
+              // position:FIXED so the dropdown escapes .client-tabs-bar's
+              // overflow:auto, which was clipping it (the real reason no
+              // suggestions appeared). Anchored to the input via its ref.
+              const r = clientSearchRef.current?.getBoundingClientRect();
+              const winW = typeof window !== "undefined" ? window.innerWidth : 0;
+              const dropStyle: React.CSSProperties = r
+                ? { position: "fixed", top: r.bottom + 4, right: Math.max(8, winW - r.right), minWidth: Math.max(230, r.width), maxHeight: 320, overflowY: "auto", background: "var(--elevated)", border: "0.5px solid var(--border)", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.45)", zIndex: 9999, padding: 4 }
+                : { position: "absolute", top: "calc(100% + 4px)", right: 0, minWidth: 230, maxHeight: 320, overflowY: "auto", background: "var(--elevated)", border: "0.5px solid var(--border)", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.45)", zIndex: 9999, padding: 4 };
               const matches = (clientsData?.items ?? [])
                 .filter(c =>
                   c.name.toLowerCase().includes(q) ||
@@ -5424,11 +5433,7 @@ export default function Home() {
                 )
                 .slice(0, 8);
               return (
-                <div style={{
-                  position: "absolute", top: "calc(100% + 4px)", right: 0, minWidth: 230, maxHeight: 320,
-                  overflowY: "auto", background: "var(--elevated)", border: "0.5px solid var(--border)",
-                  borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.45)", zIndex: 60, padding: 4,
-                }}>
+                <div style={dropStyle}>
                   {matches.length === 0 ? (
                     <div style={{ padding: "8px 10px", fontSize: 12, color: "var(--muted)" }}>
                       {t("No matching client", "సరిపోలే క్లయింట్ లేదు")}
