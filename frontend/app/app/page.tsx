@@ -2122,6 +2122,41 @@ export default function Home() {
     return () => document.removeEventListener("visibilitychange", onHide);
   }, [persistNow]);
 
+  // ── 2026-06-22 — workspace "RECENT CLIENTS" bar (capped, persisted) ──
+  // The top tab strip is now a RECENTS bar, not the full saved-sessions
+  // list. The chip × removes from THIS bar only — it NEVER deletes the
+  // client (hard delete lives solely on the Clients page). Opening a
+  // client (switch / search / new) pushes it to the front of recents.
+  const RECENTS_CAP = 8;
+  const [recentClientIds, setRecentClientIds] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const v = JSON.parse(localStorage.getItem("devastroai:recent_client_ids") || "[]");
+      return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+    } catch { return []; }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "devastroai:recent_client_ids",
+        JSON.stringify(recentClientIds.slice(0, RECENTS_CAP)),
+      );
+    } catch { /* localStorage may be unavailable */ }
+  }, [recentClientIds]);
+  const addRecent = useCallback((id: string) => {
+    if (!id || id === "active") return;
+    setRecentClientIds(prev => [id, ...prev.filter(x => x !== id)].slice(0, RECENTS_CAP));
+  }, []);
+  const removeRecent = useCallback((id: string) => {
+    setRecentClientIds(prev => prev.filter(x => x !== id));
+  }, []);
+  // When a real client becomes active, push it to the front of recents.
+  useEffect(() => {
+    if (currentSessionId && currentSessionId !== "active") addRecent(currentSessionId);
+  }, [currentSessionId, addRecent]);
+  // Quick-search box that replaces the 2nd "+ New Client" in the tab bar.
+  const [clientSearch, setClientSearch] = useState("");
+
   // ─── Layer 1 hydrate (2026-06-03) — rehydrate chat state on open ───
   // BUG (reported 2026-06-03): opening a client via /app/clients/[id]
   // pushed birthDetails + workspaceData + currentSessionId into context,
@@ -2509,7 +2544,13 @@ export default function Home() {
     analysisLang,
     activeTab
   } : null;
-  const openSessions = activeSession ? [activeSession, ...savedSessions.filter(s => s.id !== activeSessionId)] : [];
+  // Recents bar = active client + recently-opened clients (newest first),
+  // excluding the active one. No longer the full saved-sessions list, so the
+  // chip × can mean "remove from bar" without touching the saved client.
+  const recentSessions = recentClientIds
+    .map(id => savedSessions.find(s => s.id === id))
+    .filter((s): s is ChartSession => !!s && s.id !== activeSessionId);
+  const openSessions = activeSession ? [activeSession, ...recentSessions] : [...recentSessions];
 
   const TOPIC_ICONS: Record<string, React.ComponentType<{ size?: number; style?: React.CSSProperties }>> = {
     marriage: HeartPulse,
@@ -5306,18 +5347,17 @@ export default function Home() {
                   {genderSym && <span style={{ marginRight: 4, opacity: 0.7 }}>{genderSym}</span>}
                   {session.name || "Unnamed"}
                 </span>
-                {openSessions.length > 1 && (
+                {!isActive && (
                   <button
                     type="button"
                     className="client-tab-close"
-                    title="Delete chart"
+                    title="Remove from recents — does NOT delete (reopen from Clients or search)"
                     onClick={(e) => {
                       e.stopPropagation();
-                      // 2026-06-08 audit fix (P1): route through the
-                      // confirmation modal instead of deleting on the
-                      // spot. confirmDeleteSession handles the post-delete
-                      // tab switch when the active chart is removed.
-                      requestRemoveSession(session);
+                      // 2026-06-22: this is a RECENTS bar — × only removes
+                      // the chip from the bar. The client is NOT deleted;
+                      // hard delete lives exclusively on the Clients page.
+                      removeRecent(session.id);
                     }}
                     style={{
                       background: "transparent",
@@ -5340,35 +5380,75 @@ export default function Home() {
               </div>
             );
           })}
-          <button
-            type="button"
-            onClick={handleNewChart}
-            style={{
-              marginLeft: "auto",
-              padding: "4px 12px",
-              borderRadius: 6,
-              background: "rgba(201,169,110,0.1)",
-              border: "0.5px dashed rgba(201,169,110,0.4)",
-              color: "var(--accent)",
-              fontSize: 11,
-              fontWeight: 500,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              transition: "all 120ms"
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.background = "rgba(201,169,110,0.18)";
-              e.currentTarget.style.borderColor = "var(--accent)";
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.background = "rgba(201,169,110,0.1)";
-              e.currentTarget.style.borderColor = "rgba(201,169,110,0.4)";
-            }}
-          >
-            + {t("New Client", "కొత్త క్లయింట్")}
-          </button>
+          {/* 2026-06-22 — the 2nd "+ New Client" is now a quick-search:
+              type a name → suggestions from saved clients → open it,
+              instead of navigating to the Clients page. The header still
+              has the primary "+ New Client". */}
+          <div style={{ marginLeft: "auto", position: "relative", flexShrink: 0 }}>
+            <input
+              type="text"
+              value={clientSearch}
+              onChange={e => setClientSearch(e.target.value)}
+              placeholder={t("Search clients…", "క్లయింట్లను వెతకండి…")}
+              aria-label={t("Search clients", "క్లయింట్లను వెతకండి")}
+              style={{
+                width: 190,
+                padding: "5px 10px",
+                borderRadius: 6,
+                background: "rgba(255,255,255,0.03)",
+                border: "0.5px solid var(--border)",
+                color: "var(--text)",
+                fontSize: 12,
+                outline: "none",
+              }}
+              onFocus={e => (e.currentTarget.style.borderColor = "var(--accent)")}
+              onBlur={e => {
+                e.currentTarget.style.borderColor = "var(--border)";
+                // delay so a suggestion click registers before close
+                setTimeout(() => setClientSearch(""), 150);
+              }}
+            />
+            {clientSearch.trim() && (() => {
+              const q = clientSearch.trim().toLowerCase();
+              const matches = savedSessions
+                .filter(s => (s.name || "").toLowerCase().includes(q) && s.id !== activeSessionId)
+                .slice(0, 8);
+              return (
+                <div style={{
+                  position: "absolute", top: "calc(100% + 4px)", right: 0, minWidth: 210, maxHeight: 300,
+                  overflowY: "auto", background: "var(--elevated)", border: "0.5px solid var(--border)",
+                  borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.45)", zIndex: 60, padding: 4,
+                }}>
+                  {matches.length === 0 ? (
+                    <div style={{ padding: "8px 10px", fontSize: 12, color: "var(--muted)" }}>
+                      {t("No matching client", "సరిపోలే క్లయింట్ లేదు")}
+                    </div>
+                  ) : matches.map(s => {
+                    const g = s.birthDetails?.gender;
+                    const sym = g === "male" ? "♂" : g === "female" ? "♀" : "";
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onMouseDown={(e) => { e.preventDefault(); }}
+                        onClick={() => { handleSwitchSession(s); addRecent(s.id); setClientSearch(""); }}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left",
+                          padding: "7px 10px", borderRadius: 6, background: "transparent", border: "none",
+                          color: "var(--text)", fontSize: 12, cursor: "pointer", whiteSpace: "nowrap",
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.1)")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                      >
+                        {sym && <span style={{ opacity: 0.7 }}>{sym}</span>}
+                        <span>{s.name || t("Unnamed", "పేరు లేదు")}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </div>
         </div>
 
         {/* G1 hotfix v5 — TIME SHIFT / ACTIVE DASHA / COORDS stats
