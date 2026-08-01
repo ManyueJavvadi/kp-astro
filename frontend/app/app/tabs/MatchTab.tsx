@@ -46,6 +46,8 @@ import PlanetList from "../components/workspace/PlanetList";
 import MatchPatternChips from "../components/MatchPatternChips";  // PR M3
 import MatchStarSubHarmonyStrip from "../components/MatchStarSubHarmonyStrip";  // PR M4
 import MatchReasoningTrace from "../components/MatchReasoningTrace";  // PR M12
+import MatchIndividualGate from "../components/MatchIndividualGate";  // PR A1.13
+import MatchKootaSystems from "../components/MatchKootaSystems";      // PR A1.13
 import type { ChartSession } from "../types";
 
 // Verbose prop bag — match flow has many cross-cutting state slots.
@@ -708,7 +710,11 @@ export function MatchTab(props: MatchTabProps) {
             {/* Sub-tab bar — breaks the big result wall into scannable
                 sections. Same pill pattern as Houses sub-tabs. */}
             {(() => {
+              // PR A1.13 — funnel order. "Individual" leads because the
+              // working rule is: read each chart ALONE first; only if both
+              // pass does the compatibility score mean anything.
               const subtabs = [
+                { id: "individual", en: "Individual", te: "వ్యక్తిగతం" },
                 { id: "overall", en: "Overall",   te: "మొత్తం" },
                 { id: "charts",  en: "Charts",    te: "చార్టులు" },
                 { id: "kp",      en: "KP",        te: "KP" },
@@ -737,6 +743,36 @@ export function MatchTab(props: MatchTabProps) {
                 </div>
               );
             })()}
+
+            {/* ══════ INDIVIDUAL pane — PR A1.13 Stage-1 gate ══════
+                Each chart read ON ITS OWN, before any compatibility
+                number. Papa Samyam (South Indian affliction load from
+                Lagna/Moon/Venus) + the per-person marital signals the
+                engine already computes, composed into the order an
+                astrologer actually works in. */}
+            {matchSubTab === "individual" && (
+              <div className="match-subtab-pane">
+                <MatchIndividualGate
+                  papaSamyam={r.papa_samyam}
+                  p1Name={r.person1?.name}
+                  p2Name={r.person2?.name}
+                  boyName={r.boy_girl?.boy}
+                  p1Promise={kp?.chart1_promise}
+                  p2Promise={kp?.chart2_promise}
+                  p1NoDesire={r.no_desire_chart1}
+                  p2NoDesire={r.no_desire_chart2}
+                  p1Separation={r.separation_risk_chart1}
+                  p2Separation={r.separation_risk_chart2}
+                  p1SpouseLongevity={r.spouse_longevity_chart1}
+                  p2SpouseLongevity={r.spouse_longevity_chart2}
+                  p1MultiMarriage={r.multi_marriage_chart1}
+                  p2MultiMarriage={r.multi_marriage_chart2}
+                />
+                {/* Compatibility follows immediately, so the astrologer
+                    sees the gate and the score in one scroll. */}
+                <MatchKootaSystems ashtakoota={ast} dashakoota={r.dashakoota} />
+              </div>
+            )}
 
             {/* ══════ CHARTS pane ══════ */}
             {matchSubTab === "charts" && (
@@ -1614,6 +1650,13 @@ export function MatchTab(props: MatchTabProps) {
               width: "100%",
               alignItems: "start",
             }}>
+
+              {/* PR A1.13 — both koota systems (North 36 + South 10) with
+                  the South dual verdict. Spans the full grid so it reads as
+                  the anchor of this pane. */}
+              <div style={{ gridColumn: "1 / -1" }}>
+                <MatchKootaSystems ashtakoota={ast} dashakoota={r.dashakoota} />
+              </div>
 
               {/* PR M14 — Best wedding window hero card.
                   Pick the strongest joint precision window (PD+Sookshma);

@@ -498,7 +498,10 @@ export default function Home() {
   const [matchAnalysisLang, setMatchAnalysisLang] = useState<"english"|"telugu_english">("telugu_english");
   // Which sub-tab is visible in the Match Results stage. Defaults to
   // "overall" on every fresh result. Reset whenever matchResults clears.
-  const [matchSubTab, setMatchSubTab] = useState<"overall"|"charts"|"kp"|"timing"|"risks"|"ai">("overall");
+  // PR A1.13 — "individual" is the new Stage-1 gate (each chart on its
+  // own, before compatibility). It leads the funnel because that is the
+  // order an experienced astrologer actually works in.
+  const [matchSubTab, setMatchSubTab] = useState<"individual"|"overall"|"charts"|"kp"|"timing"|"risks"|"ai">("individual");
   // PR22 — single shared house selection across both match charts so tapping
   // a house on Person 1 also expands the same house on Person 2.
   const [matchHouseShared, setMatchHouseShared] = useState<number | null>(null);
