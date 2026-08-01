@@ -48,6 +48,8 @@ import MatchStarSubHarmonyStrip from "../components/MatchStarSubHarmonyStrip";  
 import MatchReasoningTrace from "../components/MatchReasoningTrace";  // PR M12
 import MatchIndividualGate from "../components/MatchIndividualGate";  // PR A1.13
 import MatchKootaSystems from "../components/MatchKootaSystems";      // PR A1.13
+import MatchTraditionalScreen from "../components/MatchTraditionalScreen"; // PR A1.13b
+import MatchDoshaParihara from "../components/MatchDoshaParihara";    // PR A1.13b
 import type { ChartSession } from "../types";
 
 // Verbose prop bag — match flow has many cross-cutting state slots.
@@ -768,6 +770,24 @@ export function MatchTab(props: MatchTabProps) {
                   p1MultiMarriage={r.multi_marriage_chart1}
                   p2MultiMarriage={r.multi_marriage_chart2}
                 />
+                {/* Traditional (Parashari) per-chart screens — chart
+                    strength, mind, progeny, longevity — labelled as a
+                    separate layer beside the KP verdict. */}
+                <MatchTraditionalScreen
+                  p1={r.individual_screen_chart1}
+                  p2={r.individual_screen_chart2}
+                  p1Name={r.person1?.name}
+                  p2Name={r.person2?.name}
+                  longevityBalance={r.longevity_balance}
+                />
+
+                {/* Doshas WITH their parihara — never a bare red flag. */}
+                <MatchDoshaParihara
+                  parihara={r.dosha_parihara}
+                  p1Name={r.person1?.name}
+                  p2Name={r.person2?.name}
+                />
+
                 {/* Compatibility follows immediately, so the astrologer
                     sees the gate and the score in one scroll. */}
                 <MatchKootaSystems ashtakoota={ast} dashakoota={r.dashakoota} />
