@@ -1,5 +1,50 @@
 # Match Tab — Content & Reasoning Spec (research, 2026-08-01)
 
+## ✅ IMPLEMENTATION STATUS (updated 2026-08-01, PR A1.13 + A1.13b)
+
+**Shipped to develop + main:**
+
+| Item | Status | Where |
+|---|---|---|
+| Gana table swap fix (Shatabhisha ↔ Uttara Bhadrapada) | ✅ | `compatibility_engine.NAKSHATRA_GANA` |
+| "Dhanishta" spelling bug (broke Tara/Nadi/Rajju/Yoni for ~3.7%) | ✅ | `_canonical_nak()` in `_build_chart` |
+| Vedha porutham (12 pairs + mutually-vedha triad) | ✅ | `south_indian_matching.calc_vedha` |
+| Dina porutham | ✅ | `south_indian_matching.calc_dina` |
+| Dashakoota 10-porutham assembly (reuses Ashtakoota results) | ✅ | `south_indian_matching.build_dashakoota` |
+| **Dual verdict** (with / without Rajju+Vedha blockers) | ✅ | same |
+| Papa Samyam per-chart + comparison (Lagna/Moon/Venus) | ✅ | `south_indian_matching.compute_papa_samyam` |
+| Chart strength screen | ✅ | `match_individual_screen.assess_chart_strength` |
+| Mental/emotional screen | ✅ | `…assess_mental_stability` |
+| Progeny / putra dosha screen | ✅ | `…assess_progeny` |
+| Longevity indicators + cross-chart balance | ✅ (indicators only, NOT Ayurdaya) | `…assess_longevity_indicators` |
+| Nadi parihara (4 cancellation rules) | ✅ | `dosha_cancellation.nadi_cancellation` |
+| Bhakoot parihara | ✅ | `…bhakoot_cancellation` |
+| Gana directional exception | ✅ | `…gana_exception` |
+| Manglik parihara (10 rules, was 3) | ✅ | `…manglik_cancellation` |
+| Frontend: Stage-1 Individual gate | ✅ | `MatchIndividualGate.tsx` |
+| Frontend: both koota systems + dual verdict | ✅ | `MatchKootaSystems.tsx` |
+| Frontend: traditional per-chart screens | ✅ | `MatchTraditionalScreen.tsx` |
+| Frontend: doshas with parihara | ✅ | `MatchDoshaParihara.tsx` |
+
+**Deliberately NOT implemented (with reason):**
+- **Full classical Ayurdaya** (Pindayu/Amsayu/Nisargayu) — intricate,
+  disputed between authorities, and a wrong lifespan figure inside a
+  marriage consultation is actively harmful. We publish *indicators* and
+  label them as such.
+- **D7 Saptamsha** divisional chart — the engine has no D7 computation
+  yet; progeny is read from 5th house/lord + Jupiter instead. Adding D7
+  is a separate, self-contained piece of work.
+- **Tara "Janma = full credit"** — genuinely disputed between authorities
+  (we give 0.75). Left as-is pending a ruling from a practising astrologer
+  rather than silently changing existing verdicts.
+
+**Open question for dad:** which affliction flags he treats as fatal vs
+tolerable, what mitigations he accepts, and whether he uses a weighted
+Papa Samyam scheme (we use a transparent 1-point-per-hit count, max 15).
+
+---
+
+
 **Goal:** make the Match tab a *self-contained* surface an astrologer can read
 once and confidently counsel a client from — no need to open any other tab or
 tool. Grounded in KP (KSK 7th-CSL method) + traditional Ashtakoota/dosha

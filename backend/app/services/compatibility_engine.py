@@ -46,6 +46,8 @@ from app.services.kp_advanced_compute import detect_combustion
 # PR A1.13 — South Indian layer (Dashakoota 10-porutham + Papa Samyam).
 # Self-contained module; imports nothing from here, so no circular import.
 from app.services import south_indian_matching as _sim
+from app.services import match_individual_screen as _mis
+from app.services import dosha_cancellation as _dc
 
 # ── Planet sign lordships ─────────────────────────────────────
 
@@ -4908,6 +4910,115 @@ def compute_compatibility(person1: dict, person2: dict, user_concerns: str | Non
         "girl": {"name": name_girl, **papa_girl},
         "comparison": _sim.compare_papa_samyam(papa_boy, papa_girl),
     }
+
+    # ── Individual per-chart screens (traditional / Parashari layer) ──
+    # Chart strength, mental stability, progeny, longevity indicators.
+    # Shown BESIDE the KP verdict, never blended into it (whole-sign
+    # houses, which is correct for these techniques but not KP).
+    indiv_p1 = _mis.build_individual_screen(chart1["planets"], chart1["lagna_lon"])
+    indiv_p2 = _mis.build_individual_screen(chart2["planets"], chart2["lagna_lon"])
+    longevity_balance = _mis.compare_longevity_indicators(
+        indiv_p1["longevity_indicators"], indiv_p2["longevity_indicators"]
+    )
+
+    # ── Dosha parihara (cancellation) engine ─────────────────────────
+    # A dosha reported without its cancellation check is how families get
+    # needlessly frightened out of workable matches. Every flagged dosha
+    # below carries: raw flag -> applicable parihara -> net severity.
+    _kb = {k.get("kuta"): k for k in (ashtakoota.get("kutas") or [])}
+
+    def _mars_extras(chart: dict) -> dict:
+        """Compute the optional Manglik parihara inputs from a chart."""
+        pl = chart["planets"]
+        out = {"jupiter_influences_mars": False, "saturn_influences_mars": False,
+               "moon_conjunct_mars": False, "jupiter_venus_in_lagna_or_7th": False}
+        mars = pl.get("Mars")
+        if not mars:
+            return out
+        m_lon = mars["longitude"]
+
+        def _sep(a: float, b: float) -> float:
+            d = abs((a - b) % 360)
+            return min(d, 360 - d)
+
+        for name, key in (("Jupiter", "jupiter_influences_mars"),
+                          ("Saturn", "saturn_influences_mars"),
+                          ("Moon", "moon_conjunct_mars")):
+            p = pl.get(name)
+            if not p:
+                continue
+            sep = _sep(m_lon, p["longitude"])
+            # Conjunction, or a classical full aspect (opposition / trine
+            # for Jupiter, 3rd-10th style square for Saturn) within orb.
+            if sep <= 10.0:
+                out[key] = True
+            elif name == "Jupiter" and (abs(sep - 180) <= 8 or abs(sep - 120) <= 8):
+                out[key] = True
+            elif name == "Saturn" and (abs(sep - 180) <= 8 or abs(sep - 90) <= 8):
+                out[key] = True
+        # Jupiter + Venus both in H1 or H7
+        for h in (1, 7):
+            jh = (_get_planet_house(pl["Jupiter"]["longitude"], chart["cusp_lons"])
+                  if "Jupiter" in pl else None)
+            vh = (_get_planet_house(pl["Venus"]["longitude"], chart["cusp_lons"])
+                  if "Venus" in pl else None)
+            if jh == h and vh == h:
+                out["jupiter_venus_in_lagna_or_7th"] = True
+        return out
+
+    _both_manglik = dosha_p1.get("has_dosha_raw", False) and dosha_p2.get("has_dosha_raw", False)
+    manglik_p1 = _dc.manglik_cancellation(
+        mars_house=dosha_p1.get("mars_house"),
+        mars_sign=dosha_p1.get("mars_sign", ""),
+        lagna_sign=chart1.get("lagna_sign", ""),
+        both_manglik=_both_manglik,
+        **_mars_extras(chart1),
+    )
+    manglik_p2 = _dc.manglik_cancellation(
+        mars_house=dosha_p2.get("mars_house"),
+        mars_sign=dosha_p2.get("mars_sign", ""),
+        lagna_sign=chart2.get("lagna_sign", ""),
+        both_manglik=_both_manglik,
+        **_mars_extras(chart2),
+    )
+
+    nadi_parihara = _dc.nadi_cancellation(
+        has_dosha=bool(_kb.get("Nadi", {}).get("has_dosha")),
+        boy_moon_lon=chart_boy.get("moon_lon"),
+        girl_moon_lon=chart_girl.get("moon_lon"),
+        boy_nakshatra=chart_boy.get("moon_nakshatra", ""),
+        girl_nakshatra=chart_girl.get("moon_nakshatra", ""),
+        boy_moon_sign=chart_boy.get("moon_sign", ""),
+        girl_moon_sign=chart_girl.get("moon_sign", ""),
+        boy_star_lord=chart_boy.get("moon_star_lord", ""),
+        girl_star_lord=chart_girl.get("moon_star_lord", ""),
+    )
+    bhakoot_parihara = _dc.bhakoot_cancellation(
+        has_dosha=bool(_kb.get("Bhakoota", {}).get("has_dosha")),
+        boy_moon_sign=chart_boy.get("moon_sign", ""),
+        girl_moon_sign=chart_girl.get("moon_sign", ""),
+        boy_star_lord=chart_boy.get("moon_star_lord", ""),
+        girl_star_lord=chart_girl.get("moon_star_lord", ""),
+    )
+    gana_parihara = _dc.gana_exception(
+        boy_gana=_kb.get("Gana", {}).get("boy_gana", ""),
+        girl_gana=_kb.get("Gana", {}).get("girl_gana", ""),
+        boy_moon_sign=chart_boy.get("moon_sign", ""),
+        girl_moon_sign=chart_girl.get("moon_sign", ""),
+    )
+    dosha_parihara = {
+        "nadi": nadi_parihara,
+        "bhakoot": bhakoot_parihara,
+        "gana": gana_parihara,
+        "manglik_person1": manglik_p1,
+        "manglik_person2": manglik_p2,
+        "summary": _dc.summarise_cancellations(
+            {**nadi_parihara, "dosha_name": "Nadi"},
+            {**bhakoot_parihara, "dosha_name": "Bhakoot"},
+            {**manglik_p1, "dosha_name": f"Manglik ({person1['name']})"},
+            {**manglik_p2, "dosha_name": f"Manglik ({person2['name']})"},
+        ),
+    }
     vargottama_p1 = _vargottama_check(chart1)
     vargottama_p2 = _vargottama_check(chart2)
     no_desire_p1 = _no_desire_for_marriage(chart1)
@@ -5271,6 +5382,11 @@ def compute_compatibility(person1: dict, person2: dict, user_concerns: str | Non
         # is the per-chart affliction load + the cross-chart comparison.
         "dashakoota": dashakoota,
         "papa_samyam": papa_samyam,
+        # PR A1.13b — traditional per-chart screens + the parihara engine.
+        "individual_screen_chart1": indiv_p1,
+        "individual_screen_chart2": indiv_p2,
+        "longevity_balance": longevity_balance,
+        "dosha_parihara": dosha_parihara,
         "vargottama_chart1": vargottama_p1,
         "vargottama_chart2": vargottama_p2,
         "no_desire_chart1": no_desire_p1,
