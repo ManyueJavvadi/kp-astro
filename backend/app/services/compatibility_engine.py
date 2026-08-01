@@ -43,6 +43,9 @@ from app.services.chart_engine import (
 )
 from app.services.chart_formatter import format_chart_for_frontend
 from app.services.kp_advanced_compute import detect_combustion
+# PR A1.13 — South Indian layer (Dashakoota 10-porutham + Papa Samyam).
+# Self-contained module; imports nothing from here, so no circular import.
+from app.services import south_indian_matching as _sim
 
 # ── Planet sign lordships ─────────────────────────────────────
 
@@ -72,13 +75,24 @@ NAKSHATRA_GANA = {
     "Ashwini": "Deva", "Mrigashira": "Deva", "Punarvasu": "Deva",
     "Pushya": "Deva", "Hasta": "Deva", "Swati": "Deva",
     "Anuradha": "Deva", "Shravana": "Deva", "Revati": "Deva",
+    # PR A1.13 FIX (2026-08-01) — Shatabhisha and Uttara Bhadrapada were
+    # SWAPPED here. Canonical classification (verified against multiple
+    # independent sources): Manushya gana ends "...Purva Bhadrapada, Uttara
+    # Bhadrapada"; Rakshasa gana ends "...Dhanishtha, Shatabhisha".
+    # The swap mis-scored Gana Koota by up to 6/36 for every couple with a
+    # Moon in either star (2 of 27 nakshatras ≈ 7.4% of people).
     "Bharani": "Manushya", "Rohini": "Manushya", "Ardra": "Manushya",
     "Purva Phalguni": "Manushya", "Uttara Phalguni": "Manushya",
     "Purva Ashadha": "Manushya", "Uttara Ashadha": "Manushya",
-    "Shatabhisha": "Manushya", "Purva Bhadrapada": "Manushya",
+    "Uttara Bhadrapada": "Manushya", "Purva Bhadrapada": "Manushya",
     "Krittika": "Rakshasa", "Ashlesha": "Rakshasa", "Magha": "Rakshasa",
     "Chitra": "Rakshasa", "Vishakha": "Rakshasa", "Jyeshtha": "Rakshasa",
-    "Mula": "Rakshasa", "Dhanishtha": "Rakshasa", "Uttara Bhadrapada": "Rakshasa",
+    "Mula": "Rakshasa", "Dhanishtha": "Rakshasa", "Shatabhisha": "Rakshasa",
+    # Spelling aliases — other modules emit "Dhanishta"/"Moola"/"Satabhisha".
+    # Without these the .get(..., "Manushya") default would SILENTLY
+    # misclassify a Rakshasa star as Manushya.
+    "Dhanishta": "Rakshasa", "Moola": "Rakshasa", "Satabhisha": "Rakshasa",
+    "Jyeshta": "Rakshasa", "Vishaka": "Rakshasa", "Aswini": "Deva",
 }
 
 NAKSHATRA_NADI = {
@@ -323,6 +337,37 @@ def _compute_d9(chart: dict) -> dict:
 
 # ── Chart builder ─────────────────────────────────────────────
 
+# PR A1.13 (2026-08-01) — nakshatra-name normalisation.
+#
+# ACTIVE BUG THIS FIXES: chart_engine.NAKSHATRAS emits "Dhanishta" (single
+# medial 'h') while every matching table in this module keys on the
+# "Dhanishtha" spelling. For any native with the Moon in that star the
+# lookups silently fell through:
+#     NAKSHATRA_ORDER  -> _calc_tara returned "lookup failed", score 0/3
+#     NAKSHATRA_NADI   -> "Could not calculate", free 8/8
+#     RAJJU_MAP        -> "assumed neutral", free 5/5
+#     NAKSHATRA_YONI   -> yoni lookup failed
+# i.e. ~3.7% of all people were scored on a partly-broken Ashtakoota with
+# no warning anywhere. Normalising once here fixes every downstream table
+# at a single point rather than patching each map.
+_NAK_SPELLING_ALIASES = {
+    "Dhanishta": "Dhanishtha",
+    "Moola": "Mula",
+    "Satabhisha": "Shatabhisha",
+    "Jyeshta": "Jyeshtha",
+    "Vishaka": "Vishakha",
+    "Aswini": "Ashwini",
+    "Mrigasira": "Mrigashira",
+}
+
+
+def _canonical_nak(name: str) -> str:
+    """Map an alternate nakshatra spelling to the one our tables key on."""
+    if not name:
+        return ""
+    return _NAK_SPELLING_ALIASES.get(name.strip(), name.strip())
+
+
 def _build_chart(person: dict) -> dict:
     """Build full chart data for a person."""
     swe.set_sid_mode(swe.SIDM_KRISHNAMURTI_VP291)
@@ -381,9 +426,11 @@ def _build_chart(person: dict) -> dict:
         "cusp_lons": cusp_lons,
         "moon_lon": moon_lon,
         "lagna_lon": lagna_lon,
-        "moon_nakshatra": moon_nakshatra_info.get("nakshatra", ""),
+        # PR A1.13 — normalise the spelling so every koota table below
+        # resolves. See _canonical_nak() for the bug this fixes.
+        "moon_nakshatra": _canonical_nak(moon_nakshatra_info.get("nakshatra", "")),
         "moon_star_lord": moon_nakshatra_info.get("star_lord", ""),
-        "lagna_nakshatra": lagna_nakshatra_info.get("nakshatra", ""),
+        "lagna_nakshatra": _canonical_nak(lagna_nakshatra_info.get("nakshatra", "")),
         "moon_sign": moon_sign,
         "lagna_sign": lagna_sign,
         "h7_sub_lord": h7_sl,
@@ -4832,6 +4879,35 @@ def compute_compatibility(person1: dict, person2: dict, user_concerns: str | Non
 
     # PR A1.5 — South Indian Dashakoota extensions + Vargottama + no-desire
     extended_koots = _extended_koots(chart_boy, chart_girl)
+
+    # ── PR A1.13 (2026-08-01) — full South Indian layer ──────────────
+    # ADDITIVE ONLY. Nothing above this line changes behaviour; the
+    # Dashakoota REUSES the koota results already computed rather than
+    # recomputing them, so the North and South readings can never disagree
+    # on a shared koota.
+    #
+    # Why both systems: our astrologer audience is Telugu/South Indian,
+    # where Dashakoota (10 poruthams) — not Ashtakoota-36 — is the working
+    # frame, and Rajju/Vedha are treated as hard blockers by many (but NOT
+    # all) practitioners. We therefore publish BOTH totals and, for the
+    # South reading, BOTH a strict and a blocker-free verdict.
+    dashakoota = _sim.build_dashakoota(
+        boy_nakshatra=chart_boy["moon_nakshatra"],
+        girl_nakshatra=chart_girl["moon_nakshatra"],
+        ashtakoota=ashtakoota,
+        extended=extended_koots,
+    )
+    # Papa Samyam — per-chart affliction load (Sun/Mars/Saturn/Rahu/Ketu in
+    # houses 1/2/4/7/8/12 counted from Lagna, Moon AND Venus), then compared.
+    # This is the South Indian "is this individual chart itself acceptable"
+    # screen that no guna total can override.
+    papa_boy = _sim.compute_papa_samyam(chart_boy["planets"], chart_boy["lagna_lon"])
+    papa_girl = _sim.compute_papa_samyam(chart_girl["planets"], chart_girl["lagna_lon"])
+    papa_samyam = {
+        "boy": {"name": name_boy, **papa_boy},
+        "girl": {"name": name_girl, **papa_girl},
+        "comparison": _sim.compare_papa_samyam(papa_boy, papa_girl),
+    }
     vargottama_p1 = _vargottama_check(chart1)
     vargottama_p2 = _vargottama_check(chart2)
     no_desire_p1 = _no_desire_for_marriage(chart1)
@@ -5189,6 +5265,12 @@ def compute_compatibility(person1: dict, person2: dict, user_concerns: str | Non
         },
         # PR A1.5 — Dashakoota extensions + Vargottama + no-desire flags
         "extended_koots": extended_koots,
+        # PR A1.13 — full South Indian layer. `dashakoota` carries a DUAL
+        # verdict (strict = Rajju/Vedha as hard blockers; without_blockers =
+        # for practitioners who don't weigh them that way). `papa_samyam`
+        # is the per-chart affliction load + the cross-chart comparison.
+        "dashakoota": dashakoota,
+        "papa_samyam": papa_samyam,
         "vargottama_chart1": vargottama_p1,
         "vargottama_chart2": vargottama_p2,
         "no_desire_chart1": no_desire_p1,
