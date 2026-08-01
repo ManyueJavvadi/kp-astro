@@ -249,3 +249,62 @@ def test_every_emitted_nakshatra_resolves_in_every_koota_table():
 def test_dhanishta_gana_is_rakshasa_after_normalisation():
     from app.services.compatibility_engine import NAKSHATRA_GANA, _canonical_nak
     assert NAKSHATRA_GANA[_canonical_nak("Dhanishta")] == "Rakshasa"
+
+
+# ── Frontend contract (MatchIndividualGate / MatchKootaSystems) ────────
+# These components bind directly to the field names below. A rename in the
+# engine would silently render blank panels in the Match tab, so the
+# contract is asserted here rather than discovered in production.
+
+def test_frontend_contract_individual_gate_fields(result):
+    for key in (
+        "papa_samyam", "person1", "person2", "boy_girl",
+        "no_desire_chart1", "no_desire_chart2",
+        "separation_risk_chart1", "separation_risk_chart2",
+        "spouse_longevity_chart1", "spouse_longevity_chart2",
+    ):
+        assert key in result, f"missing top-level field: {key}"
+
+    assert "chart1_promise" in result["kp_analysis"]
+    assert "chart2_promise" in result["kp_analysis"]
+
+    # Shapes the gate destructures
+    assert "risk_level" in result["separation_risk_chart1"]
+    assert "factors" in result["separation_risk_chart1"]
+    assert "flagged" in result["no_desire_chart1"]
+    assert "concern_level" in result["spouse_longevity_chart1"]
+    assert {"boy", "girl"} <= set(result["boy_girl"])
+
+
+def test_frontend_contract_papa_samyam_shape(result):
+    p = result["papa_samyam"]
+    assert {"boy", "girl", "comparison"} <= set(p)
+    for side in ("boy", "girl"):
+        s = p[side]
+        assert {"name", "total", "max_possible", "band", "by_reference"} <= set(s)
+        assert {"Lagna", "Moon", "Venus"} <= set(s["by_reference"])
+        for ref in ("Lagna", "Moon", "Venus"):
+            assert {"available", "count", "hits", "note"} <= set(s["by_reference"][ref])
+    assert {
+        "boy_total", "girl_total", "balance",
+        "classical_rule_satisfied", "symmetric_rule_satisfied",
+        "classical_note", "symmetric_note",
+    } <= set(p["comparison"])
+
+
+def test_frontend_contract_koota_systems_shape(result):
+    d = result["dashakoota"]
+    assert {
+        "poruthams", "passed_count", "total_count", "hard_blockers",
+        "hard_blockers_hit", "verdict_strict", "verdict_without_blockers",
+        "verdicts_disagree",
+    } <= set(d)
+    for v in (d["verdict_strict"], d["verdict_without_blockers"]):
+        assert {"label", "counts_blockers", "passed", "total", "note"} <= set(v)
+    for p in d["poruthams"]:
+        assert {"porutham", "passed"} <= set(p)
+
+    a = result["ashtakoota"]
+    assert {"kutas", "total_score", "max_score", "verdict"} <= set(a)
+    for k in a["kutas"]:
+        assert {"kuta", "score", "max"} <= set(k)
