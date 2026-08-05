@@ -516,6 +516,18 @@ export function MatchTab(props: MatchTabProps) {
         const ast = r.ashtakoota;
         const kuja = r.kuja_dosha;
         const verdictColor = r.overall_verdict === "Highly Compatible" ? "var(--accent)" : r.overall_verdict === "Compatible" ? "#4ade80" : r.overall_verdict === "Conditionally Compatible" ? "#fbbf24" : "#f87171";
+        // PR A1.13e — the donut carries COUPLE FIT, so it must be coloured
+        // by its OWN band, not by the overall verdict. Previously an 84/100
+        // "Strong" fit was painted red because it inherited the cautionary
+        // verdict colour — which told the astrologer the opposite of what
+        // the number says. The verdict word stays verdict-coloured: the two
+        // are answering different questions and are allowed to disagree.
+        const fitBand = r.couple_compatibility?.band as string | undefined;
+        const fitColor = fitBand === "Strong" ? "#34d399"
+          : fitBand === "Workable" ? "#4ade80"
+          : fitBand === "Mixed" ? "#fbbf24"
+          : fitBand === "Difficult" ? "#f87171"
+          : verdictColor;
 
         return (
           <div className="match-result-stack" style={{ display: "flex", flexDirection: "column" as const, gap: "0.875rem" }}>
@@ -577,16 +589,58 @@ export function MatchTab(props: MatchTabProps) {
                         || typeof r.couple_confidence_score === "number")
                     ? 100
                     : (ast?.max_score ?? 36)}
-                  color={verdictColor}
+                  color={fitColor}
                 />
                 {r.couple_compatibility && (
-                  <div style={{ fontSize: 10, color: "var(--muted)", textTransform: "uppercase" as const, letterSpacing: "0.07em", marginTop: -2 }}>
+                  <div style={{ fontSize: 10, color: fitColor, textTransform: "uppercase" as const, letterSpacing: "0.07em", marginTop: -2, fontWeight: 600 }}>
                     {t("Couple fit", "జంట సరిపోలిక")} · {r.couple_compatibility.band}
                   </div>
                 )}
                 <div className="match-verdict-word" style={{ color: verdictColor }}>
                   {r.overall_verdict}
                 </div>
+
+                {/* PR A1.13e — when a good couple fit sits under a cautious
+                    verdict, say WHY in one line. Without this the card looks
+                    self-contradictory (green 84 "Strong" above a red verdict)
+                    and the astrologer has to scroll to the KP-gate strip to
+                    find out the caution is about an individual promise gate,
+                    not about how well the two suit each other. */}
+                {(() => {
+                  const good = fitBand === "Strong" || fitBand === "Workable";
+                  const cautious = r.overall_verdict === "Needs Careful Consideration"
+                    || r.overall_verdict === "Conditionally Compatible";
+                  if (!good || !cautious) return null;
+                  const mp = r.marriage_promise;
+                  const weaker = mp && mp.person1 && mp.person2
+                    ? (mp.person1.score <= mp.person2.score
+                        ? { n: r.person1?.name, p: mp.person1 }
+                        : { n: r.person2?.name, p: mp.person2 })
+                    : null;
+                  return (
+                    <div style={{
+                      fontSize: 11, color: "var(--muted)", lineHeight: 1.6,
+                      maxWidth: 460, textAlign: "center" as const, marginTop: 2,
+                    }}>
+                      {t(
+                        "The two of you fit well — the caution is not about compatibility.",
+                        "మీ ఇద్దరి సరిపోలిక బాగుంది — ఈ హెచ్చరిక అనుకూలత గురించి కాదు."
+                      )}{" "}
+                      {weaker && (
+                        <>
+                          {t("It comes from", "ఇది")}{" "}
+                          <b style={{ color: "var(--text)" }}>{weaker.n}</b>
+                          {t("'s own marriage-promise gate", " స్వంత వివాహ వాగ్దానం నుండి")}{" "}
+                          ({weaker.p.band} {weaker.p.score}/100),{" "}
+                          {t(
+                            "which reads the same regardless of partner.",
+                            "ఇది ఏ భాగస్వామితోనైనా ఇలాగే ఉంటుంది."
+                          )}
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
                 {/* PR M1 — numeric couple confidence 0-100 (audit trail in
                     couple_confidence_breakdown). Brings Match into parity with
                     Horary H3 + Analysis tab RULE 18 engine_confidence. */}
