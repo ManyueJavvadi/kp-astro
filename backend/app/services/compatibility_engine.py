@@ -2867,10 +2867,43 @@ def _kp_compatibility(chart1: dict, chart2: dict) -> dict:
     p2_tier = promise2["promise_tier"]
     p1_denial = promise1["has_denial"]
     p2_denial = promise2["has_denial"]
-    p1_full = p1_tier == PROMISE_FULL and not p1_denial
-    p2_full = p2_tier == PROMISE_FULL and not p2_denial
-    p1_partial_or_better = p1_tier in (PROMISE_FULL, PROMISE_PARTIAL) and not p1_denial
-    p2_partial_or_better = p2_tier in (PROMISE_FULL, PROMISE_PARTIAL) and not p2_denial
+    # ── PR A1.13f — DECOUPLE the couple verdict from individual denial ──
+    #
+    # THE BUG THIS FIXES (pre-existing, introduced by PR A1.4's denial set):
+    # every one of the four "good" branches below used to read
+    #     p1_full = p1_tier == PROMISE_FULL and not p1_denial
+    # i.e. a good couple verdict required BOTH partners to have no denial
+    # at all. But a 4-step significator chain spans 5-9 of the 12 houses,
+    # and the denial set {1,6,10,12} is 4 of 12 — so missing all four is
+    # near-impossible. Measured across 9 varied charts: has_denial was True
+    # 9/9 (and still 9/9 with H12 removed from the set, so H12 was not the
+    # cause). Consequence: "Strong Match", "Good Match", "Conditional" and
+    # "Conditional - weak" were UNREACHABLE DEAD CODE and every couple in
+    # the app fell through to "Caution" -> "Needs Careful Consideration",
+    # regardless of chart. The verdict layer had zero discriminating power.
+    #
+    # THE FIX: an individual's denial flag no longer vetoes the COUPLE
+    # verdict. This mirrors the same correction already made to the
+    # confidence score (PR A1.13d): promise/denial is a property of ONE
+    # chart — it reads identically no matter who the partner is — so it
+    # belongs in that person's own promise gate, not in the couple
+    # headline. The couple verdict now runs on promise tiers + canonical
+    # cross-match, which do discriminate.
+    #
+    # Denial is NOT discarded: it still (a) sets each person's individual
+    # verdict via _h7_sublord_promise, which discriminates correctly
+    # ("Promised with caveats" vs "Conditional — caveats" vs "Denied"),
+    # (b) remains the Caution fallback below when promise is weak, and
+    # (c) is surfaced per-person in the UI's KP-gate strip.
+    #
+    # NOT changed here (flagged for a dad-validated PR): the denial set is
+    # treated as flat, but the sources are clear that it is not — H10 is
+    # the strongest marriage-denier and H6 the weakest. Weighting them
+    # needs an astrologer's ruling before it ships.
+    p1_full = p1_tier == PROMISE_FULL
+    p2_full = p2_tier == PROMISE_FULL
+    p1_partial_or_better = p1_tier in (PROMISE_FULL, PROMISE_PARTIAL)
+    p2_partial_or_better = p2_tier in (PROMISE_FULL, PROMISE_PARTIAL)
 
     if p1_full and p2_full and canonical["both_sides_canonical_match"] and support_score >= 3:
         verdict = "Strong Match"
@@ -5413,12 +5446,19 @@ def compute_compatibility(person1: dict, person2: dict, user_concerns: str | Non
     p1_denial = kp["chart1_promise"]["has_denial"]
     p2_denial = kp["chart2_promise"]["has_denial"]
 
+    # PR A1.13f — the PROMISE_NONE floor stays: if a chart grants no
+    # marriage at all, that genuinely is a couple-level concern and the
+    # astrologer must see it.
+    #
+    # The denial cap below is REMOVED for the same reason the denial veto
+    # was removed from _kp_compatibility: an individual's denial flag is a
+    # property of ONE chart (identical whoever the partner is) and must
+    # not silently cap the COUPLE verdict. It fires for ~every chart, so
+    # as a cap it only flattened the scale. Each person's denial remains
+    # fully visible in their own promise gate and in the UI's KP-gate
+    # strip, which is where it is actionable.
     if PROMISE_NONE in (p1_tier, p2_tier):
         overall = "Needs Careful Consideration"
-    elif (p1_denial and p1_tier != PROMISE_FULL) or (p2_denial and p2_tier != PROMISE_FULL):
-        # Denial + non-full promise on either side → cap at Conditional
-        if VERDICT_RANK[overall] > VERDICT_RANK["Conditionally Compatible"]:
-            overall = "Conditionally Compatible"
 
     # Separation-risk downgrade
     sr1_level = sep_risk1["risk_level"]
@@ -5434,25 +5474,27 @@ def compute_compatibility(person1: dict, person2: dict, user_concerns: str | Non
             overall_rank = max(0, VERDICT_RANK[overall] - 1)
             overall = next(k for k, v in VERDICT_RANK.items() if v == overall_rank)
 
-    # Ashtakoota confirm/contradict — secondary only.
-    # If KP says Compatible+ but Ashtakoota ≤ 14 (very low) and critical
-    # doshas present, downgrade one tier.
-    if (VERDICT_RANK[overall] >= VERDICT_RANK["Compatible"]
-            and ashtakoota["total_score"] <= 14
-            and len(ashtakoota.get("critical_doshas", [])) >= 2):
-        overall_rank = max(0, VERDICT_RANK[overall] - 1)
-        overall = next(k for k, v in VERDICT_RANK.items() if v == overall_rank)
-
-    # PR A1.5 — Rajju dosha (same body region) is a serious longevity
-    # concern. If present, downgrade one tier and never allow "Highly
-    # Compatible" verdict.
-    if extended_koots.get("has_rajju_dosha"):
-        if VERDICT_RANK[overall] >= VERDICT_RANK["Compatible"]:
-            overall_rank = max(0, VERDICT_RANK[overall] - 1)
-            overall = next(k for k, v in VERDICT_RANK.items() if v == overall_rank)
-        # Never let Highly Compatible stand with Rajju dosha
-        if overall == "Highly Compatible":
-            overall = "Compatible"
+    # ── PR A1.13f — non-KP downgrades REMOVED from the KP verdict ──────
+    #
+    # Ashtakoota (Parashari) and Rajju (South Indian Dashakoota) used to
+    # each knock the verdict down a tier. That contradicts the hierarchy
+    # already established for this product: KP is the deciding system and
+    # traditional layers "confirm or qualify, but do not override" — the
+    # same ruling that removed Rajju's -15 from the confidence score in
+    # PR A1.13d. Leaving them here meant a koota KP does not even use was
+    # still silently moving the KP headline.
+    #
+    # They are NOT lost: Ashtakoota, Dashakoota and Rajju are computed,
+    # scored and displayed in their own clearly-labelled traditional
+    # layer (see `ashtakoota`, `dashakoota`, `dosha_parihara`), where the
+    # astrologer weighs them according to the tradition they practise —
+    # including the strict South Indian reading in which Rajju IS a hard
+    # blocker (`dashakoota.verdict_strict`).
+    #
+    # Measured effect of the cascade before this change: on 5 sample
+    # couples the verdict was ground down by 2-3 independent one-tier
+    # downgrades on a 4-level scale, so even "Strong Match" could not
+    # survive to the surface.
 
     # PR A1.5 — No-desire flag on EITHER chart adds a soft caution layer.
     # If BOTH charts have no-desire flag, cap at Conditionally Compatible.
