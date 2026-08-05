@@ -4819,6 +4819,200 @@ def _compute_couple_confidence(
     return score, contributions
 
 
+def _compute_split_scores(
+    *,
+    p1_promise_tier: str,
+    p2_promise_tier: str,
+    p1_denial: bool,
+    p2_denial: bool,
+    both_sides_cross_match: bool,
+    one_side_cross_match: bool,
+    resonance_count: int,
+    h7_lord_both_support: bool,
+    asc_friendship_verdict: str,
+    h7_friendship_verdict: str,
+    element_verdict: str,
+    overlap_window_count: int,
+    ksk_stricter_exceptional: bool,
+    pattern_d2_fire: bool,
+    sep_risk_high_either: bool,
+) -> dict:
+    """
+    PR A1.13d — split the single "couple confidence" number into the TWO
+    questions it was silently conflating.
+
+    THE PROBLEM THIS FIXES
+    ----------------------
+    `_compute_couple_confidence` mixed two different questions into one
+    score, and the individual half dominated it. On the reference couple
+    the arithmetic was:
+
+        individual promise terms : +30 +20 -5  = +45
+        couple-level terms       : +10 +10 -15 -5 = 0
+        ---------------------------------------------
+        "couple confidence"                      = 45
+
+    i.e. the headline number for a COUPLE consultation was, arithmetically,
+    entirely the two individuals' own marriage-promise gates. Worse, the
+    single largest couple-level term was **Rajju (-15)** — a traditional
+    koota that KP does not use at all — outweighing every genuine KP
+    pairing signal combined.
+
+    THE SPLIT
+    ---------
+    1. `marriage_promise` (per person) — "does THIS chart grant marriage?"
+       A property of ONE chart. It reads identically no matter who the
+       partner is, so it belongs in the individual screen, not the couple
+       headline.
+
+    2. `couple_compatibility` — "given they marry, how well do THESE TWO
+       fit?" Built ONLY from pairing signals, and ONLY from KP ones:
+       canonical cross-match, inter-chart resonance, H7-lord mutual
+       support, Ascendant/H7 sub-lord friendship, element temperament,
+       joint dasha overlap. Traditional kootas and doshas are deliberately
+       EXCLUDED here — they are reported in their own labelled layer
+       (ashtakoota / dashakoota / dosha_parihara) so a Parashari score can
+       never silently move a KP number.
+
+    The legacy `couple_confidence_score` is left untouched for backward
+    compatibility; this returns new, additional fields.
+
+    Both scores are 0-100 with a full {label, delta, note} audit trail.
+    """
+    # ── 1. Per-person marriage promise (individual gate) ──────────────
+    tier_base = {PROMISE_FULL: 100, PROMISE_PARTIAL: 65, PROMISE_WEAK: 35, PROMISE_NONE: 0}
+
+    def _promise_score(tier: str, denial: bool) -> dict:
+        contribs: list[dict] = []
+        pts = tier_base.get(tier, 0)
+        contribs.append({
+            "label": f"H7 cuspal sub-lord promise: {tier}",
+            "delta": pts,
+            "note": "Does this chart, on its own, grant marriage? (KSK: H7 CSL must signify 2/7/11)",
+        })
+        s = pts
+        if denial and tier != PROMISE_FULL:
+            s -= 15
+            contribs.append({
+                "label": "H7 CSL also touches denial houses",
+                "delta": -15,
+                "note": "Denial set {1,6,10,12} — promise becomes conditional",
+            })
+        s = max(0, min(100, s))
+        band = ("Strong" if s >= 80 else "Adequate" if s >= 55
+                else "Conditional" if s >= 30 else "Weak")
+        return {"score": s, "band": band, "tier": tier,
+                "has_denial": denial, "breakdown": contribs}
+
+    # ── 2. Couple compatibility (pairing only, KP only) ───────────────
+    cc: list[dict] = []
+    score = 50  # neutral baseline; pairing signals move it either way
+    cc.append({"label": "Baseline", "delta": 50,
+               "note": "Neutral starting point before pairing signals"})
+
+    if both_sides_cross_match:
+        score += 15
+        cc.append({"label": "Canonical cross-match — both directions", "delta": 15,
+                   "note": "Each partner's cusp sub-lords signify the other's marriage houses"})
+    elif one_side_cross_match:
+        score += 8
+        cc.append({"label": "Canonical cross-match — one direction", "delta": 8,
+                   "note": "Only one side's chain reaches the other's marriage houses"})
+    else:
+        score -= 5
+        cc.append({"label": "No canonical cross-match", "delta": -5,
+                   "note": "Neither side's chain reaches the other's marriage houses"})
+
+    res_pts = min(15, max(0, resonance_count) * 2)
+    score += res_pts
+    cc.append({"label": f"Inter-chart resonance ({resonance_count} planets)", "delta": res_pts,
+               "note": "Planets appearing as significators across both charts (capped +15)"})
+
+    if h7_lord_both_support:
+        score += 10
+        cc.append({"label": "7th lords mutually supportive", "delta": 10,
+                   "note": "Both charts' H7 lords support the partnership"})
+
+    for name, verdict in (("Ascendant", asc_friendship_verdict), ("H7", h7_friendship_verdict)):
+        v = (verdict or "").upper()
+        if v == "GREEN":
+            score += 8
+            cc.append({"label": f"{name} sub-lord friendship: friendly", "delta": 8,
+                       "note": "KSK Reader IV — natural friends ease daily life"})
+        elif v == "RED":
+            score -= 8
+            cc.append({"label": f"{name} sub-lord friendship: enemy", "delta": -8,
+                       "note": "KSK Reader IV — structural friction, needs conscious work"})
+        else:
+            cc.append({"label": f"{name} sub-lord friendship: neutral/unknown", "delta": 0,
+                       "note": "Neither friends nor enemies"})
+
+    ev = (element_verdict or "").upper()
+    if ev in ("COMPATIBLE", "HARMONY", "GREEN"):
+        score += 5
+        cc.append({"label": "Ascendant elements compatible", "delta": 5,
+                   "note": "Temperament pairing on the canonical compatible list"})
+    elif ev in ("FRICTION", "RED", "INCOMPATIBLE"):
+        score -= 5
+        cc.append({"label": "Ascendant elements in friction", "delta": -5,
+                   "note": "Daily-life temperament differences; manageable with awareness"})
+
+    if overlap_window_count >= 3:
+        score += 12
+        cc.append({"label": "Joint dasha overlap (3+ windows)", "delta": 12,
+                   "note": "Multiple shared favourable windows ahead"})
+    elif overlap_window_count >= 1:
+        score += 8
+        cc.append({"label": f"Joint dasha overlap ({overlap_window_count} window)", "delta": 8,
+                   "note": "A shared favourable window within 60 months"})
+    else:
+        score -= 5
+        cc.append({"label": "No joint dasha overlap in 60 months", "delta": -5,
+                   "note": "Timing may stretch beyond the horizon"})
+
+    if ksk_stricter_exceptional:
+        score += 5
+        cc.append({"label": "KSK Reader IV exceptional cross-match", "delta": 5,
+                   "note": "Rare high-signal H7 triple ↔ partner ruling planets"})
+    if pattern_d2_fire:
+        score -= 12
+        cc.append({"label": "Pattern D2 (engagement-broken risk)", "delta": -12,
+                   "note": "Step-4 partial denier on an H7 chain"})
+    if sep_risk_high_either:
+        score -= 10
+        cc.append({"label": "High separation risk on either side", "delta": -10,
+                   "note": "Per _separation_risk computation"})
+
+    score = max(0, min(100, score))
+    band = ("Strong" if score >= 75 else "Workable" if score >= 55
+            else "Mixed" if score >= 40 else "Difficult")
+
+    return {
+        "marriage_promise": {
+            "person1": _promise_score(p1_promise_tier, p1_denial),
+            "person2": _promise_score(p2_promise_tier, p2_denial),
+            "what_it_answers": (
+                "Does each chart, ON ITS OWN, grant marriage? This is a property of "
+                "one chart — it reads the same regardless of who the partner is."
+            ),
+        },
+        "couple_compatibility": {
+            "score": score,
+            "band": band,
+            "breakdown": cc,
+            "what_it_answers": (
+                "Given the marriage happens, how well do THESE TWO fit? Built only "
+                "from pairing signals, and only from KP ones."
+            ),
+            "excludes": (
+                "Traditional kootas and doshas (Ashtakoota, Dashakoota, Rajju, Vedha, "
+                "Nadi, Manglik) are deliberately excluded — KP does not use them. They "
+                "are reported separately in the traditional layer."
+            ),
+        },
+    }
+
+
 def compute_compatibility(person1: dict, person2: dict, user_concerns: str | None = None) -> dict:
     """
     Main function: compute full KP + Ashtakoota + Dosha compatibility.
@@ -5314,6 +5508,33 @@ def compute_compatibility(person1: dict, person2: dict, user_concerns: str | Non
         ksk_stricter_exceptional=bool(ksk_stricter.get("exceptional_cross_match")),
     )
 
+    # PR A1.13d — the SPLIT scores. See _compute_split_scores for why the
+    # single confidence number was misleading (its couple-level terms net
+    # to ~0 on real charts, so the "couple" headline was really the two
+    # individuals' own promise gates — and its largest couple term was
+    # Rajju, which KP does not use).
+    _cm = kp.get("canonical_cross_match") or {}
+    split_scores = _compute_split_scores(
+        p1_promise_tier=p1_tier,
+        p2_promise_tier=p2_tier,
+        p1_denial=p1_denial,
+        p2_denial=p2_denial,
+        both_sides_cross_match=bool(_cm.get("both_sides_canonical_match")),
+        one_side_cross_match=bool(_cm.get("one_side_canonical_match")),
+        resonance_count=int(kp.get("total_resonance_count") or 0),
+        h7_lord_both_support=bool(kp.get("h7_lord_both_support")),
+        asc_friendship_verdict=str(sublord_friendship.get("asc_verdict") or ""),
+        h7_friendship_verdict=str(sublord_friendship.get("h7_verdict") or ""),
+        element_verdict=str((asc_element or {}).get("verdict") or ""),
+        overlap_window_count=len(upcoming_windows.get("overlap_windows", []) or []),
+        ksk_stricter_exceptional=bool(ksk_stricter.get("exceptional_cross_match")),
+        pattern_d2_fire=bool(
+            (pattern_d2_p1 and pattern_d2_p1.get("severity") == "STRONG")
+            or (pattern_d2_p2 and pattern_d2_p2.get("severity") == "STRONG")
+        ),
+        sep_risk_high_either=("High" in (sr1_level, sr2_level)),
+    )
+
     # Nadi dosha — directional cancellation per classical rules.
     # PR M6 — refined per https://aaps.space/blog/5-ways-to-nadi-dosha-cancellation-and-nadi-matching/
     #   "The Nakshatra of the Boy must be one which comes first and that of
@@ -5425,6 +5646,12 @@ def compute_compatibility(person1: dict, person2: dict, user_concerns: str | Non
         "dasha_sandhi_check": dasha_sandhi,
         # PR M1.7 — Ascendant sign element compatibility
         "ascendant_element_compatibility": asc_element,
+        # PR A1.13d — the two questions, separated. `marriage_promise` is
+        # per-person and belongs in the individual screen;
+        # `couple_compatibility` is the real headline for a match
+        # consultation and excludes all non-KP kootas/doshas.
+        "marriage_promise": split_scores["marriage_promise"],
+        "couple_compatibility": split_scores["couple_compatibility"],
         "chart1_data": chart1_frontend,
         "chart2_data": chart2_frontend,
         "overall_verdict": overall,
