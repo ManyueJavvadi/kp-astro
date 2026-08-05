@@ -568,14 +568,22 @@ export function MatchTab(props: MatchTabProps) {
                     below. This also matches the app's KP-first identity
                     (Ashtakoota is Parashari, not KP). */}
                 <AnimatedScoreDonut
-                  score={typeof r.couple_confidence_score === "number"
-                    ? r.couple_confidence_score
-                    : (ast?.total_score ?? 0)}
-                  max={typeof r.couple_confidence_score === "number"
+                  score={typeof r.couple_compatibility?.score === "number"
+                    ? r.couple_compatibility.score
+                    : (typeof r.couple_confidence_score === "number"
+                        ? r.couple_confidence_score
+                        : (ast?.total_score ?? 0))}
+                  max={(typeof r.couple_compatibility?.score === "number"
+                        || typeof r.couple_confidence_score === "number")
                     ? 100
                     : (ast?.max_score ?? 36)}
                   color={verdictColor}
                 />
+                {r.couple_compatibility && (
+                  <div style={{ fontSize: 10, color: "var(--muted)", textTransform: "uppercase" as const, letterSpacing: "0.07em", marginTop: -2 }}>
+                    {t("Couple fit", "జంట సరిపోలిక")} · {r.couple_compatibility.band}
+                  </div>
+                )}
                 <div className="match-verdict-word" style={{ color: verdictColor }}>
                   {r.overall_verdict}
                 </div>
@@ -598,6 +606,42 @@ export function MatchTab(props: MatchTabProps) {
                     </span>
                   )}
                 </div>
+
+                {/* PR A1.13d — the OTHER half of the picture. The donut
+                    answers "how well do these two fit?"; this row answers
+                    "does each chart grant marriage at all?". Both must be
+                    visible together, or a strong couple-fit sitting above a
+                    cautious verdict recreates exactly the contradiction we
+                    just removed. The promise gate is per-person and does
+                    NOT change if you swap partners. */}
+                {r.marriage_promise && (
+                  <div
+                    title={t(
+                      "Per-person marriage promise from the 7th cuspal sub-lord. A property of one chart — it reads the same regardless of partner.",
+                      "ప్రతి వ్యక్తి వివాహ వాగ్దానం (7వ కుస్ప్ ఉప అధిపతి). ఇది ఆ జాతకం స్వంత లక్షణం."
+                    )}
+                    style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" as const, justifyContent: "center", marginTop: 4 }}
+                  >
+                    <span style={{ fontSize: 9.5, color: "var(--muted)", textTransform: "uppercase" as const, letterSpacing: "0.06em" }}>
+                      {t("Marriage promise", "వివాహ వాగ్దానం")}
+                    </span>
+                    {[
+                      { n: r.person1?.name, p: r.marriage_promise.person1, c: "var(--accent)" },
+                      { n: r.person2?.name, p: r.marriage_promise.person2, c: "#93c5fd" },
+                    ].filter(x => x.p).map((x, i) => {
+                      const s = x.p.score as number;
+                      const col = s >= 80 ? "#34d399" : s >= 55 ? "#fbbf24" : "#f87171";
+                      return (
+                        <span key={i} style={{
+                          fontSize: 10.5, padding: "2px 9px", borderRadius: 999,
+                          background: `${col}14`, border: `0.5px solid ${col}44`, color: col,
+                        }}>
+                          <span style={{ color: x.c }}>{x.n}</span> {x.p.band} {s}/100
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
 
                 {/* PR A1.13c — traditional scores, explicitly subordinate.
                     These are Parashari / South Indian layers, NOT KP. They
