@@ -556,12 +556,24 @@ export function MatchTab(props: MatchTabProps) {
               </div>
               {/* Score donut + serif verdict */}
               <div style={{ flex: 1, display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 6, minWidth: 200 }}>
-                {/* Phase 15.4 — animated compatibility donut.
-                    Arc draws from 0 over 1.2s while the center
-                    number counts up 0 -> final score. */}
+                {/* PR A1.13c — HERO METRIC IS NOW THE KP CONFIDENCE, not
+                    the Ashtakoota score.
+                    Why: the verdict combiner treats KP as PRIMARY and
+                    Ashtakoota as SECONDARY ("can confirm but not
+                    override"). Showing 28.5/36 "Excellent" as the hero
+                    above a cautionary verdict read as a contradiction —
+                    the headline was the metric that does NOT decide the
+                    outcome. The donut now shows what actually drives the
+                    verdict; the guna score moves to a labelled chip
+                    below. This also matches the app's KP-first identity
+                    (Ashtakoota is Parashari, not KP). */}
                 <AnimatedScoreDonut
-                  score={ast?.total_score ?? 0}
-                  max={ast?.max_score ?? 36}
+                  score={typeof r.couple_confidence_score === "number"
+                    ? r.couple_confidence_score
+                    : (ast?.total_score ?? 0)}
+                  max={typeof r.couple_confidence_score === "number"
+                    ? 100
+                    : (ast?.max_score ?? 36)}
                   color={verdictColor}
                 />
                 <div className="match-verdict-word" style={{ color: verdictColor }}>
@@ -571,26 +583,13 @@ export function MatchTab(props: MatchTabProps) {
                     couple_confidence_breakdown). Brings Match into parity with
                     Horary H3 + Analysis tab RULE 18 engine_confidence. */}
                 <div style={{ display: "inline-flex", gap: 6, alignItems: "center", fontSize: 10, color: "var(--muted)", letterSpacing: "0.06em", textTransform: "uppercase" as const, flexWrap: "wrap" as const, justifyContent: "center" }}>
-                  <span>KP</span>
+                  {/* The donut above now carries the KP confidence number,
+                      so this line names WHICH system produced it. */}
+                  <span>{t("KP verdict", "KP తీర్పు")}</span>
                   <span style={{ color: verdictColor, fontWeight: 600, textTransform: "none" as const, letterSpacing: "0.02em" }}>{kp?.kp_verdict}</span>
                   {typeof r.couple_confidence_score === "number" && (
-                    <span
-                      title={t("Engine couple confidence (0–100). Audit trail in the Reasoning section.",
-                               "జంట విశ్వాస సంఖ్య (0–100). ఆడిట్ ట్రెయిల్ Reasoning విభాగంలో.")}
-                      style={{
-                        marginLeft: 4,
-                        padding: "2px 10px",
-                        borderRadius: 999,
-                        background: `${verdictColor}18`,
-                        border: `0.5px solid ${verdictColor}44`,
-                        color: verdictColor,
-                        fontWeight: 700,
-                        letterSpacing: "0.04em",
-                        textTransform: "none" as const,
-                        fontSize: 11,
-                      }}
-                    >
-                      {r.couple_confidence_score}/100
+                    <span style={{ textTransform: "none" as const, letterSpacing: "0.02em", opacity: 0.75 }}>
+                      · {t("confidence", "విశ్వాసం")} {r.couple_confidence_score}/100
                     </span>
                   )}
                   {r.kuja_dosha?.mutual_cancellation && (
@@ -599,6 +598,46 @@ export function MatchTab(props: MatchTabProps) {
                     </span>
                   )}
                 </div>
+
+                {/* PR A1.13c — traditional scores, explicitly subordinate.
+                    These are Parashari / South Indian layers, NOT KP. They
+                    are shown because families ask for them, but the tab
+                    must never let a good guna total read as the headline
+                    verdict — the combiner does not let it override KP. */}
+                {(ast || r.dashakoota) && (
+                  <div
+                    title={t(
+                      "Traditional matching layers. KP is the deciding system in this app — these confirm or qualify, they do not override.",
+                      "సాంప్రదాయ పద్ధతులు. ఈ యాప్‌లో KP నిర్ణాయకం — ఇవి ధృవీకరిస్తాయి, అధిగమించవు."
+                    )}
+                    style={{
+                      display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" as const,
+                      justifyContent: "center", marginTop: 2,
+                    }}
+                  >
+                    {ast && (
+                      <span style={{
+                        fontSize: 10.5, padding: "2px 9px", borderRadius: 999,
+                        background: "rgba(255,255,255,0.03)",
+                        border: "0.5px solid var(--border2)", color: "var(--muted)",
+                      }}>
+                        {t("Ashtakoota", "అష్టకూట")} {ast.total_score}/{ast.max_score}
+                      </span>
+                    )}
+                    {r.dashakoota && (
+                      <span style={{
+                        fontSize: 10.5, padding: "2px 9px", borderRadius: 999,
+                        background: "rgba(255,255,255,0.03)",
+                        border: "0.5px solid var(--border2)", color: "var(--muted)",
+                      }}>
+                        {t("Dashakoota", "దశకూట")} {r.dashakoota.passed_count}/{r.dashakoota.total_count}
+                      </span>
+                    )}
+                    <span style={{ fontSize: 9.5, color: "var(--muted)", opacity: 0.75, fontStyle: "italic" }}>
+                      {t("traditional · does not override KP", "సాంప్రదాయం · KP ని అధిగమించదు")}
+                    </span>
+                  </div>
+                )}
               </div>
               {/* Person 2 avatar */}
               <div style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 5, minWidth: 68 }}>
@@ -608,6 +647,63 @@ export function MatchTab(props: MatchTabProps) {
                 <div style={{ fontSize: 10, color: "var(--muted)", maxWidth: 68, textAlign: "center" as const, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{r.person2?.name}</div>
               </div>
             </div>
+
+            {/* PR A1.13c — "why this verdict" strip, directly under the
+                hero. The full KP reasoning already existed but lived far
+                down the Overall pane, so a strong guna score sitting above
+                a cautionary verdict read as a contradiction with no
+                explanation in view. This puts the deciding fact — which
+                promise houses each chart hits, and which denial houses —
+                where the eye lands. */}
+            {(kp?.chart1_promise || kp?.chart2_promise) && (
+              <div
+                style={{
+                  marginTop: 10, padding: "10px 14px", borderRadius: 10,
+                  background: "rgba(255,255,255,0.015)",
+                  border: `0.5px solid ${verdictColor}33`,
+                }}
+              >
+                <div style={{ fontSize: 10, color: "var(--muted)", textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: 7 }}>
+                  {t("Why this verdict — the KP gate", "ఈ తీర్పు ఎందుకు — KP ద్వారం")}
+                </div>
+                <div style={{ display: "grid", gap: 5 }}>
+                  {[
+                    { name: r.person1?.name, p: kp?.chart1_promise, c: "var(--accent)" },
+                    { name: r.person2?.name, p: kp?.chart2_promise, c: "#93c5fd" },
+                  ].filter(x => x.p).map((x, i) => {
+                    const hit: number[] = x.p.promise_houses_hit || [];
+                    const den: number[] = x.p.denial_houses_hit || [];
+                    const missing = [2, 7, 11].filter(h => !hit.includes(h));
+                    return (
+                      <div key={i} style={{ fontSize: 11, color: "var(--text)", lineHeight: 1.65 }}>
+                        <b style={{ color: x.c }}>{x.name}</b>
+                        <span style={{ color: "var(--muted)" }}> · {t("H7 sub-lord", "H7 ఉప అధిపతి")} </span>
+                        <b>{x.p.sub_lord}</b>
+                        <span style={{ color: "var(--muted)" }}> → {t("promise", "వాగ్దానం")} </span>
+                        <span style={{ color: "#34d399" }}>{hit.length ? `H${hit.join(", H")}` : "—"}</span>
+                        {missing.length > 0 && (
+                          <span style={{ color: "#fbbf24" }}>
+                            {" "}({t("missing", "లేదు")} H{missing.join(", H")})
+                          </span>
+                        )}
+                        {den.length > 0 && (
+                          <>
+                            <span style={{ color: "var(--muted)" }}> · {t("denial", "నిరాకరణ")} </span>
+                            <span style={{ color: "#f87171" }}>H{den.join(", H")}</span>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div style={{ fontSize: 10.5, color: "var(--muted)", marginTop: 8, lineHeight: 1.6, fontStyle: "italic" }}>
+                  {t(
+                    "In KP the 7th cusp sub-lord decides. It must signify 2, 7 and 11; hits on 1, 6, 10 or 12 are denial. A high Ashtakoota score does not change this gate.",
+                    "KP లో 7వ కుస్ప్ ఉప అధిపతి నిర్ణయిస్తుంది. 2, 7, 11 సూచించాలి; 1, 6, 10, 12 నిరాకరణ. అష్టకూట స్కోరు దీన్ని మార్చదు."
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* PR M9 — Sensitivity tier framing banner. Tier 2 = standard
                 life-impact framing; Tier 3 fires when D2 / denial+multi /
