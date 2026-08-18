@@ -210,8 +210,24 @@ def get_planet_positions(jd: float) -> dict:
     """Calculate all planet positions with nakshatra, star lord, sub lord."""
 
     for planet_name, planet_id in PLANETS.items():
-        result, _ = swe.calc_ut(jd, planet_id, swe.FLG_SIDEREAL)
+        # PR A1.14 — FLG_SPEED added. Without it swisseph does not populate
+        # result[3] (daily motion), so `retrograde` could never be derived and
+        # the key was simply absent from every natal planet dict. Everything
+        # downstream that reads it silently defaulted to False: the ℞ marker in
+        # the Rasi/South-Indian charts, planet lists, house panels and mobile
+        # sheets never rendered, and the KP rule in compatibility_engine
+        # (`csl_in_retrograde_star`, kp_csl_theory §247 — "if the CSL is in a
+        # retrograde star the event fructifies only at the end of the retro
+        # period or not at all") never fired. Transit was unaffected because it
+        # computes speed itself.
+        result, _ = swe.calc_ut(jd, planet_id, swe.FLG_SIDEREAL | swe.FLG_SPEED)
         longitude = result[0]
+        # Negative daily motion = retrograde. Sun and Moon are never retrograde;
+        # the lunar nodes always are (mean node motion is inherently backward),
+        # which is why Rahu/Ketu carry the flag permanently — standard practice
+        # in Indian software.
+        speed = result[3] if len(result) > 3 else 0.0
+        is_retrograde = bool(speed < 0)
 
         # Ketu is always 180 degrees from Rahu
         if planet_name == "Rahu":
@@ -222,7 +238,10 @@ def get_planet_positions(jd: float) -> dict:
                 "sign": get_sign(ketu_longitude),
                 "nakshatra": nakshatra_info["nakshatra"],
                 "star_lord": nakshatra_info["star_lord"],
-                "sub_lord": get_sub_lord(ketu_longitude)
+                "sub_lord": get_sub_lord(ketu_longitude),
+                # Ketu shares Rahu's motion — both nodes move together.
+                "retrograde": is_retrograde,
+                "speed": round(speed, 6),
             }
 
         nakshatra_info = get_nakshatra_and_starlord(longitude)
@@ -231,7 +250,9 @@ def get_planet_positions(jd: float) -> dict:
             "sign": get_sign(longitude),
             "nakshatra": nakshatra_info["nakshatra"],
             "star_lord": nakshatra_info["star_lord"],
-            "sub_lord": get_sub_lord(longitude)
+            "sub_lord": get_sub_lord(longitude),
+            "retrograde": is_retrograde,
+            "speed": round(speed, 6),
         }
 
     return positions
