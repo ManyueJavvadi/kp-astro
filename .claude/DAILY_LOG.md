@@ -1476,3 +1476,79 @@ throughout. Every round: py_compile + configure_mappers + tsc + next build
 green. User to test on develop/main; deferred (noted, not done): full CSP,
 frontend Sentry, DB restore drill, /health disclosure trim, migrate-dedup
 key widening.
+
+---
+
+## 2026-08-01 — Sept 9 launch DEFERRED · foundation phase begins
+
+**Decision (user):** move the Sept 9 release date later. Reason, verbatim:
+*"right now we are very bad UI, either in terms of looks or in terms of
+usability and mobile usability especially."* Followed by the strategic
+framing: *"we developed a lot, with no guardrails, with no assumptions of
+what might go wrong or what is bad arch or what is good... Now to hit
+public and to collect public information and trust we must be much more
+planned and clear."*
+
+**Consequence:** we are NOT in feature-delivery mode. Foundation /
+hardening first; feature work resumes after. `CLAUDE.md` CURRENT
+DIRECTION rewritten; `launch-tracker-2026-09-09.md` marked SUPERSEDED.
+
+**Also established:** astrologers work **primarily from a phone**. The app
+is desktop-first with mobile bolted on — this is an IA problem, not a
+styling one.
+
+### Shipped today
+
+- `feat(match)` South Indian Dashakoota (10 porutham) + Papa Samyam +
+  dual verdict (with/without Rajju+Vedha), plus 3 real scoring bugs:
+  Gana table Shatabhisha↔Uttara Bhadrapada swap; "Dhanishta" spelling
+  breaking 4 lookup tables; alias hardening.
+- `feat(match)` Stage-1 individual gate + both koota systems in the UI;
+  traditional per-chart screens + dosha parihara (cancellation) engine.
+- `feat(match)` split "couple confidence" into **marriage promise**
+  (per person) vs **couple fit** (the pairing) — the old single score's
+  couple-level terms netted to zero, so the headline was really the two
+  individual promise gates, and its largest couple term was Rajju, which
+  KP does not use.
+- `fix(match)` verdict layer had **zero** discriminating power — every
+  "good" branch required `not denial`, denial fired 9/9 charts, so
+  Strong/Good/Conditional were unreachable dead code.
+- `fix(chart)` **retrograde was never computed** — `FLG_SPEED` never
+  requested, so ℞ never rendered anywhere and the KP retro rule was dead.
+  Found because dad asked "does our app have vakram?".
+- `fix(mobile)` AI chat unusable while streaming — scroll storm
+  (`scrollIntoView` smooth-animating on every SSE chunk, no
+  is-user-reading check) + zero markdown memoisation (cost grew with
+  chat length). New `useStickToBottom` hook + `MemoMarkdown`.
+
+### Research docs added
+
+- `.claude/research/match-tab-content-spec.md` — Match tab content/IA spec
+- `.claude/research/kp-marriage-concept-audit.md` — **denial is defined
+  backwards**; H12 is not a KP denial house; denial houses are not equal
+  (H10 strongest, H6 weakest); missing KPRM complementarity principle
+
+### Skills installed → `.claude/skills/`
+
+`frontend-design`, `grill-with-docs`, `impeccable` (registers
+PostToolUse/Stop hooks; reviewed — 79-line hook, no network, no exec),
+`improve-codebase-architecture`, `supabase`,
+`supabase-postgres-best-practices`. Rejected: `claude-mem` (conflicts
+with the existing memory system), `find-skills` (low value).
+
+### Open — needs dad
+
+1. **Denial rule**: when the 7th CSL signifies 2/11 *and also* 6/12 — denied,
+   or promised-with-friction? (Sources say the latter; our engine says the
+   former. This changes every verdict.)
+2. Is H12 a marriage denial house, or bed-comforts/expenditure?
+3. Are 1/6/10 equal in denial strength, or is 10 strongest and 6 weakest?
+4. **Uttara Bhadrapada gana — Manushya or Rakshasa?** (one word; validates
+   the shipped Gana fix)
+5. Papa Samyam weighting: transparent count, or a weighted scheme?
+6. Should Rahu/Ketu display ℞ permanently?
+
+### Next session
+
+Mobile-first IA architecture. Run `/impeccable init` first to capture
+design context (audience, brand voice, colours, type).

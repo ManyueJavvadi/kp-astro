@@ -1,6 +1,16 @@
 # Launch Tracker — 2026-09-09 (Astrologer Public Release)
 
-**Status:** Active planning. ~14 weeks remaining as of doc creation
+> # ⛔ SUPERSEDED — 2026-08-01
+> **The Sept 9, 2026 date is DEFERRED and no new date is set.**
+> The project moved into a **foundation / hardening phase**: mobile-first
+> re-architecture, killing silent defaults, guardrail tests, breaking up
+> the monoliths, frontend tests + CI. See the CURRENT DIRECTION section
+> at the top of `CLAUDE.md` for the plan of record.
+>
+> This file is retained for the P0/P1/P2 scope inventory, which is still
+> useful. **Its dates and sequencing are no longer valid.**
+
+**Status (historical):** Active planning. ~14 weeks remaining as of doc creation
 (2026-05-28).
 **Scope:** **Astrologers only.** General-public consumer release is
 deliberately *not* part of this milestone — it's a separate later phase.
