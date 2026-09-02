@@ -27,6 +27,7 @@ import {
   Stethoscope, Car, Lock,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import MemoMarkdown from "../components/MemoMarkdown";  // PR A1.15 — memoised; see file header
 import remarkGfm from "remark-gfm";
 import { useLanguage } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -1826,7 +1827,7 @@ export function MuhurthaTab(props: MuhurthaTabProps) {
                           {msg.isTopic ? msg.q : `${t("Q", "ప్ర")}: ${msg.q}`}
                         </div>
                         <div style={{ background: "var(--surface2)", borderRadius: 10, padding: "1rem", border: "0.5px solid var(--border)" }}>
-                          <div className="markdown-body"><ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.a}</ReactMarkdown></div>
+                          <div className="markdown-body"><MemoMarkdown>{msg.a}</MemoMarkdown></div>
                         </div>
                       </div>
                     ))}

@@ -50,6 +50,7 @@ import HoraryCuspsAccordion from "./components/HoraryCuspsAccordion";
 import HoraryFourLevelAccordion from "./components/HoraryFourLevelAccordion";
 import HorarySubLordChains from "./components/HorarySubLordChains";
 import HoraryRpDashaStrip from "./components/HoraryRpDashaStrip";
+import { useStickToBottom } from "@/hooks/useStickToBottom";  // PR A1.15
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useLiveLocation } from "@/hooks/useLiveLocation";
 import { formatMaskedDate, formatMaskedTime } from "./lib/maskedInput";
@@ -649,8 +650,18 @@ export default function Home() {
   const placeSearchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
-  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [analysisMessages]);
+  // PR A1.15 — was:
+  //   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [analysisMessages]);
+  // `analysisMessages` mutates on EVERY SSE chunk while an answer streams,
+  // so that fired dozens of times a second, each launching a *smooth*
+  // scroll animation. They queued and fought each other, and nothing
+  // checked whether the reader had scrolled up — so scrolling up mid-answer
+  // on a phone snapped you back to the bottom ~50ms later. Unreadable while
+  // streaming. useStickToBottom follows only while the reader is already at
+  // the bottom, scrolls instantly instead of smoothly, and coalesces to one
+  // scroll per animation frame.
+  useStickToBottom(messagesEndRef, messages);
+  useStickToBottom(chatEndRef, analysisMessages);
 
   // D5 cleanup (2026-06-02): removed the PR22/PR24-era localStorage
   // cleanup block. PR22 was 2 weeks ago — anyone returning to the app
