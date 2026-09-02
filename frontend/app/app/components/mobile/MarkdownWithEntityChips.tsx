@@ -81,10 +81,29 @@ const components: Components = {
   // unchanged. We never want chips inside fenced or inline code.
 };
 
-export default function MarkdownWithEntityChips({ children, remarkPlugins }: Props) {
+function MarkdownWithEntityChips({ children, remarkPlugins }: Props) {
   return (
     <ReactMarkdown remarkPlugins={remarkPlugins} components={components}>
       {children}
     </ReactMarkdown>
   );
 }
+
+/**
+ * PR A1.15 — the memo this file's own header comment asked for:
+ *   "For very long answers (3000+ tokens), wrap the rendered output in
+ *    React.memo on `msg.a` to avoid re-parsing on every render."
+ *
+ * Without it, every SSE chunk re-parsed and re-rendered the markdown of
+ * EVERY message in the conversation, so streaming cost grew linearly with
+ * chat length — the reason long chats became unusable on mobile.
+ *
+ * The comparator deliberately compares ONLY `children`. Call sites pass
+ * `remarkPlugins={[remarkGfm]}` as an inline array literal, which is a new
+ * reference on every render — the default shallow compare would therefore
+ * never hit and the memo would be dead code.
+ */
+export default React.memo(
+  MarkdownWithEntityChips,
+  (prev, next) => prev.children === next.children,
+);

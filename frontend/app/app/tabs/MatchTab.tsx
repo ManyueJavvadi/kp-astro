@@ -31,6 +31,7 @@ import {
   User, Clock, Hourglass, Moon,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import MemoMarkdown from "../components/MemoMarkdown";  // PR A1.15 — memoised; see file header
 import remarkGfm from "remark-gfm";
 import { useLanguage } from "@/lib/i18n";
 import { AnimatedScoreDonut } from "@/components/ui/AnimatedScoreDonut";
@@ -2320,7 +2321,7 @@ export function MatchTab(props: MatchTabProps) {
                       </div>
                     </div>
                     <div className="chat-bubble-ai md-body" style={{ padding: "1rem 1.25rem", maxWidth: "94%" }}>
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.a}</ReactMarkdown>
+                      <MemoMarkdown>{msg.a}</MemoMarkdown>
                     </div>
                   </div>
                 ))}

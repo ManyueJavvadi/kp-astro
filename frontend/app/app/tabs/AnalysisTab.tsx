@@ -42,6 +42,7 @@
 import type { RefObject } from "react";
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
+import MemoMarkdown from "../components/MemoMarkdown";  // PR A1.15 — memoised; see file header
 import remarkGfm from "remark-gfm";
 import { useLanguage } from "@/lib/i18n";
 import { AnalysisOutline, type OutlineItem } from "../components/AnalysisOutline";
@@ -396,7 +397,7 @@ export function AnalysisTab({
                     >■ {t("Stop", "ఆపండి")}</button>
                   </div>
                 ) : (
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.a}</ReactMarkdown>
+                  <MemoMarkdown>{msg.a}</MemoMarkdown>
                 )}
                 {/* Phase 11 / PR 28 (#A16) — timestamp + Phase 11 / PR 29 (#A3) — Regenerate.
                     Timestamp surfaces "when was this generated"; Regenerate
