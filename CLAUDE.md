@@ -10,11 +10,73 @@ queue, business model, Option A stance) and `.claude/DAILY_LOG.md`
 
 ---
 
-## 🔒 CURRENT DIRECTION (as of 2026-05-28) — Sept 9 astrologer launch
+## 🔒 CURRENT DIRECTION (as of 2026-08-01) — FOUNDATION PHASE
 
-**Public launch date: Sept 9, 2026. Astrologers only — NOT general
-public.** Consumer launch is deferred to a separate later milestone.
-This deadline is user-set, ~14 weeks out as of doc creation.
+**The Sept 9, 2026 launch date is DEFERRED. No new date is set.**
+User decision, 2026-08-01: *"we are moving our release date Sept 9 to
+later, because right now we are very bad UI — either in terms of looks
+or in terms of usability and mobile usability especially."*
+
+**We are NOT in feature-delivery mode. We are in a foundation /
+hardening phase.** Feature work resumes only after the foundations
+below are solid.
+
+### Why (user's framing, 2026-08-01)
+
+> *"We developed a lot, with no guardrails, with no assumptions of what
+> might go wrong or what is bad arch or what is good, what are good
+> standards and what is easy to maintain or SOLID principles... Now to
+> hit public and to collect public information and trust we must be much
+> more planned and clear."*
+
+### The evidence that justifies it
+
+Every significant bug found on 2026-08-01 shared ONE failure mode:
+**silent defaults**. None threw an error; all produced plausible-looking
+wrong output that an astrologer would have repeated to a client.
+
+| Bug | How it hid |
+|---|---|
+| Gana table: Shatabhisha ↔ Uttara Bhadrapada swapped | no test asserting the canonical 9/9/9 gana split |
+| chart_engine emits "Dhanishta", tables key "Dhanishtha" | `.get(name, "Manushya")` silently misclassified — 4 tables affected, ~3.7% of charts |
+| **Retrograde never computed at all** | `FLG_SPEED` never requested → key absent → `.get("retrograde", False)` → ℞ never rendered anywhere, and the KP retro rule was dead code |
+| Marriage denial defined backwards (presence-of-denial-house instead of absence-of-promise) | fired on 9/9 test charts → the verdict layer had ZERO discriminating power; every couple read "Caution" |
+| AI chat scroll storm + zero memoisation | no perf budget, no real-device testing |
+| Friendship table omits Rahu/Ketu | node pairs silently read as "enemy" |
+| `backend/runtime.txt` contains the *instructions* to create it, not `python-3.12` | nothing validates it |
+
+**The architectural lesson: wrong data must fail loudly, not degrade
+silently.** That is the first-order fix, ahead of SOLID, ahead of any
+refactor.
+
+### Foundation-phase priorities (in order)
+
+1. **Mobile-first re-architecture.** User confirmed 2026-08-01 that
+   astrologers work **primarily from a phone**. The app is currently
+   desktop-first with mobile bolted on — dense KP tables squeezed to
+   phone width. This needs an IA rethink (progressive disclosure,
+   one decision per screen, cards over tables), not a restyle.
+2. **Kill silent defaults.** Audit every `.get(x, default)` on domain
+   data; make unknown values raise or surface a visible warning.
+3. **Guardrail tests** for every lookup table (completeness,
+   canonical counts, name-normalisation round-trips).
+4. **Break up the monoliths** — `page.tsx` (~5,800 lines),
+   `compatibility_engine.py` (~5,700), `llm_service.py` (~7,000).
+5. **Frontend testing + CI.** Backend has 328 pytest tests; the
+   frontend has none, and there is no CI gate.
+6. **Doc consolidation** — CLAUDE.md + BACKLOG + DAILY_LOG + 4
+   HANDOFFs + research/*.md have drifted and contradict each other.
+
+### Skills installed 2026-08-01 (`.claude/skills/`)
+
+`frontend-design` · `grill-with-docs` · `impeccable` (design detector,
+registers PostToolUse/Stop hooks) · `improve-codebase-architecture` ·
+`supabase` · `supabase-postgres-best-practices` (vendor-neutral Postgres;
+applies to our Railway Postgres).
+
+⚠️ **Historical note:** everything below this section was written for the
+Sept 9 launch plan and is retained for context, but the DATE and the
+"active focus" sequencing in it are superseded by this section.
 
 **Canonical sources of truth for launch work** (read in order):
 1. `.claude/research/launch-tracker-2026-09-09.md` — P0/P1/P2
