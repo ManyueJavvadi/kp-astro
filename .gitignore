@@ -30,3 +30,6 @@ Thumbs.db
 
 # Claude scheduled tasks runtime lock (per-machine, never committed)
 .claude/scheduled_tasks.lock
+
+# Stray Next.js build output if next is ever run from the repo root.
+/.next/

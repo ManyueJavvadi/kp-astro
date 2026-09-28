@@ -1,0 +1,16 @@
+# Development + CI dependencies.
+#
+# Runtime deps live in requirements.txt — that is what Railway installs
+# into the production image. The packages below are needed only to RUN
+# THE TESTS, are never imported by the app, and deliberately stay out of
+# the production image.
+#
+# Install both:
+#   pip install -r requirements.txt -r requirements-dev.txt
+#
+# Why this file exists: before 2026-09-27, pytest was in neither file.
+# The 328-test suite passed locally only because the developer's system
+# Python happened to have pytest installed. On a clean machine — or in
+# CI — `pytest` was simply not found.
+
+pytest==9.0.3

@@ -1,0 +1,124 @@
+name: CI
+
+# ─────────────────────────────────────────────────────────────────────
+# The quality gate. Nothing merges to develop or main without this
+# passing.
+#
+# Two independent jobs run in parallel:
+#   backend   — 328 pytest tests against the KP engines (~10 min)
+#   frontend  — typecheck, lint, production build (~4 min)
+#
+# DESIGN NOTE — why both jobs always run, with no path filters:
+#   It is tempting to skip the backend job when a PR only touches
+#   frontend/. Don't. GitHub branch protection requires a named check to
+#   REPORT a result; a job skipped by a path filter never reports, so a
+#   required check sits "Expected — waiting" forever and the PR can
+#   never merge. Paying ~10 minutes on every push is the cheaper
+#   trade-off. Revisit only if the suite gets much slower.
+# ─────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+# Pushing three times in a minute should not queue three full runs.
+# Cancel any in-flight run for the same branch when a new push lands.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege: CI only ever reads the repo.
+permissions:
+  contents: read
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════
+  # BACKEND — the KP engines. This is the suite that protects prediction
+  # accuracy, so it is the one gate that must never be skipped or made
+  # advisory.
+  # ═══════════════════════════════════════════════════════════════════
+  backend:
+    name: Backend — pytest
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          # Keep in sync with backend/runtime.txt, which is what Railway
+          # reads to pick the production interpreter.
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      # No env vars are set here, deliberately. The suite must pass with
+      # ZERO secrets: it exercises the KP engines (pure computation),
+      # not the network. If a test ever needs a real secret, that test
+      # is reaching for something it should be mocking.
+      - name: Run tests
+        run: pytest -q --durations=10
+
+  # ═══════════════════════════════════════════════════════════════════
+  # FRONTEND — typecheck, lint, production build.
+  # ═══════════════════════════════════════════════════════════════════
+  frontend:
+    name: Frontend — typecheck, lint, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # `npm ci` (not `npm install`) — installs exactly what
+      # package-lock.json pins and fails if the lockfile is out of sync
+      # with package.json. That is what we want in CI.
+      - name: Install dependencies
+        run: npm ci
+
+      # Runs first because it is the fastest way to catch the most
+      # common breakage, including drift between the backend's generated
+      # API types and the components that consume them.
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npx next build
+        env:
+          # Build-time placeholders only. Real values live in Vercel's
+          # project settings. Nothing here is secret — the Supabase anon
+          # key is public by design (it is shipped in the browser
+          # bundle), and these are obvious non-functional dummies.
+          #
+          # They exist so the production build exercises the SAME code
+          # path as Vercel: with Supabase "configured", AuthGate renders
+          # the real app shell rather than its "Auth not configured"
+          # fallback.
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key-not-a-secret
+          NEXT_PUBLIC_API_URL: https://devastroai.up.railway.app
