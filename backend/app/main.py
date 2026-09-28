@@ -56,8 +56,15 @@ from app.routers import client_notes as client_notes_router
 #
 # New approach: format the request_id INTO the message string at log
 # time, no `extra=` magic needed. Standard Python logging idiom.
+# The ONE place the environment is read is app/config.py. main.py is
+# the composition root, so it resolves settings once here and everything
+# below reads from this object instead of calling os.getenv.
+from app.config import get_settings
+
+_settings = get_settings()
+
 logging.basicConfig(
-    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    level=_settings.LOG_LEVEL,
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 _log = logging.getLogger("kp_astro.main")
@@ -65,7 +72,7 @@ _log = logging.getLogger("kp_astro.main")
 # ════════════════════════════════════════════════════════════════
 # Anthropic key validation at startup (fail fast, not on first request)
 # ════════════════════════════════════════════════════════════════
-if not os.getenv("ANTHROPIC_API_KEY"):
+if not _settings.ANTHROPIC_API_KEY:
     _log.warning(
         "ANTHROPIC_API_KEY env var is not set; LLM endpoints will fail. "
         "Set it in your environment before serving traffic."
@@ -80,7 +87,7 @@ if not os.getenv("ANTHROPIC_API_KEY"):
 #
 # Disabled in local dev by default — set SENTRY_DSN env to enable.
 # Production Railway should set SENTRY_DSN + (optional) SENTRY_ENVIRONMENT.
-_sentry_dsn = os.getenv("SENTRY_DSN", "").strip()
+_sentry_dsn = (_settings.SENTRY_DSN or "").strip()
 if _sentry_dsn:
     try:
         import sentry_sdk
@@ -88,12 +95,10 @@ if _sentry_dsn:
         from sentry_sdk.integrations.fastapi import FastApiIntegration
         sentry_sdk.init(
             dsn=_sentry_dsn,
-            environment=os.getenv("SENTRY_ENVIRONMENT", "production"),
+            environment=_settings.SENTRY_ENVIRONMENT,
             # Sample 10% of transactions — enough to see latency
             # patterns, cheap enough to never hit the free-tier cap.
-            traces_sample_rate=float(
-                os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1")
-            ),
+            traces_sample_rate=_settings.SENTRY_TRACES_SAMPLE_RATE,
             # Errors always captured (sampled at the SDK default 1.0).
             integrations=[
                 StarletteIntegration(transaction_style="endpoint"),
@@ -101,9 +106,9 @@ if _sentry_dsn:
             ],
             # release tag from Railway commit if available — links
             # Sentry events to specific deploy SHAs.
-            release=(
-                os.getenv("RAILWAY_GIT_COMMIT_SHA", "")[:12] or None
-            ),
+            # Short sha, or None so Sentry records "no release" rather
+            # than grouping everything under a literal "unknown".
+            release=(_settings.RAILWAY_GIT_COMMIT_SHA or "")[:12] or None,
             # PII off by default — we don't send auth headers, JWT
             # bodies, request bodies. Safer default for an astrology
             # SaaS handling birth data.
@@ -111,8 +116,8 @@ if _sentry_dsn:
         )
         _log.info(
             "sentry_initialized environment=%s release=%s",
-            os.getenv("SENTRY_ENVIRONMENT", "production"),
-            (os.getenv("RAILWAY_GIT_COMMIT_SHA", "")[:12] or "unknown"),
+            _settings.SENTRY_ENVIRONMENT,
+            _settings.commit_sha_short,
         )
     except Exception as e:
         # Never let Sentry setup break the app.
@@ -255,7 +260,7 @@ _default_cors = ",".join([
     "http://localhost:3001",
     "http://127.0.0.1:3000",
 ])
-_cors_origins = [o.strip() for o in os.getenv("CORS_ALLOWED_ORIGINS", _default_cors).split(",") if o.strip()]
+_cors_origins = [o.strip() for o in (_settings.CORS_ALLOWED_ORIGINS or _default_cors).split(",") if o.strip()]
 
 # Default regex matches our project's Vercel deploys ONLY — not the
 # whole *.vercel.app namespace (which would let any Vercel-hosted page,
@@ -273,13 +278,12 @@ _cors_origins = [o.strip() for o in os.getenv("CORS_ALLOWED_ORIGINS", _default_c
 # differently-named Vercel project; set CORS_ALLOWED_ORIGINS to lock it
 # down to an explicit list (highest priority).
 _default_cors_regex = r"https://([a-z0-9-]+-)?devastroai(-[a-z0-9-]+)?\.vercel\.app"
-_cors_regex = os.getenv("CORS_ALLOWED_ORIGIN_REGEX", _default_cors_regex)
+_cors_regex = _settings.CORS_ALLOWED_ORIGIN_REGEX or _default_cors_regex
 # S1 hardening (2026-06-02): log a loud warning if production starts up
 # with the lax default. Operators should set explicit CORS_ALLOWED_ORIGINS
 # in Railway for production.
-if os.getenv("CORS_ALLOWED_ORIGINS") is None and os.getenv(
-    "CORS_ALLOWED_ORIGIN_REGEX"
-) is None:
+if (_settings.CORS_ALLOWED_ORIGINS is None
+        and _settings.CORS_ALLOWED_ORIGIN_REGEX is None):
     _log.warning(
         "cors_using_default_regex regex=%s — set CORS_ALLOWED_ORIGINS "
         "explicitly in production to lock down the allowed origins.",
@@ -310,7 +314,7 @@ app.add_middleware(
 # the PATCH body crossed 256 KB and the save was rejected with 413
 # request_too_large (→ answers silently failed to persist). 2 MB is still a
 # sane DoS backstop and stays env-overridable via MAX_REQUEST_BODY_BYTES.
-_MAX_BODY_BYTES = int(os.getenv("MAX_REQUEST_BODY_BYTES", str(2 * 1024 * 1024)))  # 2 MB default
+_MAX_BODY_BYTES = _settings.MAX_REQUEST_BODY_BYTES  # 2 MB default
 
 def _cors_headers_for(request: Request) -> Dict[str, str]:
     """Compute CORS headers for early-return responses that bypass the
@@ -426,7 +430,7 @@ _RATE_LIMITS: Dict[str, tuple[int, int]] = {
 # touched 25% (LRU-ish — cheap, no external dep).
 _request_log: Dict[str, Deque[float]] = {}
 _request_log_last_touch: Dict[str, float] = {}
-_REQUEST_LOG_MAX_KEYS = int(os.getenv("RATE_LIMIT_MAX_KEYS", "20000"))
+_REQUEST_LOG_MAX_KEYS = _settings.RATE_LIMIT_MAX_KEYS
 
 # 2026-06-08 audit fix (P0): number of trusted reverse-proxy hops in
 # front of the app. The rate-limit client IP is taken this many entries
@@ -442,7 +446,7 @@ _REQUEST_LOG_MAX_KEYS = int(os.getenv("RATE_LIMIT_MAX_KEYS", "20000"))
 # Railway stamps. If the platform ever adds more hops, bump this env var
 # to match — setting it too low buckets distinct users together (false
 # 429s); too high re-opens the spoof. See _ratelimit_client_ip().
-_TRUSTED_PROXY_HOPS = max(1, int(os.getenv("TRUSTED_PROXY_HOPS", "1")))
+_TRUSTED_PROXY_HOPS = _settings.TRUSTED_PROXY_HOPS  # Field(ge=1) enforces the floor
 
 
 def _ratelimit_client_ip(request: Request) -> str:
@@ -471,7 +475,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     or if you want to disable temporarily without a deploy).
     """
     async def dispatch(self, request: Request, call_next):
-        if os.getenv("RATE_LIMIT_ENABLED", "1") != "1":
+        if not get_settings().RATE_LIMIT_ENABLED:
             return await call_next(request)
         path = request.url.path
         # Find the longest matching prefix
@@ -745,7 +749,7 @@ async def health():
     # O2 (deep-scan-2): "unconfigured" distinct from "fail" so monitoring
     # tools (UptimeRobot) don't alarm on intentional dev/chart-only
     # deployments missing optional integrations.
-    _anthropic_set = bool(os.getenv("ANTHROPIC_API_KEY"))
+    _anthropic_set = bool(get_settings().ANTHROPIC_API_KEY)
     checks["anthropic_key"] = {
         "status": "ok" if _anthropic_set else "unconfigured",
         "detail": "key configured" if _anthropic_set else "ANTHROPIC_API_KEY not set",
@@ -850,11 +854,7 @@ async def health():
         "status": overall_status,
         "checks": checks,
         "version": "0.1.0",
-        "commit": (
-            os.getenv("RAILWAY_GIT_COMMIT_SHA")
-            or os.getenv("RAILWAY_GIT_COMMIT_MESSAGE")
-            or "unknown"
-        )[:12],  # short sha
+        "commit": get_settings().commit_sha_short,
         "uptime_seconds": int(_time.time() - _PROCESS_START_TIME),
         "timestamp": _dt.utcnow().isoformat() + "Z",
     }
@@ -887,11 +887,10 @@ def version():
     behind an X-Admin-Token header (set ADMIN_DEBUG_TOKEN env var to
     enable). The narrow /version stays public for health-monitor tools.
     """
+    _s = get_settings()
     return {
-        "commit": (os.getenv("RAILWAY_GIT_COMMIT_SHA")
-                   or os.getenv("RAILWAY_GIT_COMMIT_MESSAGE")
-                   or "unknown"),
-        "branch": os.getenv("RAILWAY_GIT_BRANCH") or "unknown",
+        "commit": _s.commit_sha,
+        "branch": _s.git_branch,
     }
 
 
@@ -902,7 +901,7 @@ def version_full(request: Request):
     If the token env var is unset, this endpoint returns 404 (no
     side-channel info leak about whether admin features exist).
     """
-    expected = os.getenv("ADMIN_DEBUG_TOKEN")
+    expected = get_settings().ADMIN_DEBUG_TOKEN
     provided = request.headers.get("x-admin-token", "")
     # P1-3 (deep-scan-2): hmac.compare_digest avoids the timing-attack
     # side channel of Python's == on strings (which short-circuits on
@@ -921,11 +920,11 @@ def version_full(request: Request):
             detail={"error": "not_found"},
         )
     return {
-        "commit": (os.getenv("RAILWAY_GIT_COMMIT_SHA")
-                   or os.getenv("RAILWAY_GIT_COMMIT_MESSAGE")
-                   or "unknown"),
-        "branch": os.getenv("RAILWAY_GIT_BRANCH") or "unknown",
-        "deployed_at": os.getenv("RAILWAY_DEPLOYMENT_DRAINING_SECONDS") or "unknown",
+        "commit": get_settings().commit_sha,
+        "branch": get_settings().git_branch,
+        "deployed_at": (
+            get_settings().RAILWAY_DEPLOYMENT_DRAINING_SECONDS or "unknown"
+        ),
         # Internal phase markers — flip these as features ship so we
         # can verify via /version/full which cost-fix commits are
         # actually running.

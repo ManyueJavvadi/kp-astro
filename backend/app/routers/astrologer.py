@@ -40,19 +40,26 @@ async def _require_workspace_auth(
 ) -> Optional[SupabaseJWTPayload]:
     """Auth gate for /astrologer/workspace.
 
-    Honors WORKSPACE_AUTH_REQUIRED env var (default '1' = required).
-    Set '0' for local dev / smoke-tests; production ALWAYS requires auth.
+    Honors the WORKSPACE_AUTH_REQUIRED setting (default true = required).
+    Set it false for local dev / smoke-tests; production ALWAYS requires
+    auth regardless of the setting.
 
     2026-06-08 audit fix (foot-gun hardening): the old check was
     `!= "1"` which inverted truthiness — any value other than the exact
     string "1" (e.g. "true", "yes") silently DISABLED auth, the opposite
     of an operator's intent. And it never consulted ENVIRONMENT, so a
-    stray env var could open this CPU-heavy endpoint in production. Now:
-    (a) the bypass is honored ONLY outside production, and (b) it
-    requires the explicit value "0" — anything else means "required".
+    stray env var could open this CPU-heavy endpoint in production. The
+    fix made the bypass honored ONLY outside production.
+
+    2026-09-27 (config single door): the value now comes from the typed
+    Settings field instead of a raw string compare. Pydantic accepts the
+    usual spellings (false/0/no/off) and REJECTS anything it cannot
+    parse, so a typo fails at startup rather than silently choosing a
+    side. The dangerous direction stays closed: 'true' parses as True,
+    i.e. auth required.
     """
     _env = _wkspc_get_settings().ENVIRONMENT
-    _bypass = os.getenv("WORKSPACE_AUTH_REQUIRED", "1").strip() == "0"
+    _bypass = not _wkspc_get_settings().WORKSPACE_AUTH_REQUIRED
     if _env != "production" and _bypass:
         return None  # Anonymous mode (local dev / smoke-tests only)
     if not authorization:

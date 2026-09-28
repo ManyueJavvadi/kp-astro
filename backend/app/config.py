@@ -9,11 +9,38 @@ Why this exists:
   via pydantic-settings. If a required var is missing or malformed, the
   process exits before serving any traffic. Fail fast = fail safe.
 
+THE ONE RULE
+  This file is the ONLY place in `app/` that reads the environment.
+  Nothing else may call `os.getenv` or touch `os.environ`.
+
+  `tests/test_config_single_door.py` enforces this — it greps the whole
+  `app/` package and fails the build on any new env read outside this
+  module. If you need a new setting, declare it here; do not reach for
+  os.getenv, however small the value seems.
+
+  Why the rule is worth enforcing (2026-09-27): before this, 20 env vars
+  were read directly across main.py, db/engine.py, routers/ and
+  services/, and six of them were ALSO declared here. Two sources of
+  truth, and they had drifted:
+
+    - MAX_REQUEST_BODY_BYTES defaulted to 256 KB here and 2 MB in
+      main.py. main.py won, so this file's value was simply a lie that
+      anyone reading it would have believed.
+    - RATE_LIMIT_ENABLED was tested with `os.getenv(...) != "1"`, so
+      setting the obvious-looking RATE_LIMIT_ENABLED=true silently
+      DISABLED the rate limiter — the one cost control on paid LLM
+      endpoints.
+
+  Both are the same failure mode: config that is wrong but plausible,
+  failing quietly. Typed fields in one file make that class of bug
+  impossible to write.
+
 Adding a new env var:
   1. Add a typed field below.
   2. If required, omit a default (Pydantic raises if unset).
   3. If optional, give it a sensible default and document why.
   4. Reference it via `get_settings().YOUR_VAR` — NEVER bare `os.getenv`.
+  5. Add it to `.env.example` so the next person knows it exists.
 
 Env precedence (highest first):
   1. Process environment (e.g., set in Railway dashboard)
@@ -29,7 +56,7 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Literal, Optional
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -64,6 +91,28 @@ class Settings(BaseSettings):
         default="INFO",
         description="Standard Python logging level for the root logger.",
     )
+
+    @field_validator("ENVIRONMENT", "LOG_LEVEL", mode="before")
+    @classmethod
+    def _normalise_case(cls, v):
+        """Accept any casing for the two Literal-typed settings.
+
+        main.py previously did `os.getenv("LOG_LEVEL", "INFO").upper()`,
+        so a deployment carrying LOG_LEVEL=info worked fine. Moving the
+        read into a Literal field would have started rejecting that at
+        startup — turning a cosmetic difference into a boot failure on
+        the next deploy. Normalise here so the typed field is strictly
+        more permissive than the code it replaced, never less.
+
+        ENVIRONMENT gets the same treatment (lower) for symmetry, since
+        "Production" is an equally easy thing to type into a dashboard.
+        """
+        if not isinstance(v, str):
+            return v
+        v = v.strip()
+        return v.lower() if v.lower() in {
+            "development", "staging", "production"
+        } else v.upper()
 
     # ──────────────────────────────────────────────────────────────────
     # Database (Phase 1, ADR-001 — SQLAlchemy 2.0 async + Alembic)
@@ -119,25 +168,134 @@ class Settings(BaseSettings):
     )
 
     # ──────────────────────────────────────────────────────────────────
-    # CORS / rate limiting (already env-controlled in main.py; surfacing
-    # for one-stop validation)
+    # CORS
     # ──────────────────────────────────────────────────────────────────
     CORS_ALLOWED_ORIGINS: Optional[str] = Field(
         default=None,
-        description="Comma-separated list. Falls back to defaults in main.py.",
+        description=(
+            "Comma-separated explicit allow-list. Highest priority. When "
+            "unset, main.py falls back to its built-in default list."
+        ),
     )
     CORS_ALLOWED_ORIGIN_REGEX: Optional[str] = Field(
         default=None,
-        description="Single regex for wildcard CORS origins (e.g. Vercel previews).",
+        description=(
+            "Single regex for wildcard origins (e.g. Vercel previews). "
+            "When unset, main.py falls back to its built-in project regex."
+        ),
     )
+
+    # ──────────────────────────────────────────────────────────────────
+    # Request limits / rate limiting
+    # ──────────────────────────────────────────────────────────────────
     MAX_REQUEST_BODY_BYTES: int = Field(
-        default=256 * 1024,
-        description="Reject POSTs whose Content-Length exceeds this.",
+        default=2 * 1024 * 1024,  # 2 MB
+        description=(
+            "Reject POSTs whose Content-Length exceeds this. "
+            "Raised 256 KB -> 2 MB on 2026-06-16: chart-session saves "
+            "carry the full workspace blob plus a growing AI Q&A history, "
+            "and at ~25 long KP answers the PATCH body crossed 256 KB and "
+            "was rejected with 413 (answers silently failed to persist). "
+            "2 MB is still a sane DoS backstop."
+        ),
     )
     RATE_LIMIT_ENABLED: bool = Field(
         default=True,
-        description="Set to false in load tests / local dev to disable rate limiter.",
+        description=(
+            "Set false in load tests / local dev to disable the rate "
+            "limiter. Accepts the usual truthy/falsy spellings "
+            "(true/false, 1/0, yes/no, on/off)."
+        ),
     )
+    RATE_LIMIT_MAX_KEYS: int = Field(
+        default=20_000,
+        description=(
+            "Cap on tracked rate-limit buckets. Prevents the in-memory "
+            "request log from growing without bound; the oldest 25% are "
+            "evicted when the cap is reached."
+        ),
+    )
+    TRUSTED_PROXY_HOPS: int = Field(
+        default=1,
+        ge=1,
+        description=(
+            "Number of trusted reverse-proxy hops in front of the app. The "
+            "rate-limit client IP is taken this many entries from the RIGHT "
+            "of X-Forwarded-For — the value our own edge appended, which a "
+            "client cannot forge. Railway appends exactly one entry, so 1 is "
+            "correct there. Too low buckets distinct users together (false "
+            "429s); too high re-opens IP spoofing."
+        ),
+    )
+
+    # ──────────────────────────────────────────────────────────────────
+    # Observability — Sentry
+    # ──────────────────────────────────────────────────────────────────
+    SENTRY_DSN: Optional[str] = Field(
+        default=None,
+        description="Sentry DSN. Error monitoring is disabled when unset.",
+    )
+    SENTRY_ENVIRONMENT: str = Field(
+        default="production",
+        description="Environment tag attached to Sentry events.",
+    )
+    SENTRY_TRACES_SAMPLE_RATE: float = Field(
+        default=0.1,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Fraction of transactions sampled for performance tracing. "
+            "0.1 shows latency patterns while staying under the free tier."
+        ),
+    )
+
+    # ──────────────────────────────────────────────────────────────────
+    # Database pool tuning
+    # ──────────────────────────────────────────────────────────────────
+    DB_POOL_SIZE: int = Field(
+        default=10,
+        ge=1,
+        description="SQLAlchemy connection pool size.",
+    )
+    DB_MAX_OVERFLOW: int = Field(
+        default=20,
+        ge=0,
+        description="Extra connections SQLAlchemy may open beyond the pool.",
+    )
+
+    # ──────────────────────────────────────────────────────────────────
+    # Operator / debug
+    # ──────────────────────────────────────────────────────────────────
+    ADMIN_DEBUG_TOKEN: Optional[str] = Field(
+        default=None,
+        description=(
+            "Shared secret for GET /version/full. When unset that endpoint "
+            "returns 404, so its existence is not advertised."
+        ),
+    )
+    CACHE_DIAG: bool = Field(
+        default=False,
+        description="Emit answer-cache hit/miss diagnostics to the log.",
+    )
+    WORKSPACE_AUTH_REQUIRED: bool = Field(
+        default=True,
+        description=(
+            "When false, the astrologer workspace endpoints skip auth. "
+            "Escape hatch for local development ONLY — never set false in "
+            "any deployed environment."
+        ),
+    )
+
+    # ──────────────────────────────────────────────────────────────────
+    # Platform-injected (Railway sets these automatically on deploy — we
+    # only ever read them). Declared here so that `get_settings()` really
+    # is the single door, and so /health and /version have one typed
+    # source instead of six scattered os.getenv calls.
+    # ──────────────────────────────────────────────────────────────────
+    RAILWAY_GIT_COMMIT_SHA: Optional[str] = Field(default=None)
+    RAILWAY_GIT_COMMIT_MESSAGE: Optional[str] = Field(default=None)
+    RAILWAY_GIT_BRANCH: Optional[str] = Field(default=None)
+    RAILWAY_DEPLOYMENT_DRAINING_SECONDS: Optional[str] = Field(default=None)
 
     # ──────────────────────────────────────────────────────────────────
     # Derived helpers
@@ -176,6 +334,30 @@ class Settings(BaseSettings):
         raises invalid_token cleanly.
         """
         return bool(self.SUPABASE_URL)
+
+    @property
+    def commit_sha(self) -> str:
+        """Deployed git commit, or "unknown" outside a Railway deploy.
+
+        Railway injects RAILWAY_GIT_COMMIT_SHA on every deploy. The
+        fallback to RAILWAY_GIT_COMMIT_MESSAGE is historical: some early
+        Railway builds populated only the message field.
+        """
+        return (
+            self.RAILWAY_GIT_COMMIT_SHA
+            or self.RAILWAY_GIT_COMMIT_MESSAGE
+            or "unknown"
+        )
+
+    @property
+    def commit_sha_short(self) -> str:
+        """First 12 chars of `commit_sha` — what /health reports."""
+        return self.commit_sha[:12]
+
+    @property
+    def git_branch(self) -> str:
+        """Deployed git branch, or "unknown" outside a Railway deploy."""
+        return self.RAILWAY_GIT_BRANCH or "unknown"
 
     @property
     def database_url_async(self) -> Optional[str]:
