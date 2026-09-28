@@ -8,13 +8,20 @@ from dotenv import load_dotenv
 # the rationale (user reported unexplained billing changes).
 from .cost_audit import log_anthropic_call
 
+# 2026-09-27 (config single door): the API key now comes from the typed
+# Settings object instead of a bare os.getenv, so app/config.py is the
+# one place the environment is read. Behaviourally identical — Settings
+# reads the same env var and the same .env file. Nothing about the
+# prompts, knowledge-base selection or model routing is touched here.
+from app.config import get_settings
+
 load_dotenv()
 
-client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+client = anthropic.Anthropic(api_key=get_settings().ANTHROPIC_API_KEY)
 # PR A1.3-fix-16 — async client used by the streaming variant
 # (get_prediction_stream). Kept alongside the sync client so the
 # existing get_prediction() call sites continue to work unchanged.
-async_client = anthropic.AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+async_client = anthropic.AsyncAnthropic(api_key=get_settings().ANTHROPIC_API_KEY)
 
 # ================================================================
 # KNOWLEDGE BASE LOADER

@@ -32,7 +32,12 @@ interface PasswordInputProps
 export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
   function PasswordInput({ wrapperClassName, style, ...props }, ref) {
     const [visible, setVisible] = useState(false);
-    const id = props.id || useId();
+    // useId() must be called unconditionally — `props.id || useId()`
+    // short-circuits, so a caller that passes `id` on one render and
+    // omits it on the next changes the hook call order and crashes
+    // React. Call the hook every time, then choose.
+    const generatedId = useId();
+    const id = props.id || generatedId;
 
     return (
       <div

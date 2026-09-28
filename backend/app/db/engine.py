@@ -64,8 +64,8 @@ def get_engine() -> AsyncEngine:
         # plus /health, portal admin, AI drafts, and the schema-drift
         # probe sharing the pool, 15 connections was undersized for
         # Railway. Both knobs are env-overridable for future tuning.
-        pool_size=int(os.getenv("DB_POOL_SIZE", "10")),
-        max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "20")),
+        pool_size=settings.DB_POOL_SIZE,
+        max_overflow=settings.DB_MAX_OVERFLOW,
     )
 
 

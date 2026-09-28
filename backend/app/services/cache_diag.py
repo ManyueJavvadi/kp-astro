@@ -50,7 +50,8 @@ _MAX_ENTRIES = 500
 
 def is_enabled() -> bool:
     """Diagnostics is opt-in via env var. Default OFF."""
-    return os.getenv("CACHE_DIAG", "0").strip() == "1"
+    from app.config import get_settings
+    return get_settings().CACHE_DIAG
 
 
 def session_key(
